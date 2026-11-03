@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   }
   const { data: row } = await supabaseService()
     .from("brand_campaigns")
-    .select("id, status, title, category, location, min_followers, platforms, brands ( brand_name )")
+    .select("id, status, title, category, location, requires_presence, min_followers, platforms, brands ( brand_name )")
     .eq("id", body.campaignId)
     .maybeSingle();
   if (!row || row.status !== "open") return NextResponse.json({ error: "Campaign not open" }, { status: 404 });
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     location: row.location || null,
     minFollowers: row.min_followers ?? null,
     platforms: Array.isArray(row.platforms) ? row.platforms.map(String) : [],
+    requiresPresence: row.requires_presence === true,
     includeStrong: true,
     skipFirst: Number(body.skipFirst) || 0,
   });

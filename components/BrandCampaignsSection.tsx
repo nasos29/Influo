@@ -15,6 +15,8 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
+import CampaignAiWizard, { type SiteBrandInfo } from "@/components/CampaignAiWizard";
+import PlatformActivityBadge from "@/components/PlatformActivityBadge";
 import CampaignCover from "@/components/CampaignCover";
 import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -55,6 +57,8 @@ export type BrandCampaignRow = {
   starts_on?: string | null;
   compensation_type?: "money" | "product" | "both" | null;
   cover_url?: string | null;
+  slots?: number | null;
+  requires_presence?: boolean | null;
 };
 
 type InfluencerBits = {
@@ -361,7 +365,93 @@ const emptyForm = () => ({
   chips: {} as Record<string, number>,
   compensation_type: "" as "" | "money" | "product" | "both",
   status: "draft" as "draft" | "open" | "closed",
+  /** "" = Χωρίς όριο (no limit). */
+  slots: "",
+  requires_presence: false,
 });
+
+type CampaignForm = ReturnType<typeof emptyForm>;
+type FieldKey = "title" | "description" | "category" | "location" | "platforms" | "deliverables" | "compensation_type" | "budget" | "starts_on" | "deadline" | "slots" | "status";
+
+const DRAFT_KEY = (brandId: string) => `influo:campaign-draft:${brandId}`;
+
+/** Ready packages that prefill the form (no AI cost). */
+const TEMPLATES: Array<{ id: string; el: string; en: string; hint: string; fill: Partial<CampaignForm> }> = [
+  {
+    id: "launch",
+    el: "Launch προϊόντος",
+    en: "Product launch",
+    hint: "Reels + Stories για νέο προϊόν",
+    fill: {
+      title: "Launch νέου προϊόντος",
+      description:
+        "Λανσάρουμε νέο προϊόν και αναζητούμε creators για να το παρουσιάσουν αυθεντικά στο κοινό τους. Θα λάβετε το προϊόν, θα το δοκιμάσετε και θα μοιραστείτε την εμπειρία σας με ειλικρινή τρόπο.",
+      chips: { reel: 1, story: 3 },
+      platforms: ["instagram"],
+      compensation_type: "both",
+      slots: "5",
+    },
+  },
+  {
+    id: "local",
+    el: "Τοπική επιχείρηση",
+    en: "Local business",
+    hint: "Επίσκεψη στο κατάστημα + Stories",
+    fill: {
+      title: "Επίσκεψη και παρουσίαση τοπικής επιχείρησης",
+      description:
+        "Προσκαλούμε creators της περιοχής να επισκεφθούν την επιχείρησή μας, να γνωρίσουν τις υπηρεσίες μας και να τις παρουσιάσουν στο κοινό τους.",
+      chips: { story: 3, post: 1 },
+      platforms: ["instagram"],
+      compensation_type: "both",
+      slots: "3",
+    },
+  },
+  {
+    id: "ugc",
+    el: "UGC βίντεο",
+    en: "UGC video",
+    hint: "Βίντεο για χρήση στα δικά σας κανάλια",
+    fill: {
+      title: "UGC βίντεο για το brand μας",
+      description:
+        "Ζητάμε σύντομα, αυθεντικά βίντεο (UGC) με το προϊόν μας, για χρήση στα κανάλια και στις διαφημίσεις του brand. Δεν απαιτείται δημοσίευση στο προφίλ σας.",
+      chips: { tiktok: 2 },
+      platforms: ["tiktok", "instagram"],
+      deliverables: "Παράδοση αρχείων βίντεο κάθετου κάδρου (9:16)",
+      compensation_type: "money",
+      slots: "3",
+    },
+  },
+  {
+    id: "event",
+    el: "Event",
+    en: "Event",
+    hint: "Κάλυψη εκδήλωσης με παρουσία",
+    fill: {
+      title: "Κάλυψη εκδήλωσης",
+      description:
+        "Διοργανώνουμε εκδήλωση και αναζητούμε creators να παρευρεθούν και να την καλύψουν ζωντανά με Stories και ένα Reel μετά την εκδήλωση.",
+      chips: { story: 4, reel: 1 },
+      platforms: ["instagram"],
+      compensation_type: "both",
+      slots: "4",
+    },
+  },
+];
+
+function inputCls(error?: string | null): string {
+  return `w-full px-3 py-2 border rounded-lg text-slate-900 ${error ? "border-red-500 focus:outline-red-500" : "border-slate-300"}`;
+}
+
+function FieldError({ msg }: { msg?: string | null }) {
+  if (!msg) return null;
+  return (
+    <p role="alert" className="text-xs text-red-600 mt-1">
+      {msg}
+    </p>
+  );
+}
 
 function ymd(value: string | null | undefined): string {
   if (!value) return "";
@@ -391,6 +481,8 @@ export default function BrandCampaignsSection({
   const t = txt[lang];
   const x = extra[lang];
   const wz = wiz[lang];
+  const stepLabels =
+    lang === "el" ? ["Βασικά", "Παραδοτέα & αμοιβή", "Προεπισκόπηση"] : ["Basics", "Deliverables & budget", "Preview"];
   const [rows, setRows] = useState<BrandCampaignRow[]>([]);
   const [appCounts, setAppCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
@@ -412,6 +504,12 @@ export default function BrandCampaignsSection({
   const [invitingId, setInvitingId] = useState<string | null>(null);
   const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
   const [step, setStep] = useState(1);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [slotsById, setSlotsById] = useState<Record<string, number | null>>({});
+  const [aiOpen, setAiOpen] = useState(false);
+  /** Logo/colors read from the brand site (preview only; not stored). */
+  const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -421,7 +519,7 @@ export default function BrandCampaignsSection({
     setSchemaError(false);
     setLoadError(null);
     const baseColumns =
-      "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type";
+      "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type, requires_presence";
     const fetchRows = (columns: string) =>
       supabase
         .from("brand_campaigns")
@@ -602,12 +700,75 @@ export default function BrandCampaignsSection({
     setEditing("new");
   }, [startNew, loading]);
 
+  const restoreDraft = (): CampaignForm | null => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY(brandId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { form?: Partial<CampaignForm>; at?: number };
+      if (!parsed.form || !parsed.at || Date.now() - parsed.at > 14 * 24 * 3600 * 1000) return null;
+      return { ...emptyForm(), ...parsed.form };
+    } catch {
+      return null;
+    }
+  };
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY(brandId));
+    } catch {
+      /* ignore */
+    }
+  };
+
   const openNew = () => {
-    setForm(emptyForm());
+    const draft = restoreDraft();
+    setForm(draft || emptyForm());
+    setDraftRestored(!!draft);
     setStep(1);
+    setFieldErrors({});
     setContactFieldErrors({});
     setEditing("new");
   };
+
+  const applyPrefill = (fill: Partial<CampaignForm>, toStep = 1) => {
+    setForm((prev) => ({ ...emptyForm(), starts_on: prev.starts_on, category: prev.category, ...fill }));
+    setFieldErrors({});
+    setContactFieldErrors({});
+    setDraftRestored(false);
+    setStep(toStep);
+    setEditing((prev) => prev || "new");
+  };
+
+  // Draft autosave (new campaigns only), debounced.
+  useEffect(() => {
+    if (editing !== "new") return;
+    const timer = setTimeout(() => {
+      try {
+        const empty = JSON.stringify(emptyForm());
+        if (JSON.stringify(form) === empty) return;
+        localStorage.setItem(DRAFT_KEY(brandId), JSON.stringify({ form, at: Date.now() }));
+      } catch {
+        /* storage full or blocked */
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [form, editing, brandId]);
+
+  // Slots per campaign (separate read so a missing column never breaks the list).
+  useEffect(() => {
+    const ids = rows.map((r) => r.id);
+    if (!ids.length) return;
+    let alive = true;
+    void Promise.resolve(supabase.from("brand_campaigns").select("id, slots").in("id", ids)).then(({ data, error }) => {
+      if (!alive || error) return;
+      const map: Record<string, number | null> = {};
+      for (const r of (data as Array<{ id: string; slots: number | null }>) || []) map[r.id] = r.slots ?? null;
+      setSlotsById(map);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [rows]);
 
   const openEdit = (row: BrandCampaignRow) => {
     const parsed = parseDeliverables(row.deliverables);
@@ -629,7 +790,11 @@ export default function BrandCampaignsSection({
       platforms: [...new Set([...rowPlatforms, ...chipPlatforms])],
       compensation_type: row.compensation_type || "",
       status: row.status,
+      requires_presence: row.requires_presence === true,
+      slots: slotsById[row.id] != null ? String(slotsById[row.id]) : "",
     });
+    setFieldErrors({});
+    setDraftRestored(false);
     setContactFieldErrors({});
     setEditing(row);
   };
@@ -688,40 +853,52 @@ export default function BrandCampaignsSection({
   };
 
   const goToStep = (next: number) => {
-    setStep(Math.max(1, Math.min(4, next)));
+    setStep(Math.max(1, Math.min(3, next)));
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
   };
 
-  /** Returns an error message for the given step, or null if it can proceed. */
-  const validateStep = (n: number): string | null => {
+  /** Per-field Greek/English messages for a step; empty object = can proceed. */
+  const stepErrors = (n: number): Partial<Record<FieldKey, string>> => {
+    const el = lang === "el";
+    const e: Partial<Record<FieldKey, string>> = {};
     if (n === 1) {
-      if (!form.title.trim() || !form.description.trim()) {
-        return lang === "el" ? "Συμπληρώστε τίτλο και περιγραφή." : "Fill in the title and description.";
-      }
-      const blockedFields: Array<"title" | "description"> = ["title", "description"];
-      for (const field of blockedFields) {
-        if (form[field].trim() && findContactInfo(form[field])) {
-          setContactFieldErrors((prev) => ({ ...prev, [field]: CONTACT_BLOCKED[lang] }));
-          return CONTACT_BLOCKED[lang];
-        }
+      if (!form.title.trim()) e.title = el ? "Γράψτε έναν τίτλο για την καμπάνια." : "Add a campaign title.";
+      else if (form.title.trim().length < 5) e.title = el ? "Ο τίτλος είναι πολύ σύντομος (τουλάχιστον 5 χαρακτήρες)." : "Title is too short (at least 5 characters).";
+      if (!form.description.trim()) e.description = el ? "Περιγράψτε τι ζητάτε από τους creators." : "Describe what you need from creators.";
+      else if (form.description.trim().length < 30) e.description = el ? "Η περιγραφή είναι πολύ σύντομη (τουλάχιστον 30 χαρακτήρες)." : "Description is too short (at least 30 characters).";
+      if (!form.category) e.category = el ? "Επιλέξτε κατηγορία." : "Pick a category.";
+      if (form.requires_presence && (!form.location.trim() || /^(πανελλαδικ|panelladik|ελλαδα|ελλάδα|greece|nationwide)/i.test(form.location.trim())))
+        e.location = el ? "Με φυσική παρουσία, γράψτε συγκεκριμένη περιοχή (π.χ. Αθήνα)." : "With in-person presence, enter a specific area (e.g. Athens).";
+      for (const f of ["title", "description", "location"] as const) {
+        if (!e[f] && form[f].trim() && findContactInfo(form[f])) e[f] = CONTACT_BLOCKED[lang];
       }
     }
     if (n === 2) {
-      if (!form.platforms.length) return lang === "el" ? "Επιλέξτε τουλάχιστον μία πλατφόρμα." : "Pick at least one platform.";
-      if (form.deliverables.trim() && findContactInfo(form.deliverables)) {
-        setContactFieldErrors((prev) => ({ ...prev, deliverables: CONTACT_BLOCKED[lang] }));
-        return CONTACT_BLOCKED[lang];
-      }
+      if (!form.platforms.length) e.platforms = el ? "Επιλέξτε τουλάχιστον μία πλατφόρμα." : "Pick at least one platform.";
+      if (form.deliverables.trim() && findContactInfo(form.deliverables)) e.deliverables = CONTACT_BLOCKED[lang];
+      if (!form.compensation_type) e.compensation_type = el ? "Επιλέξτε τύπο αμοιβής." : "Pick a compensation type.";
+      const needsMoney = form.compensation_type === "money" || form.compensation_type === "both";
+      if (needsMoney && !(parseFloat(form.budget) > 0)) e.budget = el ? "Συμπληρώστε budget σε ευρώ για χρηματική αμοιβή." : "Enter a budget in euros for paid work.";
+      if (!form.starts_on || !/^\d{4}-\d{2}-\d{2}$/.test(form.starts_on)) e.starts_on = el ? "Συμπληρώστε ημερομηνία έναρξης (ηη/μμ/εεεε)." : "Enter a start date (dd/mm/yyyy).";
+      if (form.deadline && form.starts_on && form.deadline <= form.starts_on) e.deadline = x.deadline_after_start;
+      if (form.slots && !(parseInt(form.slots, 10) > 0)) e.slots = el ? "Οι θέσεις πρέπει να είναι θετικός αριθμός ή «Χωρίς όριο»." : "Spots must be a positive number or “No limit”.";
     }
     if (n === 3) {
-      if (!form.category) return lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.";
-      if (form.location.trim() && findContactInfo(form.location)) {
-        setContactFieldErrors((prev) => ({ ...prev, location: CONTACT_BLOCKED[lang] }));
-        return CONTACT_BLOCKED[lang];
-      }
+      if (form.status === "open" && !brandVerified) e.status = x.open_locked;
     }
-    return null;
+    return e;
   };
+
+  /** Returns an error message for the given step, or null if it can proceed (and shows inline errors). */
+  const validateStep = (n: number): string | null => {
+    const e = stepErrors(n);
+    setFieldErrors(e);
+    const keys = Object.keys(e) as FieldKey[];
+    if (!keys.length) return null;
+    return lang === "el" ? "Διορθώστε τα πεδία με κόκκινο." : "Fix the fields marked in red.";
+  };
+
+  const clearFieldError = (key: FieldKey) => setFieldErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
 
   const goNext = () => {
     const problem = validateStep(step);
@@ -734,7 +911,7 @@ export default function BrandCampaignsSection({
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (step < 4) {
+    if (step < 3) {
       goNext();
       return;
     }
@@ -748,49 +925,12 @@ export default function BrandCampaignsSection({
   };
 
   const saveCampaign = async () => {
-    if (!form.title.trim() || !form.description.trim()) {
-      setStep(1);
-      return;
-    }
-    const blockedMsg = CONTACT_BLOCKED[lang];
-    const nextErrors: typeof contactFieldErrors = {};
-    const textFields: Array<keyof typeof nextErrors> = ["title", "description", "deliverables", "location"];
-    for (const field of textFields) {
-      const value = form[field] || "";
-      if (value.trim() && findContactInfo(value)) nextErrors[field] = blockedMsg;
-    }
-    setContactFieldErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) {
-      setStep(nextErrors.title || nextErrors.description ? 1 : nextErrors.deliverables ? 2 : 3);
-      toastError(blockedMsg);
-      return;
-    }
-    if (!form.category) {
-      setStep(3);
-      toastError(lang === "el" ? "Η κατηγορία είναι υποχρεωτική." : "Category is required.");
-      return;
-    }
-    if (!form.platforms.length) {
-      setStep(2);
-      toastError(lang === "el" ? "Επιλέξτε τουλάχιστον μία πλατφόρμα." : "Pick at least one platform.");
-      return;
-    }
-    if (!form.compensation_type) {
-      toastError(lang === "el" ? "Επιλέξτε τύπο αμοιβής." : "Pick a compensation type.");
-      return;
-    }
-    if (!form.starts_on || !/^\d{4}-\d{2}-\d{2}$/.test(form.starts_on)) {
-      toastError(lang === "el" ? "Συμπληρώστε ημερομηνία έναρξης (ηη/μμ/εεεε)." : "Enter a start date (dd/mm/yyyy).");
-      return;
-    }
-    const needsMoney = form.compensation_type === "money" || form.compensation_type === "both";
-    if (needsMoney && !(parseFloat(form.budget) > 0)) {
-      toastError(lang === "el" ? "Το budget είναι υποχρεωτικό για χρηματική αμοιβή." : "Budget is required for paid work.");
-      return;
-    }
-    if (form.deadline) {
-      if (form.deadline <= form.starts_on) {
-        toastError(x.deadline_after_start);
+    for (const n of [1, 2, 3]) {
+      const e = stepErrors(n);
+      if (Object.keys(e).length) {
+        setFieldErrors(e);
+        setStep(n);
+        toastError(lang === "el" ? "Διορθώστε τα πεδία με κόκκινο." : "Fix the fields marked in red.");
         return;
       }
     }
@@ -822,10 +962,15 @@ export default function BrandCampaignsSection({
         deadline: form.deadline || null,
         starts_on: form.starts_on,
         location: form.location.trim(),
+        requires_presence: form.requires_presence,
         min_followers: form.min_followers || null,
         platforms: form.platforms,
         compensation_type: form.compensation_type,
       };
+      // Only send slots when set or changed, so an unmigrated column never blocks a save.
+      const originalSlots = editing !== "new" && editing && "id" in editing ? slotsById[editing.id] ?? null : null;
+      const nextSlots = form.slots ? parseInt(form.slots, 10) : null;
+      if (nextSlots !== originalSlots) saveBody.slots = nextSlots;
       if (editing !== "new" && editing && "id" in editing) {
         saveBody.id = editing.id;
       }
@@ -853,7 +998,7 @@ export default function BrandCampaignsSection({
             (typeof data.message === "object" && data.message?.[lang]) || CONTACT_BLOCKED[lang];
           if (data.field === "title" || data.field === "description" || data.field === "deliverables" || data.field === "location") {
             setContactFieldErrors({ [data.field]: blockedMsg });
-            setStep(data.field === "title" || data.field === "description" ? 1 : data.field === "deliverables" ? 2 : 3);
+            setStep(data.field === "deliverables" ? 2 : 1);
           }
           throw new Error(blockedMsg);
         }
@@ -888,6 +1033,7 @@ export default function BrandCampaignsSection({
         toastSuccess(x.saved);
       }
       setDeadlineClearedNotice(!!data.deadlineCleared);
+      if (editing === "new") clearDraft();
       setEditing(null);
       await load();
       onApplicationsUpdated?.();
@@ -1022,6 +1168,17 @@ export default function BrandCampaignsSection({
 
   return (
     <div className="space-y-6">
+      {aiOpen && (
+        <CampaignAiWizard
+          onClose={() => setAiOpen(false)}
+          onApply={(fill, siteBrand) => {
+            setAiOpen(false);
+            setSiteBrand(siteBrand);
+            applyPrefill(fill, 3);
+          }}
+        />
+      )}
+      <PlatformActivityBadge />
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <div role="tablist" aria-label={t.title} className="flex flex-wrap items-center gap-2">
@@ -1065,34 +1222,58 @@ export default function BrandCampaignsSection({
 
       {editing && (
         <form ref={formRef} onSubmit={submit} className="bg-white border border-slate-200 rounded-xl p-4 sm:p-6 space-y-5 shadow-sm">
-          <h3 className="font-semibold text-slate-900">{editing === "new" ? t.new : t.edit}</h3>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <h3 className="font-semibold text-slate-900">{editing === "new" ? t.new : t.edit}</h3>
+            {editing === "new" && (
+              <button type="button" onClick={() => setAiOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 hover:bg-blue-100">
+                {lang === "el" ? "Δημιουργία με AI" : "Create with AI"}
+              </button>
+            )}
+          </div>
+
+          {editing === "new" && draftRestored && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <span className="flex-1 min-w-0">{lang === "el" ? "Συνεχίζετε από το αποθηκευμένο πρόχειρο." : "Continuing from your saved draft."}</span>
+              <button type="button" onClick={() => { clearDraft(); setForm(emptyForm()); setDraftRestored(false); setFieldErrors({}); setStep(1); }} className="text-sm font-medium text-blue-700 hover:underline">
+                {lang === "el" ? "Νέα από την αρχή" : "Start over"}
+              </button>
+            </div>
+          )}
+
+          {editing === "new" && step === 1 && (
+            <div>
+              <p className="text-sm font-medium text-slate-700 mb-2">{lang === "el" ? "Έτοιμα πακέτα" : "Ready templates"}</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => applyPrefill(tpl.fill)}
+                    className="rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                  >
+                    <span className="block text-sm font-semibold text-slate-900">{lang === "el" ? tpl.el : tpl.en}</span>
+                    <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between text-xs font-medium text-slate-600 mb-2">
-              <span>{wz.step_of} {step}/4 · {[wz.step1, wz.step2, wz.step3, wz.step4][step - 1]}</span>
+              <span>{wz.step_of} {step}/3 · {stepLabels[step - 1]}</span>
+              {editing === "new" && <span className="text-slate-400">{lang === "el" ? "Αυτόματη αποθήκευση προχείρου" : "Draft autosaved"}</span>}
             </div>
-            <div
-              className="h-2 rounded-full bg-slate-100 overflow-hidden"
-              role="progressbar"
-              aria-valuemin={1}
-              aria-valuemax={4}
-              aria-valuenow={step}
-              aria-label={`${wz.step_of} ${step}/4`}
-            >
-              <div className="h-full rounded-full bg-blue-600 transition-[width] duration-300" style={{ width: `${(step / 4) * 100}%` }} />
+            <div className="h-2 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuemin={1} aria-valuemax={3} aria-valuenow={step} aria-label={`${wz.step_of} ${step}/3`}>
+              <div className="h-full rounded-full bg-blue-600 transition-[width] duration-300" style={{ width: `${(step / 3) * 100}%` }} />
             </div>
-            <ol className="mt-2 grid grid-cols-4 gap-1 text-[11px] sm:text-xs">
-              {[wz.step1, wz.step2, wz.step3, wz.step4].map((label, index) => {
+            <ol className="mt-2 grid grid-cols-3 gap-1 text-[11px] sm:text-xs">
+              {stepLabels.map((label, index) => {
                 const n = index + 1;
                 const done = n < step;
                 return (
                   <li key={n} className="min-w-0">
-                    <button
-                      type="button"
-                      disabled={n >= step}
-                      onClick={() => goToStep(n)}
-                      className={`w-full truncate text-left ${n === step ? "font-semibold text-blue-700" : done ? "text-slate-700 hover:text-blue-700" : "text-slate-400"}`}
-                    >
+                    <button type="button" disabled={n >= step} onClick={() => goToStep(n)} className={`w-full truncate text-left ${n === step ? "font-semibold text-blue-700" : done ? "text-slate-700 hover:text-blue-700" : "text-slate-400"}`}>
                       {n}. {label}
                     </button>
                   </li>
@@ -1104,10 +1285,36 @@ export default function BrandCampaignsSection({
           {step === 1 && (
             <div className="grid gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_title}{req}</label>
-                <input required value={form.title} onChange={(e) => { setForm({ ...form, title: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, title: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                <label htmlFor="cf-title" className="block text-sm font-medium text-slate-700 mb-1">{t.form_title}{req}</label>
+                <input id="cf-title" value={form.title} aria-invalid={!!(fieldErrors.title || contactFieldErrors.title)} onChange={(e) => { setForm({ ...form, title: e.target.value }); clearFieldError("title"); setContactFieldErrors((prev) => ({ ...prev, title: undefined })); }} className={inputCls(fieldErrors.title || contactFieldErrors.title)} placeholder={lang === "el" ? "π.χ. Launch νέας σειράς καλλυντικών" : "e.g. New skincare line launch"} />
+                <FieldError msg={fieldErrors.title || contactFieldErrors.title} />
+              </div>
+              <div>
+                <label htmlFor="cf-desc" className="block text-sm font-medium text-slate-700 mb-1">{t.form_desc}{req}</label>
+                <textarea id="cf-desc" rows={5} value={form.description} aria-invalid={!!(fieldErrors.description || contactFieldErrors.description)} onChange={(e) => { setForm({ ...form, description: e.target.value }); clearFieldError("description"); setContactFieldErrors((prev) => ({ ...prev, description: undefined })); }} className={inputCls(fieldErrors.description || contactFieldErrors.description)} />
                 <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
-                {contactFieldErrors.title && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.title}</p>}
+                <FieldError msg={fieldErrors.description || contactFieldErrors.description} />
+              </div>
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="cf-cat" className="block text-sm font-medium text-slate-700 mb-1">{t.form_category}{req}</label>
+                  <select id="cf-cat" value={form.category} aria-invalid={!!fieldErrors.category} onChange={(e) => { setForm({ ...form, category: e.target.value }); clearFieldError("category"); }} className={`${inputCls(fieldErrors.category)} bg-white`}>
+                    <option value="">—</option>
+                    {CATEGORIES.map((c) => (
+                      <option key={c} value={c}>{categoryLabel(c, lang)}</option>
+                    ))}
+                  </select>
+                  <FieldError msg={fieldErrors.category} />
+                </div>
+                <div>
+                  <label htmlFor="cf-loc" className="block text-sm font-medium text-slate-700 mb-1">{x.form_location}</label>
+                  <input id="cf-loc" value={form.location} onChange={(e) => { setForm({ ...form, location: e.target.value }); clearFieldError("location"); setContactFieldErrors((prev) => ({ ...prev, location: undefined })); }} className={inputCls(fieldErrors.location || contactFieldErrors.location)} placeholder={lang === "el" ? "Πανελλαδικά ή π.χ. Αθήνα (μόνο αν χρειάζεται φυσική παρουσία)" : "Nationwide, or e.g. Athens (only if in person)"} />
+                  <FieldError msg={fieldErrors.location || contactFieldErrors.location} />
+                  <label className="mt-2 flex items-start gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={form.requires_presence} onChange={(e) => { setForm({ ...form, requires_presence: e.target.checked }); clearFieldError("location"); }} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+                    <span>{lang === "el" ? "Απαιτείται φυσική παρουσία" : "In-person presence required"}<span className="block text-xs text-slate-500">{lang === "el" ? "Τότε ειδοποιούνται και προτείνονται μόνο creators της περιοχής." : "Then only creators in this area are notified and suggested."}</span></span>
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">{wz.cover_label}</label>
@@ -1143,12 +1350,6 @@ export default function BrandCampaignsSection({
                   </button>
                 )}
                 <p className="text-xs text-slate-500 mt-1">{wz.cover_hint}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_desc}{req}</label>
-                <textarea required rows={5} value={form.description} onChange={(e) => { setForm({ ...form, description: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, description: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-                <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
-                {contactFieldErrors.description && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.description}</p>}
               </div>
             </div>
           )}
@@ -1187,104 +1388,139 @@ export default function BrandCampaignsSection({
                 <div className="flex flex-wrap gap-3">
                   {PLATFORMS.map((platform) => (
                     <label key={platform.id} className="inline-flex items-center gap-2 text-sm text-slate-800">
-                      <input type="checkbox" checked={form.platforms.includes(platform.id)} onChange={() => togglePlatform(platform.id)} />
+                      <input type="checkbox" checked={form.platforms.includes(platform.id)} onChange={() => { togglePlatform(platform.id); clearFieldError("platforms"); }} />
                       {lang === "el" ? platform.el : platform.en}
                     </label>
                   ))}
                 </div>
+                <FieldError msg={fieldErrors.platforms} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{wz.other_deliverables}</label>
-                <textarea rows={2} value={form.deliverables} onChange={(e) => { setForm({ ...form, deliverables: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, deliverables: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. unboxing βίντεο" : "e.g. unboxing video"} />
-                <p className="text-xs text-slate-500 mt-1">{x.contact_hint}</p>
-                {contactFieldErrors.deliverables && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.deliverables}</p>}
+                <label htmlFor="cf-deliv" className="block text-sm font-medium text-slate-700 mb-1">{wz.other_deliverables}</label>
+                <textarea id="cf-deliv" rows={2} value={form.deliverables} onChange={(e) => { setForm({ ...form, deliverables: e.target.value }); clearFieldError("deliverables"); setContactFieldErrors((prev) => ({ ...prev, deliverables: undefined })); }} className={inputCls(fieldErrors.deliverables || contactFieldErrors.deliverables)} placeholder={lang === "el" ? "π.χ. unboxing βίντεο" : "e.g. unboxing video"} />
+                <FieldError msg={fieldErrors.deliverables || contactFieldErrors.deliverables} />
               </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_category}{req}</label>
-                <select required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white">
-                  <option value="">—</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{categoryLabel(c, lang)}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_min_followers}</label>
-                <input type="number" min={0} value={form.min_followers} onChange={(e) => setForm({ ...form, min_followers: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_location}</label>
-                <input value={form.location} onChange={(e) => { setForm({ ...form, location: e.target.value }); setContactFieldErrors((prev) => ({ ...prev, location: undefined })); }} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" placeholder={lang === "el" ? "π.χ. Αθήνα" : "e.g. Athens"} />
-                {contactFieldErrors.location && <p className="text-xs text-red-600 mt-1">{contactFieldErrors.location}</p>}
-              </div>
-            </div>
-          )}
-
-          {step === 4 && (
-            <div className="grid gap-4">
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_compensation}{req}</label>
-                  <select required value={form.compensation_type} onChange={(e) => setForm({ ...form, compensation_type: e.target.value as typeof form.compensation_type })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white">
+                  <label htmlFor="cf-comp" className="block text-sm font-medium text-slate-700 mb-1">{x.form_compensation}{req}</label>
+                  <select id="cf-comp" value={form.compensation_type} onChange={(e) => { setForm({ ...form, compensation_type: e.target.value as typeof form.compensation_type }); clearFieldError("compensation_type"); clearFieldError("budget"); }} className={`${inputCls(fieldErrors.compensation_type)} bg-white`}>
                     <option value="">—</option>
                     <option value="money">{x.comp_money}</option>
                     <option value="product">{x.comp_product}</option>
                     <option value="both">{x.comp_both}</option>
                   </select>
+                  <FieldError msg={fieldErrors.compensation_type} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                  <label htmlFor="cf-budget" className="block text-sm font-medium text-slate-700 mb-1">
                     {t.form_budget}
                     {(form.compensation_type === "money" || form.compensation_type === "both") && req}
                   </label>
-                  <input type="number" min={0} step={0.01} required={form.compensation_type === "money" || form.compensation_type === "both"} value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900" />
+                  <input id="cf-budget" type="number" inputMode="decimal" min={0} step={1} value={form.budget} onChange={(e) => { setForm({ ...form, budget: e.target.value }); clearFieldError("budget"); }} className={inputCls(fieldErrors.budget)} />
+                  <FieldError msg={fieldErrors.budget} />
+                </div>
+                <div>
+                  <label htmlFor="cf-slots" className="block text-sm font-medium text-slate-700 mb-1">{lang === "el" ? "Θέσεις (πόσοι creators)" : "Spots (how many creators)"}</label>
+                  <div className="flex gap-2">
+                    <select
+                      id="cf-slots"
+                      value={form.slots && !["1", "2", "3", "5", "10", "20"].includes(form.slots) ? "custom" : form.slots}
+                      onChange={(e) => { setForm({ ...form, slots: e.target.value === "custom" ? form.slots || "4" : e.target.value }); clearFieldError("slots"); }}
+                      className={`${inputCls(fieldErrors.slots)} bg-white`}
+                    >
+                      <option value="">{lang === "el" ? "Χωρίς όριο" : "No limit"}</option>
+                      {["1", "2", "3", "5", "10", "20"].map((n) => (
+                        <option key={n} value={n}>{n}</option>
+                      ))}
+                      <option value="custom">{lang === "el" ? "Άλλο…" : "Other…"}</option>
+                    </select>
+                    {form.slots && !["1", "2", "3", "5", "10", "20"].includes(form.slots) && (
+                      <input type="number" min={1} max={500} inputMode="numeric" value={form.slots} onChange={(e) => { setForm({ ...form, slots: e.target.value }); clearFieldError("slots"); }} className={`${inputCls(fieldErrors.slots)} w-24`} aria-label={lang === "el" ? "Αριθμός θέσεων" : "Number of spots"} />
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">{lang === "el" ? "Όταν συμπληρωθούν, η καμπάνια σταματά να δέχεται αιτήσεις." : "When filled, the campaign stops taking applications."}</p>
+                  <FieldError msg={fieldErrors.slots} />
+                </div>
+                <div>
+                  <label htmlFor="cf-minf" className="block text-sm font-medium text-slate-700 mb-1">{x.form_min_followers}</label>
+                  <input id="cf-minf" type="number" min={0} inputMode="numeric" value={form.min_followers} onChange={(e) => setForm({ ...form, min_followers: e.target.value })} className={inputCls()} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>
-                  <DmyDateField required value={form.starts_on} onChange={(starts_on) => setForm({ ...form, starts_on })} />
+                  <DmyDateField required value={form.starts_on} onChange={(starts_on) => { setForm({ ...form, starts_on }); clearFieldError("starts_on"); }} />
                   <p className="text-xs text-slate-500 mt-1">{x.date_order}</p>
+                  <FieldError msg={fieldErrors.starts_on} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
-                  <DmyDateField value={form.deadline} onChange={(deadline) => setForm({ ...form, deadline })} />
+                  <DmyDateField value={form.deadline} onChange={(deadline) => { setForm({ ...form, deadline }); clearFieldError("deadline"); }} />
                   <p className="text-xs text-slate-500 mt-1">{x.deadline_auto_close}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white"
-                  >
-                    <option value="draft">{t.status_draft}</option>
-                    <option value="open" disabled={!brandVerified}>{t.status_open}</option>
-                    <option value="closed">{t.status_closed}</option>
-                  </select>
-                  {!brandVerified && <p className="text-xs text-amber-800 mt-1">{x.open_locked}</p>}
+                  <FieldError msg={fieldErrors.deadline} />
                 </div>
               </div>
+            </div>
+          )}
 
+          {step === 3 && (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-900 mb-2">{wz.review}</p>
-                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
                   <dt className="text-slate-500">{t.form_title}</dt>
-                  <dd className="text-slate-900 truncate">{form.title || wz.review_none}</dd>
+                  <dd className="text-slate-900">{form.title || wz.review_none}</dd>
                   <dt className="text-slate-500">{t.form_category}</dt>
                   <dd className="text-slate-900">{form.category ? categoryLabel(form.category, lang) || form.category : wz.review_none}</dd>
                   <dt className="text-slate-500">{x.form_platforms}</dt>
                   <dd className="text-slate-900">{form.platforms.length ? form.platforms.map((id) => PLATFORMS.find((p) => p.id === id)?.[lang] || id).join(", ") : wz.review_none}</dd>
                   <dt className="text-slate-500">{wz.deliverables_short}</dt>
                   <dd className="text-slate-900">{buildDeliverables(form.chips, form.deliverables) || wz.review_none}</dd>
+                  <dt className="text-slate-500">{x.form_compensation}</dt>
+                  <dd className="text-slate-900">{form.compensation_type ? { money: x.comp_money, product: x.comp_product, both: x.comp_both }[form.compensation_type] : wz.review_none}{parseFloat(form.budget) > 0 ? ` · ${Math.round(parseFloat(form.budget))} €` : ""}</dd>
+                  <dt className="text-slate-500">{lang === "el" ? "Θέσεις" : "Spots"}</dt>
+                  <dd className="text-slate-900">{form.slots ? form.slots : lang === "el" ? "Χωρίς όριο" : "No limit"}</dd>
                   <dt className="text-slate-500">{x.form_min_followers}</dt>
                   <dd className="text-slate-900">{form.min_followers || wz.review_none}</dd>
                   <dt className="text-slate-500">{x.form_location}</dt>
-                  <dd className="text-slate-900">{form.location || wz.review_none}</dd>
+                  <dd className="text-slate-900">{form.location || (lang === "el" ? "Πανελλαδικά" : "Nationwide")}{form.requires_presence ? (lang === "el" ? " · φυσική παρουσία" : " · in person") : ""}</dd>
                 </dl>
+                <div className="mt-4">
+                  <label htmlFor="cf-status" className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
+                  <select id="cf-status" value={form.status} onChange={(e) => { setForm({ ...form, status: e.target.value as typeof form.status }); clearFieldError("status"); }} className={`${inputCls(fieldErrors.status)} bg-white max-w-xs`}>
+                    <option value="draft">{t.status_draft}</option>
+                    <option value="open" disabled={!brandVerified}>{t.status_open}</option>
+                    <option value="closed">{t.status_closed}</option>
+                  </select>
+                  {!brandVerified && <p className="text-xs text-amber-800 mt-1">{x.open_locked}</p>}
+                  <FieldError msg={fieldErrors.status} />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-slate-500 mb-2">{lang === "el" ? "Έτσι θα φαίνεται στους creators" : "How creators will see it"}</p>
+                <div className="pointer-events-none rounded-2xl" style={siteBrand?.colors[0] ? { boxShadow: `0 0 0 3px ${siteBrand.colors[0]}` } : undefined}>
+                  <CampaignCard
+                    lang={lang}
+                    campaign={{
+                      id: "preview",
+                      title: form.title || (lang === "el" ? "Τίτλος καμπάνιας" : "Campaign title"),
+                      description: form.description,
+                      budget: parseFloat(form.budget) || 0,
+                      category: form.category || null,
+                      deliverables: buildDeliverables(form.chips, form.deliverables) || null,
+                      deadline: form.deadline || null,
+                      created_at: new Date().toISOString(),
+                      platforms: form.platforms,
+                      cover_url: form.cover_url || null,
+                      compensation_type: form.compensation_type || null,
+                      min_followers: form.min_followers ? parseInt(form.min_followers, 10) : null,
+                      location: form.location || null,
+                      status: "open",
+                      slots: form.slots ? parseInt(form.slots, 10) : null,
+                      slots_filled: 0,
+                      requires_presence: form.requires_presence,
+                      brands: siteBrand?.logo ? { brand_name: siteBrand.name, logo_url: siteBrand.logo } : undefined,
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1295,7 +1531,7 @@ export default function BrandCampaignsSection({
                 {wz.back}
               </button>
             )}
-            {step < 4 ? (
+            {step < 3 ? (
               <button key="next" type="button" onClick={goNext} disabled={coverUploading} className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium hover:bg-slate-800 disabled:opacity-50">
                 {wz.next}
               </button>

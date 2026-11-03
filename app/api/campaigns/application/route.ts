@@ -1,3 +1,5 @@
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
+import { campaignSlotInfo, slotsFull } from "@/lib/campaignSlots";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { addAdminNotice } from "@/lib/adminNotice";
@@ -275,6 +277,13 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
   if (!campaign || campaign.status !== "open") {
     return NextResponse.json({ error: "Campaign not available" }, { status: 400 });
   }
+  const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
+  if (slotsFull(slotInfo)) {
+    return NextResponse.json(
+      { error: "slots_full", message: { el: "Οι θέσεις συμπληρώθηκαν.", en: "All spots are filled." } },
+      { status: 403 }
+    );
+  }
 
   const price = proposedPriceRaw.trim()
     ? Number(proposedPriceRaw.replace(",", "."))
@@ -294,6 +303,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     result = await admin.from("campaign_applications").insert(base).select("id").single();
     if (!result.error) {
       if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
+      revalidatePublicCampaigns();
       return NextResponse.json({ ok: true, id: result.data?.id, migration: true, notified: true });
     }
   }
@@ -304,6 +314,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     return NextResponse.json({ error: result.error.message }, { status: 400 });
   }
   if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, id: result.data?.id, notified: true });
 }
 
@@ -431,5 +442,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, status, conversationId, proposalId });
 }

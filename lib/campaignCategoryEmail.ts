@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { contactsFor, loadApprovedCreators } from "@/lib/campaignNotify";
-import { rankCampaignAlerts } from "@/lib/campaignAlert";
+import { presenceAllows, rankCampaignAlerts } from "@/lib/campaignAlert";
 import { sharedCategoryKeys } from "@/lib/recommendations";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
 import { send, siteUrl } from "@/lib/proposalMail";
@@ -158,6 +158,7 @@ export async function queueCategoryCampaignEmails(c: {
   location?: string | null;
   minFollowers?: number | null;
   platforms: string[];
+  requiresPresence?: boolean | null;
   /** Also queue strong matches (used when re-deriving a lost queue). */
   includeStrong?: boolean;
   /** Re-derive only: the first N recipients (same order as the lost run) were already emailed. */
@@ -170,7 +171,7 @@ export async function queueCategoryCampaignEmails(c: {
 
   const creators = await loadApprovedCreators();
   const strong = new Set(
-    rankCampaignAlerts(creators, { category: c.category, location: c.location, minFollowers: c.minFollowers, platforms: c.platforms })
+    rankCampaignAlerts(creators, { category: c.category, location: c.location, minFollowers: c.minFollowers, platforms: c.platforms, requiresPresence: c.requiresPresence })
       .filter((r) => r.strong)
       .map((r) => r.id)
   );
@@ -179,6 +180,7 @@ export async function queueCategoryCampaignEmails(c: {
   for (const row of creators) {
     const status = (row as { availability_status?: string | null }).availability_status;
     if (status && status !== "available") continue;
+    if (!presenceAllows(c, (row as { location?: string | null }).location)) continue;
     const id = String(row.id);
     if (sharedCategoryKeys(c.category, row.category).length) {
       if (strong.has(id) && !c.includeStrong) skippedStrong += 1;

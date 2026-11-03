@@ -36,6 +36,10 @@ export type CampaignCardData = {
   status?: string | null;
   /** Non-withdrawn application count only — never applicant details. */
   applications_count?: number | null;
+  /** Number of creators wanted (null = no limit) and accepted so far. */
+  slots?: number | null;
+  slots_filled?: number | null;
+  requires_presence?: boolean | null;
   brands?: CampaignCardBrand | CampaignCardBrand[] | null;
 };
 
@@ -314,6 +318,26 @@ export default function CampaignCard({
               </span>
             ) : null}
           </div>
+        )}
+
+        {campaign.requires_presence ? (
+          <p className="mt-3 mr-2 inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+            {lang === "el" ? "Φυσική παρουσία" : "In person"}
+            {campaign.location ? ` · ${campaign.location}` : ""}
+          </p>
+        ) : null}
+        {typeof campaign.slots === "number" && campaign.slots > 0 && (
+          <p
+            className={`mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+              (campaign.slots_filled ?? 0) >= campaign.slots ? "bg-slate-100 text-slate-600" : "bg-blue-50 text-blue-700"
+            }`}
+          >
+            {(campaign.slots_filled ?? 0) >= campaign.slots
+              ? lang === "el" ? "Οι θέσεις συμπληρώθηκαν" : "All spots are filled"
+              : lang === "el"
+                ? `${campaign.slots_filled ?? 0}/${campaign.slots} θέσεις`
+                : `${campaign.slots_filled ?? 0}/${campaign.slots} spots`}
+          </p>
         )}
 
         {!publicBadge && appsCount > 0 && (

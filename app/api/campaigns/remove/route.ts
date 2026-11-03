@@ -1,3 +1,4 @@
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { notifyApplicantsCampaignRemoved } from "@/lib/campaignNotify";
@@ -45,5 +46,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, applicants: influencerIds.length, notified });
 }

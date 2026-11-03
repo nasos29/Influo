@@ -96,7 +96,14 @@ export default function CampaignPublicView({
   id,
   applicationsCount = 0,
   initialCampaign = null,
+  slots = null,
+  slotsFilled = 0,
+  requiresPresence = false,
 }: {
+  /** Creators wanted (null = no limit) and accepted so far. */
+  slots?: number | null;
+  slotsFilled?: number;
+  requiresPresence?: boolean;
   id: string;
   /** Non-withdrawn application count only — no applicant details. */
   applicationsCount?: number;
@@ -108,6 +115,7 @@ export default function CampaignPublicView({
   const el = lang === "el";
   const [campaign, setCampaign] = useState<Campaign | null>(initialCampaign);
   const [missing, setMissing] = useState(!initialCampaign);
+  const [slotsClosed, setSlotsClosed] = useState(slots != null && slotsFilled >= slots);
   const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(!initialCampaign);
   const [audience, setAudience] = useState<CampaignAudience>({ kind: "anonymous" });
@@ -237,6 +245,11 @@ export default function CampaignPublicView({
       toastError(el ? "Έχετε ήδη κάνει αίτηση." : "You already applied.");
       return;
     }
+    if (result.error === "slots_full") {
+      setSlotsClosed(true);
+      toastError(el ? "Οι θέσεις συμπληρώθηκαν." : "All spots are filled.");
+      return;
+    }
     if (result.error === "contact_info_not_allowed") {
       const msg = CONTACT_BLOCKED[el ? "el" : "en"];
       setMessageError(msg);
@@ -294,8 +307,24 @@ export default function CampaignPublicView({
     const focusable = target.querySelector<HTMLElement>("textarea, input, select, a[href], button:not([disabled])");
     window.setTimeout(() => focusable?.focus({ preventScroll: true }), 350);
   };
+  const slotText =
+    slots != null
+      ? slotsClosed
+        ? el ? "Οι θέσεις συμπληρώθηκαν" : "All spots are filled"
+        : el ? `${slotsFilled}/${slots} θέσεις` : `${slotsFilled}/${slots} spots`
+      : null;
   const applyBlock = (
     <div className="space-y-3">
+      {requiresPresence && (
+        <p className="inline-flex mr-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
+          {el ? "Απαιτείται φυσική παρουσία" : "In-person presence required"}
+        </p>
+      )}
+      {slotText && (
+        <p className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${slotsClosed ? "bg-slate-100 text-slate-700" : "bg-blue-50 text-blue-700"}`}>
+          {slotText}
+        </p>
+      )}
       {audience.kind === "anonymous" && (
         <Link href={`/login?redirect=${encodeURIComponent(`/campaigns/${id}`)}`} className="inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium">
           {el ? "Σύνδεση για αίτηση" : "Sign in to apply"}
@@ -318,7 +347,12 @@ export default function CampaignPublicView({
           {el ? "Έχετε ήδη κάνει αίτηση σε αυτή την καμπάνια." : "You have already applied to this campaign."}
         </p>
       )}
-      {audience.kind === "influencer" && approved && !applied && (
+      {audience.kind === "influencer" && approved && !applied && slotsClosed && (
+        <p className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          {el ? "Οι θέσεις συμπληρώθηκαν και η καμπάνια δεν δέχεται νέες αιτήσεις." : "All spots are filled; the campaign is not taking new applications."}
+        </p>
+      )}
+      {audience.kind === "influencer" && approved && !applied && !slotsClosed && (
         <form onSubmit={apply} className="space-y-3">
           {!available && (
             <div className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3">
@@ -409,14 +443,12 @@ export default function CampaignPublicView({
 
             <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
               <article className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <div className="flex flex-wrap items-start gap-3">
-                  <h1 className="text-3xl font-bold text-slate-900 flex-1 min-w-0">{campaign.title}</h1>
-                  {publicBadge ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium shrink-0">
-                      {publicBadge}
-                    </span>
-                  ) : null}
-                </div>
+                {publicBadge ? (
+                  <span className="mb-3 inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium">
+                    {publicBadge}
+                  </span>
+                ) : null}
+                <h1 className="text-2xl! leading-tight! md:text-[32px]! md:leading-[1.2]! font-bold text-slate-900 break-words">{campaign.title}</h1>
 
                 {brand?.brand_name ? (
                   <div className="mt-4 flex items-center gap-3">

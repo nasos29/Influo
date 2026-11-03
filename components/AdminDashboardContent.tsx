@@ -1,5 +1,6 @@
 "use client";
 
+import { diffProfileChange } from "@/lib/profileChangeDiff";
 import { useEffect, useState, useRef } from "react";
 import {
   Activity,
@@ -1523,51 +1524,53 @@ const EditProfileModal = ({
                         <p className="text-sm text-slate-600">Φόρτωση αλλαγών...</p>
                     </div>
                 ) : profileChanges.length > 0 ? (
-                    <div className="px-6 py-4 bg-yellow-50 border-b border-yellow-200">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-sm font-bold text-yellow-900 flex items-center gap-2">
-                                ⚠️ Αλλαγές που Αναμένουν Επανεξέταση ({profileChanges.length})
-                            </h3>
-                            <button
-                                type="button"
-                                onClick={() => markChangesAsReviewed(profileChanges.map(c => c.id))}
-                                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
-                            >
-                                Σημάνω ως Εξετασμένα
-                            </button>
-                        </div>
-                        <div className="space-y-3 max-h-64 overflow-y-auto">
-                            {profileChanges.map((change, idx) => (
-                                <div key={change.id} className="bg-white border border-yellow-300 rounded-lg p-3">
-                                    <div className="text-xs text-yellow-700 mb-2">
-                                        <strong>Ημερομηνία:</strong> {formatDisplayDateTime(change.created_at)}
-                                    </div>
-                                    <div className="space-y-2">
-                                        {change.changed_fields && change.changed_fields.map((field: string) => (
-                                            <div key={field} className="border-l-4 border-yellow-500 pl-3 py-1">
-                                                <div className="text-xs font-semibold text-slate-900 mb-1">
-                                                    {getFieldLabel(field)}
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 text-xs">
-                                                    <div>
-                                                        <div className="text-slate-600 font-medium mb-1">Παλιά Τιμή:</div>
-                                                        <div className="bg-red-50 border border-red-200 rounded p-2 text-slate-900 break-words max-h-32 overflow-y-auto">
-                                                            {formatFieldValue(field, change.old_values?.[field])}
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-slate-600 font-medium mb-1">Νέα Τιμή:</div>
-                                                        <div className="bg-green-50 border border-green-200 rounded p-2 text-slate-900 break-words max-h-32 overflow-y-auto">
-                                                            {formatFieldValue(field, change.new_values?.[field])}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                    <div className="px-6 pt-4">
+                        <details open className="rounded-xl border border-amber-200 bg-amber-50/60">
+                            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                                <span className="text-sm font-semibold text-amber-900">Αλλαγές προς έλεγχο ({profileChanges.length})</span>
+                                <button
+                                    type="button"
+                                    onClick={(e) => { e.preventDefault(); markChangesAsReviewed(profileChanges.map(c => c.id)); }}
+                                    className="px-3 py-1 text-xs bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors"
+                                >
+                                    Σήμανση ως ελεγμένα
+                                </button>
+                            </summary>
+                            <div className="space-y-3 max-h-72 overflow-y-auto px-4 pb-4">
+                                {profileChanges.map((change) => {
+                                    const diffs = diffProfileChange(change.changed_fields, change.old_values, change.new_values);
+                                    return (
+                                        <div key={change.id} className="rounded-lg border border-amber-200 bg-white p-3">
+                                            <div className="text-xs text-slate-500 mb-2">{formatDisplayDateTime(change.created_at)}</div>
+                                            {diffs.length === 0 ? (
+                                                <p className="text-xs text-slate-500">Καμία ουσιαστική αλλαγή.</p>
+                                            ) : (
+                                                <ul className="space-y-2">
+                                                    {diffs.map((d) => (
+                                                        <li key={d.field}>
+                                                            <div className="text-xs font-semibold text-slate-900">{d.label}</div>
+                                                            <ul className="mt-0.5 space-y-0.5">
+                                                                {d.lines.map((l, i) => (
+                                                                    <li key={i} className="text-xs text-slate-700 break-words">
+                                                                        {l.label !== d.label && <span className="text-slate-500">{l.label}: </span>}
+                                                                        {l.from && <span className="text-red-700 line-through decoration-red-300">{l.from}</span>}
+                                                                        {l.from && l.to && <span className="text-slate-400"> → </span>}
+                                                                        {l.to && <span className="text-emerald-700 font-medium">{l.to}</span>}
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                            {d.notes.map((n, i) => (
+                                                                <p key={i} className="mt-1 text-[11px] text-amber-800">Σημείωση: {n}</p>
+                                                            ))}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </details>
                     </div>
                 ) : null}
                 
@@ -3286,6 +3289,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     if (!id) return;
     linkedConversationId.current = id;
     setActiveTab("conversations");
+  }, []);
+  // Deep link from a public profile: /admin?influencer=<id> opens that influencer's editor.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("influencer");
+    if (!id || !/^[\w-]{1,64}$/.test(id)) return;
+    setActiveTab("influencers");
+    void openEditUser({ id } as unknown as DbInfluencer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     const id = linkedConversationId.current;

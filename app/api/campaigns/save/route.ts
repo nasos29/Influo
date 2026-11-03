@@ -1,3 +1,4 @@
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
@@ -193,6 +194,12 @@ export async function POST(request: NextRequest) {
   };
 
   if (coverUrl !== undefined) payload.cover_url = coverUrl;
+  // slots: undefined = leave untouched, null/"" = no limit, 1..500 = number of creators.
+  if (typeof body.requires_presence === "boolean") payload.requires_presence = body.requires_presence;
+  if (body.slots !== undefined) {
+    const n = parseInt(asString(body.slots), 10);
+    payload.slots = Number.isFinite(n) && n > 0 ? Math.min(500, n) : null;
+  }
 
   // Server-owned reopen / close stamps — never trust client opened_at / brand_id.
   if (status === "open" && !wasOpen) {
@@ -223,6 +230,11 @@ export async function POST(request: NextRequest) {
   };
 
   let result = await write(payload);
+  // slots column may not be migrated yet: retry once without it.
+  if (result.error && "slots" in payload && /slots/i.test(result.error.message)) {
+    delete payload.slots;
+    result = await write(payload);
+  }
   // cover_url column may not be migrated yet: retry once without it, keeping all other fields.
   if (result.error && "cover_url" in payload && /cover_url/i.test(result.error.message)) {
     const { cover_url: _ignored, ...withoutCover } = payload;
@@ -277,5 +289,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, id, deadlineCleared });
 }

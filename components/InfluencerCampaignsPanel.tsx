@@ -1,5 +1,6 @@
 "use client";
 
+import { sessionFetch } from "@/lib/sessionFetch";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
@@ -336,6 +337,7 @@ export default function InfluencerCampaignsPanel({
     if (error) notify(error.message, "error");
     else {
       notify(uiLang === "el" ? "Η αίτηση αποσύρθηκε." : "Application withdrawn.", "success");
+      void sessionFetch("/api/campaigns/revalidate", { method: "POST" }).catch(() => {});
       await load();
     }
   };
