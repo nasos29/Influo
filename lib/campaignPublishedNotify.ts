@@ -3,6 +3,7 @@ import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 import { publishedToBrand } from "@/lib/campaignMail";
 import { campaignClosesAt } from "@/lib/campaignLifecycle";
 import { send, siteUrl } from "@/lib/proposalMail";
+import { queueCategoryCampaignEmails } from "@/lib/campaignCategoryEmail";
 
 /** Brand confirmation only right after opening (unless forced for a one-off resend). */
 const BRAND_CONFIRM_WINDOW_MS = 15 * 60 * 1000;
@@ -15,7 +16,13 @@ type BrandRow = { brand_name?: string | null; contact_email?: string | null };
 
 export type CampaignPublishedResult =
   | { ok: true; skipped: string }
-  | { ok: true; admin: boolean; brand: boolean; creators: { emailed: number; pushed: number; inApp: number } }
+  | {
+      ok: true;
+      admin: boolean;
+      brand: boolean;
+      creators: { emailed: number; pushed: number; inApp: number };
+      categoryEmails: { matched: number; related: number; skippedStrong: number; relatedCategories: string[] };
+    }
   | { ok: false; error: string; status: number };
 
 function platformList(value: unknown): string[] {
@@ -106,6 +113,19 @@ export async function notifyCampaignPublished(
   }
 
   const [creators, adminOk, brandOk] = await Promise.all([creatorsJob, adminJob, brandJob]);
-  console.log("[campaign published] sent", campaignId, { admin: adminOk, brand: brandOk, creators });
-  return { ok: true, admin: adminOk, brand: brandOk, creators };
+  // After the strong-match outreach, so those creators are not emailed twice.
+  const categoryEmails = await queueCategoryCampaignEmails({
+    campaignId,
+    title: row.title,
+    brandName,
+    category: row.category || null,
+    location: row.location || null,
+    minFollowers: row.min_followers ?? null,
+    platforms: platformList(row.platforms),
+  }).catch((err) => {
+    console.error("[campaign published] category emails", err);
+    return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[] };
+  });
+  console.log("[campaign published] sent", campaignId, { admin: adminOk, brand: brandOk, creators, categoryEmails });
+  return { ok: true, admin: adminOk, brand: brandOk, creators, categoryEmails };
 }
