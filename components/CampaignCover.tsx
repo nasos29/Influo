@@ -108,7 +108,7 @@ export default function CampaignCover({
   const logoMark = (sizeClass: string, textClass: string, onPhoto = false) => (
     <div
       className={`relative ${sizeClass} overflow-hidden rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.28)] ring-1 ring-white/40 flex items-center justify-center ${
-        logoSrc ? "bg-white/10" : onPhoto ? "bg-slate-950/55 backdrop-blur-md" : "bg-white/15 backdrop-blur-sm"
+        logoSrc ? "bg-white" : onPhoto ? "bg-slate-950/55 backdrop-blur-md" : "bg-white/15 backdrop-blur-sm"
       }`}
     >
       {logoSrc ? (
@@ -117,7 +117,7 @@ export default function CampaignCover({
         <img
           src={logoSrc}
           alt={brandName ? "" : "Brand"}
-          className="absolute inset-0 h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-contain p-[12%]"
           loading={imageLoading}
           decoding="async"
           fetchPriority={imagePriority}

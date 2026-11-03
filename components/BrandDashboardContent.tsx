@@ -1,5 +1,6 @@
 "use client";
 
+import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
@@ -346,9 +347,13 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
     setLogoPreview(brand.logo_url || null);
   }, [brand]);
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+  const logoCrop = useImageCrop();
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0];
+    e.target.value = "";
+    if (picked) {
+      const file = await logoCrop.cropFile(picked, LOGO_CROP);
+      if (!file) return;
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
     }
@@ -697,6 +702,8 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
                 <p className="text-xs text-slate-500 mt-1">
                   {lang === 'el' ? 'PNG, JPG, GIF έως 5MB' : 'PNG, JPG, GIF up to 5MB'}
                 </p>
+                <p className="text-xs text-slate-500 mt-0.5">{LOGO_HINT}</p>
+                {logoCrop.dialog}
               </div>
             </div>
           </div>
