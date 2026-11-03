@@ -28,6 +28,9 @@ import AgreementTerms from '@/components/AgreementTerms';
 import dynamic from 'next/dynamic';
 import ChatAvatar from '@/components/ChatAvatar';
 import ImageLightbox from '@/components/ImageLightbox';
+import LinkPreview from '@/components/LinkPreview';
+import { openDockedChat } from '@/components/ChatDock';
+import { firstLink, splitLinks } from '@/lib/linkify';
 import { insertAtCursor } from '@/lib/emojiData';
 
 const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
@@ -122,6 +125,8 @@ interface MessagingProps {
   initialConversationId?: string | null;
   emptyCta?: { label: string; onClick: () => void } | null;
   onLeaveThread?: () => void;
+  /** Thread-only view for the desktop docked chat window. */
+  compact?: boolean;
 }
 
 const t = {
@@ -270,6 +275,7 @@ export default function Messaging({
   initialConversationId = null,
   emptyCta = null,
   onLeaveThread,
+  compact = false,
 }: MessagingProps) {
   const txt = t[lang];
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
@@ -304,6 +310,8 @@ export default function Messaging({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [avatarMap, setAvatarMap] = useState<{ influencers: Record<string, string>; brands: Record<string, string> }>({ influencers: {}, brands: {} });
   const [avatarLightbox, setAvatarLightbox] = useState(false);
+  const [imageLightbox, setImageLightbox] = useState<{ src: string; alt: string } | null>(null);
+  const [convSearch, setConvSearch] = useState('');
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const newMessageRef = useRef("");
   newMessageRef.current = newMessage;
@@ -1928,10 +1936,11 @@ export default function Messaging({
   const showThreadPane = !!selectedConversation || isComposingNew;
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[min(720px,calc(100vh-12rem))] min-h-[480px] flex flex-col overflow-hidden">
+    <div className={compact ? "bg-white h-full flex flex-col overflow-hidden" : "bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[min(720px,calc(100vh-12rem))] min-h-[480px] flex flex-col overflow-hidden"}>
       {otherPartyAvatar ? (
         <ImageLightbox src={otherPartyAvatar} alt={otherPartyName || ''} open={avatarLightbox} onClose={() => setAvatarLightbox(false)} lang={lang === 'en' ? 'en' : 'el'} />
       ) : null}
+<ImageLightbox src={imageLightbox?.src || ''} alt={imageLightbox?.alt || ''} open={!!imageLightbox} onClose={() => setImageLightbox(null)} lang={lang === 'en' ? 'en' : 'el'} />
       <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={lang === 'el' ? 'Κλείσιμο' : 'Dismiss'} />
       {/* Shared file picker — used by both existing-thread and compose-new composers */}
       <input
@@ -1946,16 +1955,28 @@ export default function Messaging({
           e.target.value = '';
         }}
       />
-      <div className="px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+      <div className={`px-4 sm:px-5 py-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2 ${compact ? 'hidden' : ''}`}>
         <h2 className="text-base sm:text-lg font-semibold text-slate-900">{txt.messages}</h2>
       </div>
 
       <div className="flex flex-1 overflow-hidden min-h-0">
         <div
           className={`w-full md:w-72 border-r border-slate-200 overflow-y-auto bg-slate-50 flex-shrink-0 ${
-            showMobileList ? 'flex flex-col' : 'hidden'
-          } md:flex md:flex-col`}
+            compact ? 'hidden' : showMobileList ? 'flex flex-col' : 'hidden'
+          } ${compact ? '' : 'md:flex md:flex-col'}`}
         >
+          {conversations.length > 3 ? (
+            <div className="p-2 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
+              <input
+                type="search"
+                value={convSearch}
+                onChange={(e) => setConvSearch(e.target.value)}
+                placeholder={lang === 'en' ? 'Search conversations' : 'Αναζήτηση συνομιλίας'}
+                aria-label={lang === 'en' ? 'Search conversations' : 'Αναζήτηση συνομιλίας'}
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none"
+              />
+            </div>
+          ) : null}
           {loadError && conversations.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-600">
               <p>{loadError}</p>
@@ -1987,7 +2008,12 @@ export default function Messaging({
               ) : null}
             </div>
           ) : (
-            conversations.map((conv) => {
+            conversations.filter((conv) => {
+              const q = convSearch.trim().toLowerCase();
+              if (!q) return true;
+              const nm = mode === 'influencer' ? conv.brand_name || '' : displayNameForLang(conv.influencer_name, lang || 'el');
+              return `${nm} ${conv.last_message_preview || ''}`.toLowerCase().includes(q);
+            }).map((conv) => {
               const isClosed = !!conv.closed_at;
               const isActive = selectedConversation === conv.id;
               const name =
@@ -2052,11 +2078,22 @@ export default function Messaging({
                       setShowActionsMenu(false);
                       setShowEndConfirm(false);
                     }}
-                    className="md:hidden shrink-0 inline-flex min-h-11 items-center px-3 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                    className={`${compact ? 'hidden' : 'md:hidden'} shrink-0 inline-flex min-h-11 items-center px-3 text-sm text-slate-600 hover:bg-slate-100 rounded-lg`}
                   >
                     ← {txt.back}
                   </button>
                   <ChatAvatar src={otherPartyAvatar} name={otherPartyName || '?'} size={36} onClick={() => setAvatarLightbox(true)} />
+                  {!compact && selectedConversation ? (
+                    <button
+                      type="button"
+                      onClick={() => openDockedChat({ id: selectedConversation, name: otherPartyName || '' })}
+                      title="Άνοιγμα σε παράθυρο"
+                      aria-label="Άνοιγμα σε παράθυρο"
+                      className="order-last hidden lg:inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
+                    >
+                      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden><path d="M11 3h6v6M17 3l-7 7M9 5H4v11h11v-5" /></svg>
+                    </button>
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">{otherPartyName}</h3>
                     <div className="flex items-center gap-1.5">
@@ -2253,7 +2290,20 @@ export default function Messaging({
                           }`}
                         >
                           {msg.content ? (
-                            <p className="text-sm whitespace-pre-wrap leading-relaxed">{displayProposalThread(msg.content, lang)}</p>
+                            <>
+                              <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                {splitLinks(displayProposalThread(msg.content, lang)).map((part, pi) =>
+                                  part.type === 'link' ? (
+                                    <a key={pi} href={part.value} target="_blank" rel="noopener noreferrer" className={`underline underline-offset-2 break-all ${isOwn ? 'text-white' : 'text-blue-700'}`}>
+                                      {part.value}
+                                    </a>
+                                  ) : (
+                                    <span key={pi}>{part.value}</span>
+                                  )
+                                )}
+                              </p>
+                              {firstLink(msg.content) ? <LinkPreview url={firstLink(msg.content) as string} own={isOwn} /> : null}
+                            </>
                           ) : null}
                           {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                             <div className={`mt-1.5 space-y-1.5 ${msg.content ? '' : ''}`}>
@@ -2266,6 +2316,11 @@ export default function Messaging({
                                     href={att.url}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={(e) => {
+                                      if (!isImg) return;
+                                      e.preventDefault();
+                                      setImageLightbox({ src: att.url, alt: att.filename || '' });
+                                    }}
                                     className={`block text-xs underline-offset-2 hover:underline ${
                                       isOwn ? 'text-blue-100' : 'text-blue-700'
                                     }`}
@@ -2275,7 +2330,8 @@ export default function Messaging({
                                       <img
                                         src={att.url}
                                         alt={att.filename || 'attachment'}
-                                        className="max-h-40 rounded-lg border border-white/20 object-cover"
+                                        loading="lazy"
+                                        className="max-h-40 rounded-lg border border-white/20 object-cover cursor-zoom-in"
                                       />
                                     ) : (
                                       <span>📎 {att.filename || 'File'}</span>
