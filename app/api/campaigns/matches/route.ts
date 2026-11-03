@@ -32,15 +32,12 @@ export async function GET(request: NextRequest) {
     .limit(200);
 
   const minFollowers = Number(campaign.min_followers) || 0;
-  const area = String(campaign.location || "").trim().toLowerCase();
   const profiles: InfluencerProfile[] = (rows || [])
     .filter((row) => {
       const stats = statsFromAccounts(row.accounts);
       const max = stats.reduce((n, s) => Math.max(n, parseFollowerNumber(s.followers)), 0);
       if (minFollowers > 0 && max < minFollowers) return false;
-      if (area && row.location && !String(row.location).toLowerCase().includes(area) && !area.includes(String(row.location).toLowerCase())) {
-        return false;
-      }
+      // Location never excludes (no physical-presence field on brand_campaigns); it only affects ranking via recommendInfluencers.
       return true;
     })
     .map((row) => {

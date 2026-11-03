@@ -112,16 +112,16 @@ export async function POST(request: NextRequest) {
     budget > 0 ? `Συνολικό budget: ${budget} €.` : "Αμοιβή: προϊόν/ανταλλαγή.",
     slots ? `Creators: ${slots}.` : "Creators: χωρίς όριο.",
     `Χρονισμός: ${{ asap: "άμεσα", "2weeks": "σε 2 εβδομάδες", month: "μέσα στον μήνα", flexible: "ευέλικτος" }[timing]}.`,
-    'Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0}',
+    'Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"packages":[2-3 προτεινόμενα πακέτα: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}',
   ]
     .filter(Boolean)
     .join("\n");
 
-  let draft: { title?: string; description?: string; deliverables?: string; slots?: number | null; price_per_creator?: number };
+  let draft: { packages?: unknown; title?: string; description?: string; deliverables?: string; slots?: number | null; price_per_creator?: number };
   try {
     const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
       model: MODEL,
-      generationConfig: { responseMimeType: "application/json", temperature: 0.5, maxOutputTokens: 400 },
+      generationConfig: { responseMimeType: "application/json", temperature: 0.5, maxOutputTokens: 650 },
     });
     const result = await model.generateContent(prompt);
     draft = JSON.parse(result.response.text() || "{}");
@@ -137,6 +137,20 @@ export async function POST(request: NextRequest) {
   const aiPrice = Math.round(Number(draft.price_per_creator) || 0);
   const price = aiPrice > 0 ? Math.min(aiPrice, budget > 0 ? budget : aiPrice) : perCreatorHint;
   const outSlots = slots ?? (Number.isFinite(Number(draft.slots)) && Number(draft.slots) > 0 ? Math.min(100, Math.round(Number(draft.slots))) : null);
+  const packages = (Array.isArray(draft.packages) ? draft.packages : [])
+    .slice(0, 3)
+    .map((raw) => {
+      const p = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+      const n = Math.round(Number(p.slots) || 0);
+      const pr = Math.round(Number(p.price) || 0);
+      return {
+        name: stripContact(clean(p.name, 40)),
+        slots: n > 0 ? Math.min(100, n) : null,
+        deliverables: stripContact(clean(p.deliverables, 120)),
+        price: pr > 0 ? Math.min(pr, 100000) : null,
+      };
+    })
+    .filter((p) => p.name && p.deliverables);
   console.log("[ai-draft] ok", user.id.slice(0, 8), MODEL);
 
   // Matching creators: approved, available, same category, active on a chosen platform.
@@ -179,6 +193,7 @@ export async function POST(request: NextRequest) {
       budget: budget || null,
       timing,
     },
+    packages,
     matches,
   });
 }

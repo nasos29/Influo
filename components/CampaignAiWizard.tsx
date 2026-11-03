@@ -19,6 +19,7 @@ export type AiPrefill = {
   starts_on: string;
 };
 
+type Pkg = { name: string; slots: number | null; deliverables: string; price: number | null };
 type Match = { id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; followers: number };
 
 const GOALS = [
@@ -35,6 +36,20 @@ const CONTENT = [["reel", "Reel"], ["story", "Stories"], ["post", "Post"], ["tik
 function addDays(days: number): string {
   const d = new Date(Date.now() + days * 86400000);
   return d.toISOString().slice(0, 10);
+}
+
+
+/** A chosen package only pre-fills; everything stays editable in the form. */
+function withPackage(r: { fill: AiPrefill; price: number | null; packages: Pkg[] }, idx: number | null): AiPrefill {
+  const p = idx == null ? null : r.packages[idx];
+  if (!p) return r.fill;
+  const base = r.fill.description.replace(/\n\nΠροτεινόμενη αμοιβή ανά creator: \d+ €\.$/, "");
+  return {
+    ...r.fill,
+    slots: p.slots ? String(p.slots) : r.fill.slots,
+    deliverables: p.deliverables,
+    description: p.price ? `${base}\n\nΠροτεινόμενη αμοιβή ανά creator: ${p.price} €.` : r.fill.description,
+  };
 }
 
 const sel = "w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white";
@@ -56,7 +71,8 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
   const [timing, setTiming] = useState("2weeks");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ fill: AiPrefill; price: number | null; matches: Match[] } | null>(null);
+  const [result, setResult] = useState<{ fill: AiPrefill; price: number | null; matches: Match[]; packages: Pkg[] } | null>(null);
+  const [pkgIdx, setPkgIdx] = useState<number | null>(null);
 
   const toggle = (list: string[], set: (v: string[]) => void, id: string) => set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
@@ -94,6 +110,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       const data = (await res.json().catch(() => ({}))) as {
         draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string };
         matches?: Match[];
+        packages?: Pkg[];
         message?: { el?: string };
       };
       if (!res.ok || !data.draft) {
@@ -101,11 +118,13 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
         return;
       }
       const d = data.draft;
+      setPkgIdx(null);
       const priceLine = d.pricePerCreator ? `\n\nΠροτεινόμενη αμοιβή ανά creator: ${d.pricePerCreator} €.` : "";
       const start = timing === "asap" ? addDays(2) : timing === "2weeks" ? addDays(14) : timing === "month" ? addDays(30) : addDays(7);
       setResult({
         price: d.pricePerCreator,
         matches: data.matches || [],
+        packages: data.packages || [],
         fill: {
           title: d.title,
           description: `${d.description}${priceLine}`.trim(),
@@ -263,6 +282,20 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
               <p className="text-slate-700"><span className="text-slate-500">Θέσεις:</span> {result.fill.slots || "Χωρίς όριο"}</p>
               {result.price ? <p className="text-slate-700"><span className="text-slate-500">Προτεινόμενη αμοιβή ανά creator:</span> {result.price} €</p> : null}
             </div>
+            {result.packages.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-slate-700 mb-2">Προτεινόμενα πακέτα <span className="font-normal text-slate-500">(προαιρετικά, όλα αλλάζουν μετά)</span></p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {result.packages.map((p, i) => (
+                    <button key={i} type="button" aria-pressed={pkgIdx === i} onClick={() => setPkgIdx(pkgIdx === i ? null : i)} className={`text-left rounded-xl border p-3 text-sm transition ${pkgIdx === i ? "border-blue-600 bg-blue-50 ring-1 ring-blue-600" : "border-slate-200 hover:border-slate-300"}`}>
+                      <span className="block font-semibold text-slate-900">{p.name}</span>
+                      <span className="block text-slate-600 mt-1">{p.deliverables}</span>
+                      <span className="block text-slate-500 mt-1">{p.slots ? `${p.slots} θέσεις` : "Χωρίς όριο"}{p.price ? ` · ${p.price} € / creator` : ""}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {result.matches.length > 0 && (
               <div>
                 <p className="text-sm font-medium text-slate-700 mb-2">Creators που ταιριάζουν</p>
@@ -286,7 +319,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => setResult(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Αλλαγή απαντήσεων</button>
-              <button type="button" onClick={() => onApply(result.fill)} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Επεξεργασία & δημοσίευση</button>
+              <button type="button" onClick={() => onApply(withPackage(result, pkgIdx))} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Επεξεργασία & δημοσίευση</button>
             </div>
           </div>
         )}
