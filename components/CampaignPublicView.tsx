@@ -452,9 +452,9 @@ export default function CampaignPublicView({
 
                 {brand?.brand_name ? (
                   <div className="mt-4 flex items-center gap-3">
-                    <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 shrink-0 flex items-center justify-center">
+                    <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-slate-200 bg-white shrink-0 flex items-center justify-center">
                       {brand.logo_url ? (
-                        <FastImage src={brand.logo_url} alt={brand.brand_name} fill className="object-cover" sizes="44px" />
+                        <FastImage src={brand.logo_url} alt={brand.brand_name} fill className="object-contain p-1" sizes="44px" />
                       ) : (
                         <span className="text-lg font-semibold text-slate-600">{brand.brand_name.slice(0, 1).toUpperCase()}</span>
                       )}

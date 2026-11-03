@@ -49,8 +49,8 @@ export default function BrandAboutCard({
       </p>
       <div className="mt-3 flex items-center gap-3">
         {logoSrc ? (
-          <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 shrink-0">
-            <FastImage src={logoSrc} alt={name} fill className="object-cover" sizes="48px" />
+          <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-slate-200 bg-white shrink-0">
+            <FastImage src={logoSrc} alt={name} fill className="object-contain p-1" sizes="48px" />
           </div>
         ) : (
           <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 text-lg font-semibold shrink-0">

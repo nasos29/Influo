@@ -1,5 +1,6 @@
 "use client";
 
+import { useImageCrop, COVER_CROP, COVER_HINT } from "@/components/ImageCropDialog";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
@@ -851,7 +852,11 @@ export default function BrandCampaignsSection({
     });
   };
 
-  const handleCoverFile = async (file: File | null | undefined) => {
+  const coverCrop = useImageCrop();
+  const handleCoverFile = async (picked: File | null | undefined) => {
+    if (coverInputRef.current) coverInputRef.current.value = "";
+    if (!picked) return;
+    const file = await coverCrop.cropFile(picked, COVER_CROP);
     if (!file) return;
     if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
       toastError(wz.cover_not_image);
@@ -1354,6 +1359,8 @@ export default function BrandCampaignsSection({
                   className="hidden"
                   onChange={(e) => void handleCoverFile(e.target.files?.[0])}
                 />
+                <p className="text-xs text-slate-500">{COVER_HINT}</p>
+                {coverCrop.dialog}
                 {form.cover_url ? (
                   <div className="space-y-2">
                     <div className="max-w-md rounded-xl overflow-hidden border border-slate-200">

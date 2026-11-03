@@ -1,5 +1,6 @@
 "use client";
 
+import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
@@ -116,6 +117,7 @@ const inputClass = "w-full px-3.5 py-3 !bg-white !text-slate-900 border border-s
 const labelClass = "mb-1.5 block text-sm font-medium text-slate-800";
 
 export default function BrandSignupForm({ embedded = false }: { embedded?: boolean }) {
+  const logoCrop = useImageCrop();
   const [lang, setLang] = useState<Lang>("el");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -547,12 +549,16 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
                   </svg>
                   <p className="mb-1 text-sm font-semibold text-slate-600">{txt.logoUpload}</p>
                   <p className="text-xs text-slate-400">{txt.logoHint}</p>
+                  <p className="text-xs text-slate-400">{LOGO_HINT}</p>
+                  {logoCrop.dialog}
                   <input
                     type="file"
                     className="hidden"
                     accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
+                    onChange={async (e) => {
+                      const picked = e.target.files?.[0];
+                      e.target.value = "";
+                      const file = picked ? await logoCrop.cropFile(picked, LOGO_CROP) : null;
                       if (file) {
                         if (file.size > 2 * 1024 * 1024) {
                           setMessage(txt.error_logo_size);

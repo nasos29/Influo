@@ -1,5 +1,6 @@
 "use client";
 
+import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
 import { diffProfileChange } from "@/lib/profileChangeDiff";
 import { useEffect, useState, useRef } from "react";
 import {
@@ -511,9 +512,13 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+  const logoCrop = useImageCrop();
+  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0];
+    e.target.value = "";
+    if (picked) {
+      const file = await logoCrop.cropFile(picked, LOGO_CROP);
+      if (!file) return;
       setLogoFile(file);
       setLogoPreview(URL.createObjectURL(file));
     }
@@ -823,6 +828,8 @@ const EditBrandModal = ({ brand, onClose, onSave, lang }: { brand: Brand, onClos
               onChange={handleLogoChange}
               className="w-full px-4 py-3 bg-white text-slate-900 border-2 border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 outline-none transition-all"
             />
+            <p className="text-xs text-slate-500 mt-1">{LOGO_HINT}</p>
+            {logoCrop.dialog}
           </div>
 
           {/* Buttons */}
@@ -5184,7 +5191,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-3">
                               {b.logo_url ? (
-                                <img src={getCachedImageUrl(b.logo_url) ?? b.logo_url} alt={b.brand_name} className="w-8 h-8 rounded object-cover" />
+                                <img src={getCachedImageUrl(b.logo_url) ?? b.logo_url} alt={b.brand_name} className="w-8 h-8 rounded-lg object-contain bg-white p-0.5 border border-slate-200" />
                               ) : (
                                 <div className="w-8 h-8 rounded bg-slate-200 flex items-center justify-center text-slate-400 text-xs font-bold">
                                   {b.brand_name.charAt(0).toUpperCase()}
