@@ -443,14 +443,12 @@ export default function CampaignPublicView({
 
             <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px] md:items-start">
               <article className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-                <div className="flex flex-wrap items-start gap-3">
-                  <h1 className="text-2xl! leading-tight! md:text-[32px]! md:leading-[1.2]! font-bold text-slate-900 flex-1 min-w-0 break-words">{campaign.title}</h1>
-                  {publicBadge ? (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium shrink-0">
-                      {publicBadge}
-                    </span>
-                  ) : null}
-                </div>
+                {publicBadge ? (
+                  <span className="mb-3 inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-800 text-sm font-medium">
+                    {publicBadge}
+                  </span>
+                ) : null}
+                <h1 className="text-2xl! leading-tight! md:text-[32px]! md:leading-[1.2]! font-bold text-slate-900 break-words">{campaign.title}</h1>
 
                 {brand?.brand_name ? (
                   <div className="mt-4 flex items-center gap-3">
