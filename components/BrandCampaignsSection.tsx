@@ -1411,9 +1411,9 @@ export default function BrandCampaignsSection({
                       <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
                       <span className="block text-xs font-medium text-slate-700 mt-1.5">{buildDeliverables(tpl.fill.chips || {}, "").replace(/, /g, " · ")}</span>
                     </button>
-                    <span aria-hidden="true" className="self-center text-xs font-medium text-slate-400 sm:px-0.5">{lang === "el" ? "ή" : "or"}</span>
                   </Fragment>
                 ))}
+                <span aria-hidden="true" className="self-center text-xs font-medium text-slate-400 sm:px-0.5">{lang === "el" ? "ή" : "or"}</span>
                 <button
                   type="button"
                   aria-pressed={customPick}
