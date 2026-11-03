@@ -33,7 +33,7 @@ const GOALS = [
   ["ugc", "UGC βίντεο για τα κανάλια μας"],
   ["event", "Κάλυψη εκδήλωσης"],
 ] as const;
-const PLATFORMS = [["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"], ["facebook", "Facebook"]] as const;
+const PLATFORMS = [["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"]] as const;
 const CONTENT = [["reel", "Reel"], ["story", "Stories"], ["post", "Post"], ["tiktok", "TikTok βίντεο"], ["youtube", "YouTube βίντεο"], ["ugc", "UGC (χωρίς δημοσίευση)"]] as const;
 
 function addDays(days: number): string {

@@ -28,7 +28,7 @@ const GOALS: Record<string, string> = {
 };
 const AGES = new Set(["18-24", "25-34", "35-44", "45+", "all"]);
 const GENDERS = new Set(["women", "men", "all"]);
-const PLATFORMS = new Set(["instagram", "tiktok", "youtube", "facebook"]);
+const PLATFORMS = new Set(["instagram", "tiktok", "youtube"]);
 const CONTENT = new Set(["reel", "story", "post", "tiktok", "youtube", "ugc"]);
 const TIMING = new Set(["asap", "2weeks", "month", "flexible"]);
 

@@ -118,8 +118,8 @@ const PLATFORMS = [
   { id: "instagram", el: "Instagram", en: "Instagram" },
   { id: "tiktok", el: "TikTok", en: "TikTok" },
   { id: "youtube", el: "YouTube", en: "YouTube" },
-  { id: "facebook", el: "Facebook", en: "Facebook" },
 ] as const;
+const LEGACY_PLATFORMS = [{ id: "facebook", el: "Facebook", en: "Facebook" }] as const;
 
 const APP_STATUS: Record<string, { el: string; en: string }> = {
   pending: { el: "Εκκρεμεί", en: "Pending" },
@@ -590,7 +590,7 @@ export default function AdminCampaignDetail({
             <legend className={labelClass}>{tx(copy.platforms, lang)}</legend>
             <div className="mt-2 flex flex-wrap gap-2">
               {platformOptions.map((id) => {
-                const known = PLATFORMS.find((item) => item.id === id);
+                const known = [...PLATFORMS, ...LEGACY_PLATFORMS].find((item) => item.id === id);
                 const checked = form.platforms.includes(id);
                 return (
                   <label
