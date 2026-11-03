@@ -31,6 +31,8 @@ import ImageLightbox from '@/components/ImageLightbox';
 import LinkPreview from '@/components/LinkPreview';
 import { openDockedChat } from '@/components/ChatDock';
 import { firstLink, splitLinks } from '@/lib/linkify';
+import MessageActions from '@/components/MessageActions';
+import { byMessage, groupReactions, quoteText, type ReactionRow } from '@/lib/reactions';
 import { insertAtCursor } from '@/lib/emojiData';
 
 const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
@@ -78,6 +80,9 @@ interface Message {
   attachments?: MessageAttachment[] | null;
   read: boolean;
   created_at: string;
+  reply_to_id?: string | null;
+  read_at?: string | null;
+  pinned_at?: string | null;
   localStatus?: 'sending' | 'failed';
 }
 
@@ -287,6 +292,8 @@ export default function Messaging({
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(initialConversationId);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [reactions, setReactions] = useState<Record<string, ReactionRow[]>>({});
+  const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -853,7 +860,11 @@ export default function Messaging({
       const onUpdate = (payload: { new: Message }) => {
         const updated = payload.new as Message;
         setMessages((prev) =>
-          prev.map((m) => (m.id === updated.id ? { ...m, read: updated.read } : m))
+          prev.map((m) =>
+            m.id === updated.id
+              ? { ...m, read: updated.read, read_at: updated.read_at ?? m.read_at, pinned_at: updated.pinned_at ?? null }
+              : m
+          )
         );
       };
 
@@ -901,6 +912,13 @@ export default function Messaging({
         typingChannel = supabase.channel(`typing:${convId}`);
         typingChannelRef.current = typingChannel;
         typingChannel
+          .on('broadcast', { event: 'reaction' }, ({ payload }) => {
+            const p = payload as { messageId?: string; reactions?: ReactionRow[] } | null;
+            if (p?.messageId && Array.isArray(p.reactions)) {
+              const mid = p.messageId;
+              setReactions((prev) => ({ ...prev, [mid]: p.reactions as ReactionRow[] }));
+            }
+          })
           .on('broadcast', { event: 'typing' }, ({ payload }) => {
             const role = (payload as { role?: string } | null)?.role;
             if (role && role !== mode) {
@@ -1398,16 +1416,71 @@ export default function Messaging({
     }
   };
 
+  const loadReactions = async (ids: string[]) => {
+    if (!ids.length) {
+      setReactions({});
+      return;
+    }
+    const { data } = await supabase.from('message_reactions').select('message_id, reactor, emoji').in('message_id', ids.slice(-300));
+    setReactions(byMessage((data || []) as Required<ReactionRow>[]));
+  };
+
+  const toggleReaction = async (messageId: string, emoji: string) => {
+    if (messageId.startsWith('tmp-')) return;
+    // optimistic
+    setReactions((prev) => {
+      const list = prev[messageId] || [];
+      const has = list.some((r) => r.reactor === mode && r.emoji === emoji);
+      return { ...prev, [messageId]: has ? list.filter((r) => !(r.reactor === mode && r.emoji === emoji)) : [...list, { reactor: mode, emoji }] };
+    });
+    try {
+      const res = await sessionFetch('/api/messages/react', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, emoji, as: mode }),
+      });
+      const j = await res.json();
+      if (res.ok && Array.isArray(j.reactions)) {
+        setReactions((prev) => ({ ...prev, [messageId]: j.reactions }));
+        void typingChannelRef.current?.send({ type: 'broadcast', event: 'reaction', payload: { messageId, reactions: j.reactions } });
+      }
+    } catch {
+      /* keep optimistic */
+    }
+  };
+
+  const togglePin = async (msg: Message) => {
+    if (msg.id.startsWith('tmp-')) return;
+    const pin = !msg.pinned_at;
+    const now = new Date().toISOString();
+    setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, pinned_at: pin ? now : null } : pin ? { ...m, pinned_at: null } : m)));
+    await sessionFetch('/api/messages/pin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messageId: msg.id, pin, as: mode }),
+    }).catch(() => null);
+  };
+
+  const jumpToMessage = (id: string) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('ring-2', 'ring-amber-300');
+    window.setTimeout(() => el.classList.remove('ring-2', 'ring-amber-300'), 1400);
+  };
+
   const loadMessages = async (convId: string) => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .select('id, conversation_id, sender_id, sender_type, content, attachments, read, created_at')
+        .select('id, conversation_id, sender_id, sender_type, content, attachments, read, created_at, reply_to_id, read_at, pinned_at')
         .eq('conversation_id', convId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
       setMessages(data || []);
+      setReplyTo(null);
+      void loadReactions((data || []).map((m) => m.id));
       stickToBottomRef.current = true;
       scrollToBottom(true);
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
@@ -1571,10 +1644,12 @@ export default function Messaging({
           content: text,
           read: false,
           created_at: new Date().toISOString(),
+          reply_to_id: replyTo?.id ?? null,
           localStatus: 'sending',
         },
       ]);
       setNewMessage('');
+      setReplyTo(null);
       setPendingFiles([]);
       scrollToBottom(true);
     }
@@ -1603,7 +1678,7 @@ export default function Messaging({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
           convId
-            ? { conversationId: convId, senderType: mode, content: text, attachments: uploaded }
+            ? { conversationId: convId, senderType: mode, content: text, attachments: uploaded, replyToId: replyTo && !replyTo.id.startsWith('tmp-') ? replyTo.id : undefined }
             : {
                 influencerId,
                 brandEmail,
@@ -2250,6 +2325,20 @@ export default function Messaging({
                 )}
               </div>
 
+              {(() => {
+                const pinnedMsg = [...messages].reverse().find((m) => m.pinned_at);
+                if (!pinnedMsg) return null;
+                return (
+                  <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-2">
+                    <span aria-hidden>📌</span>
+                    <button type="button" onClick={() => jumpToMessage(pinnedMsg.id)} className="min-w-0 flex-1 text-left">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-amber-700">Καρφιτσωμένο</span>
+                      <span className="block truncate text-xs text-slate-800">{quoteText(displayProposalThread(pinnedMsg.content, lang), !!pinnedMsg.attachments?.length)}</span>
+                    </button>
+                    <button type="button" onClick={() => void togglePin(pinnedMsg)} aria-label="Ξεκαρφίτσωμα" title="Ξεκαρφίτσωμα" className="h-8 w-8 shrink-0 rounded-full text-amber-700 hover:bg-amber-100">×</button>
+                  </div>
+                );
+              })()}
               <div
                 ref={messageListRef}
                 onScroll={onMessageListScroll}
@@ -2282,13 +2371,41 @@ export default function Messaging({
                             {lastOfGroup ? <ChatAvatar src={otherPartyAvatar} name={otherPartyName || '?'} size={28} /> : null}
                           </span>
                         )}
+                        <div className={`flex max-w-[85%] sm:max-w-sm lg:max-w-md flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                        <MessageActions
+                          own={isOwn}
+                          pinned={!!msg.pinned_at}
+                          disabled={msg.id.startsWith('tmp-')}
+                          onReply={() => {
+                            setReplyTo(msg);
+                            composerRef.current?.focus();
+                          }}
+                          onReact={(e) => void toggleReaction(msg.id, e)}
+                          onPin={() => void togglePin(msg)}
+                        >
                         <div
-                          className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3.5 py-2 rounded-2xl ${
+                          id={`msg-${msg.id}`}
+                          className={`max-w-full px-3.5 py-2 rounded-2xl transition-shadow ${
                             isOwn
                               ? 'bg-blue-600 text-white rounded-br-md'
                               : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
                           }`}
                         >
+                          {msg.reply_to_id ? (() => {
+                            const parent = messages.find((m) => m.id === msg.reply_to_id);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => parent && jumpToMessage(parent.id)}
+                                className={`mb-1.5 block w-full rounded-lg border-l-4 px-2 py-1 text-left text-xs ${isOwn ? 'border-white/60 bg-white/15 text-blue-50' : 'border-blue-500 bg-slate-100 text-slate-600'}`}
+                              >
+                                <span className="block font-semibold">
+                                  {parent ? (parent.sender_type === mode ? (lang === 'en' ? 'You' : 'Εσείς') : otherPartyName) : ''}
+                                </span>
+                                <span className="block truncate">{parent ? quoteText(displayProposalThread(parent.content, lang), !!parent.attachments?.length, 70) : (lang === 'en' ? 'Message' : 'Μήνυμα')}</span>
+                              </button>
+                            );
+                          })() : null}
                           {msg.content ? (
                             <>
                               <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
@@ -2354,11 +2471,28 @@ export default function Messaging({
                                 {msg.localStatus === 'sending'
                                   ? txt.sending
                                   : msg.read
-                                    ? `✓✓ ${txt.seen}`
+                                    ? `✓✓ ${txt.seen}${msg.read_at ? ` ${formatTime(msg.read_at, lang)}` : ''}`
                                     : `✓ ${txt.sent}`}
                               </span>
                             )}
                           </div>
+                        </div>
+                        </MessageActions>
+                        {(reactions[msg.id] || []).length ? (
+                          <div className={`-mt-1.5 z-[1] flex flex-wrap gap-1 ${isOwn ? 'mr-2 justify-end' : 'ml-2'}`}>
+                            {groupReactions(reactions[msg.id] || [], mode).map((g) => (
+                              <button
+                                key={g.emoji}
+                                type="button"
+                                onClick={() => void toggleReaction(msg.id, g.emoji)}
+                                className={`inline-flex h-6 items-center gap-0.5 rounded-full border px-1.5 text-xs shadow-sm ${g.mine ? 'border-blue-300 bg-blue-50' : 'border-slate-200 bg-white'}`}
+                              >
+                                <span>{g.emoji}</span>
+                                {g.count > 1 ? <span className="text-slate-600">{g.count}</span> : null}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
                         </div>
                       </div>
                     </div>
@@ -2385,6 +2519,18 @@ export default function Messaging({
               </div>
 
               <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white">
+                {replyTo ? (
+                  <div className="mb-2 flex items-center gap-2 rounded-lg border-l-4 border-blue-500 bg-slate-50 px-3 py-1.5">
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-[11px] font-semibold text-blue-700">
+                        {lang === 'en' ? 'Replying to ' : 'Απάντηση σε '}
+                        {replyTo.sender_type === mode ? (lang === 'en' ? 'yourself' : 'εσάς') : otherPartyName}
+                      </span>
+                      <span className="block truncate text-xs text-slate-600">{quoteText(displayProposalThread(replyTo.content, lang), !!replyTo.attachments?.length)}</span>
+                    </div>
+                    <button type="button" onClick={() => setReplyTo(null)} aria-label={lang === 'en' ? 'Cancel reply' : 'Ακύρωση απάντησης'} className="h-8 w-8 shrink-0 rounded-full text-slate-500 hover:bg-slate-200">×</button>
+                  </div>
+                ) : null}
                 {conversationClosed ? (
                   <p className="mb-2 text-xs text-slate-600 text-center">{txt.reopenHint}</p>
                 ) : null}

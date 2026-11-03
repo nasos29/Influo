@@ -278,7 +278,13 @@ export async function POST(req: Request) {
     }
 
     const senderId = senderIdFor(actor, senderType, conv);
+    let replyToId: string | null = null;
+    if (typeof body.replyToId === "string" && /^[0-9a-f-]{36}$/i.test(body.replyToId)) {
+      const { data: parent } = await admin.from("messages").select("id").eq("id", body.replyToId).eq("conversation_id", conversationId).maybeSingle();
+      replyToId = parent?.id ?? null;
+    }
     const inserted = await insertMessage({
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
       conversation_id: conversationId,
       sender_id: senderId,
       sender_type: senderType,
@@ -346,7 +352,7 @@ export async function GET(req: Request) {
       }
       const { data: messages, error } = await admin
         .from("messages")
-        .select("id, conversation_id, sender_id, sender_type, content, attachments, read, created_at")
+        .select("id, conversation_id, sender_id, sender_type, content, attachments, read, created_at, reply_to_id, read_at, pinned_at")
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -366,7 +372,7 @@ export async function GET(req: Request) {
       if (!conversation) return NextResponse.json({ messages: [], conversationId: null });
       const { data: messages, error } = await admin
         .from("messages")
-        .select("id, conversation_id, sender_id, sender_type, content, attachments, read, created_at")
+        .select("id, conversation_id, sender_id, sender_type, content, attachments, read, created_at, reply_to_id, read_at, pinned_at")
         .eq("conversation_id", conversation.id)
         .order("created_at", { ascending: true });
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
