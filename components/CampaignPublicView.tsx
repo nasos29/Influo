@@ -1,5 +1,6 @@
 "use client";
 
+import { campaignStatusBadge } from "@/lib/campaignStatusBadge";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -427,7 +428,13 @@ export default function CampaignPublicView({
           </div>
         ) : (
           <div className="mt-6 space-y-6">
-            <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+            <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-sm bg-white">
+              {(() => {
+                const badge = campaignStatusBadge({ ...campaign, slots, slots_filled: slotsFilled }, lang);
+                return badge ? (
+                  <span className={`pointer-events-none absolute left-3 top-3 z-30 text-xs font-semibold px-3 py-1 rounded-full shadow-sm ${badge.className}`}>{badge.text}</span>
+                ) : null;
+              })()}
               <CampaignCover
                 coverUrl={campaign.cover_url}
                 title={campaign.title}
