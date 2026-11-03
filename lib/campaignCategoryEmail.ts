@@ -4,7 +4,7 @@ import { contactsFor, loadApprovedCreators } from "@/lib/campaignNotify";
 import { presenceAllows, rankCampaignAlerts } from "@/lib/campaignAlert";
 import { sharedCategoryKeys } from "@/lib/recommendations";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
-import { send, siteUrl } from "@/lib/proposalMail";
+import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { categoryTranslations } from "@/lib/categories";
 
 /**
@@ -45,15 +45,29 @@ const GAP_MS = 2 * 60 * 1000;
 const STATE_FILE = process.env.CAMPAIGN_MAIL_QUEUE_FILE || path.join(process.cwd(), ".data", "campaign-mail-queue.json");
 
 type Job = { key: string; emailKey?: string; to: string; subject: string; html: string };
-type State = { sent: Set<string>; queue: Job[]; running: boolean; loaded: boolean };
+type State = { sent: Set<string>; queue: Job[]; running: boolean; loaded: boolean; day: string; sentToday: number; pausedDay: string };
+
+/**
+ * Bulk emails share the provider's daily quota (Resend free: 100/day) with transactional mail,
+ * so the queue sends at most CAMPAIGN_BULK_DAILY_LIMIT per Athens day (default 70) and continues
+ * the next day. A quota error stops the queue until the next day.
+ */
+const DAILY_LIMIT = Math.max(0, Number(process.env.CAMPAIGN_BULK_DAILY_LIMIT ?? 70) || 0);
+
+function athensDay(d = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
 const store = globalThis as unknown as { __influoCatMail?: State };
-const state = (store.__influoCatMail ??= { sent: new Set<string>(), queue: [], running: false, loaded: false });
+const state = (store.__influoCatMail ??= { sent: new Set<string>(), queue: [], running: false, loaded: false, day: "", sentToday: 0, pausedDay: "" });
 
 function load(): void {
   if (state.loaded) return;
   state.loaded = true;
   try {
-    const raw = JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) as { sent?: string[]; queue?: Job[] };
+    const raw = JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) as { sent?: string[]; queue?: Job[]; day?: string; sentToday?: number; pausedDay?: string };
+    state.day = raw.day || "";
+    state.sentToday = Number(raw.sentToday) || 0;
+    state.pausedDay = raw.pausedDay || "";
     for (const k of raw.sent || []) state.sent.add(k);
     const known = new Set(state.queue.map((j) => j.key));
     for (const j of raw.queue || []) if (!known.has(j.key)) state.queue.push(j);
@@ -66,7 +80,7 @@ function save(): void {
   try {
     fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
     const tmp = `${STATE_FILE}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify({ sent: [...state.sent], queue: state.queue }), { mode: 0o600 });
+    fs.writeFileSync(tmp, JSON.stringify({ sent: [...state.sent], queue: state.queue, day: state.day, sentToday: state.sentToday, pausedDay: state.pausedDay }), { mode: 0o600 });
     fs.renameSync(tmp, STATE_FILE);
   } catch (err) {
     console.error("[campaign category email] state save failed", err instanceof Error ? err.message : err);
@@ -89,9 +103,10 @@ export function markCategoryEmailsSent(campaignId: string, emails: string[]): nu
   return added;
 }
 
-export function categoryQueueStatus(): { pending: number; sentKeys: number } {
+export function categoryQueueStatus(): { pending: number; sentKeys: number; day: string; sentToday: number; dailyLimit: number; pausedForQuota: boolean } {
   load();
-  return { pending: state.queue.length, sentKeys: state.sent.size };
+  rollDay();
+  return { pending: state.queue.length, sentKeys: state.sent.size, day: state.day, sentToday: state.sentToday, dailyLimit: DAILY_LIMIT, pausedForQuota: state.pausedDay === state.day };
 }
 
 /** Resume a persisted queue (called at boot). */
@@ -101,24 +116,57 @@ export function resumeCategoryEmailQueue(): void {
   pump();
 }
 
+function rollDay(): void {
+  const today = athensDay();
+  if (state.day !== today) {
+    state.day = today;
+    state.sentToday = 0;
+  }
+}
+
+/** Ms until shortly after the next Athens midnight (re-checked hourly so DST/clock drift can't stall it). */
+function msUntilNextDay(): number {
+  const now = Date.now();
+  for (let h = 1; h <= 25; h++) if (athensDay(new Date(now + h * 3600_000)) !== state.day) return Math.min(h * 3600_000, 3600_000) + 5 * 60_000;
+  return 3600_000;
+}
+
 function pump(): void {
   if (state.running) return;
   state.running = true;
   const tick = async () => {
+    rollDay();
     const job = state.queue[0];
     if (!job) {
       state.running = false;
       return;
     }
+    if (state.pausedDay === state.day || state.sentToday >= DAILY_LIMIT) {
+      save();
+      console.log("[campaign category email] daily cap/quota reached, continuing tomorrow", { pending: state.queue.length, sentToday: state.sentToday, limit: DAILY_LIMIT });
+      setTimeout(tick, msUntilNextDay());
+      return;
+    }
     // Remove before sending: a crash mid-send skips one email rather than sending it twice.
     state.queue.shift();
+    state.sentToday += 1;
     save();
+    let outcome: "ok" | "quota" | "error" = "error";
     try {
-      await send("campaign_category_creator", job.to, job.subject, job.html);
-      console.log("[campaign category email] sent", job.key, { pending: state.queue.length });
+      outcome = await sendChecked("campaign_category_creator", job.to, job.subject, job.html);
     } catch (err) {
       console.error("[campaign category email]", job.key, err instanceof Error ? err.message : "failed");
     }
+    if (outcome === "quota") {
+      // Not sent: put it back and stop until tomorrow.
+      state.queue.unshift(job);
+      state.pausedDay = state.day;
+      save();
+      console.warn("[campaign category email] provider quota reached, paused until tomorrow", { pending: state.queue.length });
+      setTimeout(tick, msUntilNextDay());
+      return;
+    }
+    if (outcome === "ok") console.log("[campaign category email] sent", job.key, { pending: state.queue.length, sentToday: state.sentToday });
     setTimeout(tick, state.queue.length ? GAP_MS : 0);
   };
   void tick();

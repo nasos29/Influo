@@ -31,11 +31,16 @@ export function brandLink(email: string, hasAccount: boolean): string {
 }
 
 export async function send(type: string, to: string | null | undefined, subject: string, html: string): Promise<void> {
+  await sendChecked(type, to, subject, html);
+}
+
+/** Like send, but reports the outcome; "quota" = provider daily/rate limit reached. */
+export async function sendChecked(type: string, to: string | null | undefined, subject: string, html: string): Promise<"ok" | "quota" | "error"> {
   const address = (to || "").trim();
   const key = process.env.RESEND_API_KEY;
   if (!address || !address.includes("@") || !key) {
     logEmail(type, false);
-    return;
+    return "error";
   }
   try {
     const resend = new Resend(key);
@@ -47,9 +52,13 @@ export async function send(type: string, to: string | null | undefined, subject:
     });
     if (error) console.error("[mail]", type, error.message);
     logEmail(type, !error);
+    if (!error) return "ok";
+    const name = String((error as { name?: string }).name || "");
+    return /quota|rate_limit|daily/i.test(`${name} ${error.message}`) ? "quota" : "error";
   } catch (err) {
     console.error("[mail]", type, err instanceof Error ? err.message : "send failed");
     logEmail(type, false);
+    return "error";
   }
 }
 
