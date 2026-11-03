@@ -661,7 +661,7 @@ export default function DocsPage() {
                   <h4 className="font-bold text-teal-900 m-0">{lang === 'el' ? 'Απαντάει γρήγορα' : 'Fast responder'}</h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Μέσος χρόνος απάντησης σε μηνύματα brands κάτω από 2 ώρες, σε τουλάχιστον 3 συνομιλίες' : 'Average reply to brand messages under 2 hours, across at least 3 conversations'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Μέσος χρόνος απάντησης σε μηνύματα brands κάτω από 4 ώρες, σε τουλάχιστον 3 συνομιλίες' : 'Average reply to brand messages under 4 hours, across at least 3 conversations'}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Γρήγορη και αξιόπιστη επικοινωνία' : 'Meaning: Fast, reliable communication'}
