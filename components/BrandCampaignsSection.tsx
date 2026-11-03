@@ -405,7 +405,7 @@ const TEMPLATES: Array<{ id: string; el: string; en: string; hint: string; fill:
       title: "Παρουσίαση τοπικής επιχείρησης",
       description:
         "Αναζητούμε creators να γνωρίσουν τα προϊόντα ή τις υπηρεσίες μας και να τα παρουσιάσουν στο κοινό τους, είτε με επίσκεψη στην επιχείρησή μας είτε εξ αποστάσεως (αποστέλλουμε το προϊόν).",
-      chips: { story: 3, post: 1 },
+      chips: { story: 3, reel: 1, post: 1 },
       platforms: ["instagram"],
       compensation_type: "both",
       slots: "3",
