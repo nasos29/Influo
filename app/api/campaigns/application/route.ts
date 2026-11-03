@@ -1,3 +1,4 @@
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { campaignSlotInfo, slotsFull } from "@/lib/campaignSlots";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
@@ -302,6 +303,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     result = await admin.from("campaign_applications").insert(base).select("id").single();
     if (!result.error) {
       if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
+      revalidatePublicCampaigns();
       return NextResponse.json({ ok: true, id: result.data?.id, migration: true, notified: true });
     }
   }
@@ -312,6 +314,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     return NextResponse.json({ error: result.error.message }, { status: 400 });
   }
   if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, id: result.data?.id, notified: true });
 }
 
@@ -439,5 +442,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, status, conversationId, proposalId });
 }

@@ -22,6 +22,7 @@ const SELECT = `
   brands ( brand_name, logo_url, verified )
 `;
 
+/** The one definition of a campaign's public applications count: every application except withdrawn. */
 async function loadApplicationsCounts(campaignIds: string[]): Promise<Map<string, number>> {
   const counts = new Map<string, number>();
   if (campaignIds.length === 0) return counts;
@@ -88,20 +89,11 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
   }
 }
 
-/** Count non-withdrawn applications for one campaign (public — count only, no applicant rows). */
+/** Count for one campaign: same definition as the list cards (all applications except withdrawn). */
 export async function loadCampaignApplicationsCount(campaignId: string): Promise<number> {
   if (!campaignId) return 0;
   try {
-    const { count, error } = await supabaseService()
-      .from("campaign_applications")
-      .select("id", { count: "exact", head: true })
-      .eq("campaign_id", campaignId)
-      .neq("status", "withdrawn");
-    if (error) {
-      console.error("loadCampaignApplicationsCount", error);
-      return 0;
-    }
-    return count ?? 0;
+    return (await loadApplicationsCounts([campaignId])).get(campaignId) ?? 0;
   } catch (error) {
     console.error("loadCampaignApplicationsCount", error);
     return 0;

@@ -1,3 +1,4 @@
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
@@ -288,5 +289,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, id, deadlineCleared });
 }
