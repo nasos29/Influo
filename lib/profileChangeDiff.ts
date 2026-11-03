@@ -33,6 +33,9 @@ const ACCOUNT_KEYS: Record<string, string> = {
   url: "link",
 };
 
+/** Account keys the creator types; everything else is computed/technical. */
+const USER_ACCOUNT_KEYS = new Set(["username", "followers", "url"]);
+
 /** Internal / computed keys: not shown as changes (flags become a short note). */
 const INTERNAL = /^(er_|verified|checked|updated_at|created_at|fetched|last_|source$|id$|_)/;
 
@@ -89,6 +92,8 @@ function diffAccounts(oldV: unknown, newV: unknown): { lines: DiffLine[]; notes:
       for (const k of new Set([...Object.keys(o), ...Object.keys(n)])) {
         if (INTERNAL.test(k) || k === "platform") continue;
         if (show(o[k]) === show(n[k])) continue;
+        // Auto/technical fields going value <-> empty are noise (e.g. is_private: όχι → (κενό)).
+        if (!USER_ACCOUNT_KEYS.has(k) && (show(o[k]) === "(κενό)" || show(n[k]) === "(κενό)")) continue;
         lines.push({ label: `${name} ${ACCOUNT_KEYS[k] || k}`, from: show(o[k]), to: show(n[k]) });
       }
     }

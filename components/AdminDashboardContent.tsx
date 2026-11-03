@@ -1161,7 +1161,11 @@ const EditProfileModal = ({
                 console.log('[Profile Changes] API Response:', data);
                 
                 if (data.success) {
-                    const changes = data.data || [];
+                    // Hide entries that contain only technical noise (nothing a person would review).
+                    const changes = (data.data || []).filter(
+                        (c: { changed_fields?: string[] | null; old_values?: Record<string, unknown> | null; new_values?: Record<string, unknown> | null }) =>
+                            diffProfileChange(c.changed_fields, c.old_values, c.new_values).length > 0
+                    );
                     setProfileChanges(changes);
                     console.log('[Profile Changes] ✅ Found', changes.length, 'unreviewed changes');
                     if (changes.length === 0) {
