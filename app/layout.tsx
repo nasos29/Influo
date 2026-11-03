@@ -3,6 +3,7 @@ import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import ChunkErrorReload from "@/components/ChunkErrorReload";
+import ChatDock from "@/components/ChatDock";
 import CookieConsent from "@/components/CookieConsent";
 import FeedbackHost from "@/components/Feedback";
 import HtmlLang from "@/components/HtmlLang";
@@ -176,6 +177,7 @@ export default async function RootLayout({
           `}
         </Script>
         {children}
+        <ChatDock />
         <ChunkErrorReload />
         <HtmlLang />
         <FeedbackHost />
