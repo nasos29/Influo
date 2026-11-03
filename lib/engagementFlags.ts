@@ -119,7 +119,46 @@ export type ErCheckInput = {
   quality_penalty_percent?: number | string | null;
   er_penalty_percent?: number | string | null;
   penalty_percent?: number | string | null;
+  /** Recent posts from the social refresh; used for TikTok/YouTube sample ER. */
+  top_posts?: unknown;
 };
+
+/** Posts younger than this are still collecting views, so they skew per-view ER. */
+export const SAMPLE_MIN_AGE_MS = 48 * 60 * 60 * 1000;
+/** Per-follower ER (avg likes+comments ÷ followers) that must also be high for a video platform flag. */
+export const VIDEO_PER_FOLLOWER_CEILING = 20;
+
+/**
+ * TikTok/YouTube rates from the stored sample: sum(likes+comments) ÷ sum(views),
+ * and average likes+comments per post ÷ followers. Skips posts under 48h old.
+ */
+export function videoSampleRates(
+  input: ErCheckInput,
+  now = Date.now()
+): { perView: number | null; perFollower: number | null; posts: number } {
+  const posts = (Array.isArray(input.top_posts) ? input.top_posts : []) as Array<{
+    likes?: unknown; comments?: unknown; views?: unknown; posted_at?: unknown;
+  } | null>;
+  let inter = 0;
+  let views = 0;
+  let n = 0;
+  for (const p of posts) {
+    if (!p) continue;
+    const t = typeof p.posted_at === 'string' ? Date.parse(p.posted_at) : NaN;
+    if (Number.isFinite(t) && now - t < SAMPLE_MIN_AGE_MS) continue;
+    const v = Number(p.views) || 0;
+    if (v <= 0) continue;
+    inter += (Number(p.likes) || 0) + (Number(p.comments) || 0);
+    views += v;
+    n += 1;
+  }
+  const followers = parseFollowerString(input.followers);
+  return {
+    perView: n > 0 && views > 0 ? (inter / views) * 100 : null,
+    perFollower: n > 0 && followers > 0 ? (inter / n / followers) * 100 : null,
+    posts: n,
+  };
+}
 
 const HARD_REASONS = new Set<ErFlagReason>(['inflated', 'quality_adjusted']);
 
@@ -239,6 +278,21 @@ export function detectErFlag(input: ErCheckInput): ErFlag | null {
   const shortBand = posts >= 5 && posts < 12;
 
   if (platform === 'tiktok' || platform === 'youtube') {
+    // Suspicious only when both the per-view and the per-follower rate are high.
+    const sample = videoSampleRates(input);
+    const perFollower =
+      sample.perFollower ?? (followers > 0 && likes > 0 ? (likes / followers) * 100 : null);
+    const perFollowerHigh = perFollower == null || perFollower >= VIDEO_PER_FOLLOWER_CEILING;
+    if (sample.perView != null && sample.posts >= 3) {
+      const sampleShort = sample.posts < 5;
+      if (perFollowerHigh && (sample.perView >= 18 || (sampleShort && sample.perView >= 25))) return flag('inflated');
+      if (input.suspected_fake_penalty) return flag('quality_note');
+      return null;
+    }
+    if (!perFollowerHigh) {
+      if (input.suspected_fake_penalty) return flag('quality_note');
+      return null;
+    }
     const looksViewsBased = views > 0 && likes > 0 && likes <= views * 1.25 && er < 40;
     if (looksViewsBased) {
       if (er >= 18) return flag('inflated');
@@ -276,6 +330,7 @@ export function displayErFlag(account: ErCheckInput | null | undefined): ErFlag 
     avg_views: account.avg_views,
     followers: account.followers,
     platform: account.platform,
+    top_posts: account.top_posts,
     engagement_hidden:
       account.engagement_hidden === true || reason === 'estimated' || rate.trim().startsWith('~'),
     suspected_fake_penalty:
@@ -351,6 +406,7 @@ export function applyErFlags<T extends ErCheckInput>(
     avg_views: metrics.avg_views,
     followers: metrics.followers,
     platform: platform ?? metrics.platform,
+    top_posts: metrics.top_posts,
     suspected_fake_penalty: metrics.suspected_fake_penalty === true,
     engagement_hidden:
       metrics.engagement_hidden === true || String(metrics.engagement_rate ?? '').trim().startsWith('~'),
