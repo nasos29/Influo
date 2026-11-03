@@ -234,14 +234,8 @@ export async function POST(request: NextRequest) {
     .filter((m) => m.onPlatform)
     .sort((a, b) => b.followers - a.followers)
     .slice(0, 6)
-    .map(({ r, followers }) => ({
-      id: r.id,
-      display_name: r.display_name || "Creator",
-      avatar_url: r.avatar_url || null,
-      profile_slug: r.profile_slug || null,
-      categories: parseStoredCategories(r.category),
-      followers,
-    }));
+    // Anonymous before publish: no ids, names, photos or links (brands see creators in the invite step).
+    .map(({ followers }) => ({ followers }));
 
   return NextResponse.json({
     ok: true,

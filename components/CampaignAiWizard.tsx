@@ -23,7 +23,7 @@ export type AiPrefill = {
 
 export type SiteBrandInfo = { name: string | null; logo: string | null; colors: string[]; source?: string } | null;
 type Pkg = { name: string; slots: number | null; deliverables: string; price: number | null };
-type Match = { id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; followers: number };
+type Match = { followers: number };
 
 const GOALS = [
   ["awareness", "Αναγνωρισιμότητα brand"],
@@ -352,7 +352,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
               <p className="text-slate-700 whitespace-pre-line">{result.fill.description}</p>
               {result.fill.deliverables && <p className="text-slate-700"><span className="text-slate-500">Παραδοτέα:</span> {result.fill.deliverables}</p>}
               <p className="text-slate-700"><span className="text-slate-500">Θέσεις:</span> {result.fill.slots || "Χωρίς όριο"}</p>
-              <p className="text-xs text-slate-500">Εικόνα καμπάνιας: την ανεβάζετε στο επόμενο βήμα («Επεξεργασία & δημοσίευση») και μπορείτε να την αλλάξετε όποτε θέλετε. Χωρίς εικόνα εμφανίζεται το λογότυπό σας.</p>
+              <p className="text-xs text-slate-500">Εικόνα καμπάνιας: την ανεβάζετε στο επόμενο βήμα («Επεξεργασία & δημοσίευση») και μπορείτε να την αλλάξετε όποτε θέλετε. </p>
               {result.price ? <p className="text-slate-700"><span className="text-slate-500">Προτεινόμενη αμοιβή ανά creator:</span> {result.price} €</p> : null}
             </div>
             {result.packages.length > 0 && (
@@ -371,22 +371,26 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
             )}
             {result.matches.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">Creators που ταιριάζουν</p>
-                <ul className="grid grid-cols-2 gap-2">
-                  {result.matches.map((m) => (
-                    <li key={m.id}>
-                      <Link href={publicProfilePath(m.profile_slug, m.id)} target="_blank" className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 hover:bg-slate-50">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        {m.avatar_url ? <img src={m.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" /> : <span className="h-8 w-8 rounded-full bg-slate-200" />}
-                        <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-slate-900">{m.display_name}</span>
-                          {m.followers > 0 && <span className="block text-xs text-slate-500">{m.followers.toLocaleString("el-GR")} ακόλουθοι</span>}
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-xs text-slate-500 mt-1">Μετά τη δημοσίευση μπορείτε να τους στείλετε πρόσκληση.</p>
+                {(() => {
+                  const f = result.matches.map((m) => m.followers || 0).filter((n) => n > 0);
+                  const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}K` : String(n);
+                  return (
+                    <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2" aria-hidden>
+                          {Array.from({ length: Math.min(4, result.matches.length) }).map((_, i) => (
+                            <span key={i} className="h-8 w-8 rounded-full ring-2 ring-white bg-gradient-to-br from-slate-300 to-slate-400 blur-[1px]" />
+                          ))}
+                        </div>
+                        <p className="text-sm font-semibold text-slate-900">{result.matches.length} creators ταιριάζουν με την καμπάνιά σας</p>
+                      </div>
+                      {f.length > 0 && (
+                        <p className="mt-2 text-sm text-slate-700">Ακόλουθοι ανά creator: {fmt(Math.min(...f))}–{fmt(Math.max(...f))} · μέσος όρος {fmt(Math.round(f.reduce((a, b) => a + b, 0) / f.length))}</p>
+                      )}
+                    </div>
+                  );
+                })()}
+                <p className="text-xs text-slate-500 mt-1">Τους συγκεκριμένους creators τους βλέπετε μετά τη δημοσίευση, στο βήμα της πρόσκλησης.</p>
               </div>
             )}
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}

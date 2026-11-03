@@ -136,21 +136,17 @@ export async function POST(request: NextRequest) {
 
   let people = 0;
   let views = 0;
-  const list: Array<{ id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; accounts: Array<{ platform: string; followers: number; avg_views: number }> }> = [];
+  const list: Array<{ followers: number; platforms: string[] }> = [];
   for (const m of matches) {
     const accs = (m.influencer.accounts as Acc[]) || [];
     const r = creatorReach(accs, chips);
     if (!r) continue;
     people += r.people;
     views += r.views;
+    const pub = accs.filter((a) => a && !a.is_private && num(a.followers) > 0);
     list.push({
-      id: String(m.influencer.id),
-      display_name: m.influencer.display_name,
-      avatar_url: m.influencer.avatar_url || null,
-      profile_slug: m.influencer.profile_slug || null,
-      accounts: accs
-        .filter((a) => a && !a.is_private && num(a.followers) > 0)
-        .map((a) => ({ platform: canonicalPlatform(a.platform), followers: num(a.followers), avg_views: num(a.avg_views) > 5 * num(a.followers) || num(a.avg_views) < 0.02 * num(a.followers) ? 0 : num(a.avg_views) })),
+      followers: pub.reduce((n, a) => Math.max(n, num(a.followers)), 0),
+      platforms: Array.from(new Set(pub.map((a) => canonicalPlatform(a.platform)))),
     });
   }
   if (!views) return NextResponse.json({ estimate: null, reason: "no_data" });
@@ -163,7 +159,11 @@ export async function POST(request: NextRequest) {
       creators: list.length,
       requested: creators,
       defaulted: !(slotsRaw > 0),
-      list,
+      // Anonymous aggregates only (no names, photos or links before publish).
+      followers_min: list.length ? Math.min(...list.map((c) => c.followers)) : 0,
+      followers_max: list.length ? Math.max(...list.map((c) => c.followers)) : 0,
+      followers_avg: list.length ? Math.round(list.reduce((n, c) => n + c.followers, 0) / list.length) : 0,
+      platforms: list.reduce<Record<string, number>>((m, c) => { for (const p of c.platforms) m[p] = (m[p] || 0) + 1; return m; }, {}),
     },
   });
 }

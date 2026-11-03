@@ -480,7 +480,7 @@ function fmtPeople(n: number): string {
 
 /** Estimated reach from the creators we would recommend for this draft (server side, nothing saved). */
 function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
-  const [state, setState] = useState<{ low: number; high: number; views_low?: number; views_high?: number; creators: number; list?: ReachCreator[] } | null | "loading">("loading");
+  const [state, setState] = useState<{ low: number; high: number; views_low?: number; views_high?: number; creators: number; requested?: number; defaulted?: boolean; followers_min?: number; followers_max?: number; followers_avg?: number; platforms?: Record<string, number> } | null | "loading">("loading");
   const key = JSON.stringify([form.chips, form.slots, form.min_followers, form.location, form.requires_presence, form.category]);
   useEffect(() => {
     let cancelled = false;
@@ -506,46 +506,47 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
   }, [key]);
   if (state === null) return null;
   const el = lang === "el";
+  const plats = state !== "loading" && state.platforms ? Object.entries(state.platforms).sort((x, y) => y[1] - x[1]) : [];
   return (
-    <div className="mt-4 rounded-lg border border-blue-100 bg-white px-3 py-2.5">
-      <p className="text-sm text-slate-900">
-        <span className="font-medium">{el ? "Εκτιμώμενες προβολές: " : "Estimated views: "}</span>
+    <div className="mt-4 rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4 sm:p-5">
+      <p className="text-xs font-medium uppercase tracking-wide text-blue-700">{el ? "Εκτιμώμενες προβολές" : "Estimated views"}</p>
+      <p className="mt-1 text-2xl sm:text-3xl font-bold text-slate-900">
         {state === "loading" ? "…" : `~${fmtPeople(state.views_low || state.low)}–${fmtPeople(state.views_high || state.high)}`}
       </p>
       {state !== "loading" && (
-        <p className="text-xs text-slate-500 mt-0.5">
-          {el
-            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά ανά πλατφόρμα. Προβολές είναι το σύνολο των εμφανίσεων όλων των δημοσιεύσεων. Δεν είναι εγγύηση.`
-            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical ratios per platform. Views are total impressions across all posts. Not a guarantee.`}
-        </p>
-      )}
-      {state !== "loading" && state.list && state.list.length > 0 && (
-        <div className="mt-3">
-          <p className="text-xs font-medium text-slate-700 mb-1.5">{el ? "Creators που ταιριάζουν" : "Matching creators"}</p>
-          <ul className="space-y-2">
-            {state.list.map((c) => {
-              const name = displayNameForLang(c.display_name, lang === "en" ? "en" : "el");
-              return (
-                <li key={c.id}>
-                  <a href={publicProfilePath(c.profile_slug, c.id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50">
-                    <CreatorPhoto src={c.avatar_url} name={name} className="w-12 h-12 shrink-0" rounded="rounded-full" />
-                    <span className="min-w-0">
-                      <span className="block text-base font-semibold text-slate-900 truncate">{name}</span>{" "}
-                      <span className="block text-sm text-slate-600">
-                        {c.accounts.map((a) => `${PLATFORM_SHORT[a.platform] || a.platform} ${compactNum(a.followers)}${a.avg_views ? ` · ~${compactNum(a.avg_views)} ${el ? "προβολές" : "views"}` : ""}`).join(" | ")}
-                      </span>
-                    </span>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-xs text-slate-500 mt-2">
+        <>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="flex -space-x-2" aria-hidden>
+              {Array.from({ length: Math.min(4, state.creators) }).map((_, i) => (
+                <span key={i} className="h-8 w-8 rounded-full ring-2 ring-white bg-gradient-to-br from-slate-300 to-slate-400 blur-[1px]" />
+              ))}
+            </div>
+            <p className="text-sm font-medium text-slate-800">
+              {el
+                ? `${state.creators} ${state.creators === 1 ? "creator ταιριάζει" : "creators ταιριάζουν"} με την καμπάνιά σας`
+                : `${state.creators} creator${state.creators === 1 ? "" : "s"} match your campaign`}
+            </p>
+          </div>
+          <dl className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
+            <div className="rounded-lg bg-white/80 border border-slate-100 px-3 py-2">
+              <dt className="text-xs text-slate-500">{el ? "Ακόλουθοι ανά creator" : "Followers per creator"}</dt>
+              <dd className="font-semibold text-slate-900">{state.followers_max ? `${compactNum(state.followers_min || 0)}–${compactNum(state.followers_max)}` : "—"}</dd>
+            </div>
+            <div className="rounded-lg bg-white/80 border border-slate-100 px-3 py-2">
+              <dt className="text-xs text-slate-500">{el ? "Μέσος όρος ακολούθων" : "Average followers"}</dt>
+              <dd className="font-semibold text-slate-900">{state.followers_avg ? compactNum(state.followers_avg) : "—"}</dd>
+            </div>
+            <div className="rounded-lg bg-white/80 border border-slate-100 px-3 py-2">
+              <dt className="text-xs text-slate-500">{el ? "Πλατφόρμες" : "Platforms"}</dt>
+              <dd className="font-semibold text-slate-900">{plats.length ? plats.map(([p, n]) => `${PLATFORM_SHORT[p] || p} ${n}`).join(" · ") : "—"}</dd>
+            </div>
+          </dl>
+          <p className="text-xs text-slate-500 mt-3">
             {el
-              ? "Η εκτίμηση αφορά τους creators που προτείνονται παραπάνω. Αν τελικά συνεργαστείτε με άλλους, οι προβολές θα διαφέρουν."
-              : "The estimate refers to the creators suggested above. If you end up working with others, the views will differ."}
+              ? `${state.defaulted ? `Δεν έχετε ορίσει θέσεις, οπότε η εκτίμηση γίνεται με βάση ${state.creators} creators. ` : ""}Η εκτίμηση βασίζεται στους ακολούθους και τις μέσες προβολές των creators που ταιριάζουν, με τυπικά ποσοστά ανά πλατφόρμα, και αλλάζει με τα παραδοτέα και τις θέσεις. Δεν είναι εγγύηση. Τους συγκεκριμένους creators τους βλέπετε μετά τη δημοσίευση, στο βήμα της πρόσκλησης.`
+              : `${state.defaulted ? `No spots set, so the estimate is based on ${state.creators} creators. ` : ""}Based on followers and average views of matching creators, using typical ratios per platform; it changes with deliverables and spots. Not a guarantee. You see the specific creators after publishing, in the invite step.`}
           </p>
-        </div>
+        </>
       )}
     </div>
   );
