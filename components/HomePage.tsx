@@ -555,8 +555,22 @@ export default function Home({
                     </p>
                     <ul className="mt-5 space-y-2 text-sm text-slate-700">
                       {(lang === "en"
-                        ? ["No subscription, no cost to publish", "Applications from verified creators", "Chat and agree inside Influo"]
-                        : ["Χωρίς συνδρομή και χωρίς κόστος δημοσίευσης", "Αιτήσεις από verified creators", "Συζήτηση και συμφωνία μέσα στο Influo"]
+                        ? [
+                            "No subscription, no cost to publish",
+                            "Create your campaign with AI in 1 minute",
+                            "Ready packages or build your own, remote or in person",
+                            "Estimated reach and suggested creators before publishing",
+                            "Applications from verified creators with photo, followers and collaborations",
+                            "Chat and agree inside Influo",
+                          ]
+                        : [
+                            "Χωρίς συνδρομή και χωρίς κόστος δημοσίευσης",
+                            "Φτιάξε την καμπάνια με AI σε 1 λεπτό",
+                            "Έτοιμα πακέτα ή φτιάξε το δικό σου, εξ αποστάσεως ή με παρουσία",
+                            "Εκτίμηση εμβέλειας και προτεινόμενοι creators πριν τη δημοσίευση",
+                            "Αιτήσεις από verified creators με φωτογραφία, ακόλουθους και συνεργασίες",
+                            "Συζήτηση και συμφωνία μέσα στο Influo",
+                          ]
                       ).map((item) => (
                         <li key={item} className="flex items-start gap-2">
                           <span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>
