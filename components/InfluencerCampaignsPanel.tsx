@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { getStoredLanguage } from "@/lib/language";
+import FollowerGapNotice from "@/components/FollowerGapNotice";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
@@ -33,6 +34,8 @@ type CampaignWithBrand = {
   deadline: string | null;
   status: string;
   created_at: string;
+  min_followers?: number | null;
+  platforms?: string[] | null;
   brands: { brand_name: string; logo_url: string | null } | null;
 };
 
@@ -154,6 +157,17 @@ export default function InfluencerCampaignsPanel({
   const [messageError, setMessageError] = useState<string | null>(null);
   const [workLinksError, setWorkLinksError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [myAccounts, setMyAccounts] = useState<unknown>(null);
+  useEffect(() => {
+    if (!influencerId) return;
+    let alive = true;
+    void Promise.resolve(supabase.from("influencers").select("accounts").eq("id", influencerId).maybeSingle()).then(({ data }) => {
+      if (alive && data) setMyAccounts((data as { accounts?: unknown }).accounts ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [influencerId]);
   const [deliverDraft, setDeliverDraft] = useState<Record<string, { url: string; note: string }>>({});
   const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
 
@@ -192,6 +206,8 @@ export default function InfluencerCampaignsPanel({
         status,
         created_at,
         opened_at,
+        min_followers,
+        platforms,
         brands ( brand_name, logo_url )
       `
             )
@@ -521,6 +537,7 @@ export default function InfluencerCampaignsPanel({
                 <p className="text-xs text-slate-500 mt-1">{WORK_LINK_HINT[uiLang]}</p>
                 {workLinksError && <p className="text-xs text-red-600 mt-1">{workLinksError}</p>}
               </div>
+              <FollowerGapNotice accounts={myAccounts} platforms={applyCampaign.platforms} minFollowers={applyCampaign.min_followers} lang={uiLang} />
               <div className="flex gap-2 justify-end">
                 <button
                   type="button"
