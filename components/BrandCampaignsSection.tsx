@@ -27,6 +27,7 @@ import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 import { formatDate } from "@/lib/formatDateTime";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignServiceType } from "@/lib/campaignServiceLabel";
+import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { responseText } from "@/lib/bilingualError";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
@@ -1013,7 +1014,14 @@ export default function BrandCampaignsSection({
       const needsMoney = form.compensation_type === "money" || form.compensation_type === "both";
       if (needsMoney && !(parseFloat(form.budget) > 0)) e.budget = el ? "Συμπληρώστε budget σε ευρώ για χρηματική αμοιβή." : "Enter a budget in euros for paid work.";
       if (!form.starts_on || !/^\d{4}-\d{2}-\d{2}$/.test(form.starts_on)) e.starts_on = el ? "Συμπληρώστε ημερομηνία έναρξης (ηη/μμ/εεεε)." : "Enter a start date (dd/mm/yyyy).";
-      if (form.deadline && form.starts_on && form.deadline <= form.starts_on) e.deadline = x.deadline_after_start;
+      {
+        const b = campaignDateBounds();
+        const rangeMsg = DATE_RANGE_MSG[el ? "el" : "en"];
+        if (!e.starts_on && form.starts_on > b.max) e.starts_on = rangeMsg;
+        if (!e.starts_on && editing === "new" && form.starts_on < b.min) e.starts_on = rangeMsg;
+        if (form.deadline && (form.deadline > b.max || (editing === "new" && form.deadline < b.min))) e.deadline = rangeMsg;
+      }
+      if (!e.deadline && form.deadline && form.starts_on && form.deadline <= form.starts_on) e.deadline = x.deadline_after_start;
       if (form.slots && !(parseInt(form.slots, 10) > 0)) e.slots = el ? "Οι θέσεις πρέπει να είναι θετικός αριθμός ή «Χωρίς όριο»." : "Spots must be a positive number or “No limit”.";
     }
     if (n === 3) {
@@ -1664,13 +1672,13 @@ export default function BrandCampaignsSection({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>
-                  <DmyDateField required value={form.starts_on} onChange={(starts_on) => { setForm({ ...form, starts_on }); clearFieldError("starts_on"); }} />
+                  <DmyDateField required min={editing === "new" ? campaignDateBounds().min : undefined} max={campaignDateBounds().max} value={form.starts_on} onChange={(starts_on) => { setForm({ ...form, starts_on }); clearFieldError("starts_on"); }} />
                   <p className="text-xs text-slate-500 mt-1">{x.date_order}</p>
                   <FieldError msg={fieldErrors.starts_on} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
-                  <DmyDateField value={form.deadline} onChange={(deadline) => { setForm({ ...form, deadline }); clearFieldError("deadline"); }} />
+                  <DmyDateField min={form.starts_on || campaignDateBounds().min} max={campaignDateBounds().max} value={form.deadline} onChange={(deadline) => { setForm({ ...form, deadline }); clearFieldError("deadline"); }} />
                   <p className="text-xs text-slate-500 mt-1">{x.deadline_auto_close}</p>
                   <FieldError msg={fieldErrors.deadline} />
                 </div>
