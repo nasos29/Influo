@@ -838,6 +838,7 @@ export default function BrandCampaignsSection({
   };
 
   const [customPick, setCustomPick] = useState(false);
+  const [pickedTpl, setPickedTpl] = useState<string | null>(null);
   const applyPrefill = (fill: Partial<CampaignForm>, toStep = 1) => {
     setForm((prev) => ({ ...emptyForm(), starts_on: prev.starts_on, category: prev.category, ...fill }));
     setFieldErrors({});
@@ -1442,8 +1443,9 @@ export default function BrandCampaignsSection({
                   <Fragment key={tpl.id}>
                     <button
                       type="button"
-                      onClick={() => { setCustomPick(false); applyPrefill(tpl.fill); }}
-                      className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-white p-3 text-left hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                      aria-pressed={pickedTpl === tpl.id}
+                      onClick={() => { setCustomPick(false); setPickedTpl(tpl.id); applyPrefill(tpl.fill); }}
+                      className={`flex-1 min-w-0 rounded-xl border-2 p-3 text-left transition-colors ${pickedTpl === tpl.id ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50"}`}
                     >
                       <span className="block text-sm font-semibold text-slate-900">{lang === "el" ? tpl.el : tpl.en}</span>
                       <span className="block text-xs text-slate-500 mt-0.5">{tpl.hint}</span>
@@ -1455,8 +1457,8 @@ export default function BrandCampaignsSection({
                 <button
                   type="button"
                   aria-pressed={customPick}
-                  onClick={() => { applyPrefill({}); setCustomPick(true); setTimeout(() => document.getElementById("cf-title")?.focus(), 50); }}
-                  className={`flex-1 min-w-0 rounded-xl border border-dashed p-3 text-left transition-colors ${customPick ? "border-blue-600 bg-blue-50" : "border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50"}`}
+                  onClick={() => { applyPrefill({}); setPickedTpl(null); setCustomPick(true); setTimeout(() => document.getElementById("cf-title")?.focus(), 50); }}
+                  className={`flex-1 min-w-0 rounded-xl border-2 border-dashed p-3 text-left transition-colors ${customPick ? "border-solid border-blue-600 bg-blue-50" : "border-blue-300 bg-white hover:border-blue-500 hover:bg-blue-50"}`}
                 >
                   <span className="block text-sm font-semibold text-blue-700">{lang === "el" ? "＋ Φτιάξε το δικό σου" : "＋ Build your own"}</span>
                   <span className="block text-xs text-slate-500 mt-0.5">{lang === "el" ? "Διαλέγεις εσύ παραδοτέα & ποσότητες" : "Pick your own deliverables & quantities"}</span>
