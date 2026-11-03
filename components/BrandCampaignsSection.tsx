@@ -509,20 +509,14 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
   return (
     <div className="mt-4 rounded-lg border border-blue-100 bg-white px-3 py-2.5">
       <p className="text-sm text-slate-900">
-        <span className="font-medium">{el ? "Εκτιμώμενη εμβέλεια: " : "Estimated reach: "}</span>
-        {state === "loading" ? "…" : `~${fmtPeople(state.low)}–${fmtPeople(state.high)} ${el ? "άτομα" : "people"}`}
+        <span className="font-medium">{el ? "Εκτιμώμενες προβολές: " : "Estimated views: "}</span>
+        {state === "loading" ? "…" : `~${fmtPeople(state.views_low || state.low)}–${fmtPeople(state.views_high || state.high)}`}
       </p>
-      {state !== "loading" && state.views_high ? (
-        <p className="text-sm text-slate-900">
-          <span className="font-medium">{el ? "Εκτιμώμενες προβολές: " : "Estimated views: "}</span>
-          {`~${fmtPeople(state.views_low || 0)}–${fmtPeople(state.views_high)}`}
-        </p>
-      ) : null}
       {state !== "loading" && (
         <p className="text-xs text-slate-500 mt-0.5">
           {el
-            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά ανά πλατφόρμα. Εμβέλεια είναι τα μοναδικά άτομα (όχι πάνω από το κοινό τους), προβολές το σύνολο των εμφανίσεων όλων των δημοσιεύσεων. Δεν είναι εγγύηση.`
-            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical ratios per platform. Reach is unique people (never above their audience), views are total impressions across all posts. Not a guarantee.`}
+            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά ανά πλατφόρμα. Προβολές είναι το σύνολο των εμφανίσεων όλων των δημοσιεύσεων. Δεν είναι εγγύηση.`
+            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical ratios per platform. Views are total impressions across all posts. Not a guarantee.`}
         </p>
       )}
       {state !== "loading" && state.list && state.list.length > 0 && (
@@ -536,7 +530,7 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
                   <a href={publicProfilePath(c.profile_slug, c.id)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-lg p-2 hover:bg-slate-50">
                     <CreatorPhoto src={c.avatar_url} name={name} className="w-12 h-12 shrink-0" rounded="rounded-full" />
                     <span className="min-w-0">
-                      <span className="block text-base font-semibold text-slate-900 truncate">{name}</span>
+                      <span className="block text-base font-semibold text-slate-900 truncate">{name}</span>{" "}
                       <span className="block text-sm text-slate-600">
                         {c.accounts.map((a) => `${PLATFORM_SHORT[a.platform] || a.platform} ${compactNum(a.followers)}${a.avg_views ? ` · ~${compactNum(a.avg_views)} ${el ? "προβολές" : "views"}` : ""}`).join(" | ")}
                       </span>
@@ -548,8 +542,8 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
           </ul>
           <p className="text-xs text-slate-500 mt-2">
             {el
-              ? "Η εκτίμηση αφορά τους creators που προτείνονται παραπάνω. Αν τελικά συνεργαστείτε με άλλους, η εμβέλεια θα διαφέρει."
-              : "The estimate refers to the creators suggested above. If you end up working with others, the reach will differ."}
+              ? "Η εκτίμηση αφορά τους creators που προτείνονται παραπάνω. Αν τελικά συνεργαστείτε με άλλους, οι προβολές θα διαφέρουν."
+              : "The estimate refers to the creators suggested above. If you end up working with others, the views will differ."}
           </p>
         </div>
       )}

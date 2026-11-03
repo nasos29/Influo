@@ -10,6 +10,13 @@ export const dynamic = "force-dynamic";
 
 type Acc = { platform?: string; followers?: unknown; avg_views?: unknown; is_private?: boolean };
 
+/** Avg views clamped for outliers: >5x followers -> 5x; <2% of followers -> 0 (use follower-based ratios). */
+function cleanViews(followers: number, views: number): number {
+  if (!views || !followers) return views;
+  if (views < 0.02 * followers) return 0;
+  return Math.min(views, 5 * followers);
+}
+
 function num(v: unknown): number {
   const n = typeof v === "number" ? v : parseFollowerNumber(v);
   return Number.isFinite(n) && n > 0 ? n : 0;
@@ -36,7 +43,7 @@ function creatorReach(accounts: Acc[], chips: Record<string, number>): { people:
   const ig = by.get("instagram");
   if (ig && (chips.reel || chips.story || chips.post)) {
     const f = num(ig.followers);
-    const v = num(ig.avg_views);
+    const v = cleanViews(num(ig.followers), num(ig.avg_views));
     const aud = Math.max(f, v);
     const reelShare = aud ? (v ? (0.7 * v) / aud : 0.2) : 0;
     if (chips.reel) views += series(v ? 0.7 * v : 0.2 * f, chips.reel);
@@ -48,7 +55,7 @@ function creatorReach(accounts: Acc[], chips: Record<string, number>): { people:
     const a = by.get(plat);
     if (!a || !chips[chip]) continue;
     const f = num(a.followers);
-    const v = num(a.avg_views);
+    const v = cleanViews(num(a.followers), num(a.avg_views));
     const aud = Math.max(f, v);
     views += series(v ? 0.7 * v : 0.1 * f, chips[chip]);
     if (aud) platform(aud, [[v ? (0.7 * v) / aud : 0.1, chips[chip]]]);
@@ -143,7 +150,7 @@ export async function POST(request: NextRequest) {
       profile_slug: m.influencer.profile_slug || null,
       accounts: accs
         .filter((a) => a && !a.is_private && num(a.followers) > 0)
-        .map((a) => ({ platform: canonicalPlatform(a.platform), followers: num(a.followers), avg_views: num(a.avg_views) })),
+        .map((a) => ({ platform: canonicalPlatform(a.platform), followers: num(a.followers), avg_views: num(a.avg_views) > 5 * num(a.followers) || num(a.avg_views) < 0.02 * num(a.followers) ? 0 : num(a.avg_views) })),
     });
   }
   if (!views) return NextResponse.json({ estimate: null, reason: "no_data" });
@@ -154,6 +161,8 @@ export async function POST(request: NextRequest) {
       views_low: roundNice(0.8 * views),
       views_high: roundNice(1.2 * views),
       creators: list.length,
+      requested: creators,
+      defaulted: !(slotsRaw > 0),
       list,
     },
   });
