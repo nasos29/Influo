@@ -17,6 +17,7 @@ import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { finalizeNewInfluencerApproval } from '@/lib/approveNewInfluencer';
 import { sanitizeTopPosts } from '@/lib/topPosts';
+import { alertAdminUnapproved } from '@/lib/unapprovedAdminAlert';
 import {
   appendSocialRefreshLog,
   createSocialRefreshRun,
@@ -296,6 +297,7 @@ export async function POST(request: NextRequest) {
           message: `Left unapproved (new influencer). ${detail}`,
         });
         await incrementRunCounters(runId, 'influencers_unapproved');
+        await alertAdminUnapproved(supabaseAdmin, { runId, influencerId, influencerName, reason: `Σφάλμα προφίλ: ${detail}` });
         return NextResponse.json({ ok: false, skipped: true, errors: profileErrors.map((a) => a.error) });
       }
 
@@ -342,6 +344,7 @@ export async function POST(request: NextRequest) {
           message: persistErrors.join(' | '),
         });
         await incrementRunCounters(runId, 'influencers_unapproved');
+        await alertAdminUnapproved(supabaseAdmin, { runId, influencerId, influencerName, reason: `Σφάλμα αποθήκευσης στατιστικών: ${persistErrors.join(' | ')}` });
         return NextResponse.json({ ok: false, skipped: true, errors: persistErrors });
       }
 
@@ -359,6 +362,7 @@ export async function POST(request: NextRequest) {
         await incrementRunCounters(runId, 'influencers_ok');
       } else {
         await incrementRunCounters(runId, 'influencers_unapproved');
+        await alertAdminUnapproved(supabaseAdmin, { runId, influencerId, influencerName, reason: finalized.bioNote || 'Δεν πέρασε τον τελικό έλεγχο' });
       }
       return NextResponse.json({ ok: finalized.approved, bioNote: finalized.bioNote, result });
     }
