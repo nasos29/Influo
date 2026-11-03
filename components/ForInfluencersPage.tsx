@@ -147,8 +147,8 @@ const PROFILE_STATS: BiFeature[] = [
     icon: Award,
     title: { el: "Badges", en: "Badges" },
     desc: {
-      el: "Top Performer, Pro, Elite, VIP — αναγνώριση που χτίζει εμπιστοσύνη.",
-      en: "Top Performer, Pro, Elite, VIP — recognition that builds trust.",
+      el: "Top Performer, Pro, Elite, VIP, και Top Rated, Απαντάει γρήγορα, Ενεργός/ή, Πλήρες προφίλ — αναγνώριση που χτίζει εμπιστοσύνη.",
+      en: "Top Performer, Pro, Elite, VIP, plus Top Rated, Fast responder, Active and Complete profile — recognition that builds trust.",
     },
   },
 ];

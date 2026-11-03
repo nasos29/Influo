@@ -808,6 +808,22 @@ export default function InfluencerProfile(props: {
     };
   }, [isBrand, id]);
 
+  const [extraBadges, setExtraBadges] = useState<string[]>([]);
+  useEffect(() => {
+    const pid = profile?.id ? String(profile.id) : "";
+    if (!pid) return;
+    let cancelled = false;
+    fetch(`/api/influencers/badges?id=${encodeURIComponent(pid)}`)
+      .then((r) => (r.ok ? r.json() : { badges: [] }))
+      .then((j) => {
+        if (!cancelled && Array.isArray(j?.badges)) setExtraBadges(j.badges.map(String));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id]);
+
   // Online badge — only when the visitor has a session (avoids 401 on public RLS).
   useEffect(() => {
     if (!id || !hasSession) {
@@ -2284,6 +2300,7 @@ export default function InfluencerProfile(props: {
                   past_brands: profile.past_brands || [],
                   account_created_days: accountAgeDays,
                   min_rate: profile.min_rate || badgeMinRateFromTier(profile.price_tier),
+                  extra_badges: extraBadges,
                 }, lang);
                 
                 // Debug: log badge calculation (always log for debugging)

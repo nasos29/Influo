@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { getBadges } from "@/lib/badges";
+import { getExtraBadgeMap } from "@/lib/extraBadges";
 import { canonicalPlatform, parseFollowerNumber } from "@/lib/platformStats";
 
 export const dynamic = "force-dynamic";
@@ -60,6 +61,7 @@ export async function GET(request: NextRequest) {
     done.set(key, entry);
   }
 
+  const extraMap = await getExtraBadgeMap();
   const profiles: Record<string, unknown> = {};
   for (const r of rows || []) {
     const hidden = new Set(Array.isArray(r.hidden_videos) ? r.hidden_videos.map(String) : []);
@@ -85,6 +87,7 @@ export async function GET(request: NextRequest) {
         past_brands: d ? [...d.brands] : [],
         account_created_days: Number.isFinite(created) ? Math.max(0, Math.floor((Date.now() - created) / 86400000)) : undefined,
         min_rate: r.min_rate || undefined,
+        extra_badges: extraMap.get(String(r.id)),
       },
       "el"
     );

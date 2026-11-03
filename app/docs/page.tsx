@@ -637,6 +637,62 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Σημασία: Premium influencer, top tier' : 'Meaning: Premium influencer, top tier'}
                 </p>
               </div>
+
+              <p className="text-sm font-semibold text-slate-800 mt-2 mb-0 md:col-span-2">
+                {lang === 'el' ? 'Badges συμπεριφοράς (εμφανίζονται μαζί με το παραπάνω badge):' : 'Behaviour badges (shown alongside the badge above):'}
+              </p>
+
+              <div className="border border-orange-300 rounded-lg p-4 bg-orange-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🌟</span>
+                  <h4 className="font-bold text-orange-900 m-0">{lang === 'el' ? 'Top Rated' : 'Top Rated'}</h4>
+                </div>
+                <p className="text-sm text-slate-700 mb-2">
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Μέση βαθμολογία 4,8+ με τουλάχιστον 3 αξιολογήσεις από brands' : 'Average rating 4.8+ with at least 3 brand reviews'}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {lang === 'el' ? 'Σημασία: Τα brands είναι πολύ ικανοποιημένα' : 'Meaning: Brands are very satisfied'}
+                </p>
+              </div>
+
+              <div className="border border-teal-300 rounded-lg p-4 bg-teal-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">⚡</span>
+                  <h4 className="font-bold text-teal-900 m-0">{lang === 'el' ? 'Απαντάει γρήγορα' : 'Fast responder'}</h4>
+                </div>
+                <p className="text-sm text-slate-700 mb-2">
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Μέσος χρόνος απάντησης σε μηνύματα brands κάτω από 2 ώρες, σε τουλάχιστον 3 συνομιλίες' : 'Average reply to brand messages under 2 hours, across at least 3 conversations'}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {lang === 'el' ? 'Σημασία: Γρήγορη και αξιόπιστη επικοινωνία' : 'Meaning: Fast, reliable communication'}
+                </p>
+              </div>
+
+              <div className="border border-emerald-300 rounded-lg p-4 bg-emerald-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🟢</span>
+                  <h4 className="font-bold text-emerald-900 m-0">{lang === 'el' ? 'Ενεργός/ή' : 'Active'}</h4>
+                </div>
+                <p className="text-sm text-slate-700 mb-2">
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Σύνδεση στο Influo τις τελευταίες 7 ημέρες' : 'Logged in to Influo within the last 7 days'}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {lang === 'el' ? 'Σημασία: Είναι διαθέσιμος/η τώρα για συνεργασίες' : 'Meaning: Currently around for collaborations'}
+                </p>
+              </div>
+
+              <div className="border border-rose-300 rounded-lg p-4 bg-rose-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🧩</span>
+                  <h4 className="font-bold text-rose-900 m-0">{lang === 'el' ? 'Πλήρες προφίλ' : 'Complete profile'}</h4>
+                </div>
+                <p className="text-sm text-slate-700 mb-2">
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Φωτογραφία, portfolio, τιμές και κατηγορίες συμπληρωμένα' : 'Photo, portfolio, prices and categories filled in'}
+                </p>
+                <p className="text-sm text-slate-600">
+                  {lang === 'el' ? 'Σημασία: Ο brand βλέπει όλα όσα χρειάζεται' : 'Meaning: Brands see everything they need'}
+                </p>
+              </div>
             </div>
           </section>
 

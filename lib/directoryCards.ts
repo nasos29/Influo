@@ -65,6 +65,7 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
     availability_status: typeof row.availability_status === "string" ? row.availability_status : "available",
     profile_slug: typeof row.profile_slug === "string" ? row.profile_slug : null,
     accounts: accounts as Influencer["accounts"],
+    extra_badges: Array.isArray(row.extra_badges) ? row.extra_badges.map(String) : undefined,
   };
 }
 

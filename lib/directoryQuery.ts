@@ -102,6 +102,7 @@ export type DirectoryCandidate = {
   age: number | null;
   availability_status?: string | null;
   verified: boolean;
+  extra_badges?: string[];
 };
 
 /** Followers as the directory cards parsed them (k / m suffixes, commas). */
@@ -228,6 +229,7 @@ export function directoryCandidateFromRow(
     age: ageFromBirthDate(row.birth_date),
     availability_status: typeof row.availability_status === "string" ? row.availability_status : null,
     verified: !!row.analytics_verified,
+    extra_badges: Array.isArray(row.extra_badges) ? row.extra_badges.map(String) : undefined,
   };
 }
 
@@ -285,6 +287,7 @@ function badgeTypes(candidate: DirectoryCandidate, now = Date.now()): BadgeType[
       past_brands: candidate.past_brands || 0,
       account_created_days: Number.isNaN(accountAgeDays) ? 999 : accountAgeDays,
       min_rate: badgeMinRateFromTier(candidate.price_tier),
+      extra_badges: candidate.extra_badges,
     },
     "el"
   ).map((badge) => badge.type);
@@ -451,7 +454,7 @@ export function directoryFiltersNeedAccounts(filters: DirectoryFilters): boolean
 export function parseDirectoryFilters(params: URLSearchParams): DirectoryFilters {
   const availability = params.get("availability");
   const badge = params.get("badge");
-  const badges: Array<BadgeType | "All"> = ["All", "new", "rising", "verified", "top_performer", "pro", "elite", "vip"];
+  const badges: Array<BadgeType | "All"> = ["All", "new", "rising", "verified", "top_performer", "pro", "elite", "vip", "top_rated", "fast_responder", "active", "complete_profile"];
   return {
     q: (params.get("q") || "").trim(),
     location: (params.get("location") || "").trim(),
