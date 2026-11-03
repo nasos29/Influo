@@ -114,7 +114,8 @@ test("every category match is kept, ordered by region then followers", () => {
   assert.deepEqual(athensLow.map((row) => row.strong), [false, false]);
   assert.ok(ranked.findIndex((row) => row.id === ids[5]) > ranked.findIndex((row) => row.id === ids[4]));
   assert.ok(ranked.findIndex((row) => row.id === ids[6]) > ranked.findIndex((row) => row.id === ids[5]));
-  assert.equal(ranked.find((row) => row.id === ids[5])?.strong, false);
+  // Location never excludes: an out-of-region creator over the follower minimum is still strong.
+  assert.equal(ranked.find((row) => row.id === ids[5])?.strong, true);
   assert.equal(ranked.some((row) => row.id === ids[1]), false);
   const fresh = unseenAlerts(ranked, [ranked[0].authUserId]);
   assert.equal(fresh.some((row) => row.authUserId === ranked[0].authUserId), false);

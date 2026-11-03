@@ -43,3 +43,6 @@ next-env.d.ts
 .vercel
 
 tmp/
+
+# runtime state on the server (persistent email queue)
+/.data/

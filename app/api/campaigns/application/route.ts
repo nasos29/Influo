@@ -5,7 +5,37 @@ import { creatorContact, notifyApplicationStatus } from "@/lib/campaignNotify";
 import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCreator } from "@/lib/campaignMail";
 import { mailAdminEvent, send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
-import { sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
+import { sendPushAdminNewCampaignApplication, sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
+
+const noticeStore = globalThis as unknown as { __influoAppNotices?: Set<string> };
+const sentNotices = (noticeStore.__influoAppNotices ??= new Set<string>());
+
+/**
+ * In-app notice in the brand dashboard (same announcements table as creator campaign notices,
+ * target_type "specific_brand"). Idempotent per application: in-process set plus a DB check.
+ */
+async function brandApplicationNotice(
+  admin: ReturnType<typeof supabaseService>,
+  applicationId: string,
+  brandId: string,
+  influencerName: string,
+  campaignTitle: string
+): Promise<void> {
+  if (sentNotices.has(applicationId)) return;
+  sentNotices.add(applicationId);
+  const title = `Νέα αίτηση: ${influencerName} — ${campaignTitle}`.slice(0, 180);
+  const body = `Ο/Η ${influencerName} έκανε αίτηση στην καμπάνια «${campaignTitle}». Δες την στις Καμπάνιες του dashboard.`;
+  const { data: existing } = await admin
+    .from("announcements")
+    .select("id")
+    .eq("target_type", "specific_brand")
+    .eq("target_brand_id", brandId)
+    .eq("title", title)
+    .limit(1);
+  if (existing?.length) return;
+  const { error } = await admin.from("announcements").insert({ title, body, target_type: "specific_brand", target_brand_id: brandId });
+  if (error) console.error("[campaign application] brand notice insert", error.code, error.message);
+}
 
 /** Server-side notifications after a new application is saved: brand email + push, creator confirmation. */
 function notifyNewApplication(applicationId: string, influencerId: string): void {
@@ -14,7 +44,7 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
       const admin = supabaseService();
       const { data: app } = await admin
         .from("campaign_applications")
-        .select("id, message, proposed_price, work_links, brand_campaigns ( id, title, brands ( brand_name, contact_email ) )")
+        .select("id, message, proposed_price, work_links, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )")
         .eq("id", applicationId)
         .maybeSingle();
       if (!app) return;
@@ -22,6 +52,7 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
       const bc = (Array.isArray(rawBc) ? rawBc[0] : rawBc) as {
         id?: string;
         title?: string;
+        brand_id?: string | null;
         brands?: { brand_name?: string; contact_email?: string } | { brand_name?: string; contact_email?: string }[] | null;
       } | null;
       const brandRow = Array.isArray(bc?.brands) ? bc?.brands[0] : bc?.brands;
@@ -49,7 +80,20 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
             console.error("[campaign application] brand push", err)
           )
         );
-      } else {
+      }
+      jobs.push(
+        sendPushAdminNewCampaignApplication({ campaignTitle, brandName, influencerName, applicationId }).catch((err) =>
+          console.error("[campaign application] admin push", err)
+        )
+      );
+      if (bc?.brand_id) {
+        jobs.push(
+          brandApplicationNotice(admin, applicationId, String(bc.brand_id), influencerName, campaignTitle).catch((err) =>
+            console.error("[campaign application] brand in-app notice", err instanceof Error ? err.message : err)
+          )
+        );
+      }
+      if (!brandEmail) {
         console.warn("[campaign application] brand missing contact_email", bc?.id || "unknown_campaign");
       }
       if (person?.email) {

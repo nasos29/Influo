@@ -58,7 +58,12 @@ export function campaignAlertTarget(
   return { id: String(row.id), authUserId };
 }
 
-const COUNTRY_TOKENS = new Set(["greece", "ellada", "hellas", "ellas", "gr"]);
+const COUNTRY_TOKENS = new Set([
+  "greece", "ellada", "hellas", "ellas", "gr",
+  // «Πανελλαδικά», «Όλη η Ελλάδα», "nationwide" mean the whole country
+  "panelladika", "panelladiko", "panelladikh", "panelladiki", "panellinia", "panellinio", "panellhnia",
+  "oli", "olh", "ola", "olokliri", "nationwide", "all", "whole", "country", "everywhere",
+]);
 
 /** Metro names that differ in Greek, Latin, and genitive, but are the same region. */
 const REGION_GROUPS: string[][] = [
@@ -144,7 +149,7 @@ function compareText(a: string, b: string): number {
 /**
  * Every approved, available creator who shares a category.
  * Order: same region, then follower minimum, then everyone else. No cap.
- * `strong` is the email/push tier (region when one is set, and the follower minimum when one is set).
+ * `strong` is the email tier: the follower minimum when one is set. Location only affects ranking.
  */
 export function rankCampaignAlerts(rows: AlertCandidate[], campaign: CampaignAlertBrief): RankedAlert[] {
   const nationwide = campaignIsNationwide(campaign.location);
@@ -156,7 +161,7 @@ export function rankCampaignAlerts(rows: AlertCandidate[], campaign: CampaignAle
     const followerMatch = meetsFollowerMinimum(row.accounts, campaign.platforms, campaign.minFollowers);
     ranked.push({
       ...target,
-      strong: locationMatch && followerMatch,
+      strong: followerMatch, // location never excludes (remote work); it only ranks
       locationMatch,
       followerMatch,
     });

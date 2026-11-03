@@ -1,15 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rejectUnlessAdmin } from "@/lib/apiAuth";
+import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
+import { categoryQueueStatus, markCategoryEmailsSent, queueCategoryCampaignEmails } from "@/lib/campaignCategoryEmail";
+import { sendPushNewOpenCampaignToAllApprovedInfluencers } from "@/lib/push";
 
 export const maxDuration = 60;
 
-/** Admin/cron only: (re)send the "campaign published" notifications for one open campaign. */
+type Body = { campaignId?: string; action?: "all" | "push" | "category" | "markSent" | "status"; emails?: string[]; skipFirst?: number };
+
+/**
+ * Admin/cron only. Default action "all": (re)send every "campaign published" notification.
+ * "push": push to all approved creators only. "category": re-derive the category email queue
+ * (skips anyone already queued/sent). "markSent": record emails already sent. "status": queue size.
+ */
 export async function POST(req: NextRequest) {
   const denied = await rejectUnlessAdmin(req, { allowCronSecret: true });
   if (denied) return denied;
-  const body = (await req.json().catch(() => ({}))) as { campaignId?: string };
+  const body = (await req.json().catch(() => ({}))) as Body;
+  const action = body.action || "all";
+  if (action === "status") return NextResponse.json({ ok: true, ...categoryQueueStatus() });
   if (!body.campaignId) return NextResponse.json({ error: "Missing campaignId" }, { status: 400 });
-  const result = await notifyCampaignPublished(body.campaignId, { force: true });
-  return NextResponse.json(result, { status: "status" in result ? result.status : 200 });
+  if (action === "all") {
+    const result = await notifyCampaignPublished(body.campaignId, { force: true });
+    return NextResponse.json(result, { status: "status" in result ? result.status : 200 });
+  }
+  if (action === "markSent") {
+    const added = markCategoryEmailsSent(body.campaignId, Array.isArray(body.emails) ? body.emails.map(String) : []);
+    return NextResponse.json({ ok: true, added, ...categoryQueueStatus() });
+  }
+  const { data: row } = await supabaseService()
+    .from("brand_campaigns")
+    .select("id, status, title, category, location, min_followers, platforms, brands ( brand_name )")
+    .eq("id", body.campaignId)
+    .maybeSingle();
+  if (!row || row.status !== "open") return NextResponse.json({ error: "Campaign not open" }, { status: 404 });
+  const br = row.brands as { brand_name?: string | null } | { brand_name?: string | null }[] | null;
+  const brandName = (Array.isArray(br) ? br[0] : br)?.brand_name || "Brand";
+  if (action === "push") {
+    const push = await sendPushNewOpenCampaignToAllApprovedInfluencers({ campaignTitle: row.title, brandName, campaignId: row.id });
+    console.log("[campaign published] push backfill", row.id, push);
+    return NextResponse.json({ ok: true, push });
+  }
+  const categoryEmails = await queueCategoryCampaignEmails({
+    campaignId: row.id,
+    title: row.title,
+    brandName,
+    category: row.category || null,
+    location: row.location || null,
+    minFollowers: row.min_followers ?? null,
+    platforms: Array.isArray(row.platforms) ? row.platforms.map(String) : [],
+    includeStrong: true,
+    skipFirst: Number(body.skipFirst) || 0,
+  });
+  return NextResponse.json({ ok: true, categoryEmails, ...categoryQueueStatus() });
 }

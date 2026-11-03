@@ -4,6 +4,7 @@ import { publishedToBrand } from "@/lib/campaignMail";
 import { campaignClosesAt } from "@/lib/campaignLifecycle";
 import { send, siteUrl } from "@/lib/proposalMail";
 import { queueCategoryCampaignEmails } from "@/lib/campaignCategoryEmail";
+import { sendPushNewOpenCampaignToAllApprovedInfluencers } from "@/lib/push";
 
 /** Brand confirmation only right after opening (unless forced for a one-off resend). */
 const BRAND_CONFIRM_WINDOW_MS = 15 * 60 * 1000;
@@ -21,6 +22,7 @@ export type CampaignPublishedResult =
       admin: boolean;
       brand: boolean;
       creators: { emailed: number; pushed: number; inApp: number };
+      push: { sent: number; failed: number };
       categoryEmails: { matched: number; related: number; skippedStrong: number; relatedCategories: string[] };
     }
   | { ok: false; error: string; status: number };
@@ -112,7 +114,13 @@ export async function notifyCampaignPublished(
       });
   }
 
-  const [creators, adminOk, brandOk] = await Promise.all([creatorsJob, adminJob, brandJob]);
+  // Push goes to every approved creator with a subscription (not only matches).
+  const pushJob = sendPushNewOpenCampaignToAllApprovedInfluencers({ campaignTitle: row.title, brandName, campaignId }).catch((err) => {
+    console.error("[campaign published] push all", err);
+    return { sent: 0, failed: 0 };
+  });
+
+  const [creators, adminOk, brandOk, push] = await Promise.all([creatorsJob, adminJob, brandJob, pushJob]);
   // After the strong-match outreach, so those creators are not emailed twice.
   const categoryEmails = await queueCategoryCampaignEmails({
     campaignId,
@@ -126,6 +134,6 @@ export async function notifyCampaignPublished(
     console.error("[campaign published] category emails", err);
     return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[] };
   });
-  console.log("[campaign published] sent", campaignId, { admin: adminOk, brand: brandOk, creators, categoryEmails });
-  return { ok: true, admin: adminOk, brand: brandOk, creators, categoryEmails };
+  console.log("[campaign published] sent", campaignId, { admin: adminOk, brand: brandOk, creators, push, categoryEmails });
+  return { ok: true, admin: adminOk, brand: brandOk, creators, push, categoryEmails };
 }
