@@ -13,8 +13,9 @@ export type StatusBadgeInput = {
 export function campaignStatusBadge(c: StatusBadgeInput, lang: "el" | "en", now = Date.now()): { text: string; className: string } | null {
   const el = lang === "el";
   const red = "bg-red-600 text-white";
+  const outlined = "border-[1.5px] border-black";
   if (c.status === "draft") return { text: el ? "Πρόχειρο" : "Draft", className: "bg-amber-500 text-white" };
-  if (c.status !== "open") return c.status ? { text: el ? "Κλειστή" : "Closed", className: red } : null;
+  if (c.status !== "open") return c.status ? { text: el ? "Κλειστή" : "Closed", className: `${red} ${outlined}` } : null;
   if (c.slots != null && c.slots > 0 && (c.slots_filled ?? 0) >= c.slots) return { text: el ? "Πλήρης" : "Full", className: red };
   try {
     if (c.deadline || c.opened_at || c.created_at) {
@@ -24,5 +25,5 @@ export function campaignStatusBadge(c: StatusBadgeInput, lang: "el" | "en", now 
   } catch {
     /* bad date: treat as open */
   }
-  return { text: el ? "Ανοιχτή" : "Open", className: "bg-emerald-600 text-white" };
+  return { text: el ? "Ανοιχτή" : "Open", className: `bg-emerald-600 text-white ${outlined}` };
 }
