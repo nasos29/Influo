@@ -11,7 +11,6 @@ import {
   formatChatDayLabel,
   sameChatDay,
   clipChatPreview,
-  chatInitial,
 } from '@/lib/chatTime';
 import { formatTime } from '@/lib/formatDateTime';
 import { isTimeoutError, withTimeout } from '@/lib/withTimeout';
@@ -26,6 +25,12 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalThread } from '@/lib/proposalThreadCopy';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
+import dynamic from 'next/dynamic';
+import ChatAvatar from '@/components/ChatAvatar';
+import ImageLightbox from '@/components/ImageLightbox';
+import { insertAtCursor } from '@/lib/emojiData';
+
+const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
 
 function SendMessageButton({
   sending,
@@ -296,6 +301,10 @@ export default function Messaging({
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const wantDictationRef = useRef(false);
   const dictationPrefixRef = useRef("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [avatarMap, setAvatarMap] = useState<{ influencers: Record<string, string>; brands: Record<string, string> }>({ influencers: {}, brands: {} });
+  const [avatarLightbox, setAvatarLightbox] = useState(false);
+  const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const newMessageRef = useRef("");
   newMessageRef.current = newMessage;
   const [presenceTick, setPresenceTick] = useState(0);
@@ -1505,6 +1514,19 @@ export default function Messaging({
     }
   }, [lang, stopDictation]);
 
+  const avatarKey = conversations.map((c) => c.id).join(',');
+  useEffect(() => {
+    if (!avatarKey) return;
+    let alive = true;
+    sessionFetch('/api/messages/avatars')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d) setAvatarMap({ influencers: d.influencers || {}, brands: d.brands || {} });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [avatarKey]);
+
   useEffect(() => {
     setSpeechSupported(speechRecognitionCtor() != null);
     return () => {
@@ -1877,7 +1899,25 @@ export default function Messaging({
     }
   };
 
+  const avatarFor = (c?: Conversation | null): string | null => {
+    if (!c) return null;
+    return mode === 'influencer'
+      ? avatarMap.brands[String(c.brand_email || '').toLowerCase()] || null
+      : avatarMap.influencers[c.influencer_id] || null;
+  };
+  const insertEmoji = (emoji: string) => {
+    const el = composerRef.current;
+    const cur = newMessageRef.current;
+    const { value, caret } = insertAtCursor(cur, emoji, el ? el.selectionStart : null, el ? el.selectionEnd : null);
+    setNewMessage(value);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      try { el.setSelectionRange(caret, caret); } catch { /* noop */ }
+    });
+  };
+
   const currentConversation = conversations.find(c => c.id === selectedConversation);
+  const otherPartyAvatar = avatarFor(currentConversation);
   const otherPartyName = mode === 'influencer' 
     ? currentConversation?.brand_name || txt.brandFallback
     : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
@@ -1889,6 +1929,9 @@ export default function Messaging({
 
   return (
     <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-slate-200 h-[min(720px,calc(100vh-12rem))] min-h-[480px] flex flex-col overflow-hidden">
+      {otherPartyAvatar ? (
+        <ImageLightbox src={otherPartyAvatar} alt={otherPartyName || ''} open={avatarLightbox} onClose={() => setAvatarLightbox(false)} lang={lang === 'en' ? 'en' : 'el'} />
+      ) : null}
       <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={lang === 'el' ? 'Κλείσιμο' : 'Dismiss'} />
       {/* Shared file picker — used by both existing-thread and compose-new composers */}
       <input
@@ -1961,9 +2004,7 @@ export default function Messaging({
                     isActive ? 'bg-white border-l-2 border-l-blue-600' : 'hover:bg-white/80'
                   } ${isClosed ? 'opacity-70' : ''}`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-semibold shrink-0">
-                    {chatInitial(name)}
-                  </div>
+                  <ChatAvatar src={avatarFor(conv)} name={name} size={40} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
                       <span className={`truncate text-sm ${unread > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>
@@ -2015,9 +2056,7 @@ export default function Messaging({
                   >
                     ← {txt.back}
                   </button>
-                  <div className="w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-semibold shrink-0">
-                    {chatInitial(otherPartyName || '?')}
-                  </div>
+                  <ChatAvatar src={otherPartyAvatar} name={otherPartyName || '?'} size={36} onClick={() => setAvatarLightbox(true)} />
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">{otherPartyName}</h3>
                     <div className="flex items-center gap-1.5">
@@ -2187,6 +2226,8 @@ export default function Messaging({
                     (mode === 'influencer' && msg.sender_type === 'influencer') ||
                     (mode === 'brand' && msg.sender_type === 'brand');
                   const prev = messages[index - 1];
+                  const next = messages[index + 1];
+                  const lastOfGroup = !next || next.sender_type !== msg.sender_type || !sameChatDay(msg.created_at, next.created_at);
                   const showDay = !prev || !sameChatDay(prev.created_at, msg.created_at);
 
                   return (
@@ -2198,7 +2239,12 @@ export default function Messaging({
                           </span>
                         </div>
                       )}
-                      <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1.5`}>
+                      <div className={`flex items-end gap-1.5 ${isOwn ? 'justify-end' : 'justify-start'} mb-1.5`}>
+                        {!isOwn && (
+                          <span className="w-7 shrink-0">
+                            {lastOfGroup ? <ChatAvatar src={otherPartyAvatar} name={otherPartyName || '?'} size={28} /> : null}
+                          </span>
+                        )}
                         <div
                           className={`max-w-[85%] sm:max-w-xs lg:max-w-md px-3.5 py-2 rounded-2xl ${
                             isOwn
@@ -2316,7 +2362,22 @@ export default function Messaging({
                   >
                     <FaPaperclip className="w-4 h-4" aria-hidden />
                   </button>
+                  <div className="relative shrink-0">
+                    <button
+                      type="button"
+                      data-emoji-toggle
+                      onClick={() => setEmojiOpen((v) => !v)}
+                      aria-label="Emoji"
+                      title="Emoji"
+                      aria-expanded={emojiOpen}
+                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-xl transition-colors ${emojiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
+                    >
+                      <span aria-hidden>😊</span>
+                    </button>
+                    {emojiOpen ? <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} /> : null}
+                  </div>
                   <textarea
+                    ref={composerRef}
                     value={newMessage}
                     onChange={(e) => {
                       if (wantDictationRef.current) stopDictation();
@@ -2434,7 +2495,22 @@ export default function Messaging({
                     >
                       <FaPaperclip className="w-4 h-4" aria-hidden />
                     </button>
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        data-emoji-toggle
+                        onClick={() => setEmojiOpen((v) => !v)}
+                        aria-label="Emoji"
+                        title="Emoji"
+                        aria-expanded={emojiOpen}
+                        className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-xl transition-colors ${emojiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
+                      >
+                        <span aria-hidden>😊</span>
+                      </button>
+                      {emojiOpen ? <EmojiPicker onPick={insertEmoji} onClose={() => setEmojiOpen(false)} /> : null}
+                    </div>
                     <textarea
+                      ref={composerRef}
                       value={newMessage}
                       onChange={(e) => {
                         if (wantDictationRef.current) stopDictation();
