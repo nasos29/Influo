@@ -1,5 +1,6 @@
 "use client";
 
+import { campaignStatusBadge } from "@/lib/campaignStatusBadge";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { categoryLabel } from "@/lib/categories";
@@ -117,20 +118,6 @@ function compensationLabel(type: string | null | undefined, lang: "el" | "en"): 
   return null;
 }
 
-function statusLabel(status: string | null | undefined, lang: "el" | "en"): string | null {
-  if (status === "open") return lang === "el" ? "Ανοιχτή" : "Open";
-  if (status === "closed") return lang === "el" ? "Κλειστή" : "Closed";
-  if (status === "draft") return lang === "el" ? "Πρόχειρο" : "Draft";
-  return null;
-}
-
-function statusClass(status: string | null | undefined): string {
-  if (status === "open") return "bg-white/80 text-emerald-900 ring-1 ring-white/70 backdrop-blur-md";
-  if (status === "closed") return "bg-white/75 text-slate-800 ring-1 ring-white/60 backdrop-blur-md";
-  if (status === "draft") return "bg-amber-100/90 text-amber-950 ring-1 ring-amber-200/80 backdrop-blur-md";
-  return "bg-white/75 text-slate-800 ring-1 ring-white/60 backdrop-blur-md";
-}
-
 function splitDeliverables(raw: string | null | undefined): string[] {
   if (!raw?.trim()) return [];
   return raw
@@ -171,7 +158,7 @@ export default function CampaignCard({
   const published = publishedAgoLabel(campaign.created_at, lang);
   const closes = closesInLabel(campaign, lang);
   const comp = compensationLabel(campaign.compensation_type, lang);
-  const statusText = statusLabel(campaign.status, lang);
+  const statusBadge = campaignStatusBadge(campaign, lang);
   const cat = campaign.category ? categoryLabel(campaign.category, lang) || campaign.category : "";
   const deliverableChips = splitDeliverables(campaign.deliverables);
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
@@ -197,9 +184,9 @@ export default function CampaignCard({
           platforms={platforms}
           aspect="4/3"
         />
-        {statusText && (
-          <span className={`pointer-events-none absolute left-3 top-3 z-20 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-sm ${statusClass(campaign.status)}`}>
-            {statusText}
+        {statusBadge && (
+          <span className={`pointer-events-none absolute left-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${statusBadge.className}`}>
+            {statusBadge.text}
           </span>
         )}
         {closes && (
