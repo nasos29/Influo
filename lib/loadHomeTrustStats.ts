@@ -1,3 +1,4 @@
+import { testBrandIdsFilter } from "@/lib/testBrandIds";
 import { supabaseService } from "@/lib/apiAuth";
 
 export type HomeTrustStats = {
@@ -36,6 +37,7 @@ export async function loadHomeTrustStats(): Promise<HomeTrustStats> {
       .from("brand_campaigns")
       .select("id", { count: "exact", head: true })
       .eq("status", "open")
+      .not("brand_id", "in", testBrandIdsFilter())
       .or(`deadline.is.null,deadline.gt.${nowIso}`);
     if (!error && typeof count === "number") {
       openCampaigns = count;

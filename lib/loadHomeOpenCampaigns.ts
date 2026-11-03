@@ -1,3 +1,4 @@
+import { isTestBrandId, testBrandIdsFilter } from "@/lib/testBrandIds";
 import { supabaseService } from "@/lib/apiAuth";
 import type { CampaignCardData } from "@/components/CampaignCard";
 import { campaignSlotInfo } from "@/lib/campaignSlots";
@@ -56,6 +57,7 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
         .from("brand_campaigns")
         .select(select)
         .eq("status", "open")
+        .not("brand_id", "in", testBrandIdsFilter())
         .or(`deadline.is.null,deadline.gt.${nowIso}`)
         .order("created_at", { ascending: false });
       if (typeof limit === "number") query = query.limit(limit);
@@ -72,7 +74,7 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
     }
     // Same rule as detail page: only verified brands (list previously omitted this).
     const rows = ((data as unknown as CampaignCardData[]) || []).filter((row) =>
-      brandVerifiedFromJoin(row.brands)
+      brandVerifiedFromJoin(row.brands) && !isTestBrandId((row as { brand_id?: string | null }).brand_id)
     );
     const ids = rows.map((r) => r.id).filter(Boolean);
     const [counts, slots] = await Promise.all([loadApplicationsCounts(ids), campaignSlotInfo(supabaseService(), ids)]);

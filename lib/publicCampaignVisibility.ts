@@ -1,3 +1,4 @@
+import { isTestBrandId } from "@/lib/testBrandIds";
 import { supabaseService } from "@/lib/apiAuth";
 
 /** Same public visibility rule for list + detail: open, not expired, verified brand. */
@@ -109,6 +110,8 @@ export async function loadPublicCampaignById(id: string): Promise<PublicCampaign
     if (!data || (data as unknown as PublicCampaignRow).status !== "open") return null;
     const row = data as unknown as PublicCampaignRow;
     if (!brandVerifiedFromJoin(row.brands)) return null;
+    // QA brand campaigns are never public (owner dashboard + admin only).
+    if (isTestBrandId(row.brand_id)) return null;
     if (!isPublicCampaignDeadlineOk(row.deadline)) return null;
     return row;
   } catch (err) {

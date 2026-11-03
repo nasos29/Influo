@@ -1,4 +1,5 @@
 "use client";
+import { isTestBrandId, testBrandIdsFilter } from "@/lib/testBrandIds";
 
 import { sessionFetch } from "@/lib/sessionFetch";
 import { useState, useEffect, useCallback, useMemo } from "react";
@@ -181,6 +182,7 @@ export default function InfluencerCampaignsPanel({
             .select(
               `
         id,
+        brand_id,
         title,
         description,
         budget,
@@ -194,6 +196,7 @@ export default function InfluencerCampaignsPanel({
       `
             )
             .eq("status", "open")
+            .not("brand_id", "in", testBrandIdsFilter())
             .order("created_at", { ascending: false });
 
           const mineRes = await supabase
@@ -233,7 +236,7 @@ export default function InfluencerCampaignsPanel({
         setCampaigns([]);
         setLoadError("error");
       } else {
-        setCampaigns((openRes.data as unknown as CampaignWithBrand[]) || []);
+        setCampaigns(((openRes.data as unknown as (CampaignWithBrand & { brand_id?: string | null })[]) || []).filter((c) => !isTestBrandId(c.brand_id)));
       }
 
       if (!mineRes.error && mineRes.data) {
