@@ -480,7 +480,7 @@ function fmtPeople(n: number): string {
 
 /** Estimated reach from the creators we would recommend for this draft (server side, nothing saved). */
 function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
-  const [state, setState] = useState<{ low: number; high: number; creators: number; list?: ReachCreator[] } | null | "loading">("loading");
+  const [state, setState] = useState<{ low: number; high: number; views_low?: number; views_high?: number; creators: number; list?: ReachCreator[] } | null | "loading">("loading");
   const key = JSON.stringify([form.chips, form.slots, form.min_followers, form.location, form.requires_presence, form.category]);
   useEffect(() => {
     let cancelled = false;
@@ -512,11 +512,17 @@ function ReachEstimate({ lang, form }: { lang: string; form: CampaignForm }) {
         <span className="font-medium">{el ? "Εκτιμώμενη εμβέλεια: " : "Estimated reach: "}</span>
         {state === "loading" ? "…" : `~${fmtPeople(state.low)}–${fmtPeople(state.high)} ${el ? "άτομα" : "people"}`}
       </p>
+      {state !== "loading" && state.views_high ? (
+        <p className="text-sm text-slate-900">
+          <span className="font-medium">{el ? "Εκτιμώμενες προβολές: " : "Estimated views: "}</span>
+          {`~${fmtPeople(state.views_low || 0)}–${fmtPeople(state.views_high)}`}
+        </p>
+      ) : null}
       {state !== "loading" && (
         <p className="text-xs text-slate-500 mt-0.5">
           {el
-            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά εμβέλειας ανά πλατφόρμα. Δεν είναι εγγύηση.`
-            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical reach ratios per platform. Not a guarantee.`}
+            ? `Εκτίμηση από τους ακόλουθους και τις μέσες προβολές των ${state.creators} creators που θα σας προτείναμε, με τυπικά ποσοστά ανά πλατφόρμα. Εμβέλεια είναι τα μοναδικά άτομα (όχι πάνω από το κοινό τους), προβολές το σύνολο των εμφανίσεων όλων των δημοσιεύσεων. Δεν είναι εγγύηση.`
+            : `Estimate based on followers and average views of the ${state.creators} creators we would recommend, using typical ratios per platform. Reach is unique people (never above their audience), views are total impressions across all posts. Not a guarantee.`}
         </p>
       )}
       {state !== "loading" && state.list && state.list.length > 0 && (

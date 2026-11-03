@@ -19,29 +19,42 @@ function num(v: unknown): number {
  * Conservative unique-reach range for one creator, from public followers / average views.
  * Ratios are typical organic ranges per format (estimate, not a promise).
  */
-function creatorReach(accounts: Acc[], chips: Record<string, number>): [number, number] | null {
+/** Per creator: unique people (never above audience) and impressions (scale with deliverables). */
+function creatorReach(accounts: Acc[], chips: Record<string, number>): { people: number; views: number } | null {
   const by = new Map<string, Acc>();
   for (const a of accounts) if (a && !a.is_private) by.set(canonicalPlatform(a.platform), a);
-  // Each extra piece of content adds new people, with diminishing returns (same audience).
+  // Impressions: each extra piece adds views with diminishing returns.
   const series = (base: number, n: number) => { let t = 0; for (let k = 0; k < n; k++) t += base * Math.pow(0.55, k); return t; };
-  let total = 0;
+  let views = 0;
+  let people = 0;
+  const platform = (aud: number, items: Array<[number, number]>) => {
+    // items: [share of audience reached by one piece, count]; overlap -> 1 - Π(1-p)^n
+    let miss = 1;
+    for (const [p, n] of items) miss *= Math.pow(1 - Math.min(0.9, p), n);
+    people += Math.min(aud, aud * (1 - miss));
+  };
   const ig = by.get("instagram");
   if (ig && (chips.reel || chips.story || chips.post)) {
     const f = num(ig.followers);
     const v = num(ig.avg_views);
-    if (chips.reel) total += series(v ? 0.7 * v : 0.2 * f, chips.reel);
-    if (chips.story) total += series(0.05 * f, chips.story) * 0.6;
-    if (chips.post) total += series(0.12 * f, chips.post) * 0.7;
+    const aud = Math.max(f, v);
+    const reelShare = aud ? (v ? (0.7 * v) / aud : 0.2) : 0;
+    if (chips.reel) views += series(v ? 0.7 * v : 0.2 * f, chips.reel);
+    if (chips.story) views += series(0.05 * f, chips.story) * 0.6 + 0.05 * f * 0.4 * chips.story;
+    if (chips.post) views += series(0.12 * f, chips.post) * 0.7 + 0.12 * f * 0.3 * chips.post;
+    if (aud) platform(aud, [[reelShare, chips.reel], [0.05, chips.story], [0.12, chips.post]]);
   }
   for (const [chip, plat] of [["tiktok", "tiktok"], ["youtube", "youtube"]] as const) {
     const a = by.get(plat);
     if (!a || !chips[chip]) continue;
     const f = num(a.followers);
     const v = num(a.avg_views);
-    total += series(v ? 0.7 * v : 0.1 * f, chips[chip]);
+    const aud = Math.max(f, v);
+    views += series(v ? 0.7 * v : 0.1 * f, chips[chip]);
+    if (aud) platform(aud, [[v ? (0.7 * v) / aud : 0.1, chips[chip]]]);
   }
-  if (!total) return null;
-  return [0.8 * total, 1.2 * total];
+  if (!views) return null;
+  return { people, views: Math.max(views, people) };
 }
 
 function roundNice(n: number): number {
@@ -114,15 +127,15 @@ export async function POST(request: NextRequest) {
   );
   if (!matches.length) return NextResponse.json({ estimate: null, reason: "no_matches" });
 
-  let low = 0;
-  let high = 0;
+  let people = 0;
+  let views = 0;
   const list: Array<{ id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; accounts: Array<{ platform: string; followers: number; avg_views: number }> }> = [];
   for (const m of matches) {
     const accs = (m.influencer.accounts as Acc[]) || [];
     const r = creatorReach(accs, chips);
     if (!r) continue;
-    low += r[0];
-    high += r[1];
+    people += r.people;
+    views += r.views;
     list.push({
       id: String(m.influencer.id),
       display_name: m.influencer.display_name,
@@ -133,6 +146,15 @@ export async function POST(request: NextRequest) {
         .map((a) => ({ platform: canonicalPlatform(a.platform), followers: num(a.followers), avg_views: num(a.avg_views) })),
     });
   }
-  if (!high) return NextResponse.json({ estimate: null, reason: "no_data" });
-  return NextResponse.json({ estimate: { low: roundNice(low), high: roundNice(high), creators: list.length, list } });
+  if (!views) return NextResponse.json({ estimate: null, reason: "no_data" });
+  return NextResponse.json({
+    estimate: {
+      low: roundNice(0.8 * people),
+      high: roundNice(1.2 * people),
+      views_low: roundNice(0.8 * views),
+      views_high: roundNice(1.2 * views),
+      creators: list.length,
+      list,
+    },
+  });
 }
