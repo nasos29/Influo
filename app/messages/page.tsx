@@ -111,9 +111,9 @@ function MessagesContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 max-md:p-0">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-6">
+        <div className="mb-6 max-md:hidden">
           <a href="/brand/dashboard?tab=messages" className="text-blue-600 hover:underline mb-4 inline-block">{copy.back}</a>
           <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
             {influencerData ? copy.withName(displayNameForLang(influencerData.name, lang)) : copy.title}
@@ -127,6 +127,10 @@ function MessagesContent() {
           initialConversationId={conversationId}
           mode="brand"
           lang={lang}
+          onLeaveThread={() => {
+            if (window.history.length > 1) router.back();
+            else router.push('/brand/dashboard?tab=messages');
+          }}
         />
       </div>
     </div>

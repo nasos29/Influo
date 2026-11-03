@@ -29,5 +29,15 @@ export async function GET(request: Request) {
       if (b?.logo_url) brands[e] = b.logo_url;
     }
   }
-  return NextResponse.json({ influencers, brands }, { headers: { "Cache-Control": "private, max-age=300" } });
+  // Brand composing a first message: that creator's public avatar.
+  let target: string | null = null;
+  const want = new URL(request.url).searchParams.get("influencer");
+  if (want && /^[0-9a-f-]{36}$/i.test(want)) {
+    target = influencers[want] || null;
+    if (!target) {
+      const { data } = await admin.from("influencers").select("avatar_url").eq("id", want).maybeSingle();
+      target = (data?.avatar_url as string | null) || null;
+    }
+  }
+  return NextResponse.json({ influencers, brands, target }, { headers: { "Cache-Control": "private, max-age=300" } });
 }

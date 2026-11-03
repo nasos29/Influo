@@ -268,6 +268,18 @@ function speechRecognitionCtor(): (new () => BrowserSpeechRecognition) | null {
   return host.SpeechRecognition || host.webkitSpeechRecognition || null;
 }
 
+function OfflineHint({ text, hidden, onHide, lang }: { text: string; hidden: boolean; onHide: () => void; lang?: 'el' | 'en' }) {
+  if (hidden) return null;
+  const short = lang === 'en' ? 'Offline · they will see it when they log in' : 'Εκτός σύνδεσης · θα το δει μόλις μπει';
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5 text-[11px] md:text-xs text-amber-700">
+      <span className="md:hidden truncate">{short}</span>
+      <span className="hidden md:inline">{text}</span>
+      <button type="button" onClick={onHide} aria-label={lang === 'en' ? 'Hide' : 'Απόκρυψη'} className="md:hidden ml-auto h-6 w-6 shrink-0 rounded-full text-amber-700 hover:bg-amber-50">×</button>
+    </div>
+  );
+}
+
 export default function Messaging({
   influencerId,
   influencerName,
@@ -320,6 +332,8 @@ export default function Messaging({
   const [imageLightbox, setImageLightbox] = useState<{ src: string; alt: string } | null>(null);
   const [convSearch, setConvSearch] = useState('');
   const [listCollapsed, setListCollapsed] = useState(false);
+  const [offlineHintHidden, setOfflineHintHidden] = useState(false);
+  const [targetAvatar, setTargetAvatar] = useState<string | null>(null);
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const newMessageRef = useRef("");
   newMessageRef.current = newMessage;
@@ -1598,16 +1612,19 @@ export default function Messaging({
 
   const avatarKey = conversations.map((c) => c.id).join(',');
   useEffect(() => {
-    if (!avatarKey) return;
+    if (!avatarKey && !(mode === 'brand' && influencerId)) return;
     let alive = true;
-    sessionFetch('/api/messages/avatars')
+    sessionFetch(`/api/messages/avatars${mode === 'brand' && influencerId ? `?influencer=${encodeURIComponent(influencerId)}` : ''}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (alive && d) setAvatarMap({ influencers: d.influencers || {}, brands: d.brands || {} });
+        if (alive && d) {
+          setAvatarMap({ influencers: d.influencers || {}, brands: d.brands || {} });
+          if (d.target) setTargetAvatar(d.target);
+        }
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, [avatarKey]);
+  }, [avatarKey, influencerId, mode]);
 
   // Mobile: open thread is full-screen; lock page scroll behind it.
   useEffect(() => {
@@ -1999,7 +2016,7 @@ export default function Messaging({
     if (!c) return null;
     return mode === 'influencer'
       ? avatarMap.brands[String(c.brand_email || '').toLowerCase()] || null
-      : avatarMap.influencers[c.influencer_id] || null;
+      : avatarMap.influencers[c.influencer_id] || (c.influencer_id === influencerId ? targetAvatar : null);
   };
   const insertEmoji = (emoji: string) => {
     const el = composerRef.current;
@@ -2022,7 +2039,7 @@ export default function Messaging({
     mode === 'brand' && !!influencerId && !!brandEmail && !selectedConversation && !initialConversationId;
   const showMobileList = !selectedConversation && !isComposingNew;
   const showThreadPane = !!selectedConversation || isComposingNew;
-  const mobileThreadFullscreen = !compact && !!selectedConversation;
+  const mobileThreadFullscreen = !compact && (!!selectedConversation || isComposingNew);
   const totalUnread = conversations.reduce((n, c) => n + (c.unread_count || 0), 0);
 
   return (
@@ -2037,8 +2054,8 @@ export default function Messaging({
             }`
       }
     >
-      {otherPartyAvatar ? (
-        <ImageLightbox src={otherPartyAvatar} alt={otherPartyName || ''} open={avatarLightbox} onClose={() => setAvatarLightbox(false)} lang={lang === 'en' ? 'en' : 'el'} />
+      {otherPartyAvatar || targetAvatar ? (
+        <ImageLightbox src={(otherPartyAvatar || targetAvatar) as string} alt={otherPartyName || ''} open={avatarLightbox} onClose={() => setAvatarLightbox(false)} lang={lang === 'en' ? 'en' : 'el'} />
       ) : null}
 <ImageLightbox src={imageLightbox?.src || ''} alt={imageLightbox?.alt || ''} open={!!imageLightbox} onClose={() => setImageLightbox(null)} lang={lang === 'en' ? 'en' : 'el'} />
       <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={lang === 'el' ? 'Κλείσιμο' : 'Dismiss'} />
@@ -2321,10 +2338,10 @@ export default function Messaging({
                 )}
 
                 {mode === 'brand' && selectedConversation && (influencerId || currentConversation?.influencer_id) && !isInfluencerOnline && !conversationClosed && (
-                  <p className="text-xs text-amber-700 mt-2">{txt.offlineNotice}</p>
+                  <OfflineHint text={txt.offlineNotice} hidden={offlineHintHidden} onHide={() => setOfflineHintHidden(true)} lang={lang} />
                 )}
                 {mode === 'influencer' && selectedConversation && !isBrandOnline && !conversationClosed && (
-                  <p className="text-xs text-amber-700 mt-2">{txt.brandOfflineNotice}</p>
+                  <OfflineHint text={txt.brandOfflineNotice} hidden={offlineHintHidden} onHide={() => setOfflineHintHidden(true)} lang={lang} />
                 )}
                 {showInactivityWarning && !conversationClosed && (
                   <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
@@ -2662,21 +2679,23 @@ export default function Messaging({
           ) : (
             <div className="flex-1 flex flex-col min-h-0">
               {isComposingNew && influencerName && (
-                <div className="px-4 py-3 border-b border-slate-200 bg-white shrink-0">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-1 min-w-0">
+                <div className="px-1.5 py-1 md:px-4 md:py-3 border-b border-slate-200 bg-white shrink-0">
+                  <div className="flex items-center justify-between gap-2 max-md:flex-nowrap flex-wrap">
+                    <div className="flex items-center gap-2 min-w-0">
                     <button
                       type="button"
                       onClick={() => onLeaveThread?.()}
-                      className="md:hidden inline-flex min-h-11 items-center px-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg"
+                      aria-label={txt.back}
+                      className="md:hidden inline-flex h-11 w-11 shrink-0 items-center justify-center text-xl text-slate-700 hover:bg-slate-100 rounded-full"
                     >
-                      ← {txt.back}
+                      <span aria-hidden>←</span>
                     </button>
+                    <ChatAvatar src={targetAvatar} name={displayNameForLang(influencerName || 'Influencer', lang || 'el')} size={36} onClick={() => setAvatarLightbox(true)} />
                     <h3 className="text-sm font-semibold text-slate-900 truncate">
                       {displayNameForLang(influencerName || 'Influencer', lang || 'el')}
                     </h3>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <div
                         className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                           isInfluencerOnline ? 'bg-green-500' : 'bg-slate-300'
@@ -2688,7 +2707,7 @@ export default function Messaging({
                     </div>
                   </div>
                   {!isInfluencerOnline && (
-                    <p className="text-xs text-amber-700 mt-1">{txt.offlineNotice}</p>
+                    <OfflineHint text={txt.offlineNotice} hidden={offlineHintHidden} onHide={() => setOfflineHintHidden(true)} lang={lang} />
                   )}
                 </div>
               )}
