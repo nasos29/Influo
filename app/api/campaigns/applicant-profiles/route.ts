@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { getBadges } from "@/lib/badges";
+import { canonicalPlatform, parseFollowerNumber } from "@/lib/platformStats";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
   const [{ data: rows }, { data: props }] = await Promise.all([
     admin
       .from("influencers")
-      .select("id, display_name, avatar_url, profile_slug, category, accounts, engagement_rate, location, verified, avg_rating, total_reviews, min_rate, videos, hidden_videos")
+      .select("id, display_name, avatar_url, profile_slug, category, accounts, engagement_rate, location, verified, analytics_verified, created_at, avg_rating, total_reviews, min_rate, videos, hidden_videos")
       .in("id", ids),
     admin.from("proposals").select("influencer_id, status, brand_name, brand_added_to_past_brands").in("influencer_id", ids).eq("status", "completed"),
   ]);
@@ -63,6 +65,29 @@ export async function GET(request: NextRequest) {
     const hidden = new Set(Array.isArray(r.hidden_videos) ? r.hidden_videos.map(String) : []);
     const videos = (Array.isArray(r.videos) ? r.videos : []).map(String).filter((v) => /^https:\/\//.test(v) && !hidden.has(v)).slice(0, 3);
     const d = done.get(String(r.id));
+    // Same badge rules as the public profile (lib/badges).
+    const followersObj: Record<string, number> = {};
+    const erObj: Record<string, string> = {};
+    for (const a of Array.isArray(r.accounts) ? (r.accounts as Array<Record<string, unknown>>) : []) {
+      const plat = canonicalPlatform(a?.platform);
+      if (!plat) continue;
+      followersObj[plat] = Math.round(parseFollowerNumber(a.followers));
+      if (a.engagement_rate) erObj[plat] = String(a.engagement_rate);
+    }
+    const created = r.created_at ? Date.parse(String(r.created_at)) : NaN;
+    const badges = getBadges(
+      {
+        verified: Boolean(r.analytics_verified),
+        followers: followersObj,
+        engagement_rate: Object.keys(erObj).length ? erObj : r.engagement_rate || undefined,
+        total_reviews: Number(r.total_reviews) || 0,
+        avg_rating: r.avg_rating != null ? Number(r.avg_rating) : 0,
+        past_brands: d ? [...d.brands] : [],
+        account_created_days: Number.isFinite(created) ? Math.max(0, Math.floor((Date.now() - created) / 86400000)) : undefined,
+        min_rate: r.min_rate || undefined,
+      },
+      "el"
+    );
     profiles[String(r.id)] = {
       display_name: r.display_name,
       avatar_url: r.avatar_url,
@@ -79,6 +104,7 @@ export async function GET(request: NextRequest) {
       videos,
       completed: d?.count || 0,
       past_brands: d ? [...d.brands].slice(0, 6) : [],
+      badges,
     };
   }
   return NextResponse.json({ profiles });
