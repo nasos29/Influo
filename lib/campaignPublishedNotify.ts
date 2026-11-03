@@ -43,7 +43,7 @@ export async function notifyCampaignPublished(
   const admin = supabaseService();
   const { data: row, error } = await admin
     .from("brand_campaigns")
-    .select("id, brand_id, status, title, budget, category, location, min_followers, platforms, deadline, opened_at, created_at, brands ( brand_name, contact_email )")
+    .select("id, brand_id, status, title, budget, category, location, requires_presence, min_followers, platforms, deadline, opened_at, created_at, brands ( brand_name, contact_email )")
     .eq("id", campaignId)
     .maybeSingle();
   if (error) {
@@ -75,6 +75,7 @@ export async function notifyCampaignPublished(
     location: row.location || null,
     minFollowers: row.min_followers ?? null,
     platforms: platformList(row.platforms),
+    requiresPresence: row.requires_presence === true,
   }).catch((err) => {
     console.error("[campaign published] creators notify", err);
     return { emailed: 0, pushed: 0, inApp: 0 };
@@ -130,6 +131,7 @@ export async function notifyCampaignPublished(
     location: row.location || null,
     minFollowers: row.min_followers ?? null,
     platforms: platformList(row.platforms),
+    requiresPresence: row.requires_presence === true,
   }).catch((err) => {
     console.error("[campaign published] category emails", err);
     return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[] };

@@ -58,6 +58,7 @@ export type BrandCampaignRow = {
   compensation_type?: "money" | "product" | "both" | null;
   cover_url?: string | null;
   slots?: number | null;
+  requires_presence?: boolean | null;
 };
 
 type InfluencerBits = {
@@ -366,6 +367,7 @@ const emptyForm = () => ({
   status: "draft" as "draft" | "open" | "closed",
   /** "" = Χωρίς όριο (no limit). */
   slots: "",
+  requires_presence: false,
 });
 
 type CampaignForm = ReturnType<typeof emptyForm>;
@@ -515,7 +517,7 @@ export default function BrandCampaignsSection({
     setSchemaError(false);
     setLoadError(null);
     const baseColumns =
-      "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type";
+      "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type, requires_presence";
     const fetchRows = (columns: string) =>
       supabase
         .from("brand_campaigns")
@@ -786,6 +788,7 @@ export default function BrandCampaignsSection({
       platforms: [...new Set([...rowPlatforms, ...chipPlatforms])],
       compensation_type: row.compensation_type || "",
       status: row.status,
+      requires_presence: row.requires_presence === true,
       slots: slotsById[row.id] != null ? String(slotsById[row.id]) : "",
     });
     setFieldErrors({});
@@ -862,6 +865,8 @@ export default function BrandCampaignsSection({
       if (!form.description.trim()) e.description = el ? "Περιγράψτε τι ζητάτε από τους creators." : "Describe what you need from creators.";
       else if (form.description.trim().length < 30) e.description = el ? "Η περιγραφή είναι πολύ σύντομη (τουλάχιστον 30 χαρακτήρες)." : "Description is too short (at least 30 characters).";
       if (!form.category) e.category = el ? "Επιλέξτε κατηγορία." : "Pick a category.";
+      if (form.requires_presence && (!form.location.trim() || /^(πανελλαδικ|panelladik|ελλαδα|ελλάδα|greece|nationwide)/i.test(form.location.trim())))
+        e.location = el ? "Με φυσική παρουσία, γράψτε συγκεκριμένη περιοχή (π.χ. Αθήνα)." : "With in-person presence, enter a specific area (e.g. Athens).";
       for (const f of ["title", "description", "location"] as const) {
         if (!e[f] && form[f].trim() && findContactInfo(form[f])) e[f] = CONTACT_BLOCKED[lang];
       }
@@ -955,6 +960,7 @@ export default function BrandCampaignsSection({
         deadline: form.deadline || null,
         starts_on: form.starts_on,
         location: form.location.trim(),
+        requires_presence: form.requires_presence,
         min_followers: form.min_followers || null,
         platforms: form.platforms,
         compensation_type: form.compensation_type,
@@ -1301,6 +1307,10 @@ export default function BrandCampaignsSection({
                   <label htmlFor="cf-loc" className="block text-sm font-medium text-slate-700 mb-1">{x.form_location}</label>
                   <input id="cf-loc" value={form.location} onChange={(e) => { setForm({ ...form, location: e.target.value }); clearFieldError("location"); setContactFieldErrors((prev) => ({ ...prev, location: undefined })); }} className={inputCls(fieldErrors.location || contactFieldErrors.location)} placeholder={lang === "el" ? "Πανελλαδικά ή π.χ. Αθήνα (μόνο αν χρειάζεται φυσική παρουσία)" : "Nationwide, or e.g. Athens (only if in person)"} />
                   <FieldError msg={fieldErrors.location || contactFieldErrors.location} />
+                  <label className="mt-2 flex items-start gap-2 text-sm text-slate-700">
+                    <input type="checkbox" checked={form.requires_presence} onChange={(e) => { setForm({ ...form, requires_presence: e.target.checked }); clearFieldError("location"); }} className="mt-0.5 h-4 w-4 rounded border-slate-300" />
+                    <span>{lang === "el" ? "Απαιτείται φυσική παρουσία" : "In-person presence required"}<span className="block text-xs text-slate-500">{lang === "el" ? "Τότε ειδοποιούνται και προτείνονται μόνο creators της περιοχής." : "Then only creators in this area are notified and suggested."}</span></span>
+                  </label>
                 </div>
               </div>
               <div>
@@ -1468,7 +1478,7 @@ export default function BrandCampaignsSection({
                   <dt className="text-slate-500">{x.form_min_followers}</dt>
                   <dd className="text-slate-900">{form.min_followers || wz.review_none}</dd>
                   <dt className="text-slate-500">{x.form_location}</dt>
-                  <dd className="text-slate-900">{form.location || (lang === "el" ? "Πανελλαδικά" : "Nationwide")}</dd>
+                  <dd className="text-slate-900">{form.location || (lang === "el" ? "Πανελλαδικά" : "Nationwide")}{form.requires_presence ? (lang === "el" ? " · φυσική παρουσία" : " · in person") : ""}</dd>
                 </dl>
                 <div className="mt-4">
                   <label htmlFor="cf-status" className="block text-sm font-medium text-slate-700 mb-1">{t.form_status}</label>
@@ -1503,6 +1513,7 @@ export default function BrandCampaignsSection({
                       status: "open",
                       slots: form.slots ? parseInt(form.slots, 10) : null,
                       slots_filled: 0,
+                      requires_presence: form.requires_presence,
                     }}
                   />
                 </div>

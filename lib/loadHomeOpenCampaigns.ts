@@ -80,6 +80,7 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
       applications_count: counts.get(row.id) ?? 0,
       slots: slots[row.id]?.slots ?? null,
       slots_filled: slots[row.id]?.filled ?? 0,
+      requires_presence: slots[row.id]?.requiresPresence === true,
     }));
   } catch (error) {
     console.error("loadOpenCampaigns", error);

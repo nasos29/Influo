@@ -1,3 +1,4 @@
+import { presenceAllows } from "@/lib/campaignAlert";
 import { NextRequest, NextResponse } from "next/server";
 import { userFromBearer, supabaseService } from "@/lib/apiAuth";
 import { recommendInfluencers, type InfluencerProfile } from "@/lib/recommendations";
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
   const admin = supabaseService();
   const { data: campaign } = await admin
     .from("brand_campaigns")
-    .select("id, brand_id, title, description, category, status, budget, location, min_followers, platforms")
+    .select("id, brand_id, title, description, category, status, budget, location, requires_presence, min_followers, platforms")
     .eq("id", campaignId)
     .maybeSingle();
   if (!campaign || campaign.brand_id !== user.id) {
@@ -37,7 +38,8 @@ export async function GET(request: NextRequest) {
       const stats = statsFromAccounts(row.accounts);
       const max = stats.reduce((n, s) => Math.max(n, parseFollowerNumber(s.followers)), 0);
       if (minFollowers > 0 && max < minFollowers) return false;
-      // Location never excludes (no physical-presence field on brand_campaigns); it only affects ranking via recommendInfluencers.
+      // Location filters only when physical presence is required in a specific area; otherwise it only ranks.
+      if (!presenceAllows({ location: campaign.location, requiresPresence: campaign.requires_presence === true }, row.location)) return false;
       return true;
     })
     .map((row) => {

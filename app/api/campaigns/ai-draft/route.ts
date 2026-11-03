@@ -112,12 +112,12 @@ export async function POST(request: NextRequest) {
     budget > 0 ? `Συνολικό budget: ${budget} €.` : "Αμοιβή: προϊόν/ανταλλαγή.",
     slots ? `Creators: ${slots}.` : "Creators: χωρίς όριο.",
     `Χρονισμός: ${{ asap: "άμεσα", "2weeks": "σε 2 εβδομάδες", month: "μέσα στον μήνα", flexible: "ευέλικτος" }[timing]}.`,
-    'Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"packages":[2-3 προτεινόμενα πακέτα: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}',
+    'Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"requires_presence":true/false (πρόταση),"packages":[2-3 προτεινόμενα πακέτα: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}',
   ]
     .filter(Boolean)
     .join("\n");
 
-  let draft: { packages?: unknown; title?: string; description?: string; deliverables?: string; slots?: number | null; price_per_creator?: number };
+  let draft: { requires_presence?: unknown; packages?: unknown; title?: string; description?: string; deliverables?: string; slots?: number | null; price_per_creator?: number };
   try {
     const model = new GoogleGenerativeAI(apiKey).getGenerativeModel({
       model: MODEL,
@@ -192,6 +192,7 @@ export async function POST(request: NextRequest) {
       compensation: budget > 0 ? "money" : "product",
       budget: budget || null,
       timing,
+      requiresPresence: inPerson || (draft.requires_presence === true && Boolean(location)),
     },
     packages,
     matches,

@@ -98,10 +98,12 @@ export default function CampaignPublicView({
   initialCampaign = null,
   slots = null,
   slotsFilled = 0,
+  requiresPresence = false,
 }: {
   /** Creators wanted (null = no limit) and accepted so far. */
   slots?: number | null;
   slotsFilled?: number;
+  requiresPresence?: boolean;
   id: string;
   /** Non-withdrawn application count only — no applicant details. */
   applicationsCount?: number;
@@ -313,6 +315,11 @@ export default function CampaignPublicView({
       : null;
   const applyBlock = (
     <div className="space-y-3">
+      {requiresPresence && (
+        <p className="inline-flex mr-2 rounded-full bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
+          {el ? "Απαιτείται φυσική παρουσία" : "In-person presence required"}
+        </p>
+      )}
       {slotText && (
         <p className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${slotsClosed ? "bg-slate-100 text-slate-700" : "bg-blue-50 text-blue-700"}`}>
           {slotText}

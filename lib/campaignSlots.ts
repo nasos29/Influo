@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type SlotInfo = { slots: number | null; filled: number; participants: number };
+export type SlotInfo = { slots: number | null; filled: number; participants: number; requiresPresence?: boolean };
 
 /**
  * Slots per campaign: `slots` (null = no limit), `filled` = accepted applications,
@@ -12,8 +12,20 @@ export async function campaignSlotInfo(admin: SupabaseClient, ids: string[]): Pr
   const unique = [...new Set(ids.filter(Boolean))];
   if (!unique.length) return out;
   for (const id of unique) out[id] = { slots: null, filled: 0, participants: 0 };
-  const { data: rows, error } = await admin.from("brand_campaigns").select("id, slots").in("id", unique);
-  if (!error) for (const r of rows || []) out[String(r.id)].slots = typeof r.slots === "number" && r.slots > 0 ? r.slots : null;
+  type Row = { id: string; slots?: number | null; requires_presence?: boolean | null };
+  const first = await admin.from("brand_campaigns").select("id, slots, requires_presence").in("id", unique);
+  let rows = first.data as Row[] | null;
+  let error = first.error;
+  if (error) {
+    const retry = await admin.from("brand_campaigns").select("id, slots").in("id", unique);
+    rows = retry.data as Row[] | null;
+    error = retry.error;
+  }
+  if (!error)
+    for (const r of rows || []) {
+      out[String(r.id)].slots = typeof r.slots === "number" && r.slots > 0 ? r.slots : null;
+      out[String(r.id)].requiresPresence = r.requires_presence === true;
+    }
   const { data: apps } = await admin
     .from("campaign_applications")
     .select("campaign_id, status")

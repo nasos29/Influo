@@ -194,6 +194,7 @@ export async function POST(request: NextRequest) {
 
   if (coverUrl !== undefined) payload.cover_url = coverUrl;
   // slots: undefined = leave untouched, null/"" = no limit, 1..500 = number of creators.
+  if (typeof body.requires_presence === "boolean") payload.requires_presence = body.requires_presence;
   if (body.slots !== undefined) {
     const n = parseInt(asString(body.slots), 10);
     payload.slots = Number.isFinite(n) && n > 0 ? Math.min(500, n) : null;

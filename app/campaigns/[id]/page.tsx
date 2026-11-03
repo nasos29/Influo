@@ -26,6 +26,7 @@ export default async function CampaignPage({ params }: { params: Params }) {
       applicationsCount={applicationsCount}
       slots={slot?.slots ?? null}
       slotsFilled={slot?.filled ?? 0}
+      requiresPresence={slot?.requiresPresence === true}
       initialCampaign={initialCampaign}
     />
   );

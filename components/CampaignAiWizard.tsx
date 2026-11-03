@@ -17,6 +17,7 @@ export type AiPrefill = {
   slots: string;
   compensation_type: "money" | "product" | "both";
   starts_on: string;
+  requires_presence: boolean;
 };
 
 type Pkg = { name: string; slots: number | null; deliverables: string; price: number | null };
@@ -108,7 +109,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
         body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string };
+        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean };
         matches?: Match[];
         packages?: Pkg[];
         message?: { el?: string };
@@ -136,6 +137,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
           slots: d.slots ? String(d.slots) : "",
           compensation_type: d.compensation === "money" ? "money" : "product",
           starts_on: start,
+          requires_presence: inPerson || d.requiresPresence === true,
         },
       });
     } finally {

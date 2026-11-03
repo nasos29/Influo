@@ -17,7 +17,15 @@ export type CampaignAlertBrief = {
   location?: string | null;
   minFollowers?: number | null;
   platforms?: string[] | null;
+  /** Physical presence required: a specific area then filters creators (Πανελλαδικά never does). */
+  requiresPresence?: boolean | null;
 };
+
+/** False only when the campaign needs physical presence in a specific area and the creator is elsewhere. */
+export function presenceAllows(campaign: { location?: string | null; requiresPresence?: boolean | null }, creatorLocation: string | null | undefined): boolean {
+  if (!campaign.requiresPresence || campaignIsNationwide(campaign.location)) return true;
+  return samePlace(campaign.location, creatorLocation);
+}
 
 export type RankedAlert = {
   id: string;
@@ -157,6 +165,7 @@ export function rankCampaignAlerts(rows: AlertCandidate[], campaign: CampaignAle
   for (const row of rows) {
     const target = campaignAlertTarget(row, campaign.category);
     if (!target) continue;
+    if (!presenceAllows(campaign, row.location)) continue;
     const locationMatch = nationwide || samePlace(campaign.location, row.location);
     const followerMatch = meetsFollowerMinimum(row.accounts, campaign.platforms, campaign.minFollowers);
     ranked.push({

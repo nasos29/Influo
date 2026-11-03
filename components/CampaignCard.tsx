@@ -39,6 +39,7 @@ export type CampaignCardData = {
   /** Number of creators wanted (null = no limit) and accepted so far. */
   slots?: number | null;
   slots_filled?: number | null;
+  requires_presence?: boolean | null;
   brands?: CampaignCardBrand | CampaignCardBrand[] | null;
 };
 
@@ -319,6 +320,12 @@ export default function CampaignCard({
           </div>
         )}
 
+        {campaign.requires_presence ? (
+          <p className="mt-3 mr-2 inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+            {lang === "el" ? "Φυσική παρουσία" : "In person"}
+            {campaign.location ? ` · ${campaign.location}` : ""}
+          </p>
+        ) : null}
         {typeof campaign.slots === "number" && campaign.slots > 0 && (
           <p
             className={`mt-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${

@@ -136,6 +136,7 @@ export async function notifyMatchingOpenCampaign(opts: {
   location?: string | null;
   minFollowers?: number | null;
   platforms?: string[] | null;
+  requiresPresence?: boolean | null;
 }): Promise<{ emailed: number; pushed: number; inApp: number }> {
   const started = Date.now();
   const ranked = rankCampaignAlerts(await loadApprovedCreators(), {
@@ -143,6 +144,7 @@ export async function notifyMatchingOpenCampaign(opts: {
     location: opts.location,
     minFollowers: opts.minFollowers,
     platforms: opts.platforms,
+    requiresPresence: opts.requiresPresence,
   });
   if (!ranked.length) return { emailed: 0, pushed: 0, inApp: 0 };
   const already = await alreadyNotified(opts.campaignId);
