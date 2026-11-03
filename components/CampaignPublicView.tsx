@@ -20,6 +20,7 @@ import { campaignAudience, type CampaignAudience } from "@/lib/campaignAudience"
 import { formatFollowerCount } from "@/lib/platformStats";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import BrandAboutCard from "@/components/BrandAboutCard";
+import BrandBadges from "@/components/BrandBadges";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
 import CampaignCover, { PlatformIcon } from "@/components/CampaignCover";
@@ -472,6 +473,7 @@ export default function CampaignPublicView({
                         {brand.brand_name}
                         {brand.city ? <span className="font-normal text-slate-500"> · {brand.city}</span> : null}
                       </p>
+                      <BrandBadges brandId={campaign.brand_id} lang={el ? "el" : "en"} className="mt-1" />
                     </div>
                   </div>
                 ) : null}

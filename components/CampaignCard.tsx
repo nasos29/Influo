@@ -10,6 +10,7 @@ import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
 import CampaignCover from "@/components/CampaignCover";
+import BrandBadges from "@/components/BrandBadges";
 import { formatEuro } from "@/lib/formatEuro";
 import { formatDisplayDate } from "@/lib/formatDate";
 
@@ -42,6 +43,7 @@ export type CampaignCardData = {
   slots_filled?: number | null;
   requires_presence?: boolean | null;
   brands?: CampaignCardBrand | CampaignCardBrand[] | null;
+  brand_id?: string | null;
 };
 
 const closeCopy = {
@@ -213,6 +215,7 @@ export default function CampaignCard({
           )}
           {hideBrand && published && <p className="text-xs text-slate-500">{published}</p>}
         </div>
+        {!hideBrand && campaign.brand_id ? <BrandBadges brandId={campaign.brand_id} lang={lang} className="mt-1" /> : null}
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h3 className="min-w-0 flex-1 text-lg font-bold text-slate-900 leading-snug line-clamp-2">

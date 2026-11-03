@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import FastImage from "@/components/FastImage";
+import BrandBadges from "@/components/BrandBadges";
 import { formatCategoryLabels } from "@/lib/categories";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 
@@ -84,6 +85,7 @@ export default function BrandCard({
         {/* Brand Name & Industry */}
         <div className="mb-3">
           <h4 className="text-base font-semibold text-slate-900 truncate mb-1">{brand_name}</h4>
+          <BrandBadges brandId={id} lang={lang} className="mb-2" />
           {industry && (
             <p className="text-slate-600 text-xs mb-2">{formatCategoryLabels(industry, lang)}</p>
           )}

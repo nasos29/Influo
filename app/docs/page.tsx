@@ -694,6 +694,27 @@ export default function DocsPage() {
                 </p>
               </div>
             </div>
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">{lang === 'el' ? 'Badges για brands' : 'Brand badges'}</h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="border border-lime-300 rounded-lg p-4 bg-lime-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🌱</span>
+                  <h4 className="font-bold text-lime-900 m-0">{lang === 'el' ? 'Νέο Brand' : 'New brand'}</h4>
+                </div>
+                <p className="text-sm text-slate-700 m-0">
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Εγγραφή στο Influo τις τελευταίες 30 ημέρες' : 'Joined Influo within the last 30 days'}
+                </p>
+              </div>
+              <div className="border border-sky-300 rounded-lg p-4 bg-sky-50">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🤝</span>
+                  <h4 className="font-bold text-sky-900 m-0">{lang === 'el' ? 'Συχνός συνεργάτης' : 'Frequent partner'}</h4>
+                </div>
+                <p className="text-sm text-slate-700 m-0">
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? '3+ ολοκληρωμένες συνεργασίες στο Influo (ολοκληρωμένες προτάσεις ή creators που έγιναν δεκτοί σε καμπάνιες)' : '3+ completed collaborations on Influo (completed proposals or creators accepted on campaigns)'}
+                </p>
+              </div>
+            </div>
           </section>
 
           {/* Availability, trust, rate card, metrics */}

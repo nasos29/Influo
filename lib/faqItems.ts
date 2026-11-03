@@ -63,6 +63,17 @@ export const faqs: FAQItem[] = [
   {
     category: { el: "Για Brands", en: "For Brands" },
     question: {
+      el: "Τι σημαίνουν τα badges των brands;",
+      en: "What do brand badges mean?"
+    },
+    answer: {
+      el: "Τα brands μπορεί να έχουν δύο badges, που φαίνονται στις καμπάνιες και στον κατάλογο brands: 🌱 Νέο Brand (εγγραφή στο Influo τις τελευταίες 30 μέρες) και 🤝 Συχνός συνεργάτης (3+ ολοκληρωμένες συνεργασίες στο Influo). Υπολογίζονται αυτόματα.",
+      en: "Brands can have two badges, shown on campaigns and in the brands directory: 🌱 New brand (joined Influo in the last 30 days) and 🤝 Frequent partner (3+ completed collaborations on Influo). They are calculated automatically."
+    }
+  },
+  {
+    category: { el: "Για Brands", en: "For Brands" },
+    question: {
       el: "Πώς βρίσκω influencers για το brand μου;",
       en: "How do I find influencers for my brand?"
     },
