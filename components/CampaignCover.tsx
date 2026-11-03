@@ -160,11 +160,11 @@ export default function CampaignCover({
             onError={() => setCoverFailed(true)}
           />
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-          <div className="absolute left-3 bottom-3 z-10">{logoMark("w-10 h-10 sm:w-12 sm:h-12", "text-base", true)}</div>
+          <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div>
         </>
       ) : (
         // No image: neutral background; only the small brand logo bottom-left when the brand has one.
-        logoSrc ? <div className="absolute left-3 bottom-3 z-10">{logoMark("w-10 h-10 sm:w-12 sm:h-12", "text-base", true)}</div> : null
+        logoSrc ? <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div> : null
       )}
       {platformList.length > 0 && (
         <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/50 px-3 py-2 ring-1 ring-white/30 backdrop-blur-md sm:min-h-0 sm:px-2.5 sm:py-1.5">
