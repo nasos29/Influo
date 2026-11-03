@@ -541,7 +541,7 @@ export default function Home({
               ))}
               {openCampaigns.length < 3 ? (
                 <li className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg">
-                  <div className="flex h-full flex-col justify-center rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex h-full flex-col justify-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                     <span className="mb-3 mx-auto inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
                       {lang === "en" ? "For brands" : "Για επιχειρήσεις"}
                     </span>
@@ -559,7 +559,7 @@ export default function Home({
                             "No subscription, no cost to publish",
                             "Create your campaign with AI in 1 minute",
                             "Ready packages or build your own, remote or in person",
-                            "Estimated reach and suggested creators before publishing",
+                            "Estimated views and matching creators before publishing",
                             "Applications from verified creators with photo, followers and collaborations",
                             "Chat and agree inside Influo",
                           ]
@@ -567,7 +567,7 @@ export default function Home({
                             "Χωρίς συνδρομή και χωρίς κόστος δημοσίευσης",
                             "Φτιάξε την καμπάνια με AI σε 1 λεπτό",
                             "Έτοιμα πακέτα ή φτιάξε το δικό σου, εξ αποστάσεως ή με παρουσία",
-                            "Εκτίμηση εμβέλειας και προτεινόμενοι creators πριν τη δημοσίευση",
+                            "Εκτιμώμενες προβολές και creators που ταιριάζουν πριν τη δημοσίευση",
                             "Αιτήσεις από verified creators με φωτογραφία, ακόλουθους και συνεργασίες",
                             "Συζήτηση και συμφωνία μέσα στο Influo",
                           ]
