@@ -927,6 +927,14 @@ export default function BrandCampaignsSection({
     setDraftRestored(false);
     setContactFieldErrors({});
     setEditing(row);
+    // Bring the edit form into view (it renders above the list) and focus the first field.
+    setTimeout(() => {
+      const f = formRef.current;
+      if (!f) return;
+      const top = f.getBoundingClientRect().top + window.scrollY - 80;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      setTimeout(() => (document.getElementById("cf-title") as HTMLInputElement | null)?.focus({ preventScroll: true }), 400);
+    }, 60);
   };
 
   const togglePlatform = (id: string) => {
