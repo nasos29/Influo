@@ -8,6 +8,7 @@ import { sessionFetch } from "@/lib/sessionFetch";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 import CreatorPhoto from "@/components/CreatorPhoto";
+import ApplicantCard, { type ApplicantFull } from "@/components/ApplicantCard";
 import PlatformFollowers from "@/components/PlatformFollowers";
 import DmyDateField from "@/components/DmyDateField";
 import { askConfirm, toastError, toastSuccess } from "@/components/Feedback";
@@ -88,6 +89,7 @@ type ApplicationRow = {
   deliverable_review_note?: string | null;
   initiated_by?: string | null;
   influencers: InfluencerBits;
+  profile?: ApplicantFull | null;
 };
 
 let inviteColumnSupported: boolean | null = null;
@@ -654,6 +656,16 @@ export default function BrandCampaignsSection({
         }
       } catch {
         /* prices are optional */
+      }
+      try {
+        // Browser role cannot read `influencers`; the server returns the public profile fields.
+        const res = await sessionFetch(`/api/campaigns/applicant-profiles?campaignId=${encodeURIComponent(campaignId)}`);
+        if (res.ok) {
+          const body = (await res.json()) as { profiles?: Record<string, ApplicantFull> };
+          for (const app of apps) app.profile = body.profiles?.[app.influencer_id] ?? null;
+        }
+      } catch {
+        /* card falls back to basic fields */
       }
       await attachInitiatedBy(apps);
       setAppsByCampaign((prev) => ({ ...prev, [campaignId]: apps }));
@@ -1749,10 +1761,6 @@ export default function BrandCampaignsSection({
                       <div className="space-y-3">
                         {(appsByCampaign[row.id] || []).map((app) => {
                           const inf = app.influencers;
-                          const engagement =
-                            inf?.engagement_rate && typeof inf.engagement_rate === "object"
-                              ? Object.entries(inf.engagement_rate as Record<string, string>).map(([k, v]) => `${k.slice(0, 2).toUpperCase()} ${v}`).join(" · ")
-                              : inf?.engagement_rate ? String(inf.engagement_rate) : "";
                           const appStatusChip =
                             app.status === "accepted"
                               ? "bg-emerald-100 text-emerald-800"
@@ -1774,72 +1782,37 @@ export default function BrandCampaignsSection({
                                     ? t.app_withdrawn
                                     : t.app_pending;
                           return (
-                            <article key={app.id} className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                              <div className="flex gap-3">
-                                <CreatorPhoto src={inf?.avatar_url} name={displayNameForLang(inf?.display_name || "Creator", lang)} className="w-14 h-14" rounded="rounded-full" />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <InfluencerPresenceDot influencerId={app.influencer_id} lang={lang} />
-                                    <p className="font-medium text-slate-900">{inf?.display_name ? displayNameForLang(inf.display_name, lang) : app.influencer_id}</p>
-                                    <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${appStatusChip}`}>{appStatusText}</span>
-                                    {app.initiated_by === "brand" ? (
-                                      <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">
-                                        {lang === "el" ? "Πρόσκληση" : "Invite"}
-                                      </span>
-                                    ) : null}
-                                    <Link href={publicProfilePath(inf?.profile_slug, app.influencer_id)} className="text-xs text-blue-600 hover:underline">{x.profile}</Link>
-                                  </div>
-                                  <PlatformFollowers accounts={inf?.accounts} lang={lang} className="mt-1" showDeclared />
-                                  <p className="text-xs text-slate-600 mt-1">
-                                    {engagement ? `${x.engagement}: ${engagement}` : ""}
-                                    {inf?.min_rate ? ` · ${x.rate}: ${inf.min_rate}` : ""}
-                                    {inf?.category ? ` · ${categoryLabel(inf.category, lang) || inf.category}` : ""}
-                                  </p>
-                                  {app.proposed_price != null && <p className="text-xs text-slate-700 mt-1">{x.proposed}: {formatEuroAmount(app.proposed_price, lang)}</p>}
-                                  {(() => {
-                                    const allowed = filterWorkLinks(app.work_links || "").ok;
-                                    if (!allowed.length) return null;
-                                    return (
-                                      <div className="mt-1 space-y-0.5">
-                                        <p className="text-xs text-slate-600">{x.work}:</p>
-                                        {allowed.map((url) => (
-                                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="block text-xs text-blue-700 hover:underline break-all">
-                                            {url}
-                                          </a>
-                                        ))}
-                                      </div>
-                                    );
-                                  })()}
-                                  <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{app.message || "—"}</p>
-                                </div>
-                              </div>
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                {app.status === "withdrawn" ? (
-                                  <span className="text-xs text-slate-500">{t.app_withdrawn}</span>
-                                ) : app.status === "accepted" ? (
-                                  <span className="text-xs font-medium text-emerald-700">{t.app_accepted}</span>
-                                ) : (
-                                  <>
-                                    <select value={app.status === "accepted" ? "pending" : app.status} onChange={(e) => updateAppStatus(app, e.target.value)} className="text-xs border border-slate-300 rounded px-2 py-1 bg-white" aria-label={t.app_status}>
-                                      <option value="pending">{t.app_pending}</option>
-                                      <option value="shortlisted">{t.app_shortlisted}</option>
-                                      <option value="rejected">{t.app_rejected}</option>
-                                    </select>
-                                    <button type="button" onClick={() => updateAppStatus(app, "accepted")} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-medium">{x.accept}</button>
-                                  </>
-                                )}
-                                <button type="button" onClick={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(inf?.display_name || "Influencer", lang) })} className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium">
-                                  {t.btn_chat}
-                                </button>
-                                <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span>
-                                {app.deliverable_status === "submitted" && (
-                                  <>
-                                    <button type="button" onClick={() => reviewDeliverable(app.id, "approved")} className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white">{t.approve_deliverable}</button>
-                                    <button type="button" onClick={() => { const note = window.prompt(t.review_note_ph) || ""; void reviewDeliverable(app.id, "changes_requested", note); }} className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50">{t.request_changes}</button>
-                                  </>
-                                )}
-                              </div>
-                            </article>
+                            <ApplicantCard
+                              key={app.id}
+                              lang={lang}
+                              influencerId={app.influencer_id}
+                              profile={app.profile ?? null}
+                              fallbackName={inf?.display_name || "Creator"}
+                              fallbackAvatar={inf?.avatar_url ?? null}
+                              status={app.status}
+                              statusText={appStatusText}
+                              statusClass={appStatusChip}
+                              invite={app.initiated_by === "brand"}
+                              message={app.message}
+                              proposedPrice={app.proposed_price}
+                              workLinks={app.work_links}
+                              canDecide={app.status !== "withdrawn" && app.status !== "accepted"}
+                              onAccept={() => updateAppStatus(app, "accepted")}
+                              onReject={() => updateAppStatus(app, "rejected")}
+                              onShortlist={() => updateAppStatus(app, "shortlisted")}
+                              onMessage={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(inf?.display_name || "Influencer", lang) })}
+                              footer={
+                                <>
+                                  {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
+                                  {app.deliverable_status === "submitted" && (
+                                    <>
+                                      <button type="button" onClick={() => reviewDeliverable(app.id, "approved")} className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white">{t.approve_deliverable}</button>
+                                      <button type="button" onClick={() => { const note = window.prompt(t.review_note_ph) || ""; void reviewDeliverable(app.id, "changes_requested", note); }} className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50">{t.request_changes}</button>
+                                    </>
+                                  )}
+                                </>
+                              }
+                            />
                           );
                         })}
                       </div>
