@@ -1,3 +1,4 @@
+import { isTestBrandId, TEST_CREATOR_IDS } from "@/lib/testBrandIds";
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { requireActor } from "@/lib/proposalAccess";
@@ -52,6 +53,10 @@ export async function POST(request: Request) {
     .maybeSingle();
   if (!campaign || campaign.brand_id !== session.actor.brandId) {
     return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+  }
+  // Test brand campaigns stay internal: only test creators can be invited.
+  if (isTestBrandId(campaign.brand_id) && !TEST_CREATOR_IDS.has(String(influencerId).toLowerCase())) {
+    return NextResponse.json({ error: "test_brand", message: { el: "Δοκιμαστικός λογαριασμός: προσκλήσεις μόνο σε test creators.", en: "Test account: invites only to test creators." } }, { status: 403 });
   }
   if (campaign.status !== "open" && campaign.status !== "draft") {
     return NextResponse.json({ error: "Campaign not available" }, { status: 400 });
