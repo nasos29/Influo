@@ -24,7 +24,7 @@ let inflight: Promise<Map<string, ExtraBadgeType[]>> | null = null;
 
 const COLUMNS = [
   "id", "avatar_url", "videos", "hidden_videos", "category", "min_rate", "service_packages",
-  "rate_card", "accounts", "avg_response_time", "avg_rating", "total_reviews",
+  "rate_card", "accounts", "avg_response_time", "avg_rating", "total_reviews", "birth_date",
 ] as const;
 
 async function allRows<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
@@ -92,7 +92,8 @@ async function compute(): Promise<Map<string, ExtraBadgeType[]>> {
     const seen = lastSeen.get(id);
     if (seen != null && Number.isFinite(seen) && now - seen <= ACTIVE_MAX_DAYS * 86_400_000) out.push("active");
     const hasPhoto = typeof row.avatar_url === "string" && row.avatar_url.trim() !== "";
-    if (hasPhoto && hasPortfolio(row) && hasPrices(row) && parseStoredCategories(row.category).length > 0) {
+    const hasBirthDate = typeof row.birth_date === "string" && row.birth_date.trim() !== "";
+    if (hasPhoto && hasBirthDate && hasPortfolio(row) && hasPrices(row) && parseStoredCategories(row.category).length > 0) {
       out.push("complete_profile");
     }
     if (out.length) map.set(id, out);
