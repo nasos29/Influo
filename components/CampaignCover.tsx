@@ -133,7 +133,7 @@ export default function CampaignCover({
   return (
     <div
       className={`relative w-full ${aspectClass} overflow-hidden ${
-        hasCover ? `bg-gradient-to-br ${gradientFor(category)}` : logoSrc ? "bg-slate-800" : "bg-gradient-to-br from-slate-500 via-slate-600 to-slate-700"
+        hasCover ? `bg-gradient-to-br ${gradientFor(category)}` : logoSrc ? "bg-slate-800" : "bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-600"
       } ${className}`}
     >
       {hasCover ? (
@@ -186,7 +186,17 @@ export default function CampaignCover({
             />
           )}
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-4">
-            {logoMark("w-16 h-16 sm:w-20 sm:h-20", "text-2xl sm:text-3xl")}
+            {logoSrc ? (
+              logoMark("w-16 h-16 sm:w-20 sm:h-20", "text-2xl sm:text-3xl")
+            ) : (
+              <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/30 backdrop-blur-sm" aria-hidden>
+                <svg viewBox="0 0 24 24" className="h-7 w-7 sm:h-8 sm:w-8 text-white" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z" />
+                  <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                  <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+                </svg>
+              </div>
+            )}
             {brandName ? (
               <p className="max-w-full truncate text-sm font-semibold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.55)]">
                 {brandName}
