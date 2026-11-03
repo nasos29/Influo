@@ -40,8 +40,9 @@ const PLATFORMS = [
   { id: "instagram", el: "Instagram", en: "Instagram" },
   { id: "tiktok", el: "TikTok", en: "TikTok" },
   { id: "youtube", el: "YouTube", en: "YouTube" },
-  { id: "facebook", el: "Facebook", en: "Facebook" },
 ] as const;
+// Legacy: Facebook is no longer offered for new campaigns; old campaigns that have it keep it.
+const LEGACY_PLATFORMS = [{ id: "facebook", el: "Facebook", en: "Facebook" }] as const;
 
 export type BrandCampaignRow = {
   id: string;
@@ -1621,7 +1622,7 @@ export default function BrandCampaignsSection({
               <div>
                 <p className="block text-sm font-medium text-slate-700 mb-2">{x.form_platforms}{req}</p>
                 <div className="flex flex-wrap gap-3">
-                  {PLATFORMS.map((platform) => (
+                  {[...PLATFORMS, ...LEGACY_PLATFORMS.filter((lp) => form.platforms.includes(lp.id))].map((platform) => (
                     <label key={platform.id} className="inline-flex items-center gap-2 text-sm text-slate-800">
                       <input type="checkbox" checked={form.platforms.includes(platform.id)} onChange={() => { togglePlatform(platform.id); clearFieldError("platforms"); }} />
                       {lang === "el" ? platform.el : platform.en}
@@ -1738,7 +1739,7 @@ export default function BrandCampaignsSection({
                   <dt className="text-slate-500">{t.form_category}</dt>
                   <dd className="text-slate-900">{form.category ? categoryLabel(form.category, lang) || form.category : wz.review_none}</dd>
                   <dt className="text-slate-500">{x.form_platforms}</dt>
-                  <dd className="text-slate-900">{form.platforms.length ? form.platforms.map((id) => PLATFORMS.find((p) => p.id === id)?.[lang] || id).join(", ") : wz.review_none}</dd>
+                  <dd className="text-slate-900">{form.platforms.length ? form.platforms.map((id) => [...PLATFORMS, ...LEGACY_PLATFORMS].find((p) => p.id === id)?.[lang] || id).join(", ") : wz.review_none}</dd>
                   <dt className="text-slate-500">{wz.deliverables_short}</dt>
                   <dd className="text-slate-900">{buildDeliverables(form.chips, form.deliverables) || wz.review_none}</dd>
                   <dt className="text-slate-500">{x.form_compensation}</dt>
