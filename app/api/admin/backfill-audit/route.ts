@@ -152,6 +152,7 @@ export async function POST(request: NextRequest) {
           er_penalty_percent: a.er_penalty_percent ?? undefined,
           penalty_percent: a.penalty_percent ?? undefined,
           er_flag_reason: a.er_flag_reason ?? undefined,
+          top_posts: (a as { top_posts?: unknown }).top_posts,
         }));
 
       if (igTtAccounts.length === 0) {
