@@ -21,6 +21,7 @@ import { clearSessionKeys, useBackGesture } from "@/lib/useFormPersistence";
 import CampaignAiWizard, { type SiteBrandInfo } from "@/components/CampaignAiWizard";
 import PlatformActivityBadge from "@/components/PlatformActivityBadge";
 import CampaignCover from "@/components/CampaignCover";
+import { formatFollowerCount } from "@/lib/platformStats";
 import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
 import { displayNameForLang } from "@/lib/greeklish";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
@@ -1676,8 +1677,40 @@ export default function BrandCampaignsSection({
                   <FieldError msg={fieldErrors.slots} />
                 </div>
                 <div>
-                  <label htmlFor="cf-minf" className="block text-sm font-medium text-slate-700 mb-1">{x.form_min_followers}</label>
-                  <input id="cf-minf" type="number" min={0} inputMode="numeric" value={form.min_followers} onChange={(e) => setForm({ ...form, min_followers: e.target.value })} className={inputCls()} />
+                  <span id="cf-minf" className="block text-sm font-medium text-slate-700 mb-1">{x.form_min_followers}</span>
+                  {(() => {
+                    const presets: Array<{ v: string; el: string; en: string }> = [
+                      { v: "", el: "Χωρίς όριο", en: "No minimum" },
+                      { v: "500", el: "Από 500", en: "500+" },
+                      { v: "1000", el: "Από 1k", en: "1k+" },
+                      { v: "5000", el: "Από 5k", en: "5k+" },
+                      { v: "10000", el: "Από 10k", en: "10k+" },
+                      { v: "50000", el: "Από 50k", en: "50k+" },
+                    ];
+                    const cur = form.min_followers && Number(form.min_followers) > 0 ? String(Number(form.min_followers)) : "";
+                    const all = presets.some((p) => p.v === cur)
+                      ? presets
+                      : [...presets, { v: cur, el: `Από ${formatFollowerCount(Number(cur))}`, en: `${formatFollowerCount(Number(cur))}+` }];
+                    return (
+                      <div role="radiogroup" aria-labelledby="cf-minf" className="flex flex-wrap gap-2">
+                        {all.map((p) => {
+                          const on = p.v === cur;
+                          return (
+                            <button
+                              key={p.v || "none"}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              onClick={() => setForm({ ...form, min_followers: p.v })}
+                              className={`min-h-9 rounded-full border px-3 text-sm font-medium transition ${on ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+                            >
+                              {lang === "el" ? p.el : p.en}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>
