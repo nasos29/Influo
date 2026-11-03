@@ -988,6 +988,79 @@ export default function DocsPage() {
             />
 
             <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Δημιουργία καμπάνιας' : 'Creating a campaign'}
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
+              <li>
+                {lang === 'el'
+                  ? 'Φόρμα σε 3 βήματα: Βασικά, Παραδοτέα & αμοιβή, Προεπισκόπηση. Κάθε πεδίο δείχνει το λάθος του ακριβώς από κάτω, στα ελληνικά.'
+                  : 'A 3-step form: Basics, Deliverables & pay, Preview. Each field shows its error right below it.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Το προσχέδιο αποθηκεύεται αυτόματα στον browser σας (για 14 μέρες). Αν κλείσετε τη σελίδα, θα σας ζητηθεί να το συνεχίσετε.'
+                  : 'Your draft is saved automatically in your browser (for 14 days). If you leave the page, you can pick it up again.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Έτοιμα πακέτα: Launch προϊόντος, Τοπική επιχείρηση, UGC βίντεο, Event. Γεμίζουν τη φόρμα με ένα κλικ και αλλάζετε ό,τι θέλετε.'
+                  : 'Ready templates: Product launch, Local business, UGC video, Event. They fill the form in one click and you can change anything.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Θέσεις: πόσοι creators χρειάζεστε. Προεπιλογή «Χωρίς όριο». Με όριο, η κάρτα δείχνει π.χ. «2/5 θέσεις» και όταν γεμίσουν εμφανίζεται «Οι θέσεις συμπληρώθηκαν» και δεν γίνονται νέες αιτήσεις. Μια θέση πιάνεται όταν δεχτείτε μια αίτηση.'
+                  : 'Spots: how many creators you need. Default is “No limit”. With a limit, the card shows e.g. “2/5 spots”; when full it shows “All spots are filled” and no new applications are accepted. A spot is taken when you accept an application.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? '«Απαιτείται φυσική παρουσία»: τσεκάρετε όταν ο creator πρέπει να έρθει σε κατάστημα ή εκδήλωση και γράφετε συγκεκριμένη περιοχή. Τότε ειδοποιούνται με email και προτείνονται μόνο creators της περιοχής, και η καμπάνια δείχνει σχετικό σήμα. Χωρίς αυτό (ή με «Πανελλαδικά»), η περιοχή δεν αποκλείει κανέναν.'
+                  : '“In-person presence required”: tick it when the creator must visit a store or event, and enter a specific area. Then only creators in that area are emailed and suggested, and the campaign shows a badge. Without it (or with “Nationwide”), location excludes no one.'}
+              </li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Δημιουργία με AI' : 'Create with AI'}
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
+              <li>
+                {lang === 'el'
+                  ? 'Το κουμπί «Δημιουργία με AI» ρωτά λίγα πράγματα με επιλογές: στόχο, προϊόν/κατηγορία, κοινό, αν χρειάζεται φυσική παρουσία, πλατφόρμες και είδος περιεχομένου, budget και θέσεις, πότε ξεκινά.'
+                  : 'The “Create with AI” button asks a few multiple-choice questions: goal, product/category, audience, whether in-person presence is needed, platforms and content type, budget and spots, and timing.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Ή «Δημιούργησε την καμπάνια σου από το website σου»: γράφετε τη διεύθυνση του site σας, διαβάζουμε μόνο δημόσιες πληροφορίες και φτιάχνουμε την καμπάνια με το λογότυπο και τα χρώματά σας στην προεπισκόπηση. Αν το site δεν διαβάζεται, συνεχίζετε με τις ερωτήσεις.'
+                  : "Or “Create your campaign from your website”: enter your site address, we read public information only and build the campaign, with your logo and colors in the preview. If the site can't be read, you continue with the questions."}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Παίρνετε τίτλο, περιγραφή, παραδοτέα, προτεινόμενη αμοιβή ανά creator και 2-3 προτεινόμενα πακέτα, μαζί με creators που ταιριάζουν. Όλα είναι προτάσεις: επιλέγετε, αλλάζετε ό,τι θέλετε στη φόρμα και μετά δημοσιεύετε.'
+                  : 'You get a title, description, deliverables, a suggested fee per creator and 2-3 suggested packages, plus matching creators. Everything is a suggestion: pick, edit anything in the form, then publish.'}
+              </li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Ειδοποιήσεις' : 'Notifications'}
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
+              <li>
+                {lang === 'el'
+                  ? 'Μόλις δημοσιευτεί μια καμπάνια, όλοι οι εγκεκριμένοι creators παίρνουν ειδοποίηση push.'
+                  : 'When a campaign is published, every approved creator gets a push notification.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Οι creators της σχετικής κατηγορίας (και συναφών κατηγοριών) παίρνουν και email.'
+                  : 'Creators in the relevant category (and related ones) also get an email.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Για κάθε νέα αίτηση, το brand παίρνει push και ειδοποίηση μέσα στην πλατφόρμα.'
+                  : 'For every new application, the brand gets a push and an in-app notice.'}
+              </li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
               {lang === 'el' ? 'Διάρκεια & κλείσιμο καμπάνιας' : 'Duration & campaign close'}
             </h3>
             <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">

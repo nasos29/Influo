@@ -1,7 +1,7 @@
 import { lookup } from "node:dns/promises";
 import net from "node:net";
 
-/** SSRF-safe fetch of a brand website / public Instagram page, extracting text, logo and colors. */
+/** SSRF-safe fetch of a brand website, extracting text, logo and colors. */
 
 const MAX_BYTES = 1_500_000;
 const TIMEOUT_MS = 8000;
@@ -9,13 +9,12 @@ const MAX_REDIRECTS = 3;
 const UA = "Mozilla/5.0 (compatible; InfluoBot/1.0; +https://influo.gr)";
 
 export type SiteBrand = {
-  source: "website" | "instagram";
+  source: "website";
   url: string;
   name: string | null;
   text: string;
   logo: string | null;
   colors: string[];
-  blocked?: boolean;
 };
 
 function privateIp(ip: string): boolean {
@@ -190,11 +189,6 @@ export function normalizeWebsite(input: string): string | null {
   }
 }
 
-export function normalizeInstagram(input: string): string | null {
-  const v = input.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").split(/[/?#]/)[0];
-  return /^[A-Za-z0-9._]{1,30}$/.test(v) ? v : null;
-}
-
 export async function fetchWebsiteBrand(url: string): Promise<SiteBrand> {
   const page = await safeFetchText(url);
   const html = page.body;
@@ -202,19 +196,4 @@ export async function fetchWebsiteBrand(url: string): Promise<SiteBrand> {
   const desc = meta(html, "description") || meta(html, "og:description") || "";
   const text = `${desc} ${pageText(html)}`.replace(/\s+/g, " ").trim().slice(0, 4000);
   return { source: "website", url: page.url, name, text, logo: logoFrom(html, page.url), colors: brandColors(html) };
-}
-
-/** Best effort: Instagram usually redirects anonymous server requests to login. */
-export async function fetchInstagramBrand(handle: string): Promise<SiteBrand> {
-  const url = `https://www.instagram.com/${handle}/`;
-  try {
-    const page = await safeFetchText(url);
-    const blocked = /accounts\/login/.test(page.url) || page.status >= 400;
-    const bio = meta(page.body, "og:description") || meta(page.body, "description") || "";
-    const title = meta(page.body, "og:title");
-    if (blocked || !bio) return { source: "instagram", url, name: null, text: "", logo: null, colors: [], blocked: true };
-    return { source: "instagram", url, name: title, text: bio.slice(0, 1500), logo: abs(meta(page.body, "og:image"), url), colors: [] };
-  } catch {
-    return { source: "instagram", url, name: null, text: "", logo: null, colors: [], blocked: true };
-  }
 }
