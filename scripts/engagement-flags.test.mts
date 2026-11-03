@@ -105,7 +105,7 @@ const scenarios: { name: string; legacy: ErCheckInput; fresh: ErCheckInput; buck
     fresh: {
       platform: "tiktok",
       username: "a",
-      followers: 50000,
+      followers: 8000,
       engagement_rate: "20%",
       posts_count: 20,
       avg_likes: 2000,
@@ -228,8 +228,38 @@ test("tiktok uses its own ceilings only when platform and views are passed", () 
     avg_likes: 2000,
     avg_views: 100000,
   });
-  assert.equal(views?.reason, "inflated");
-  assert.equal(views?.suspicious, true);
+  // 2000 likes / 50000 followers = 4% per follower, so a high per-view rate alone is not Ύποπτο.
+  assert.equal(views, null);
+
+  const both = displayErFlag({
+    platform: "tiktok",
+    followers: 5000,
+    engagement_rate: "20%",
+    posts_count: 20,
+    avg_likes: 2000,
+    avg_views: 10000,
+  });
+  assert.equal(both?.reason, "inflated");
+});
+
+test("tiktok sample ER: sum(likes+comments)/sum(views), skips posts under 48h", () => {
+  const old = new Date(Date.now() - 5 * 86400000).toISOString();
+  const fresh = new Date(Date.now() - 3600000).toISOString();
+  const senorita = displayErFlag({
+    platform: "tiktok",
+    followers: "13.2k",
+    engagement_rate: "19.07%",
+    posts_count: 694,
+    avg_likes: "745",
+    avg_views: 3322,
+    top_posts: [
+      { likes: 745, comments: 22, views: 34300, posted_at: old },
+      { likes: 933, comments: 36, views: 29100, posted_at: old },
+      { likes: 611, comments: 11, views: 22800, posted_at: old },
+      { likes: 789, comments: 1, views: 100, posted_at: fresh },
+    ],
+  });
+  assert.equal(senorita, null);
 });
 
 test("estimates and short samples are labeled for brands and are not Ύποπτο", () => {
