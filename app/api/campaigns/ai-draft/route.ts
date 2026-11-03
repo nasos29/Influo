@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     budget > 0 ? `Συνολικό budget: ${budget} €.` : "Αμοιβή: προϊόν/ανταλλαγή.",
     slots ? `Creators: ${slots}.` : "Creators: χωρίς όριο.",
     `Χρονισμός: ${{ asap: "άμεσα", "2weeks": "σε 2 εβδομάδες", month: "μέσα στον μήνα", flexible: "ευέλικτος" }[timing]}.`,
-    `Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"requires_presence":true/false (πρόταση),${category ? "" : '"category":"key",'}"packages":[2-3 προτεινόμενα πακέτα: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}`,
+    `Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"requires_presence":true/false (πρόταση),${category ? "" : '"category":"key",'}"packages":[ΥΠΟΧΡΕΩΤΙΚΑ 2 ή 3 διαφορετικά πακέτα (π.χ. λιγότεροι creators με περισσότερα παραδοτέα vs περισσότεροι creators με λιγότερα), όλα μέσα στο budget και σύμφωνα με τον στόχο: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -194,6 +194,15 @@ export async function POST(request: NextRequest) {
       };
     })
     .filter((p) => p.name && p.deliverables);
+  // The model sometimes returns a single package; always offer at least two to choose from.
+  if (packages.length < 2) {
+    const baseSlots = outSlots ?? 2;
+    const deliverables = stripContact(clean(draft.deliverables, 120)) || "1 Instagram Reel";
+    if (!packages.length) packages.push({ name: "Βασικό", slots: baseSlots, deliverables, price: price > 0 ? price : null });
+    const wide = baseSlots * 2;
+    const widePrice = budget > 0 ? Math.floor(budget / wide) : price > 0 ? Math.round(price * 0.6) : 0;
+    packages.push({ name: "Περισσότεροι creators", slots: Math.min(100, wide), deliverables: "1 Story ή 1 σύντομο Reel", price: widePrice > 0 ? widePrice : null });
+  }
   console.log("[ai-draft] ok", user.id.slice(0, 8), MODEL);
 
   // Matching creators: approved, available, same category, active on a chosen platform.

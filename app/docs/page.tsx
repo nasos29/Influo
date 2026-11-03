@@ -1087,6 +1087,37 @@ export default function DocsPage() {
             </ul>
 
             <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Φόρμα, εικόνες & θέσεις' : 'Form, images & slots'}
+            </h3>
+            <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
+              <li>
+                {lang === 'el'
+                  ? 'Αν πατήσετε «Πίσω» ή αλλάξετε σελίδα ενώ συμπληρώνετε την καμπάνια ή τον βοηθό AI, τα στοιχεία που γράψατε μένουν στη φόρμα. Καθαρίζουν όταν δημοσιεύσετε ή ακυρώσετε.'
+                  : 'If you press Back or leave the page while filling in a campaign or the AI wizard, what you typed stays in the form. It clears when you publish or cancel.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Όταν ανεβάζετε λογότυπο ή εξώφυλλο, ανοίγει εργαλείο περικοπής για να διαλέξετε το κομμάτι που θα φαίνεται. Προτεινόμενα μεγέθη: λογότυπο 512×512, εξώφυλλο 1200×900.'
+                  : 'When you upload a logo or cover, a crop tool opens so you can choose the part that shows. Recommended sizes: logo 512×512, cover 1200×900.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Το εξώφυλλο εμφανίζεται ολόκληρο σε κάρτες και σελίδα καμπάνιας, χωρίς να κόβεται.'
+                  : 'The cover is shown in full on cards and the campaign page, without being cut off.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Κάθε καμπάνια έχει ετικέτα κατάστασης: πράσινη όταν δέχεται αιτήσεις, κόκκινη όταν έχει κλείσει ή γέμισε.'
+                  : 'Each campaign has a status label: green while it accepts applications, red when it is closed or full.'}
+              </li>
+              <li>
+                {lang === 'el'
+                  ? 'Όταν η καμπάνια έχει όριο θέσεων, η κάρτα δείχνει πόσες έχουν καλυφθεί (π.χ. «1/2 θέσεις»). Όταν γεμίσουν, η ετικέτα γίνεται κόκκινη και δεν γίνονται νέες αιτήσεις.'
+                  : 'When a campaign has a slot limit, the card shows how many are filled (e.g. “1/2 slots”). Once full, the label turns red and no new applications are accepted.'}
+              </li>
+            </ul>
+
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
               {lang === 'el' ? 'Κανόνες περιεχομένου' : 'Content rules'}
             </h3>
             <p className="text-slate-700 mb-6 max-w-prose">
