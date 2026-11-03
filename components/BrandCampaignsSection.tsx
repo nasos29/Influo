@@ -15,7 +15,7 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { mergeApplicantProfile } from "@/lib/applicantProfile";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
-import CampaignAiWizard from "@/components/CampaignAiWizard";
+import CampaignAiWizard, { type SiteBrandInfo } from "@/components/CampaignAiWizard";
 import PlatformActivityBadge from "@/components/PlatformActivityBadge";
 import CampaignCover from "@/components/CampaignCover";
 import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
@@ -508,6 +508,8 @@ export default function BrandCampaignsSection({
   const [draftRestored, setDraftRestored] = useState(false);
   const [slotsById, setSlotsById] = useState<Record<string, number | null>>({});
   const [aiOpen, setAiOpen] = useState(false);
+  /** Logo/colors read from the brand site (preview only; not stored). */
+  const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -1169,8 +1171,9 @@ export default function BrandCampaignsSection({
       {aiOpen && (
         <CampaignAiWizard
           onClose={() => setAiOpen(false)}
-          onApply={(fill) => {
+          onApply={(fill, siteBrand) => {
             setAiOpen(false);
+            setSiteBrand(siteBrand);
             applyPrefill(fill, 3);
           }}
         />
@@ -1493,7 +1496,7 @@ export default function BrandCampaignsSection({
               </div>
               <div>
                 <p className="text-xs font-medium text-slate-500 mb-2">{lang === "el" ? "Έτσι θα φαίνεται στους creators" : "How creators will see it"}</p>
-                <div className="pointer-events-none">
+                <div className="pointer-events-none rounded-2xl" style={siteBrand?.colors[0] ? { boxShadow: `0 0 0 3px ${siteBrand.colors[0]}` } : undefined}>
                   <CampaignCard
                     lang={lang}
                     campaign={{
@@ -1514,6 +1517,7 @@ export default function BrandCampaignsSection({
                       slots: form.slots ? parseInt(form.slots, 10) : null,
                       slots_filled: 0,
                       requires_presence: form.requires_presence,
+                      brands: siteBrand?.logo ? { brand_name: siteBrand.name, logo_url: siteBrand.logo } : undefined,
                     }}
                   />
                 </div>

@@ -20,6 +20,7 @@ export type AiPrefill = {
   requires_presence: boolean;
 };
 
+export type SiteBrandInfo = { name: string | null; logo: string | null; colors: string[]; source?: string } | null;
 type Pkg = { name: string; slots: number | null; deliverables: string; price: number | null };
 type Match = { id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; followers: number };
 
@@ -56,8 +57,12 @@ function withPackage(r: { fill: AiPrefill; price: number | null; packages: Pkg[]
 const sel = "w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 bg-white";
 
 /** Six short questions → one cheap AI call → editable prefill for the campaign form. */
-export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => void; onApply: (fill: AiPrefill) => void }) {
-  const [q, setQ] = useState(1);
+export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => void; onApply: (fill: AiPrefill, brand: SiteBrandInfo) => void }) {
+  const [q, setQ] = useState(0);
+  const [website, setWebsite] = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [goal, setGoal] = useState("launch");
   const [category, setCategory] = useState("");
   const [product, setProduct] = useState("");
@@ -91,8 +96,12 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
     if (!problem) setQ(q + 1);
   };
 
-  const generate = async () => {
-    for (const n of [2, 3, 4, 5]) {
+  const generate = async (fromSource = false) => {
+    if (fromSource && !website.trim() && !instagram.trim()) {
+      setError("Γράψτε το website ή το Instagram σας.");
+      return;
+    }
+    for (const n of fromSource ? [] : [2, 3, 4, 5]) {
       const problem = check(n);
       if (problem) {
         setError(problem);
@@ -106,14 +115,22 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       const res = await sessionFetch("/api/campaigns/ai-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing }),
+        body: JSON.stringify({ ...(fromSource ? { website: website.trim() || undefined, instagram: website.trim() ? undefined : instagram.trim() || undefined } : {}), goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean };
+        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean; category?: string; platforms?: string[] };
         matches?: Match[];
         packages?: Pkg[];
         message?: { el?: string };
+        needsDetails?: boolean;
+        brand?: SiteBrandInfo;
       };
+      if (data.brand) setSiteBrand(data.brand);
+      if (data.needsDetails) {
+        setNotice(data.message?.el || "Συμπληρώστε τις ερωτήσεις παρακάτω.");
+        setQ(1);
+        return;
+      }
       if (!res.ok || !data.draft) {
         setError(data.message?.el || "Κάτι πήγε στραβά. Δοκιμάστε ξανά ή χρησιμοποιήστε τη φόρμα.");
         return;
@@ -130,8 +147,8 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
           title: d.title,
           description: `${d.description}${priceLine}`.trim(),
           deliverables: d.deliverables,
-          category,
-          platforms,
+          category: d.category || category,
+          platforms: d.platforms?.length ? d.platforms : platforms,
           location: inPerson ? location.trim() : "",
           budget: d.budget ? String(d.budget) : "",
           slots: d.slots ? String(d.slots) : "",
@@ -151,13 +168,23 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 id="ai-wiz-title" className="text-lg font-semibold text-slate-900">Δημιουργία καμπάνιας με AI</h3>
-            <p className="text-xs text-slate-500 mt-0.5">{result ? "Ελέγξτε το προσχέδιο. Θα μπορείτε να το αλλάξετε πριν τη δημοσίευση." : `Ερώτηση ${q}/6`}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{result ? "Ελέγξτε το προσχέδιο. Θα μπορείτε να το αλλάξετε πριν τη δημοσίευση." : q === 0 ? "Γρήγορη αρχή" : `Ερώτηση ${q}/6`}</p>
           </div>
           <button type="button" onClick={onClose} className="text-slate-500 hover:text-slate-800 text-sm" aria-label="Κλείσιμο">✕</button>
         </div>
 
         {!result && (
           <div className="mt-4 space-y-3">
+            {notice && q > 0 && <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{notice}</p>}
+            {q === 0 && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-slate-800">Δημιούργησε την καμπάνια σου από το website σου</p>
+                <input value={website} maxLength={300} inputMode="url" onChange={(e) => setWebsite(e.target.value)} className={sel} placeholder="π.χ. mybrand.gr" aria-label="Website" />
+                <p className="text-center text-xs text-slate-500">ή</p>
+                <input value={instagram} maxLength={60} onChange={(e) => setInstagram(e.target.value)} className={sel} placeholder="Instagram, π.χ. @mybrand" aria-label="Instagram" />
+                <p className="text-xs text-slate-500">Διαβάζουμε μόνο δημόσιες πληροφορίες (κείμενο, λογότυπο, χρώματα). Θα μπορείτε να αλλάξετε τα πάντα πριν τη δημοσίευση.</p>
+              </div>
+            )}
             {q === 1 && (
               <label className="block">
                 <span className="block text-sm font-medium text-slate-700 mb-1">Ποιος είναι ο στόχος;</span>
@@ -265,11 +292,17 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
             )}
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             <div className="flex items-center gap-2 pt-2">
-              {q > 1 && <button type="button" onClick={() => { setError(null); setQ(q - 1); }} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Πίσω</button>}
-              {q < 6 ? (
+              {q === 0 && (
+                <>
+                  <button type="button" onClick={() => { setError(null); setQ(1); }} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Με ερωτήσεις</button>
+                  <button type="button" onClick={() => generate(true)} disabled={loading} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-60">{loading ? "Ανάλυση…" : "Δημιουργία"}</button>
+                </>
+              )}
+              {q > 0 && <button type="button" onClick={() => { setError(null); setQ(q - 1); }} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Πίσω</button>}
+              {q === 0 ? null : q < 6 ? (
                 <button type="button" onClick={next} className="ml-auto px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-medium">Επόμενο</button>
               ) : (
-                <button type="button" onClick={generate} disabled={loading} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-60">{loading ? "Δημιουργία…" : "Δημιουργία προσχεδίου"}</button>
+                <button type="button" onClick={() => generate(false)} disabled={loading} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium disabled:opacity-60">{loading ? "Δημιουργία…" : "Δημιουργία προσχεδίου"}</button>
               )}
             </div>
           </div>
@@ -277,7 +310,17 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
 
         {result && (
           <div className="mt-4 space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm">
+            {siteBrand && (siteBrand.logo || siteBrand.colors.length > 0) && (
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {siteBrand.logo && <img src={siteBrand.logo} alt="" referrerPolicy="no-referrer" className="h-10 w-10 rounded-lg border border-slate-200 bg-white object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />}
+                <div className="flex gap-1.5" aria-label="Χρώματα brand">
+                  {siteBrand.colors.map((c) => <span key={c} className="h-5 w-5 rounded-full border border-slate-200" style={{ backgroundColor: c }} title={c} />)}
+                </div>
+                {siteBrand.name && <span className="truncate text-sm text-slate-600">{siteBrand.name}</span>}
+              </div>
+            )}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 text-sm" style={siteBrand?.colors[0] ? { borderTop: `4px solid ${siteBrand.colors[0]}` } : undefined}>
               <p className="font-semibold text-slate-900">{result.fill.title}</p>
               <p className="text-slate-700 whitespace-pre-line">{result.fill.description}</p>
               {result.fill.deliverables && <p className="text-slate-700"><span className="text-slate-500">Παραδοτέα:</span> {result.fill.deliverables}</p>}
@@ -321,7 +364,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
             {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => setResult(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700">Αλλαγή απαντήσεων</button>
-              <button type="button" onClick={() => onApply(withPackage(result, pkgIdx))} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Επεξεργασία & δημοσίευση</button>
+              <button type="button" onClick={() => onApply(withPackage(result, pkgIdx), siteBrand)} className="ml-auto px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Επεξεργασία & δημοσίευση</button>
             </div>
           </div>
         )}
