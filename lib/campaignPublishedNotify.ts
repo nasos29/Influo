@@ -1,4 +1,5 @@
 import { supabaseService } from "@/lib/apiAuth";
+import { isTestBrand } from "@/lib/testAccounts";
 import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 import { publishedToBrand } from "@/lib/campaignMail";
 import { campaignClosesAt } from "@/lib/campaignLifecycle";
@@ -67,7 +68,13 @@ export async function notifyCampaignPublished(
   const brandName = brand?.brand_name || "Brand";
   const brandEmail = (brand?.contact_email || "").trim().toLowerCase();
 
-  const creatorsJob = notifyMatchingOpenCampaign({
+  // Test brand: admin + brand mails only; never push/email/in-app real creators.
+  const testMode = await isTestBrand(row.brand_id, brandEmail);
+  if (testMode) console.log("[campaign published] test brand: creator notifications skipped", campaignId);
+
+  const creatorsJob = testMode
+    ? Promise.resolve({ emailed: 0, pushed: 0, inApp: 0 })
+    : notifyMatchingOpenCampaign({
     campaignId,
     title: row.title,
     category: row.category || null,
@@ -116,14 +123,18 @@ export async function notifyCampaignPublished(
   }
 
   // Push goes to every approved creator with a subscription (not only matches).
-  const pushJob = sendPushNewOpenCampaignToAllApprovedInfluencers({ campaignTitle: row.title, brandName, campaignId }).catch((err) => {
+  const pushJob = testMode
+    ? Promise.resolve({ sent: 0, failed: 0 })
+    : sendPushNewOpenCampaignToAllApprovedInfluencers({ campaignTitle: row.title, brandName, campaignId }).catch((err) => {
     console.error("[campaign published] push all", err);
     return { sent: 0, failed: 0 };
   });
 
   const [creators, adminOk, brandOk, push] = await Promise.all([creatorsJob, adminJob, brandJob, pushJob]);
   // After the strong-match outreach, so those creators are not emailed twice.
-  const categoryEmails = await queueCategoryCampaignEmails({
+  const categoryEmails = testMode
+    ? { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[] }
+    : await queueCategoryCampaignEmails({
     campaignId,
     title: row.title,
     brandName,

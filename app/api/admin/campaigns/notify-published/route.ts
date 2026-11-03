@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isTestBrand } from "@/lib/testAccounts";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { categoryQueueStatus, markCategoryEmailsSent, queueCategoryCampaignEmails } from "@/lib/campaignCategoryEmail";
@@ -30,12 +31,16 @@ export async function POST(req: NextRequest) {
   }
   const { data: row } = await supabaseService()
     .from("brand_campaigns")
-    .select("id, status, title, category, location, requires_presence, min_followers, platforms, brands ( brand_name )")
+    .select("id, brand_id, status, title, category, location, requires_presence, min_followers, platforms, brands ( brand_name, contact_email )")
     .eq("id", body.campaignId)
     .maybeSingle();
   if (!row || row.status !== "open") return NextResponse.json({ error: "Campaign not open" }, { status: 404 });
-  const br = row.brands as { brand_name?: string | null } | { brand_name?: string | null }[] | null;
-  const brandName = (Array.isArray(br) ? br[0] : br)?.brand_name || "Brand";
+  const br = row.brands as { brand_name?: string | null; contact_email?: string | null } | { brand_name?: string | null; contact_email?: string | null }[] | null;
+  const brandRow = Array.isArray(br) ? br[0] : br;
+  const brandName = brandRow?.brand_name || "Brand";
+  if (await isTestBrand(row.brand_id, brandRow?.contact_email)) {
+    return NextResponse.json({ ok: true, skipped: "test_brand" });
+  }
   if (action === "push") {
     const push = await sendPushNewOpenCampaignToAllApprovedInfluencers({ campaignTitle: row.title, brandName, campaignId: row.id });
     console.log("[campaign published] push backfill", row.id, push);
