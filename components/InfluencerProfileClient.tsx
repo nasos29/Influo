@@ -2354,6 +2354,14 @@ export default function InfluencerProfile(props: {
                   onNeedBrand={() => setBrandGateOpen(true)}
                 />
               ) : null}
+              {sessionChecked && isAdmin ? (
+                <a
+                  href={`/admin?influencer=${encodeURIComponent(String(id))}`}
+                  className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Προβολή στο admin
+                </a>
+              ) : null}
             </div>
           </div>
           

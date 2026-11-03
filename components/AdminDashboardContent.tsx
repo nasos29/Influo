@@ -3290,6 +3290,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     linkedConversationId.current = id;
     setActiveTab("conversations");
   }, []);
+  // Deep link from a public profile: /admin?influencer=<id> opens that influencer's editor.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("influencer");
+    if (!id || !/^[\w-]{1,64}$/.test(id)) return;
+    setActiveTab("influencers");
+    void openEditUser({ id } as unknown as DbInfluencer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const id = linkedConversationId.current;
     if (!id) return;
