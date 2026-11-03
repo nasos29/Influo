@@ -3,6 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Avatar from "@/components/Avatar";
 import CampaignCover from "@/components/CampaignCover";
+import { useImageCrop, COVER_CROP } from "@/components/ImageCropDialog";
+import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
+import { supabase } from "@/lib/supabaseClient";
 import DmyDateField from "@/components/DmyDateField";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
 import { filterWorkLinks } from "@/lib/contactFilter";
@@ -261,6 +264,41 @@ export default function AdminCampaignDetail({
   const [form, setForm] = useState(() => toForm(campaign));
   const [baseline, setBaseline] = useState(() => JSON.stringify(toForm(campaign)));
   const [saving, setSaving] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const coverCrop = useImageCrop();
+  const handleCoverFile = async (picked: File | null | undefined) => {
+    if (coverInputRef.current) coverInputRef.current.value = "";
+    if (!picked) return;
+    const file = await coverCrop.cropFile(picked, COVER_CROP);
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      onNotify(lang === "el" ? "Το αρχείο δεν είναι εικόνα." : "The file is not an image.", "error");
+      return;
+    }
+    setCoverUploading(true);
+    try {
+      const prepared = await prepareCampaignCover(file);
+      const { data: { session } } = await supabase.auth.getSession();
+      const body = new FormData();
+      body.append("campaignId", String(campaign.id));
+      body.append("file", prepared, prepared.type === "image/webp" ? "cover.webp" : "cover.jpg");
+      const response = await fetch("/api/admin/campaigns/cover", {
+        method: "POST",
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        body,
+      });
+      const json = (await response.json().catch(() => ({}))) as { url?: string };
+      if (!response.ok || !json.url) throw new Error(`upload ${response.status}`);
+      set("cover_url", json.url);
+      onNotify(lang === "el" ? "Η εικόνα ανέβηκε. Πάτα αποθήκευση." : "Image uploaded. Press save.", "info");
+    } catch (err) {
+      console.error("[admin campaign cover]", err);
+      onNotify(lang === "el" ? "Το ανέβασμα της εικόνας απέτυχε." : "Image upload failed.", "error");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
   const closeRef = useRef<() => void>(() => {});
   const interactionRef = useRef(false);
   const brand = getCampaignBrandMeta(campaign);
@@ -619,16 +657,51 @@ export default function AdminCampaignDetail({
             />
           </label>
 
-          <label className={labelClass}>
-            {tx(copy.cover, lang)}
-            <input
-              value={form.cover_url}
-              onChange={(event) => set("cover_url", event.target.value)}
-              inputMode="url"
-              className={fieldClass}
-              placeholder="https://"
-            />
-          </label>
+          <div className={labelClass}>
+            <span>{lang === "el" ? "Εξώφυλλο" : "Cover"}</span>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(event) => void handleCoverFile(event.target.files?.[0])}
+              />
+              <button
+                type="button"
+                disabled={coverUploading}
+                onClick={() => coverInputRef.current?.click()}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-60"
+              >
+                {coverUploading
+                  ? lang === "el" ? "Ανέβασμα…" : "Uploading…"
+                  : form.cover_url
+                    ? lang === "el" ? "Αλλαγή εικόνας" : "Change image"
+                    : lang === "el" ? "Ανέβασμα εικόνας" : "Upload image"}
+              </button>
+              {form.cover_url ? (
+                <button
+                  type="button"
+                  disabled={coverUploading}
+                  onClick={() => set("cover_url", "")}
+                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {lang === "el" ? "Αφαίρεση" : "Remove"}
+                </button>
+              ) : null}
+            </div>
+            <label className="mt-2 block text-xs text-slate-500">
+              {lang === "el" ? "ή σύνδεσμος https" : "or https link"}
+              <input
+                value={form.cover_url}
+                onChange={(event) => set("cover_url", event.target.value)}
+                inputMode="url"
+                className={fieldClass}
+                placeholder="https://"
+              />
+            </label>
+            {coverCrop.dialog}
+          </div>
 
           <section>
             <h3 className="text-sm font-semibold text-slate-900">{tx(copy.dates, lang)}</h3>
