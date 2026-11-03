@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser, userFromBearer } from "@/lib/apiAuth";
 import { parseAdminCampaignPatch } from "@/lib/adminCampaignPatch";
 import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -245,6 +246,7 @@ export async function PATCH(request: NextRequest) {
         .select("id")
         .maybeSingle();
       if (!result.error && result.data) {
+        revalidatePublicCampaigns();
         return NextResponse.json({
           success: true,
           deadlineCleared,
@@ -297,6 +299,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
+    revalidatePublicCampaigns();
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";
