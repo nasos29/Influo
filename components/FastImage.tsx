@@ -109,7 +109,18 @@ export default function FastImage({
         onError={onError as ((e: SyntheticEvent<HTMLImageElement, Event>) => void) | undefined}
         style={
           fill
-            ? { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }
+            ? {
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                // Inline style beats classes, so honour object-contain/fill from className.
+                objectFit: /(^|\s)object-contain(\s|$)/.test(className || "")
+                  ? "contain"
+                  : /(^|\s)object-fill(\s|$)/.test(className || "")
+                    ? "fill"
+                    : "cover",
+              }
             : undefined
         }
       />
