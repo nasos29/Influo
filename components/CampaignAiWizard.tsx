@@ -60,6 +60,7 @@ const sel = "w-full px-3 py-2 border border-slate-300 rounded-lg text-slate-900 
 export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => void; onApply: (fill: AiPrefill, brand: SiteBrandInfo) => void }) {
   const [q, setQ] = useState(0);
   const [website, setWebsite] = useState("");
+  const [siteGoal, setSiteGoal] = useState("");
   const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [goal, setGoal] = useState("launch");
@@ -100,6 +101,10 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       setError("Γράψτε το website σας.");
       return;
     }
+    if (fromSource && !siteGoal) {
+      setError("Επιλέξτε τι θέλετε να πετύχετε.");
+      return;
+    }
     for (const n of fromSource ? [] : [2, 3, 4, 5]) {
       const problem = check(n);
       if (problem) {
@@ -114,7 +119,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       const res = await sessionFetch("/api/campaigns/ai-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...(fromSource ? { website: website.trim() } : {}), goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing }),
+        body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing, ...(fromSource ? { website: website.trim(), goal: siteGoal } : {}) }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean; category?: string; platforms?: string[] };
@@ -178,7 +183,17 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
             {q === 0 && (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-slate-800">Δημιούργησε την καμπάνια σου από το website σου</p>
-                <input value={website} maxLength={300} inputMode="url" onChange={(e) => setWebsite(e.target.value)} className={sel} placeholder="π.χ. mybrand.gr" aria-label="Website" />
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input value={website} maxLength={300} inputMode="url" onChange={(e) => setWebsite(e.target.value)} className={sel} placeholder="π.χ. mybrand.gr" aria-label="Website" />
+                  <select value={siteGoal} onChange={(e) => { setSiteGoal(e.target.value); if (e.target.value) setGoal(e.target.value); }} className={sel} aria-label="Τι θέλεις να πετύχεις;" required>
+                    <option value="">Τι θέλεις να πετύχεις;</option>
+                    <option value="awareness">Αναγνωρισιμότητα</option>
+                    <option value="sales">Πωλήσεις</option>
+                    <option value="launch">Launch προϊόντος</option>
+                    <option value="ugc">UGC βίντεο</option>
+                    <option value="event">Event</option>
+                  </select>
+                </div>
                 <p className="text-xs text-slate-500">Διαβάζουμε μόνο δημόσιες πληροφορίες (κείμενο, λογότυπο, χρώματα). Θα μπορείτε να αλλάξετε τα πάντα πριν τη δημοσίευση.</p>
               </div>
             )}
