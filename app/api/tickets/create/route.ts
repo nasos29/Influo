@@ -1,3 +1,4 @@
+import { addAdminNotice } from '@/lib/adminNotice';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
@@ -194,6 +195,14 @@ export async function POST(req: Request) {
         console.error('[Create Ticket] Resend API Key exists:', !!process.env.RESEND_API_KEY);
       }
     }
+
+    await addAdminNotice({
+      kind: 'support_ticket',
+      title: `Νέο αίτημα υποστήριξης: ${String(subject || '').slice(0, 120)}`,
+      body: `Από: ${user_name || user_email || '-'} (${user_type || '-'})`,
+      url: '/admin',
+      dedupeKey: `support_ticket:${ticket?.id ?? `${user_email}:${subject}:${Date.now()}`}`,
+    });
 
     sendPushAdminNewSupportTicket({
       subject,

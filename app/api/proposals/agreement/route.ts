@@ -1,3 +1,4 @@
+import { addAdminNotice } from "@/lib/adminNotice";
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { refreshInfluencerTrustMetrics } from "@/lib/influencerMetrics";
@@ -153,6 +154,12 @@ export async function POST(request: Request) {
               publishDeadline: proposal.publish_deadline,
               brandAcceptedAt,
               creatorAcceptedAt,
+            });
+            await addAdminNotice({
+              kind: "agreement_complete",
+              title: `Ολοκληρώθηκε συμφωνία: ${brandName} / ${influencer.name}`,
+              url: "/admin",
+              dedupeKey: `agreement_complete:${proposal.id}`,
             });
             await sendPushAdminAgreementComplete({
               proposalId: proposal.id,
