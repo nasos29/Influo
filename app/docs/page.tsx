@@ -687,7 +687,7 @@ export default function DocsPage() {
                   <h4 className="font-bold text-rose-900 m-0">{lang === 'el' ? 'Πλήρες προφίλ' : 'Complete profile'}</h4>
                 </div>
                 <p className="text-sm text-slate-700 mb-2">
-                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Φωτογραφία, portfolio, τιμές και κατηγορίες συμπληρωμένα' : 'Photo, portfolio, prices and categories filled in'}
+                  <strong>{lang === 'el' ? 'Πότε αποκτάται:' : 'When earned:'}</strong> {lang === 'el' ? 'Φωτογραφία, ημερομηνία γέννησης, portfolio, τιμές και κατηγορίες συμπληρωμένα' : 'Photo, date of birth, portfolio, prices and categories filled in'}
                 </p>
                 <p className="text-sm text-slate-600">
                   {lang === 'el' ? 'Σημασία: Ο brand βλέπει όλα όσα χρειάζεται' : 'Meaning: Brands see everything they need'}
