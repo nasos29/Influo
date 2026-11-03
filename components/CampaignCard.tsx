@@ -147,6 +147,7 @@ export default function CampaignCard({
   hideBrand = false,
   footer,
   className = "",
+  viewCta = false,
 }: {
   campaign: CampaignCardData;
   lang: "el" | "en";
@@ -154,6 +155,8 @@ export default function CampaignCard({
   hideBrand?: boolean;
   footer?: ReactNode;
   className?: string;
+  /** Show a "View campaign →" button at the bottom (public lists). Visual only: the card's stretched link handles the click. */
+  viewCta?: boolean;
 }) {
   const brand = brandOf(campaign.brands);
   const link = href ?? `/campaigns/${campaign.id}`;
@@ -174,7 +177,7 @@ export default function CampaignCard({
 
   return (
     <article
-      className={`group relative bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-[box-shadow,border-color] hover:shadow-md hover:border-slate-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2 ${className}`}
+      className={`group relative flex flex-col bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm cursor-pointer transition-[box-shadow,border-color] hover:shadow-md hover:border-slate-300 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 has-[:focus-visible]:ring-offset-2 ${className}`}
     >
       <div className="pointer-events-none relative z-0 [&_*]:pointer-events-none">
         <CampaignCover
@@ -204,7 +207,7 @@ export default function CampaignCard({
         )}
       </div>
 
-      <div className="p-5">
+      <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-1.5 min-h-[1.25rem]">
           {!hideBrand && (
             <>
@@ -337,6 +340,16 @@ export default function CampaignCard({
         )}
 
         {footer ? <div className="relative z-10 mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
+        {viewCta ? (
+          <div className="mt-auto pt-4">
+            <span
+              aria-hidden
+              className="pointer-events-none flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-slate-800"
+            >
+              {lang === "el" ? "Δες την καμπάνια →" : "View campaign →"}
+            </span>
+          </div>
+        ) : null}
       </div>
     </article>
   );

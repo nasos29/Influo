@@ -153,10 +153,12 @@ export default function PublicCampaignsPage({
         ) : (
           <ul className="mt-10 grid gap-4 md:grid-cols-2">
             {rows.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="h-full">
                 <CampaignCard
                   campaign={{ ...c, status: c.status || "open" }}
                   lang={lang}
+                  viewCta
+                  className="h-full"
                   footer={
                     approvedInfluencer ? (
                       appliedIds.has(c.id) ? (
