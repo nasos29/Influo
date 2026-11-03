@@ -400,7 +400,7 @@ const TEMPLATES: Array<{ id: string; el: string; en: string; hint: string; fill:
     id: "local",
     el: "Βίντεο Reels & Stories",
     en: "Reels & Stories video",
-    hint: "Εξ αποστάσεως ή με παρουσία",
+    hint: "Εξ αποστάσεως ή με παρουσία στον χώρο",
     fill: {
       title: "Βίντεο Reels & Stories για το brand μας",
       description:
