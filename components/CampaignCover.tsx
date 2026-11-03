@@ -138,11 +138,23 @@ export default function CampaignCover({
     >
       {hasCover ? (
         <>
+          {/* Blurred fill of the same image (same URL → cache hit), so the whole cover shows without cropping. */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            <FastImage
+              src={coverUrl as string}
+              alt=""
+              fill
+              className="scale-110 object-cover blur-2xl opacity-80"
+              sizes={sizes}
+              priority={priority}
+            />
+            <div className="absolute inset-0 bg-slate-900/25" />
+          </div>
           <FastImage
             src={coverUrl as string}
             alt={title}
             fill
-            className="object-cover"
+            className="object-contain"
             sizes={sizes}
             priority={priority}
             onError={() => setCoverFailed(true)}
