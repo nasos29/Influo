@@ -161,6 +161,8 @@ export async function POST(request: NextRequest) {
       views_low: roundNice(0.8 * views),
       views_high: roundNice(1.2 * views),
       creators: list.length,
+      requested: creators,
+      defaulted: !(slotsRaw > 0),
       list,
     },
   });
