@@ -24,7 +24,7 @@ async function translateWithGemini(text: string, target: 'el' | 'en'): Promise<s
   if (!apiKey) {
     throw new Error('GEMINI_API_KEY missing');
   }
-  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-2.0-flash').trim();
+  const modelId = (process.env.GEMINI_AUDIT_MODEL || 'gemini-flash-latest').trim();
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: modelId });
   const prompt =

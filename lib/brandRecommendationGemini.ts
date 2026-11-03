@@ -130,7 +130,7 @@ async function callGemini(brand: BrandRecommendationInput, candidates: Recommend
   if (isGeminiPaused()) return null;
   const apiKey = geminiKey();
   if (!apiKey) return null;
-  const modelId = (process.env.GEMINI_AUDIT_MODEL || "gemini-2.0-flash").trim();
+  const modelId = (process.env.GEMINI_AUDIT_MODEL || "gemini-flash-latest").trim();
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
     model: modelId,
