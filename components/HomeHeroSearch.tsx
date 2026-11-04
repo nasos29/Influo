@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -117,8 +118,7 @@ export default function HomeHeroSearch({
                 title={inf.name}
                 className="relative inline-block h-10 w-10 overflow-hidden rounded-full border-2 border-white bg-slate-100 shadow-sm transition hover:z-10 hover:scale-110"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={inf.avatar} alt={inf.name} className="h-full w-full object-cover" loading="lazy" />
+                <Image src={inf.avatar} alt={inf.name} width={40} height={40} sizes="40px" quality={70} className="h-full w-full object-cover" />
               </Link>
             ))}
           </div>
