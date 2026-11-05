@@ -5,7 +5,7 @@ import ImageLightbox from "@/components/ImageLightbox";
 import CreatorPhoto from "@/components/CreatorPhoto";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 import { categoryLabel } from "@/lib/categories";
-import { publicProfilePath } from "@/lib/profileSlug";
+import { publicProfileBrowserUrl } from "@/lib/profileSlug";
 import { displayNameForLang } from "@/lib/greeklish";
 import { filterWorkLinks } from "@/lib/contactFilter";
 import { formatEuroAmount } from "@/lib/formatEuro";
@@ -101,8 +101,8 @@ export default function ApplicantCard({
   const price = priceLabel(profile?.min_rate ?? null, lang);
   const text = message?.trim() || "";
   const long = text.length > 160;
-  // Public website profile in a new tab — not SPA navigation inside the dashboard app.
-  const profileHref = publicProfilePath(profile?.profile_slug, influencerId);
+  // Absolute cross-host URL so the installed PWA does not capture the click.
+  const profileHref = publicProfileBrowserUrl(profile?.profile_slug, influencerId);
 
   return (
     <article className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
