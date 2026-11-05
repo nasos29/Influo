@@ -9,6 +9,7 @@ import { formatFollowerCount } from "@/lib/platformStats";
 import { campaignPublicBadgeLabel } from "@/lib/campaignPublicBadge";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
+import { localizeCampaignCopy } from "@/lib/campaignLocalized";
 import CampaignCover from "@/components/CampaignCover";
 import BrandBadges from "@/components/BrandBadges";
 import { formatEuro } from "@/lib/formatEuro";
@@ -23,10 +24,13 @@ export type CampaignCardBrand = {
 export type CampaignCardData = {
   id: string;
   title: string;
+  title_en?: string | null;
   description: string;
+  description_en?: string | null;
   budget: number;
   category?: string | null;
   deliverables?: string | null;
+  deliverables_en?: string | null;
   deadline?: string | null;
   created_at?: string | null;
   opened_at?: string | null;
@@ -158,6 +162,7 @@ export default function CampaignCard({
   /** Show a "View campaign →" button at the bottom (public lists). Visual only: the card's stretched link handles the click. */
   viewCta?: boolean;
 }) {
+  const localized = localizeCampaignCopy(campaign, lang);
   const brand = brandOf(campaign.brands);
   const link = href ?? `/campaigns/${campaign.id}`;
   const published = publishedAgoLabel(campaign.created_at, lang);
@@ -165,7 +170,7 @@ export default function CampaignCard({
   const comp = compensationLabel(campaign.compensation_type, lang);
   const statusBadge = campaignStatusBadge(campaign, lang);
   const cat = campaign.category ? categoryLabel(campaign.category, lang) || campaign.category : "";
-  const deliverableChips = splitDeliverables(campaign.deliverables);
+  const deliverableChips = splitDeliverables(localized.deliverables);
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
   const showBudget = Number(campaign.budget) > 0;
   const publicBadge = campaignPublicBadgeLabel(campaign.applications_count, campaign.opened_at, lang);
@@ -182,7 +187,7 @@ export default function CampaignCard({
       <div className="pointer-events-none relative z-0 [&_*]:pointer-events-none">
         <CampaignCover
           coverUrl={campaign.cover_url}
-          title={campaign.title}
+          title={localized.title}
           brandName={hideBrand ? null : brand?.brand_name}
           logoUrl={hideBrand ? null : brand?.logo_url}
           category={campaign.category}
@@ -226,7 +231,7 @@ export default function CampaignCard({
               href={link}
               className="inline-flex min-h-[44px] items-center text-inherit after:absolute after:inset-0 after:z-[1] after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
             >
-              {campaign.title}
+              {localized.title}
             </Link>
           </h3>
           {publicBadge ? (
@@ -287,7 +292,7 @@ export default function CampaignCard({
         </div>
 
         <p className="mt-3 text-sm text-slate-600 line-clamp-2 whitespace-pre-wrap">
-          <CampaignDescriptionText text={campaign.description} />
+          <CampaignDescriptionText text={localized.description} />
         </p>
 
         {(cat || deliverableChips.length > 0) && (

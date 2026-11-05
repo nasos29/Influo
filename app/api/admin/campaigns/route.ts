@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { isAdminUser, userFromBearer } from "@/lib/apiAuth";
 import { parseAdminCampaignPatch } from "@/lib/adminCampaignPatch";
 import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
+import { refreshCampaignEnglish } from "@/lib/campaignTranslate";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,7 +47,7 @@ type CampaignApplicationRow = {
 const BRAND_EMBED = "brands ( brand_name, contact_email, verified, logo_url )";
 
 const CAMPAIGN_SELECTS = [
-  `id, brand_id, title, description, budget, category, status, deadline, platforms, compensation_type, deliverables, location, starts_on, min_followers, cover_url, opened_at, closed_at, auto_closed, created_at, updated_at, ${BRAND_EMBED}`,
+  `id, brand_id, title, title_en, description, description_en, budget, category, status, deadline, platforms, compensation_type, deliverables, deliverables_en, location, starts_on, min_followers, cover_url, opened_at, closed_at, auto_closed, created_at, updated_at, ${BRAND_EMBED}`,
   `id, brand_id, title, description, budget, category, status, deadline, platforms, compensation_type, deliverables, created_at, updated_at, ${BRAND_EMBED}`,
 ];
 
@@ -248,6 +249,11 @@ export async function PATCH(request: NextRequest) {
         .select("id")
         .maybeSingle();
       if (!result.error && result.data) {
+        after(() =>
+          refreshCampaignEnglish(parsed.campaignId, { force: true }).catch((err) => {
+            console.error("[admin/campaigns] EN translate", err);
+          })
+        );
         revalidatePublicCampaigns();
         return NextResponse.json({
           success: true,

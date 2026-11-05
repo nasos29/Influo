@@ -23,10 +23,13 @@ const DETAIL_SELECT = `
   id,
   brand_id,
   title,
+  title_en,
   description,
+  description_en,
   budget,
   category,
   deliverables,
+  deliverables_en,
   deadline,
   opened_at,
   created_at,
@@ -41,15 +44,22 @@ const DETAIL_SELECT = `
 `;
 
 const DETAIL_SELECT_NO_COVER = DETAIL_SELECT.replace(/\s*cover_url,/, "");
+const DETAIL_SELECT_NO_EN = DETAIL_SELECT
+  .replace(/\s*title_en,/, "")
+  .replace(/\s*description_en,/, "")
+  .replace(/\s*deliverables_en,/, "");
 
 export type PublicCampaignRow = {
   id: string;
   brand_id?: string | null;
   title: string;
+  title_en?: string | null;
   description: string;
+  description_en?: string | null;
   budget: number;
   category: string | null;
   deliverables: string | null;
+  deliverables_en?: string | null;
   deadline: string | null;
   opened_at?: string | null;
   created_at?: string | null;
@@ -100,6 +110,9 @@ export async function loadPublicCampaignById(id: string): Promise<PublicCampaign
         .maybeSingle();
 
     let { data, error } = await run(DETAIL_SELECT);
+    if (error && /title_en|description_en|deliverables_en/i.test(error.message || "")) {
+      ({ data, error } = await run(DETAIL_SELECT_NO_EN));
+    }
     if (error && /cover_url/i.test(error.message || "")) {
       ({ data, error } = await run(DETAIL_SELECT_NO_COVER));
     }
