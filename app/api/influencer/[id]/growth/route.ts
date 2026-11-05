@@ -1,12 +1,19 @@
 /**
  * GET /api/influencer/[id]/growth
  * Returns 15-day follower growth for the profile card.
+ * Ignores follower drops caused by removed/lost social accounts.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { alignFollowerSnapshotToCurrent, totalFollowersFromAccounts } from '@/lib/parseFollowers';
-import { buildFollowerGrowthSeries, FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
+import { totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import {
+  buildFollowerGrowthSeries,
+  computeFollowerGrowth,
+  snapshotAccountsFromProfile,
+  type FollowerSnapshotPoint,
+  type SnapshotAccountFollowers,
+} from '@/lib/followerGrowth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +26,26 @@ type InfluencerGrowthRow = {
   accounts?: unknown;
   last_social_refresh_at?: string | null;
 };
+
+function parseStoredAccounts(raw: unknown): SnapshotAccountFollowers[] | null {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const out: SnapshotAccountFollowers[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') continue;
+    const platform = String((row as { platform?: unknown }).platform || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '');
+    const username = String((row as { username?: unknown }).username || '')
+      .trim()
+      .replace(/^@+/, '')
+      .toLowerCase();
+    const followers = Number((row as { followers?: unknown }).followers);
+    if (!platform || !username || !Number.isFinite(followers) || !(followers > 0)) continue;
+    out.push({ platform, username, followers: Math.round(followers) });
+  }
+  return out.length ? out : null;
+}
 
 async function loadInfluencerForGrowth(
   id: string
@@ -59,19 +86,47 @@ export async function GET(
     }
     const influencer = loaded.data;
 
-    const accounts = (influencer.accounts as Array<{ followers?: string | number | null }>) ?? [];
+    const accounts = (influencer.accounts as Array<{
+      platform?: string | null;
+      username?: string | null;
+      followers?: string | number | null;
+    }>) ?? [];
+    const currentAccounts = snapshotAccountsFromProfile(accounts);
     const currentTotal = totalFollowersFromAccounts(accounts);
     const lastSocialRefreshAt =
       typeof influencer.last_social_refresh_at === 'string' ? influencer.last_social_refresh_at : null;
 
-    const { data: snapshots, error: snapErr } = await supabaseAdmin
-      .from('influencer_follower_snapshots')
-      .select('total_followers, snapshot_at')
-      .eq('influencer_id', id)
-      .order('snapshot_at', { ascending: false })
-      .limit(90);
+    type SnapshotRow = {
+      total_followers?: number | string | null;
+      snapshot_at?: string | null;
+      accounts?: unknown;
+    };
+    let snapshots: SnapshotRow[] = [];
+    let snapErr: { message?: string } | null = null;
 
-    if (snapErr && /relation|table|does not exist/i.test(snapErr.message)) {
+    {
+      const full = await supabaseAdmin
+        .from('influencer_follower_snapshots')
+        .select('total_followers, snapshot_at, accounts')
+        .eq('influencer_id', id)
+        .order('snapshot_at', { ascending: false })
+        .limit(90);
+      if (full.error && /accounts|column/i.test(full.error.message || '')) {
+        const bare = await supabaseAdmin
+          .from('influencer_follower_snapshots')
+          .select('total_followers, snapshot_at')
+          .eq('influencer_id', id)
+          .order('snapshot_at', { ascending: false })
+          .limit(90);
+        snapshots = (bare.data || []) as SnapshotRow[];
+        snapErr = bare.error;
+      } else {
+        snapshots = (full.data || []) as SnapshotRow[];
+        snapErr = full.error;
+      }
+    }
+
+    if (snapErr && /relation|table|does not exist/i.test(snapErr.message || '')) {
       return NextResponse.json({
         currentTotal,
         oldTotal: null,
@@ -87,43 +142,32 @@ export async function GET(
       console.warn('[influencer growth] snapshot query:', snapErr.message);
     }
 
-    const rows = (snapshots || [])
-      .map((s) => {
-        const raw = Number(s.total_followers);
-        const at = new Date(s.snapshot_at as string).getTime();
-        const total = alignFollowerSnapshotToCurrent(raw, currentTotal);
-        return { total, at };
-      })
-      .filter((s): s is { total: number; at: number } => s.total != null && Number.isFinite(s.at) && s.total > 0);
-
-    const now = Date.now();
-    const windowMs = FOLLOWER_GROWTH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    const minFallbackAgeMs = 7 * 24 * 60 * 60 * 1000;
-
-    const baselineWindow = rows.find((s) => now - s.at >= windowMs);
-    const fallback = [...rows].reverse().find((s) => now - s.at >= minFallbackAgeMs);
-    const baseline = baselineWindow || fallback;
-
-    let growth: number | null = null;
-    let growthPct: number | null = null;
-    const oldTotal = baseline?.total ?? null;
-
-    if (oldTotal != null) {
-      growth = Math.round(currentTotal - oldTotal);
-      growthPct = Math.round((growth / oldTotal) * 1000) / 10;
+    const rows: FollowerSnapshotPoint[] = [];
+    for (const s of snapshots) {
+      const raw = Number(s.total_followers);
+      const at = s.snapshot_at ? new Date(s.snapshot_at).getTime() : NaN;
+      if (!(raw > 0) || !Number.isFinite(at)) continue;
+      rows.push({
+        total: raw,
+        at,
+        accounts: parseStoredAccounts(s.accounts),
+      });
     }
 
-    const series = buildFollowerGrowthSeries(rows, currentTotal);
+    const growthResult = computeFollowerGrowth(rows, currentAccounts, currentTotal);
+    const series = buildFollowerGrowthSeries(
+      growthResult?.seriesSource || rows,
+      growthResult?.currentTotal ?? currentTotal
+    );
     const latestSnapshotAt =
-      typeof snapshots?.[0]?.snapshot_at === 'string' ? snapshots[0].snapshot_at : null;
-    // Prefer the social-refresh stamp; fall back to newest follower snapshot.
+      typeof snapshots[0]?.snapshot_at === 'string' ? snapshots[0].snapshot_at : null;
     const statsUpdatedAt = lastSocialRefreshAt || latestSnapshotAt || null;
 
     return NextResponse.json({
-      currentTotal,
-      oldTotal: oldTotal ?? undefined,
-      growth: growth ?? undefined,
-      growthPct: growthPct ?? undefined,
+      currentTotal: growthResult?.currentTotal ?? currentTotal,
+      oldTotal: growthResult?.oldTotal,
+      growth: growthResult?.growth,
+      growthPct: growthResult?.growthPct,
       series,
       statsUpdatedAt: statsUpdatedAt ?? undefined,
     });

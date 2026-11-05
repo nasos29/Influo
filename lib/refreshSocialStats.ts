@@ -24,7 +24,8 @@ import {
   offerAuditFields,
   runAuditGemini,
 } from '@/lib/auditGemini';
-import { totalFollowersFromAccounts, totalPostsFromAccounts } from '@/lib/parseFollowers';
+import { insertFollowerSnapshot, totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { preferPreciseFollowers } from '@/lib/socialRefresh';
 
 type AccountRow = {
   platform: string;
@@ -250,7 +251,8 @@ export async function doRefreshSocialStats(
         }
         updatedAccounts[i] = {
           ...acc,
-          followers: flagged.followers,
+          // Don't let a rounded scrape ("13k") wipe a more precise prior count (13300).
+          followers: preferPreciseFollowers(acc.followers, flagged.followers),
           engagement_rate: flagged.engagement_rate,
           avg_likes: flagged.avg_likes,
           ...(flagged.posts_count != null ? { posts_count: flagged.posts_count } : {}),
@@ -436,27 +438,14 @@ export async function doRefreshSocialStats(
         }
       }
       const total = totalFollowersFromAccounts(updatePayload.accounts);
-      const totalPosts = totalPostsFromAccounts(updatePayload.accounts);
       if (total > 0) {
-        const snapshotAt = new Date().toISOString();
-        const snapFull = {
-          influencer_id: inf.id,
-          snapshot_at: snapshotAt,
-          total_followers: total,
-          total_posts: totalPosts > 0 ? totalPosts : null,
-        };
-        const { error: snapErr } = await supabaseAdmin.from('influencer_follower_snapshots').insert(snapFull);
-        if (snapErr && /column|total_posts/i.test(snapErr.message)) {
-          const { error: snapRetry } = await supabaseAdmin.from('influencer_follower_snapshots').insert({
-            influencer_id: inf.id,
-            snapshot_at: snapshotAt,
-            total_followers: total,
-          });
-          if (snapRetry && !/relation|table|does not exist/i.test(snapRetry.message)) {
-            errors.push(`Snapshot: ${snapRetry.message}`);
+        try {
+          await insertFollowerSnapshot(supabaseAdmin, String(inf.id), updatePayload.accounts);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          if (!/relation|table|does not exist/i.test(message)) {
+            errors.push(`Snapshot: ${message}`);
           }
-        } else if (snapErr && !/relation|table|does not exist/i.test(snapErr.message)) {
-          errors.push(`Snapshot: ${snapErr.message}`);
         }
       }
     }

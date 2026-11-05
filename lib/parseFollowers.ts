@@ -69,6 +69,35 @@ export function isPlausibleFollowerBaseline(oldTotal: number, currentTotal: numb
   return alignFollowerSnapshotToCurrent(oldTotal, currentTotal) != null;
 }
 
+/** Compact per-account totals for influencer_follower_snapshots.accounts. */
+export function compactSnapshotAccounts(
+  accounts:
+    | Array<{
+        platform?: string | null;
+        username?: string | null;
+        followers?: string | number | null;
+      }>
+    | null
+    | undefined
+): Array<{ platform: string; username: string; followers: number }> {
+  if (!Array.isArray(accounts)) return [];
+  const out: Array<{ platform: string; username: string; followers: number }> = [];
+  for (const acc of accounts) {
+    const platform = String(acc?.platform || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+    const username = String(acc?.username || "")
+      .trim()
+      .replace(/^@+/, "")
+      .toLowerCase();
+    const followers = parseFollowerString(acc?.followers);
+    if (!platform || !username || !(followers > 0)) continue;
+    out.push({ platform, username, followers });
+  }
+  return out;
+}
+
 /**
  * Insert a follower snapshot for an influencer into the database.
  * @param supabaseAdmin - Supabase admin client
@@ -78,7 +107,12 @@ export function isPlausibleFollowerBaseline(oldTotal: number, currentTotal: numb
 export async function insertFollowerSnapshot(
   supabaseAdmin: any,
   influencerId: string,
-  accounts: { followers?: string | number | null; posts_count?: string | number | null }[] | null | undefined
+  accounts: {
+    platform?: string | null;
+    username?: string | null;
+    followers?: string | number | null;
+    posts_count?: string | number | null;
+  }[] | null | undefined
 ): Promise<void> {
   const totalFollowers = totalFollowersFromAccounts(accounts);
   if (totalFollowers <= 0) {
@@ -105,19 +139,37 @@ export async function insertFollowerSnapshot(
 
     const snapshotAt = new Date().toISOString();
     const totalPosts = totalPostsFromAccounts(accounts);
+    const accountRows = compactSnapshotAccounts(accounts);
+    const fullRow: Record<string, unknown> = {
+      influencer_id: influencerId,
+      snapshot_at: snapshotAt,
+      total_followers: totalFollowers,
+      total_posts: totalPosts > 0 ? totalPosts : null,
+      accounts: accountRows.length ? accountRows : null,
+    };
     const { error: snapErr } = await supabaseAdmin
       .from('influencer_follower_snapshots')
-      .insert({
-        influencer_id: influencerId,
-        snapshot_at: snapshotAt,
-        total_followers: totalFollowers,
-        total_posts: totalPosts > 0 ? totalPosts : null,
-      });
-    if (snapErr && /column|total_posts/i.test(snapErr.message)) {
+      .insert(fullRow);
+    if (snapErr && /accounts|column/i.test(snapErr.message)) {
+      delete fullRow.accounts;
+      const { error: retryAccounts } = await supabaseAdmin
+        .from('influencer_follower_snapshots')
+        .insert(fullRow);
+      if (retryAccounts && /total_posts|column/i.test(retryAccounts.message)) {
+        await supabaseAdmin.from('influencer_follower_snapshots').insert({
+          influencer_id: influencerId,
+          snapshot_at: snapshotAt,
+          total_followers: totalFollowers,
+        });
+      } else if (retryAccounts) {
+        console.error('Error inserting follower snapshot:', retryAccounts.message);
+      }
+    } else if (snapErr && /total_posts|column/i.test(snapErr.message)) {
       await supabaseAdmin.from('influencer_follower_snapshots').insert({
         influencer_id: influencerId,
         snapshot_at: snapshotAt,
         total_followers: totalFollowers,
+        accounts: accountRows.length ? accountRows : null,
       });
     } else if (snapErr) {
       console.error('Error inserting follower snapshot:', snapErr.message);
