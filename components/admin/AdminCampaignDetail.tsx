@@ -17,7 +17,7 @@ import {
   type AdminBrandCampaign,
   type AdminCampaignApplication,
 } from "@/components/admin/adminCampaignTypes";
-import { publicProfilePath } from "@/lib/profileSlug";
+import { publicProfileBrowserUrl } from "@/lib/profileSlug";
 
 type Lang = "el" | "en";
 
@@ -773,7 +773,7 @@ export default function AdminCampaignDetail({
 
 function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: Lang }) {
   const creator = getApplicationInfluencerMeta(app);
-  const profileHref = publicProfilePath(creator.profileSlug, app.influencer_id);
+  const profileHref = publicProfileBrowserUrl(creator.profileSlug, app.influencer_id);
   const links = filterWorkLinks(app.work_links || "").ok;
   const deliverableStatus = app.deliverable_status && app.deliverable_status !== "none"
     ? DELIVERABLE_STATUS[app.deliverable_status]
