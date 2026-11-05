@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   computeFollowerGrowth,
   isFollowerCompositionBreak,
+  isSameFollowerDisplayBucket,
   matchedFollowerTotals,
 } from "../lib/followerGrowth.ts";
 import {
@@ -60,4 +61,22 @@ test("matchedFollowerTotals compares only shared platforms", () => {
   assert.ok(matched);
   assert.equal(matched!.baseline, 27000);
   assert.equal(matched!.current, 28100);
+});
+
+test("growth ignores 1.1k rounding noise like Pinelopi 1120→1100", () => {
+  const now = Date.parse("2026-11-05T12:00:00Z");
+  const result = computeFollowerGrowth(
+    [
+      { total: 1120, at: Date.parse("2026-11-01T16:47:00Z") },
+      { total: 1100, at: Date.parse("2026-11-01T16:54:00Z") },
+      { total: 1100, at: Date.parse("2026-11-02T17:57:00Z") },
+    ],
+    [{ platform: "instagram", username: "pinelopi_zerzi", followers: 1100 }],
+    1100,
+    now
+  );
+  assert.ok(result);
+  assert.equal(result!.growth, 0);
+  assert.equal(isSameFollowerDisplayBucket(1120, 1100), true);
+  assert.equal(isSameFollowerDisplayBucket(13300, 13000), false);
 });

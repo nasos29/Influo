@@ -39,6 +39,20 @@ export const FOLLOWER_GROWTH_WINDOW_DAYS = 15;
 const COMPOSITION_BREAK_MIN_DROP = 1500;
 const COMPOSITION_BREAK_MIN_PCT = 0.12;
 
+/** Same abbreviated UI label (e.g. 1120 and 1100 both show as "1.1k"). */
+export function followerDisplayLabel(n: number): string {
+  if (!(n > 0)) return "0";
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+  return String(Math.round(n));
+}
+
+export function isSameFollowerDisplayBucket(a: number, b: number): boolean {
+  if (!(a > 0) || !(b > 0)) return false;
+  if (a === b) return true;
+  return followerDisplayLabel(a) === followerDisplayLabel(b);
+}
+
 function ymdLocal(ms: number): string {
   const d = new Date(ms);
   const y = d.getUTCFullYear();
@@ -161,12 +175,15 @@ export function computeFollowerGrowth(
     if (matchedBaseline?.accounts?.length) {
       const matched = matchedFollowerTotals(currentAccounts, matchedBaseline.accounts);
       if (matched) {
-        const growth = Math.round(matched.current - matched.baseline);
+        const growth = isSameFollowerDisplayBucket(matched.current, matched.baseline)
+          ? 0
+          : Math.round(matched.current - matched.baseline);
         return {
           currentTotal: matched.current,
           oldTotal: matched.baseline,
           growth,
-          growthPct: Math.round((growth / matched.baseline) * 1000) / 10,
+          growthPct:
+            growth === 0 ? 0 : Math.round((growth / matched.baseline) * 1000) / 10,
           seriesSource: ascending.filter((s) => s.at >= matchedBaseline.at),
         };
       }
@@ -194,12 +211,15 @@ export function computeFollowerGrowth(
   const baseline = baselineWindow || fallback;
   if (!baseline || !(baseline.total > 0)) return null;
 
-  const growth = Math.round(currentTotal - baseline.total);
+  // 1120 → later stored as "1.1k" (1100) is scrape rounding, not real loss.
+  const growth = isSameFollowerDisplayBucket(currentTotal, baseline.total)
+    ? 0
+    : Math.round(currentTotal - baseline.total);
   return {
     currentTotal,
     oldTotal: baseline.total,
     growth,
-    growthPct: Math.round((growth / baseline.total) * 1000) / 10,
+    growthPct: growth === 0 ? 0 : Math.round((growth / baseline.total) * 1000) / 10,
     seriesSource: era,
   };
 }
