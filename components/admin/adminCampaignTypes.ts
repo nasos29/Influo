@@ -12,8 +12,8 @@ export type AdminCampaignApplication = {
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
   influencers:
-    | { display_name: string | null; avatar_url: string | null }
-    | Array<{ display_name: string | null; avatar_url: string | null }>
+    | { display_name: string | null; avatar_url: string | null; profile_slug?: string | null }
+    | Array<{ display_name: string | null; avatar_url: string | null; profile_slug?: string | null }>
     | null;
 };
 
@@ -53,12 +53,15 @@ export type AdminBrandCampaign = {
 export function getApplicationInfluencerMeta(app: AdminCampaignApplication): {
   name: string;
   avatar: string | null;
+  profileSlug: string | null;
 } {
   const raw = app.influencers;
   const row = Array.isArray(raw) ? raw[0] : raw;
+  const slug = typeof row?.profile_slug === "string" ? row.profile_slug.trim() : "";
   return {
     name: row?.display_name?.trim() || app.influencer_id,
     avatar: row?.avatar_url || null,
+    profileSlug: slug || null,
   };
 }
 

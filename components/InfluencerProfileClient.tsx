@@ -1606,7 +1606,8 @@ export default function InfluencerProfile(props: {
     .filter((label): label is string => !!label);
   const offerChoices = [...new Set(packageOffers)].slice(0, 12);
   const proposalServices = offerChoices.length ? offerChoices : ["Story", "Post", "Reel"];
-  const showHireBar = sessionChecked && !isOwnProfile;
+  // Admins open public profiles from campaign details to view the website, not to hire.
+  const showHireBar = sessionChecked && !isOwnProfile && !isAdmin;
   const hirePackages = (Array.isArray(profile.service_packages) ? profile.service_packages : []).filter(
     (pkg) => pkg.platform !== "facebook"
   );
