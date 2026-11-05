@@ -7,23 +7,17 @@ test("public profile path prefers slug", () => {
   assert.equal(publicProfilePath(null, "abc"), "/influencer/abc");
 });
 
-test("browser URL leaves www PWA via apex host", () => {
+test("browser URL is always the canonical www website profile", () => {
   assert.equal(
     publicProfileBrowserUrl("ria-spuropoulou", "abc", "www.influo.gr"),
-    "https://influo.gr/in/ria-spuropoulou"
+    "https://www.influo.gr/in/ria-spuropoulou"
   );
-});
-
-test("browser URL leaves apex PWA via www host", () => {
   assert.equal(
     publicProfileBrowserUrl(null, "abc", "influo.gr"),
     "https://www.influo.gr/influencer/abc"
   );
-});
-
-test("browser URL keeps unknown hosts absolute on themselves", () => {
   assert.equal(
     publicProfileBrowserUrl("ria", "1", "preview.example.com"),
-    "https://preview.example.com/in/ria"
+    "https://www.influo.gr/in/ria"
   );
 });

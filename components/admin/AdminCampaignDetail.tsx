@@ -18,6 +18,7 @@ import {
   type AdminCampaignApplication,
 } from "@/components/admin/adminCampaignTypes";
 import { publicProfileBrowserUrl } from "@/lib/profileSlug";
+import { handleOpenInBrowserClick } from "@/lib/openInBrowser";
 
 type Lang = "el" | "en";
 
@@ -788,7 +789,7 @@ function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: L
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-slate-900 hover:text-blue-700 hover:underline"
-            onClick={(event) => event.stopPropagation()}
+            onClick={(event) => handleOpenInBrowserClick(event, profileHref)}
           >
             {creator.name}
           </a>

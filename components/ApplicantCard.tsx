@@ -6,6 +6,7 @@ import CreatorPhoto from "@/components/CreatorPhoto";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 import { categoryLabel } from "@/lib/categories";
 import { publicProfileBrowserUrl } from "@/lib/profileSlug";
+import { handleOpenInBrowserClick } from "@/lib/openInBrowser";
 import { displayNameForLang } from "@/lib/greeklish";
 import { filterWorkLinks } from "@/lib/contactFilter";
 import { formatEuroAmount } from "@/lib/formatEuro";
@@ -118,6 +119,7 @@ export default function ApplicantCard({
               target="_blank"
               rel="noopener noreferrer"
               className="font-semibold text-slate-900 truncate max-w-full hover:text-blue-700 hover:underline"
+              onClick={(event) => handleOpenInBrowserClick(event, profileHref)}
             >
               {name}
             </a>
@@ -224,6 +226,7 @@ export default function ApplicantCard({
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-medium text-center"
+          onClick={(event) => handleOpenInBrowserClick(event, profileHref)}
         >
           {el ? "Προφίλ" : "Profile"}
         </a>

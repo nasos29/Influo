@@ -60,23 +60,13 @@ export function publicProfilePath(slug?: string | null, influencerId?: string | 
 }
 
 /**
- * Absolute profile URL meant to open in the system browser, not the installed PWA.
- * Same-origin `/in/...` links from standalone stay inside the app; using the other
- * host (influo.gr ↔ www.influo.gr) leaves the PWA, then nginx 308s to www in the browser.
+ * Canonical absolute profile URL on the public website (www).
+ * Pair with `handleOpenInBrowserClick` so Android does not hand the navigation to the PWA.
  */
 export function publicProfileBrowserUrl(
   slug?: string | null,
   influencerId?: string | number,
-  currentHost?: string | null
+  _currentHost?: string | null
 ): string {
-  const path = publicProfilePath(slug, influencerId);
-  const host = (currentHost || (typeof window !== "undefined" ? window.location.hostname : "") || "")
-    .toLowerCase()
-    .trim();
-  if (host === "www.influo.gr") return `https://influo.gr${path}`;
-  if (host === "influo.gr") return `https://www.influo.gr${path}`;
-  if (host && host !== "localhost" && host !== "127.0.0.1") {
-    return `https://${host}${path}`;
-  }
-  return `https://influo.gr${path}`;
+  return `https://www.influo.gr${publicProfilePath(slug, influencerId)}`;
 }
