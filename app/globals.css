@@ -355,3 +355,19 @@ textarea:focus-visible {
     animation: none;
   }
 }
+
+/* Admin dashboard dark mode: invert the shell (keeps all existing light utilities). */
+.admin-shell--dark {
+  color-scheme: dark;
+  filter: invert(1) hue-rotate(180deg);
+  background-color: #0b1220;
+}
+
+/* Re-invert media so photos / embeds keep natural colors. */
+.admin-shell--dark img,
+.admin-shell--dark video,
+.admin-shell--dark iframe,
+.admin-shell--dark canvas,
+.admin-shell--dark [data-admin-no-invert] {
+  filter: invert(1) hue-rotate(180deg);
+}

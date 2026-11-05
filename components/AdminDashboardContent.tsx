@@ -16,7 +16,9 @@ import {
   Megaphone,
   Menu,
   MessageSquare,
+  Moon,
   Newspaper,
+  Sun,
   Users,
   X,
 } from "lucide-react";
@@ -38,6 +40,7 @@ import {
 import VideoThumbnail from "./VideoThumbnail";
 import SocialEmbedCard from "./SocialEmbedCard";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import { formatFollowerCompact, parseFollowerString } from "@/lib/parseFollowers";
 import { formatEuro, formatEuroAmount } from "@/lib/formatEuro";
 import { categoryLabel, formatCategoryLabels, formatStoredCategories, parseStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
@@ -2054,6 +2057,8 @@ const UNAPPROVAL_KINDS: Record<string, { el: string; en: string; cls: string }> 
   other: { el: "Δεν εγκρίθηκε", en: "Not approved", cls: "border-slate-200 bg-slate-50 text-slate-800" },
 };
 
+const ADMIN_DARK_KEY = "influo-admin-dark";
+
 export default function AdminDashboardContent({ adminEmail }: { adminEmail: string }) {
   const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = t[lang];
@@ -2087,6 +2092,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
   const activeTabRef = useRef("overview");
   const confirmAction = (opts: Omit<PendingConfirm, "resolve">) =>
     new Promise<boolean>((resolve) => {
@@ -2110,6 +2116,26 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+
+  useEffect(() => {
+    try {
+      setDarkMode(localStorage.getItem(ADMIN_DARK_KEY) === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    setDarkMode((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(ADMIN_DARK_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
 
   const [activeTab, setActiveTab] = useState("overview");
   const adminTabsRef = useRef<HTMLElement | null>(null);
@@ -4401,8 +4427,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const overviewBusy = influencersLoading || brandsLoading || proposalsLoading;
   const overviewFailed = influencersError || brandsError || proposalsError;
 
+  const darkToggleLabel = darkMode
+    ? { el: "Φωτεινή λειτουργία", en: "Light mode" }[lang]
+    : { el: "Σκούρα λειτουργία", en: "Dark mode" }[lang];
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`admin-shell min-h-screen bg-slate-50${darkMode ? " admin-shell--dark" : ""}`}>
       <div className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-3">
@@ -4421,6 +4451,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </a>
               <button
                 type="button"
+                onClick={toggleDarkMode}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
+                aria-label={darkToggleLabel}
+                title={darkToggleLabel}
+              >
+                {darkMode ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+              </button>
+              <button
+                type="button"
                 onClick={() => {
                   const newLang = lang === "el" ? "en" : "el";
                   setLang(newLang);
@@ -4435,15 +4474,26 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 {txt.logout}
               </button>
             </div>
-            <button
-              type="button"
-              className="md:hidden inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
-              aria-label={{ el: "Μενού", en: "Menu" }[lang]}
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((open) => !open)}
-            >
-              {menuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
-            </button>
+            <div className="flex md:hidden items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+                aria-label={darkToggleLabel}
+                title={darkToggleLabel}
+              >
+                {darkMode ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+              </button>
+              <button
+                type="button"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700"
+                aria-label={{ el: "Μενού", en: "Menu" }[lang]}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
+              >
+                {menuOpen ? <X className="w-5 h-5" aria-hidden="true" /> : <Menu className="w-5 h-5" aria-hidden="true" />}
+              </button>
+            </div>
           </div>
           {menuOpen ? (
             <div className="md:hidden mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3">
@@ -4455,6 +4505,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 <LifeBuoy className="w-4 h-4" aria-hidden="true" />
                 Help Desk
               </a>
+              <button
+                type="button"
+                onClick={() => {
+                  toggleDarkMode();
+                  setMenuOpen(false);
+                }}
+                className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                {darkMode ? <Sun className="w-4 h-4" aria-hidden="true" /> : <Moon className="w-4 h-4" aria-hidden="true" />}
+                {darkToggleLabel}
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -4971,7 +5032,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 {u.accounts.map((acc, idx) => (
                                   <div key={idx} className="flex items-center gap-2">
                                     <span className="text-xs font-medium text-slate-600">{acc.platform}:</span>
-                                    <span className="text-xs text-slate-900">{acc.followers || '-'}</span>
+                                    <span className="text-xs text-slate-900">
+                                      {(() => {
+                                        const n = parseFollowerString(acc.followers);
+                                        return n > 0 ? formatFollowerCompact(n) : (acc.followers || "-");
+                                      })()}
+                                    </span>
                                   </div>
                                 ))}
                               </div>
