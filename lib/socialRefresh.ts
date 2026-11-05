@@ -46,7 +46,7 @@ export function isPrivateProfileError(error: string | null | undefined): boolean
 
 /**
  * Persist exact integers below 1M so 13300 stays 13300 (not collapsed to "13k").
- * Millions stay abbreviated for readability.
+ * Millions stay abbreviated for readability. Admin UI formats with k for display.
  */
 export function formatFollowers(num: number): string {
   if (!(num > 0)) return '0';

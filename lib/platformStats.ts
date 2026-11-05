@@ -1,3 +1,5 @@
+import { formatFollowerCompact } from "@/lib/parseFollowers";
+
 export type PlatformStat = {
   platform: string;
   followers?: string | null;
@@ -66,9 +68,7 @@ export function parseFollowerNumber(value: unknown): number {
 
 export function formatFollowerCount(n: number): string {
   if (!n) return "";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k`;
-  return String(Math.round(n));
+  return formatFollowerCompact(n);
 }
 
 export function statsFromAccounts(accounts: unknown, options?: { keepEmpty?: boolean }): PlatformStat[] {

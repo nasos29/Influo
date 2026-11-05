@@ -1,3 +1,35 @@
+/** Strip trailing zeros: "1.30" → "1.3", "60.00" → "60". */
+function trimTrailingZeros(s: string): string {
+  return s.replace(/\.?0+$/, "");
+}
+
+/**
+ * Compact followers for display/storage: 1330 → "1.33k", 60000 → "60k", 1500000 → "1.5M".
+ * Uses up to 2 decimals so small-k values keep precision (1.33k not 1.3k).
+ */
+export function formatFollowerCompact(num: number): string {
+  if (!Number.isFinite(num) || num < 0) return "0";
+  const n = Math.round(num);
+  if (n >= 1_000_000) return trimTrailingZeros((n / 1_000_000).toFixed(2)) + "M";
+  if (n >= 1_000) return trimTrailingZeros((n / 1_000).toFixed(2)) + "k";
+  return String(n);
+}
+
+/**
+ * Normalize any Auditpr/UI followers value for accounts JSON storage.
+ * "60000" | 60000 | "60k" → "60k". Keeps display consistent after social refresh.
+ */
+export function normalizeFollowersForStorage(
+  value: string | number | null | undefined
+): string {
+  const n = parseFollowerString(value);
+  if (n <= 0) {
+    const raw = value == null ? "" : String(value).trim();
+    return raw;
+  }
+  return formatFollowerCompact(n);
+}
+
 /**
  * Parse follower string (e.g. "15k", "1.5M", "14.600") to number.
  * Used for snapshots and growth calculation.
