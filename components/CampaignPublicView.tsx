@@ -24,6 +24,7 @@ import BrandAboutCard from "@/components/BrandAboutCard";
 import BrandBadges from "@/components/BrandBadges";
 import { CampaignDescriptionText } from "@/lib/campaignDescription";
 import { displayLocation } from "@/lib/displayLocation";
+import { localizeCampaignCopy } from "@/lib/campaignLocalized";
 import CampaignCover, { PlatformIcon } from "@/components/CampaignCover";
 import FastImage from "@/components/FastImage";
 
@@ -40,10 +41,13 @@ type Campaign = {
   id: string;
   brand_id?: string | null;
   title: string;
+  title_en?: string | null;
   description: string;
+  description_en?: string | null;
   budget: number;
   category: string | null;
   deliverables: string | null;
+  deliverables_en?: string | null;
   deadline: string | null;
   opened_at?: string | null;
   created_at?: string | null;
@@ -281,7 +285,8 @@ export default function CampaignPublicView({
   };
 
   const brand = campaign ? brandOf(campaign) : null;
-  const deliverables = campaign ? splitDeliverables(campaign.deliverables) : [];
+  const localized = campaign ? localizeCampaignCopy(campaign, lang === "en" ? "en" : "el") : null;
+  const deliverables = localized ? splitDeliverables(localized.deliverables) : [];
   const platforms = campaign && Array.isArray(campaign.platforms) ? campaign.platforms : [];
   const closes = campaign
     ? campaignClosesMeta(
@@ -445,7 +450,7 @@ export default function CampaignPublicView({
               })()}
               <CampaignCover
                 coverUrl={campaign.cover_url}
-                title={campaign.title}
+                title={localized?.title || campaign.title}
                 brandName={brand?.brand_name}
                 logoUrl={brand?.logo_url}
                 category={campaign.category}
@@ -463,7 +468,7 @@ export default function CampaignPublicView({
                     {publicBadge}
                   </span>
                 ) : null}
-                <h1 className="text-2xl! leading-tight! md:text-[32px]! md:leading-[1.2]! font-bold text-slate-900 break-words">{campaign.title}</h1>
+                <h1 className="text-2xl! leading-tight! md:text-[32px]! md:leading-[1.2]! font-bold text-slate-900 break-words">{localized?.title || campaign.title}</h1>
 
                 {brand?.brand_name ? (
                   <div className="mt-4 flex items-center gap-3">
@@ -490,7 +495,7 @@ export default function CampaignPublicView({
                     {el ? "Περιγραφή" : "Description"}
                   </h2>
                   <p className="text-slate-700 mt-3 whitespace-pre-wrap">
-                    <CampaignDescriptionText text={campaign.description} />
+                    <CampaignDescriptionText text={localized?.description || campaign.description} />
                   </p>
                 </section>
 
@@ -629,7 +634,7 @@ export default function CampaignPublicView({
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)]">
           <div className="max-w-5xl mx-auto flex items-center gap-3">
             <div className="min-w-0 flex-1 hidden sm:block">
-              <p className="text-sm font-semibold text-slate-900 truncate">{campaign.title}</p>
+              <p className="text-sm font-semibold text-slate-900 truncate">{localized?.title || campaign.title}</p>
               {closes && <p className={`text-xs ${closes.urgent ? "text-red-700" : "text-slate-500"}`}>{closes.text}</p>}
             </div>
             <button

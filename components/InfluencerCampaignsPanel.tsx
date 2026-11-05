@@ -14,6 +14,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ToastViewport, { useToasts } from "@/components/ui/Toast";
 import { formatDate, formatTime } from "@/lib/formatDateTime";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
+import { campaignField } from "@/lib/campaignLocalized";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -27,10 +28,13 @@ const WORK_LINK_HINT = {
 type CampaignWithBrand = {
   id: string;
   title: string;
+  title_en?: string | null;
   description: string;
+  description_en?: string | null;
   budget: number;
   category: string | null;
   deliverables: string | null;
+  deliverables_en?: string | null;
   deadline: string | null;
   status: string;
   created_at: string;
@@ -52,6 +56,7 @@ type MyApplication = {
   initiated_by?: string | null;
   brand_campaigns: {
     title: string;
+    title_en?: string | null;
     status: string;
     brands: { brand_name: string } | null;
   } | null;
@@ -198,10 +203,13 @@ export default function InfluencerCampaignsPanel({
         id,
         brand_id,
         title,
+        title_en,
         description,
+        description_en,
         budget,
         category,
         deliverables,
+        deliverables_en,
         deadline,
         status,
         created_at,
@@ -230,6 +238,7 @@ export default function InfluencerCampaignsPanel({
         deliverable_review_note,
         brand_campaigns (
           title,
+          title_en,
           status,
           brands ( brand_name )
         )
@@ -479,7 +488,8 @@ export default function InfluencerCampaignsPanel({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-slate-900 mb-1">
-              {uiLang === "el" ? "Αίτηση:" : "Apply:"} {applyCampaign.title}
+              {uiLang === "el" ? "Αίτηση:" : "Apply:"}{" "}
+              {campaignField(applyCampaign.title, applyCampaign.title_en, uiLang)}
             </h3>
             <p className="text-sm text-slate-500 mb-4">{applyCampaign.brands?.brand_name}</p>
             <form onSubmit={submitApply} className="space-y-4">
@@ -663,7 +673,11 @@ export default function InfluencerCampaignsPanel({
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
                     <p className="font-medium text-slate-900">
-                      {m.brand_campaigns?.title ?? (uiLang === "el" ? "Καμπάνια" : "Campaign")}{" "}
+                      {m.brand_campaigns
+                        ? campaignField(m.brand_campaigns.title, m.brand_campaigns.title_en, uiLang)
+                        : uiLang === "el"
+                          ? "Καμπάνια"
+                          : "Campaign"}{" "}
                       <span className="text-slate-500 font-normal">
                         · {m.brand_campaigns?.brands?.brand_name ?? ""}
                       </span>

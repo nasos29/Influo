@@ -6,6 +6,7 @@ import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { findContactInfo } from "@/lib/contactFilter";
 import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
 import { normalizeCategoryToken } from "@/lib/categories";
+import { refreshCampaignEnglish } from "@/lib/campaignTranslate";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -298,6 +299,13 @@ export async function POST(request: NextRequest) {
       })
     );
   }
+
+  // Auto English copy for /en — force on every save so edits stay in sync.
+  after(() =>
+    refreshCampaignEnglish(id, { force: true }).catch((err) => {
+      console.error("[campaigns/save] EN translate", err);
+    })
+  );
 
   revalidatePublicCampaigns();
   return NextResponse.json({ ok: true, id, deadlineCleared });

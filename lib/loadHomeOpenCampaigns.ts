@@ -7,10 +7,13 @@ import { brandVerifiedFromJoin } from "@/lib/publicCampaignVisibility";
 const SELECT = `
   id,
   title,
+  title_en,
   description,
+  description_en,
   budget,
   category,
   deliverables,
+  deliverables_en,
   deadline,
   created_at,
   platforms,
@@ -22,6 +25,11 @@ const SELECT = `
   cover_url,
   brands ( brand_name, logo_url, verified )
 `;
+
+const SELECT_NO_EN = SELECT
+  .replace(/\s*title_en,/, "")
+  .replace(/\s*description_en,/, "")
+  .replace(/\s*deliverables_en,/, "");
 
 /** The one definition of a campaign's public applications count: every application except withdrawn. */
 async function loadApplicationsCounts(campaignIds: string[]): Promise<Map<string, number>> {
@@ -64,9 +72,12 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
       return query;
     };
     let { data, error } = await run(SELECT);
+    if (error && /title_en|description_en|deliverables_en/i.test(error.message || "")) {
+      ({ data, error } = await run(SELECT_NO_EN));
+    }
     // cover_url column not migrated yet: retry without it.
     if (error && /cover_url/i.test(error.message || "")) {
-      ({ data, error } = await run(SELECT.replace(/\s*cover_url,/, "")));
+      ({ data, error } = await run(SELECT.replace(/\s*cover_url,/, "").replace(/\s*title_en,/, "").replace(/\s*description_en,/, "").replace(/\s*deliverables_en,/, "")));
     }
     if (error) {
       console.error("loadOpenCampaigns", error);

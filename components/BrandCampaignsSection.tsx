@@ -28,6 +28,7 @@ import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignServiceType } from "@/lib/campaignServiceLabel";
 import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { responseText } from "@/lib/bilingualError";
+import { campaignField } from "@/lib/campaignLocalized";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -46,10 +47,13 @@ export type BrandCampaignRow = {
   id: string;
   brand_id: string;
   title: string;
+  title_en?: string | null;
   description: string;
+  description_en?: string | null;
   budget: number;
   category: string | null;
   deliverables: string | null;
+  deliverables_en?: string | null;
   status: "draft" | "open" | "closed";
   deadline: string | null;
   created_at: string;
@@ -613,7 +617,7 @@ export default function BrandCampaignsSection({
     setSchemaError(false);
     setLoadError(null);
     const baseColumns =
-      "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type, requires_presence";
+      "id, brand_id, title, title_en, description, description_en, budget, category, deliverables, deliverables_en, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type, requires_presence";
     const fetchRows = (columns: string) =>
       supabase
         .from("brand_campaigns")
@@ -641,6 +645,15 @@ export default function BrandCampaignsSection({
       setRows([]);
       setLoading(false);
       return;
+    }
+    // Newer optional columns may be missing on older DBs: retry without them.
+    if (error && /title_en|description_en|deliverables_en/i.test(error.message || "")) {
+      const legacy =
+        "id, brand_id, title, description, budget, category, deliverables, status, deadline, created_at, opened_at, updated_at, platforms, min_followers, location, starts_on, compensation_type, requires_presence";
+      ({ data, error } = await fetchRows(`${legacy}, cover_url`));
+      if (error && /cover_url/i.test(error.message || "")) {
+        ({ data, error } = await fetchRows(legacy));
+      }
     }
     // cover_url column not migrated yet (docs/ADD_CAMPAIGN_COVER_URL.sql): retry without it.
     if (error && /cover_url/i.test(error.message || "")) {
@@ -1894,7 +1907,9 @@ export default function BrandCampaignsSection({
                   if (!apps.length) return null;
                   return (
                     <section key={row.id} className="space-y-3">
-                      <h4 className="text-sm font-semibold text-slate-900">{row.title}</h4>
+                      <h4 className="text-sm font-semibold text-slate-900">
+                        {campaignField(row.title, row.title_en, lang === "en" ? "en" : "el")}
+                      </h4>
                       <div className="space-y-3">
                         {apps.map((app) => renderApplicant(app))}
                       </div>
