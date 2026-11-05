@@ -44,26 +44,75 @@ export function isPrivateProfileError(error: string | null | undefined): boolean
   return /\bprivate\b|ιδιωτικ/i.test(error);
 }
 
-function formatFollowers(num: number): string {
+/**
+ * Persist exact integers below 1M so 13300 stays 13300 (not collapsed to "13k").
+ * Millions stay abbreviated for readability.
+ */
+export function formatFollowers(num: number): string {
+  if (!(num > 0)) return '0';
   if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
-  if (num >= 1_000) return (num / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
-  return String(num);
+  return String(Math.round(num));
 }
 
 /** Parse followers from API: number, "39943", or "39.9k" / "1.2M" so we never lose precision. */
-function parseFollowersFromApi(value: unknown): number {
+export function parseFollowersFromApi(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value);
   const s = typeof value === 'string' ? value.trim() : String(value ?? '');
   if (!s) return 0;
-  const num = Number(s);
-  if (Number.isFinite(num)) return Math.round(num);
-  const match = s.replace(/,/g, '').match(/^([\d.]+)\s*([kKmM])?$/);
+  const num = Number(s.replace(/,/g, ''));
+  if (Number.isFinite(num) && !/[kKmM]/.test(s)) return Math.round(num);
+  const match = s.replace(/,/g, '').match(/^([\d.]+)\s*([kKmMκΚ])?$/);
   if (!match) return 0;
   const n = parseFloat(match[1]);
   const suffix = (match[2] || '').toLowerCase();
-  if (suffix === 'k') return Math.round(n * 1_000);
+  if (suffix === 'k' || suffix === 'κ') return Math.round(n * 1_000);
   if (suffix === 'm') return Math.round(n * 1_000_000);
   return Math.round(n);
+}
+
+/**
+ * True when `coarse` looks like a rounded-k display of `precise`
+ * (e.g. 13000 from UI "13k" while the real count is 13300).
+ */
+export function isCoarseFollowerRounding(coarse: number, precise: number): boolean {
+  if (!(coarse > 0) || !(precise > 0) || coarse === precise) return false;
+  if (precise < 1000 || precise % 1000 === 0) return false;
+  const diff = Math.abs(precise - coarse);
+  if (diff === 0 || diff >= 1000) return false;
+  // Abbreviated UI counts typically floor/round to whole thousands near the true value.
+  const floorK = Math.floor(precise / 1000) * 1000;
+  const roundK = Math.round(precise / 1000) * 1000;
+  return coarse === floorK || coarse === roundK;
+}
+
+/** Keep a more precise previous count when the scrape only returned a rounded "Nk". */
+export function preferPreciseFollowers(
+  previous: string | number | null | undefined,
+  next: string | number | null | undefined
+): string {
+  const prevN = parseFollowersFromApi(previous);
+  const nextN = parseFollowersFromApi(next);
+  if (!(nextN > 0) && prevN > 0) return formatFollowers(prevN);
+  if (!(nextN > 0)) return '0';
+  if (prevN > 0 && isCoarseFollowerRounding(nextN, prevN)) return formatFollowers(prevN);
+  return formatFollowers(nextN);
+}
+
+function followersFromAuditprPayload(data: Record<string, unknown>): number {
+  const nested = data.edge_followed_by;
+  if (nested && typeof nested === 'object' && nested !== null && 'count' in nested) {
+    const n = parseFollowersFromApi((nested as { count?: unknown }).count);
+    if (n > 0) return n;
+  }
+  return (
+    pickPositiveCount(data, [
+      'follower_count',
+      'followers_count',
+      'subscriber_count',
+      'subscribers',
+      'followers',
+    ]) ?? 0
+  );
 }
 
 function pickPositiveCount(data: Record<string, unknown>, keys: string[]): number | null {
@@ -90,10 +139,15 @@ function metricsFromAuditprData(
     }
     return { error: raw };
   }
-  if (data.followers == null) {
+  const followers = followersFromAuditprPayload(data);
+  if (
+    followers <= 0 &&
+    data.followers == null &&
+    data.follower_count == null &&
+    data.followers_count == null
+  ) {
     return { error: `Λάθος username: το προφίλ @${username} δεν υπάρχει.` };
   }
-  const followers = parseFollowersFromApi(data.followers);
   const avg_likes = Number(data.avg_likes) || 0;
   const engagement_rate = typeof data.engagement_rate === 'string' ? data.engagement_rate : 'N/A';
   const posts = parseFollowersFromApi(data.posts_count);

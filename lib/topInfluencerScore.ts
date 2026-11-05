@@ -12,7 +12,7 @@
 import { buildChannelScore } from '@/lib/channelScore';
 import { resolveCompletionRate } from '@/lib/completionRate';
 import { creatorHasHardErOnMainAccount, displayErFlag, isHardErFlag, parseErPercent } from '@/lib/engagementFlags';
-import { FOLLOWER_GROWTH_WINDOW_DAYS } from '@/lib/followerGrowth';
+import { computeFollowerGrowth, type FollowerSnapshotPoint } from '@/lib/followerGrowth';
 import { parseFollowerString, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 import { listedPriceMin } from '@/lib/parsePrice';
 import { getBadges, type BadgeType } from '@/lib/badges';
@@ -490,19 +490,18 @@ export function applyIncumbentPenalty(composite: number, isIncumbent: boolean): 
 
 /**
  * 15-day growth % from snapshot rows (same idea as /api/influencer/[id]/growth).
+ * Ignores cliffs from removed/lost social accounts.
  */
 export function growthPctFromSnapshots(
   currentTotal: number,
-  snapshots: Array<{ total: number; at: number }>,
+  snapshots: Array<{ total: number; at: number; accounts?: FollowerSnapshotPoint['accounts'] }>,
   now = Date.now()
 ): number | null {
-  if (!(currentTotal > 0) || !snapshots.length) return null;
-  const windowMs = FOLLOWER_GROWTH_WINDOW_DAYS * 24 * 60 * 60 * 1000;
-  const minFallbackAgeMs = 7 * 24 * 60 * 60 * 1000;
-  const baselineWindow = snapshots.find((s) => now - s.at >= windowMs);
-  const fallback = [...snapshots].reverse().find((s) => now - s.at >= minFallbackAgeMs);
-  const baseline = baselineWindow || fallback;
-  if (!baseline || !(baseline.total > 0)) return null;
-  const growth = currentTotal - baseline.total;
-  return Math.round((growth / baseline.total) * 1000) / 10;
+  const result = computeFollowerGrowth(
+    snapshots as FollowerSnapshotPoint[],
+    [],
+    currentTotal,
+    now
+  );
+  return result?.growthPct ?? null;
 }
