@@ -38,8 +38,8 @@ type CampaignApplicationRow = {
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
   influencers:
-    | { display_name: string | null; avatar_url: string | null }
-    | Array<{ display_name: string | null; avatar_url: string | null }>
+    | { display_name: string | null; avatar_url: string | null; profile_slug?: string | null }
+    | Array<{ display_name: string | null; avatar_url: string | null; profile_slug?: string | null }>
     | null;
 };
 
@@ -50,9 +50,11 @@ const CAMPAIGN_SELECTS = [
   `id, brand_id, title, description, budget, category, status, deadline, platforms, compensation_type, deliverables, created_at, updated_at, ${BRAND_EMBED}`,
 ];
 
-// display_name and avatar only. min_rate stays off this admin payload and off public responses.
+// Public profile fields only. min_rate stays off this admin payload and off public responses.
 const APPLICATION_SELECTS = [
+  `id, campaign_id, influencer_id, status, message, proposed_price, work_links, created_at, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, influencers ( display_name, avatar_url, profile_slug )`,
   `id, campaign_id, influencer_id, status, message, proposed_price, work_links, created_at, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, influencers ( display_name, avatar_url )`,
+  `id, campaign_id, influencer_id, status, message, proposed_price, work_links, created_at, influencers ( display_name, avatar_url, profile_slug )`,
   `id, campaign_id, influencer_id, status, message, proposed_price, work_links, created_at, influencers ( display_name, avatar_url )`,
 ];
 

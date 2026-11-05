@@ -2,7 +2,6 @@
 
 import { useCallback, useState, type ReactNode } from "react";
 import ImageLightbox from "@/components/ImageLightbox";
-import Link from "next/link";
 import CreatorPhoto from "@/components/CreatorPhoto";
 import InfluencerPresenceDot from "@/components/InfluencerPresenceDot";
 import { categoryLabel } from "@/lib/categories";
@@ -102,6 +101,8 @@ export default function ApplicantCard({
   const price = priceLabel(profile?.min_rate ?? null, lang);
   const text = message?.trim() || "";
   const long = text.length > 160;
+  // Public website profile in a new tab — not SPA navigation inside the dashboard app.
+  const profileHref = publicProfilePath(profile?.profile_slug, influencerId);
 
   return (
     <article className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
@@ -112,7 +113,14 @@ export default function ApplicantCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <InfluencerPresenceDot influencerId={influencerId} lang={lang} />
-            <p className="font-semibold text-slate-900 truncate max-w-full">{name}</p>
+            <a
+              href={profileHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-slate-900 truncate max-w-full hover:text-blue-700 hover:underline"
+            >
+              {name}
+            </a>
             {profile?.verified ? (
               <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-600 text-white text-[10px]" title={el ? "Επαληθευμένος" : "Verified"} aria-label={el ? "Επαληθευμένος" : "Verified"}>✓</span>
             ) : null}
@@ -211,7 +219,14 @@ export default function ApplicantCard({
           </>
         ) : null}
         <button type="button" onClick={onMessage} className="text-sm px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium">{el ? "Μήνυμα" : "Message"}</button>
-        <Link href={publicProfilePath(profile?.profile_slug, influencerId)} className="text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-medium text-center">{el ? "Προφίλ" : "Profile"}</Link>
+        <a
+          href={profileHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-medium text-center"
+        >
+          {el ? "Προφίλ" : "Profile"}
+        </a>
         {canDecide && status !== "shortlisted" ? (
           <div className="relative col-span-2 sm:col-span-1">
             <button type="button" onClick={() => setMenu((v) => !v)} className="text-sm px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 w-full sm:w-auto" aria-haspopup="menu" aria-expanded={menu} aria-label={el ? "Περισσότερες ενέργειες" : "More actions"}>⋯</button>

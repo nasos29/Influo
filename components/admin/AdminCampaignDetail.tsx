@@ -17,6 +17,7 @@ import {
   type AdminBrandCampaign,
   type AdminCampaignApplication,
 } from "@/components/admin/adminCampaignTypes";
+import { publicProfilePath } from "@/lib/profileSlug";
 
 type Lang = "el" | "en";
 
@@ -481,9 +482,10 @@ export default function AdminCampaignDetail({
           </button>
         </header>
 
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
         <form
           id="admin-campaign-form"
-          className="flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6"
+          className="space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
             void save();
@@ -729,6 +731,7 @@ export default function AdminCampaignDetail({
               </div>
             </dl>
           </section>
+        </form>
 
           <section id="admin-campaign-applications">
             <h3 className="text-sm font-semibold text-slate-900">
@@ -744,7 +747,7 @@ export default function AdminCampaignDetail({
               </div>
             )}
           </section>
-        </form>
+        </div>
 
         <footer className="flex flex-col-reverse gap-2 border-t border-slate-200 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:px-6">
           <button
@@ -770,6 +773,7 @@ export default function AdminCampaignDetail({
 
 function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: Lang }) {
   const creator = getApplicationInfluencerMeta(app);
+  const profileHref = publicProfilePath(creator.profileSlug, app.influencer_id);
   const links = filterWorkLinks(app.work_links || "").ok;
   const deliverableStatus = app.deliverable_status && app.deliverable_status !== "none"
     ? DELIVERABLE_STATUS[app.deliverable_status]
@@ -780,10 +784,11 @@ function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: L
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <a
-            href={`/influencer/${app.influencer_id}`}
+            href={profileHref}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-slate-900 hover:text-blue-700 hover:underline"
+            onClick={(event) => event.stopPropagation()}
           >
             {creator.name}
           </a>
