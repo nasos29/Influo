@@ -1,6 +1,7 @@
 /**
  * Backfill English translations for open brand campaigns missing *_en fields.
  * Auth: Authorization: Bearer CRON_SECRET.
+ * Supports GET (server cron-run.sh) and POST.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { backfillOpenCampaignsEnglish } from "@/lib/campaignTranslate";
@@ -8,7 +9,7 @@ import { isGeminiPaused, GEMINI_PAUSED_MSG } from "@/lib/geminiPause";
 
 export const maxDuration = 120;
 
-export async function POST(request: NextRequest) {
+async function handle(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
     return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 401 });
@@ -35,4 +36,12 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: NextRequest) {
+  return handle(request);
+}
+
+export async function POST(request: NextRequest) {
+  return handle(request);
 }
