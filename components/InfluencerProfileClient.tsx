@@ -2671,7 +2671,9 @@ export default function InfluencerProfile(props: {
                         {profile.past_brands?.length || 0}
                       </p>
                     </ProfileStatCard>
-                  ) : (
+                  ) : null}
+
+                  {(
                     <ProfileStatCard
                       label={txt.platforms}
                       tip={txt.tip_platforms}
