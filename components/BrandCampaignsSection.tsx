@@ -192,8 +192,8 @@ const extra = langPack({
     el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
     en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
   },
-  draft_saved: { el: "Αποθηκεύτηκε ως πρόχειρο. Το βλέπει μόνο η επιχείρησή σας.", en: "Saved as a draft. Only your company can see it." },
-  saved: { el: "Η καμπάνια αποθηκεύτηκε.", en: "Campaign saved." },
+  draft_saved: { el: "Αποθηκεύτηκε ως πρόχειρο. Το βλέπει μόνο η επιχείρησή σας. Μπορείτε να κάνετε αλλαγές και μετά την αποθήκευση.", en: "Saved as a draft. Only your company can see it. You can still make changes after saving." },
+  saved: { el: "Η καμπάνια αποθηκεύτηκε. Μπορείτε να κάνετε αλλαγές και μετά την αποθήκευση.", en: "Campaign saved. You can still make changes after saving." },
   publish_title: { el: "Δημοσίευση", en: "Publish" },
   publish_body: {
     el: "Η καμπάνια θα είναι ορατή σε εγκεκριμένους influencers και στη δημόσια σελίδα καμπανιών. Συνέχεια;",
@@ -1855,6 +1855,9 @@ export default function BrandCampaignsSection({
             )}
             <button type="button" onClick={() => setEditing(null)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm text-slate-700 sm:ml-auto">{t.cancel}</button>
           </div>
+          {step === 3 && (
+            <p className="text-xs text-slate-500">{lang === "el" ? "Μπορείτε να κάνετε αλλαγές και μετά την αποθήκευση." : "You can still make changes after saving."}</p>
+          )}
         </form>
       )}
 

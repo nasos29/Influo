@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
-import { CATEGORIES, categoryLabel, parseStoredCategories } from "@/lib/categories";
+import { CATEGORIES, RELATED_CATEGORIES, categoryLabel, parseStoredCategories, toSiteCategory } from "@/lib/categories";
 import { findContactInfo } from "@/lib/contactFilter";
 import { statsFromAccounts, parseFollowerNumber } from "@/lib/platformStats";
 import { sharedCategoryKeys } from "@/lib/recommendations";
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "ai_failed", message: { el: "Το AI δεν απάντησε. Δοκιμάστε ξανά ή χρησιμοποιήστε τη φόρμα.", en: "AI did not respond. Try again or use the form." } }, { status: 502 });
   }
 
-  if (!category) category = typeof draft.category === "string" && (CATEGORIES as readonly string[]).includes(draft.category) ? draft.category : "";
+  if (!category) category = toSiteCategory(draft.category) || "Γενικά";
   // Drop only the sentences with a link/email/phone (e.g. the site's domain), not the whole text.
   const stripContact = (text: string) =>
     findContactInfo(text)
@@ -284,15 +284,26 @@ export async function POST(request: NextRequest) {
     .select("id, display_name, category, accounts, avatar_url, profile_slug, location, availability_status")
     .eq("approved", true)
     .limit(400);
-  const matches = (rows || [])
-    .filter((r) => (!r.availability_status || r.availability_status === "available") && sharedCategoryKeys(category, r.category).length > 0)
+  // Same category first, then neighbouring niches (OR), so rare niches (e.g. cars) still get a realistic pool.
+  const related = RELATED_CATEGORIES[category] || [];
+  const scored = (rows || [])
+    .filter((r) => !r.availability_status || r.availability_status === "available")
     .map((r) => {
+      const exact = sharedCategoryKeys(category, r.category).length > 0;
+      const near = !exact && related.some((c) => sharedCategoryKeys(c, r.category).length > 0);
+      return { r, exact, near };
+    })
+    .filter((m) => m.exact || m.near)
+    .map(({ r, exact }) => {
       const stats = statsFromAccounts(r.accounts).filter((s) => platforms.includes(String(s.platform).toLowerCase()));
       const followers = stats.reduce((n, s) => Math.max(n, parseFollowerNumber(s.followers)), 0);
-      return { r, followers, onPlatform: stats.length > 0 };
+      return { r, exact, followers, onPlatform: stats.length > 0 };
     })
-    .filter((m) => m.onPlatform)
-    .sort((a, b) => b.followers - a.followers)
+    .filter((m) => m.onPlatform);
+  const matchCount = scored.length;
+  const exactCount = scored.filter((m) => m.exact).length;
+  const matches = scored
+    .sort((a, b) => Number(b.exact) - Number(a.exact) || b.followers - a.followers)
     .slice(0, 6)
     // Anonymous before publish: no ids, names, photos or links (brands see creators in the invite step).
     .map(({ followers }) => ({ followers }));
@@ -332,6 +343,9 @@ export async function POST(request: NextRequest) {
     },
     packages,
     matches,
+    matchCount,
+    exactCount,
+    relatedCategories: related,
     brand: site ? { name: site.name, logo: site.logo, cover: siteCover, colors: site.colors, source: site.source } : null,
   });
 }

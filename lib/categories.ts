@@ -288,3 +288,62 @@ export function categorySeoKeywords(): string[] {
   words.add("unboxing Ελλάδα");
   return [...words];
 }
+
+/** Neighbouring niches used to widen creator matching when a category has few creators. */
+export const RELATED_CATEGORIES: Record<string, string[]> = {
+  "Cars & Automotive": ["Tech & Gadgets", "Lifestyle", "Unboxing", "Travel", "Sports & Athletes"],
+  "Tech & Gadgets": ["Gaming & Esports", "Unboxing", "Lifestyle", "Business & Finance"],
+  "Gaming & Esports": ["Tech & Gadgets", "Comedy & Entertainment"],
+  "Sports & Athletes": ["Health & Fitness", "Lifestyle"],
+  "Health & Fitness": ["Sports & Athletes", "Lifestyle", "Food & Drink"],
+  "Beauty & Makeup": ["Fashion & Style", "Lifestyle"],
+  "Fashion & Style": ["Beauty & Makeup", "Lifestyle"],
+  "Food & Drink": ["Lifestyle", "Travel", "Health & Fitness"],
+  "Travel": ["Lifestyle", "Food & Drink", "Art & Photography"],
+  "Home & Decor": ["Lifestyle", "DIY & Crafts", "Parenting & Family"],
+  "DIY & Crafts": ["Home & Decor", "Art & Photography", "Lifestyle"],
+  "Parenting & Family": ["Lifestyle", "Home & Decor", "Education & Coaching"],
+  "Pets & Animals": ["Lifestyle", "Parenting & Family"],
+  "Business & Finance": ["Education & Coaching", "Tech & Gadgets"],
+  "Education & Coaching": ["Business & Finance", "Parenting & Family"],
+  "Comedy & Entertainment": ["Music & Dance", "Lifestyle"],
+  "Music & Dance": ["Comedy & Entertainment", "Art & Photography"],
+  "Art & Photography": ["DIY & Crafts", "Travel", "Lifestyle"],
+  "Sustainability & Eco": ["Lifestyle", "Home & Decor", "Food & Drink"],
+  "Unboxing": ["Tech & Gadgets", "Lifestyle", "Beauty & Makeup"],
+  "Lifestyle": ["Fashion & Style", "Travel", "Food & Drink"],
+};
+
+const CATEGORY_SYNONYMS: Array<[RegExp, string]> = [
+  [/auto|car|vehicle|αυτοκ[ιί]νητ|οχ[ηή]μ|moto/i, "Cars & Automotive"],
+  [/tech|gadget|electronic|τεχνολογ/i, "Tech & Gadgets"],
+  [/gam|esport/i, "Gaming & Esports"],
+  [/sport|athlet|αθλητ/i, "Sports & Athletes"],
+  [/fitness|health|gym|υγε/i, "Health & Fitness"],
+  [/beauty|makeup|cosmetic|skin|ομορφ|καλλυντ/i, "Beauty & Makeup"],
+  [/fashion|style|cloth|apparel|μόδα|μοδα|ρο[υύ]χ/i, "Fashion & Style"],
+  [/food|drink|restaurant|cafe|φαγητ|εστιατ/i, "Food & Drink"],
+  [/travel|hotel|tourism|ταξ[ιί]δ|ξενοδοχ/i, "Travel"],
+  [/home|decor|furnit|σπ[ιί]τι|επιπλ/i, "Home & Decor"],
+  [/diy|craft|χειροτεχν/i, "DIY & Crafts"],
+  [/parent|family|kid|baby|οικογ|παιδ/i, "Parenting & Family"],
+  [/pet|animal|dog|cat|κατοικ/i, "Pets & Animals"],
+  [/business|finance|bank|οικονομ|επιχειρ/i, "Business & Finance"],
+  [/educat|coach|course|εκπαιδ/i, "Education & Coaching"],
+  [/comedy|entertain|ψυχαγωγ/i, "Comedy & Entertainment"],
+  [/music|dance|μουσικ|χορ/i, "Music & Dance"],
+  [/art|photo|τέχνη|τεχνη|φωτογρ/i, "Art & Photography"],
+  [/eco|sustain|green|περιβαλλ/i, "Sustainability & Eco"],
+  [/unbox/i, "Unboxing"],
+  [/lifestyle/i, "Lifestyle"],
+];
+
+/** Map free AI/user text to a valid site category key ("" when nothing fits). */
+export function toSiteCategory(value: unknown): string {
+  if (typeof value !== "string" || !value.trim()) return "";
+  const v = value.trim();
+  const exact = (CATEGORIES as readonly string[]).find((c) => c.toLowerCase() === v.toLowerCase());
+  if (exact) return exact;
+  for (const [re, cat] of CATEGORY_SYNONYMS) if (re.test(v)) return cat;
+  return "";
+}

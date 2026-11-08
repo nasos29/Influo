@@ -85,7 +85,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
   const [timing, setTiming] = useSessionState("influo:ai-wizard:timing", "2weeks");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useSessionState<{ fill: AiPrefill; price: number | null; marketNote?: string | null; matches: Match[]; packages: Pkg[] } | null>("influo:ai-wizard:result", null);
+  const [result, setResult] = useSessionState<{ fill: AiPrefill; price: number | null; marketNote?: string | null; matches: Match[]; matchCount?: number; exactCount?: number; packages: Pkg[] } | null>("influo:ai-wizard:result", null);
   const [pkgIdx, setPkgIdx] = useSessionState<number | null>("influo:ai-wizard:pkgIdx", null);
 
   // Back gesture: previous question, or close (answers stay in sessionStorage).
@@ -146,6 +146,8 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       const data = (await res.json().catch(() => ({}))) as {
         draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; marketMedian?: number | null; marketNote?: { el: string; en: string } | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean; category?: string; platforms?: string[] };
         matches?: Match[];
+        matchCount?: number;
+        exactCount?: number;
         packages?: Pkg[];
         message?: { el?: string };
         needsDetails?: boolean;
@@ -168,6 +170,8 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
         price: d.pricePerCreator,
         marketNote: d.marketNote?.el || null,
         matches: data.matches || [],
+        matchCount: data.matchCount,
+        exactCount: data.exactCount,
         packages: data.packages || [],
         fill: {
           title: d.title,
@@ -398,10 +402,15 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
                             <span key={i} className="h-8 w-8 rounded-full ring-2 ring-white bg-gradient-to-br from-slate-300 to-slate-400 blur-[1px]" />
                           ))}
                         </div>
-                        <p className="text-sm font-semibold text-slate-900">{result.matches.length} creators ταιριάζουν με την καμπάνιά σας</p>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{result.matchCount ?? result.matches.length} creators ταιριάζουν με την καμπάνιά σας</p>
+                          {typeof result.exactCount === "number" && (result.matchCount ?? 0) > result.exactCount && (
+                            <p className="text-xs text-slate-600">{result.exactCount} στην ίδια κατηγορία · {(result.matchCount ?? 0) - result.exactCount} σε σχετικές κατηγορίες</p>
+                          )}
+                        </div>
                       </div>
                       {f.length > 0 && (
-                        <p className="mt-2 text-sm text-slate-700">Ακόλουθοι ανά creator: {fmt(Math.min(...f))}–{fmt(Math.max(...f))} · μέσος όρος {fmt(Math.round(f.reduce((a, b) => a + b, 0) / f.length))}</p>
+                        <p className="mt-2 text-sm text-slate-700">Ακόλουθοι (κορυφαίοι {f.length}): {fmt(Math.min(...f))}–{fmt(Math.max(...f))} · μέσος όρος {fmt(Math.round(f.reduce((a, b) => a + b, 0) / f.length))}</p>
                       )}
                     </div>
                   );
