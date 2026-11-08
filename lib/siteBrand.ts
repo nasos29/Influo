@@ -240,6 +240,30 @@ export async function safeFetchImage(raw: string): Promise<{ bytes: Buffer; type
   return null;
 }
 
+/** Reject logos/icons used as share images: name hints, small, not landscape, or mostly white/transparent. */
+export async function looksLikePhotoCover(url: string, bytes: Buffer): Promise<boolean> {
+  let name = url;
+  try { name = new URL(url).pathname; } catch {}
+  if (/(logo|icon|favicon|brand[-_]?mark|avatar)/i.test(name)) return false;
+  try {
+    const sharp = (await import("sharp")).default;
+    const img = sharp(bytes, { limitInputPixels: 40_000_000 });
+    const meta = await img.metadata();
+    const w = meta.width || 0, h = meta.height || 0;
+    if (w < 600 || !h || w / h < 1.3) return false;
+    const { data, info } = await img.resize(64, 36, { fit: "fill" }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+    let plain = 0;
+    const px = info.width * info.height;
+    for (let i = 0; i < data.length; i += 4) {
+      const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
+      if (a < 40 || (r > 235 && g > 235 && b > 235)) plain++;
+    }
+    return plain / px < 0.6;
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeWebsite(input: string): string | null {
   const v = input.trim();
   if (!v || v.length > 300) return null;

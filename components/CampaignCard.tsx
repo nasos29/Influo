@@ -192,8 +192,8 @@ export default function CampaignCard({
           coverUrl={campaign.cover_url}
           seed={campaign.id}
           title={localized.title}
-          brandName={hideBrand ? null : brand?.brand_name}
-          logoUrl={hideBrand ? null : brand?.logo_url}
+          brandName={brand?.brand_name}
+          logoUrl={brand?.logo_url}
           category={campaign.category}
           platforms={platforms}
           aspect="4/3"
