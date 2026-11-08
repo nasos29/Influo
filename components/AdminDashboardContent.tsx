@@ -1,5 +1,7 @@
 "use client";
 
+import { DataQualityBadge, DataQualityList, DataQualityNotes, type DataQualityMap } from "@/components/admin/DataQualityPanel";
+import { creatorDataQualityFlags } from "@/lib/creatorDataQuality";
 import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
 import { diffProfileChange } from "@/lib/profileChangeDiff";
 import { useEffect, useState, useRef } from "react";
@@ -2018,6 +2020,13 @@ const EditProfileModal = ({
                             ) : null}
                         </div>
 
+                        <DataQualityNotes
+                          influencerId={String(user.id)}
+                          name={String(user.display_name || "").trim()}
+                          flags={creatorDataQualityFlags((user as { accounts?: unknown }).accounts)}
+                          headers={adminAuthHeaders}
+                        />
+
                         {/* Insights Screenshots */}
                         {user.insights_urls && user.insights_urls.length > 0 && (
                             <div>
@@ -2180,6 +2189,23 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [reasonFilter, setReasonFilter] = useState<string>("all");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [influencersPage, setInfluencersPage] = useState(1);
+  const [dataQuality, setDataQuality] = useState<DataQualityMap>({});
+  const [dataQualityOpen, setDataQualityOpen] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/influencers/data-quality", { headers: await adminAuthHeaders() });
+        const body = (await res.json().catch(() => ({}))) as { flags?: DataQualityMap };
+        if (alive && res.ok && body.flags) setDataQuality(body.flags);
+      } catch {
+        /* admin hint only */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [influencersTotal, setInfluencersTotal] = useState(0);
   const [influencersHasMore, setInfluencersHasMore] = useState(false);
   const [influencersLoading, setInfluencersLoading] = useState(true);
@@ -4816,6 +4842,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   <option value="none">{lang === "el" ? "Χωρίς καταγεγραμμένο λόγο" : "No recorded reason"}</option>
                 </select>
                 <button
+                  type="button"
+                  onClick={() => setDataQualityOpen((v) => !v)}
+                  className={`px-3 py-2 rounded-lg border text-sm font-medium ${dataQualityOpen ? "border-amber-400 bg-amber-100 text-amber-900" : "border-amber-200 bg-amber-50 text-amber-800"}`}
+                >
+                  ⚠ Με προειδοποίηση ({Object.keys(dataQuality).length})
+                </button>
+                <button
                   onClick={exportData}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
                 >
@@ -4917,6 +4950,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 </div>
               )}
 
+              {dataQualityOpen && (
+                <div className="border-b border-amber-200 bg-amber-50/40 p-4">
+                  <DataQualityList map={dataQuality} headers={adminAuthHeaders} />
+                </div>
+              )}
               {influencersLoading && filteredUsers.length === 0 ? (
                 <AdminListSkeleton />
               ) : influencersError && filteredUsers.length === 0 ? (
@@ -4935,7 +4973,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <div className="flex items-start gap-3">
                         <input type="checkbox" checked={selectedUsers.includes(u.id)} onChange={() => toggleUserSelection(u.id)} className="mt-3 h-5 w-5 rounded border-slate-300" />
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-slate-900">{u.display_name}</p>
+                          <p className="font-semibold text-slate-900">{u.display_name} <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} /></p>
                           <p className="text-sm text-slate-600 break-all">{u.contact_email || "—"}</p>
                           <p className="text-xs text-slate-400 mt-1">{formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}</p>
                           <p className="mt-2 text-xs text-slate-600">{u.approved ? txt.approved : { el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</p>
@@ -4999,7 +5037,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">{lang === "el" ? "Χωρίς φωτό" : "No Photo"}</div>
                               )}
                               <div>
-                                <div className="font-medium text-slate-900">{u.display_name}</div>
+                                <div className="font-medium text-slate-900">{u.display_name} <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} /></div>
                                 {u.created_at && (
                                   <div
                                     className="text-[10px] text-slate-400 mt-0.5 tabular-nums"
