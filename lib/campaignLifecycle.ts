@@ -1,7 +1,15 @@
-export const CAMPAIGN_DEFAULT_DAYS = 30;
+export const CAMPAIGN_DEFAULT_DAYS = 15;
+/** Pre-cutoff opens (no deadline) keep the old 30-day window. */
+export const CAMPAIGN_LEGACY_DEFAULT_DAYS = 30;
+/**
+ * Campaigns opened at/before this instant without a deadline keep
+ * CAMPAIGN_LEGACY_DEFAULT_DAYS. New opens (and reopens) use CAMPAIGN_DEFAULT_DAYS.
+ */
+export const CAMPAIGN_DEFAULT_DAYS_CUTOFF_ISO = "2026-11-08T18:00:00.000Z";
 export const CAMPAIGN_REMINDER_DAYS_BEFORE = 3;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const CUTOFF_MS = new Date(CAMPAIGN_DEFAULT_DAYS_CUTOFF_ISO).getTime();
 
 export type CampaignCloseInput = {
   deadline: string | null;
@@ -9,16 +17,22 @@ export type CampaignCloseInput = {
   created_at: string;
 };
 
+function defaultDaysForOpenStart(start: Date): number {
+  return start.getTime() <= CUTOFF_MS
+    ? CAMPAIGN_LEGACY_DEFAULT_DAYS
+    : CAMPAIGN_DEFAULT_DAYS;
+}
+
 export function campaignClosesAt(c: CampaignCloseInput): Date {
   if (c.deadline) return new Date(c.deadline);
   const start = new Date(c.opened_at ?? c.created_at);
-  return new Date(start.getTime() + CAMPAIGN_DEFAULT_DAYS * DAY_MS);
+  return new Date(start.getTime() + defaultDaysForOpenStart(start) * DAY_MS);
 }
 
 /**
  * When opening/reopening a campaign, a deadline at or before `now` would make
- * the lifecycle cron close it immediately. Clear it so the default 30-day
- * window from opened_at applies. Future deadlines are kept.
+ * the lifecycle cron close it immediately. Clear it so the default window
+ * from opened_at applies. Future deadlines are kept.
  */
 export function normalizeDeadlineForOpen(
   deadlineIso: string | null | undefined,

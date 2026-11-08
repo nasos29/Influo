@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /** Read admin notices older than this many days are eligible for automatic deletion. */
-export const ADMIN_NOTICE_READ_RETENTION_DAYS = 30;
+export const ADMIN_NOTICE_READ_RETENTION_DAYS = 5;
 
 /**
  * Delete read admin_notices older than retention. Never touches unread (read_at IS NULL).

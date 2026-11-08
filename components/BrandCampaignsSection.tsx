@@ -181,12 +181,12 @@ const extra = langPack({
   date_order: { el: "Μορφή ηη/μμ/εεεε, π.χ. 15/11/2026.", en: "Format dd/mm/yyyy, e.g. 15/11/2026." },
   deadline_after_start: { el: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.", en: "The deadline must be after the start date." },
   deadline_auto_close: {
-    el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 30 μέρες.",
-    en: "If you do not set a deadline, the campaign closes automatically after 30 days.",
+    el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 15 μέρες.",
+    en: "If you do not set a deadline, the campaign closes automatically after 15 days.",
   },
   deadline_cleared_on_open: {
-    el: "Η παλιά προθεσμία είχε περάσει, οπότε η καμπάνια άνοιξε για 30 μέρες. Μπορείτε να ορίσετε νέα προθεσμία από την επεξεργασία.",
-    en: "The old deadline had passed, so the campaign reopened for 30 days. You can set a new deadline by editing it.",
+    el: "Η παλιά προθεσμία είχε περάσει, οπότε η καμπάνια άνοιξε για 15 μέρες. Μπορείτε να ορίσετε νέα προθεσμία από την επεξεργασία.",
+    en: "The old deadline had passed, so the campaign reopened for 15 days. You can set a new deadline by editing it.",
   },
   contact_hint: {
     el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
