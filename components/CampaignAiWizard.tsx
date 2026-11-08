@@ -85,7 +85,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
   const [timing, setTiming] = useSessionState("influo:ai-wizard:timing", "2weeks");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useSessionState<{ fill: AiPrefill; price: number | null; matches: Match[]; packages: Pkg[] } | null>("influo:ai-wizard:result", null);
+  const [result, setResult] = useSessionState<{ fill: AiPrefill; price: number | null; marketNote?: string | null; matches: Match[]; packages: Pkg[] } | null>("influo:ai-wizard:result", null);
   const [pkgIdx, setPkgIdx] = useSessionState<number | null>("influo:ai-wizard:pkgIdx", null);
 
   // Back gesture: previous question, or close (answers stay in sessionStorage).
@@ -144,7 +144,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
         body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content: content.filter((c) => allowedContent(platforms).has(c)), budget: Number(budget) || 0, slots: Number(slots) || 0, timing, ...(fromSource ? { website: website.trim(), goal: siteGoal } : {}) }),
       });
       const data = (await res.json().catch(() => ({}))) as {
-        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean; category?: string; platforms?: string[] };
+        draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; marketMedian?: number | null; marketNote?: { el: string; en: string } | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean; category?: string; platforms?: string[] };
         matches?: Match[];
         packages?: Pkg[];
         message?: { el?: string };
@@ -163,15 +163,15 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       }
       const d = data.draft;
       setPkgIdx(null);
-      const priceLine = d.pricePerCreator ? `\n\nΠροτεινόμενη αμοιβή ανά creator: ${d.pricePerCreator} €.` : "";
       const start = timing === "asap" ? addDays(2) : timing === "2weeks" ? addDays(14) : timing === "month" ? addDays(30) : addDays(7);
       setResult({
         price: d.pricePerCreator,
+        marketNote: d.marketNote?.el || null,
         matches: data.matches || [],
         packages: data.packages || [],
         fill: {
           title: d.title,
-          description: `${d.description}${priceLine}`.trim(),
+          description: (d.description || "").trim(),
           deliverables: d.deliverables,
           category: d.category || category,
           platforms: d.platforms?.length ? d.platforms : platforms,
@@ -369,6 +369,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
               <p className="text-slate-700"><span className="text-slate-500">Θέσεις:</span> {result.fill.slots || "Χωρίς όριο"}</p>
               <p className="text-xs text-slate-500">Εικόνα καμπάνιας: την ανεβάζετε στο επόμενο βήμα («Επεξεργασία & δημοσίευση») και μπορείτε να την αλλάξετε όποτε θέλετε. </p>
               {result.price ? <p className="text-slate-700"><span className="text-slate-500">Προτεινόμενη αμοιβή ανά creator:</span> {result.price} €</p> : null}
+              {result.marketNote ? <p className="text-xs text-amber-700">{result.marketNote}</p> : null}
             </div>
             {result.packages.length > 0 && (
               <div>
