@@ -4,7 +4,8 @@ import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { CATEGORIES, RELATED_CATEGORIES, categoryLabel, parseStoredCategories, toSiteCategory } from "@/lib/categories";
 import { findContactInfo } from "@/lib/contactFilter";
 import { statsFromAccounts, parseFollowerNumber } from "@/lib/platformStats";
-import { sharedCategoryKeys } from "@/lib/recommendations";
+import { recommendInfluencers, sharedCategoryKeys } from "@/lib/recommendations";
+import { MATCH_PROFILE_COLUMNS, rowToMatchProfile } from "@/lib/influencerMatchProfile";
 import { packagesForViewer, listedPriceAmount } from "@/lib/servicePackages";
 import { fetchWebsiteBrand, normalizeWebsite, safeFetchImage, looksLikePhotoCover, type SiteBrand } from "@/lib/siteBrand";
 
@@ -278,35 +279,27 @@ export async function POST(request: NextRequest) {
   }
   console.log("[ai-draft] ok", user.id.slice(0, 8), MODEL);
 
-  // Matching creators: approved, available, same category, active on a chosen platform.
-  const { data: rows } = await admin
-    .from("influencers")
-    .select("id, display_name, category, accounts, avatar_url, profile_slug, location, availability_status")
-    .eq("approved", true)
-    .limit(400);
-  // Same category first, then neighbouring niches (OR), so rare niches (e.g. cars) still get a realistic pool.
+  // Matching creators: shared dashboard scoring (lib/recommendations), limited to the chosen platforms
+  // and to the same or neighbouring categories. Top 8, anonymous before publish.
+  const { data: rows } = await admin.from("influencers").select(MATCH_PROFILE_COLUMNS).eq("approved", true).limit(1000);
   const related = RELATED_CATEGORIES[category] || [];
-  const scored = (rows || [])
+  const pool = ((rows || []) as unknown as Record<string, unknown>[])
     .filter((r) => !r.availability_status || r.availability_status === "available")
-    .map((r) => {
-      const exact = sharedCategoryKeys(category, r.category).length > 0;
-      const near = !exact && related.some((c) => sharedCategoryKeys(c, r.category).length > 0);
-      return { r, exact, near };
-    })
-    .filter((m) => m.exact || m.near)
-    .map(({ r, exact }) => {
-      const stats = statsFromAccounts(r.accounts).filter((s) => platforms.includes(String(s.platform).toLowerCase()));
-      const followers = stats.reduce((n, s) => Math.max(n, parseFollowerNumber(s.followers)), 0);
-      return { r, exact, followers, onPlatform: stats.length > 0 };
-    })
-    .filter((m) => m.onPlatform);
-  const matchCount = scored.length;
-  const exactCount = scored.filter((m) => m.exact).length;
-  const matches = scored
-    .sort((a, b) => Number(b.exact) - Number(a.exact) || b.followers - a.followers)
-    .slice(0, 6)
-    // Anonymous before publish: no ids, names, photos or links (brands see creators in the invite step).
-    .map(({ followers }) => ({ followers }));
+    .filter((r) => sharedCategoryKeys(category, r.category).length > 0 || related.some((c) => sharedCategoryKeys(c, r.category).length > 0))
+    .map(rowToMatchProfile);
+  const ranked = recommendInfluencers(
+    { id: brand.id, brand_name: brand.brand_name || "", category, contact_email: "", location: location || null, brief: `${title} ${description}` },
+    pool,
+    { limit: 100000, minScore: 50, lang: "el", context: { platforms, budgetPerCreator: budgetPerCreator || price || null, goal, relatedCategories: related } }
+  );
+  const matchCount = ranked.length;
+  const exactCount = ranked.filter((m) => sharedCategoryKeys(category, m.influencer.categories).length > 0).length;
+  const matches = ranked.slice(0, 8).map((m) => {
+    const followers = statsFromAccounts(m.influencer.accounts)
+      .filter((s) => platforms.includes(String(s.platform).toLowerCase()))
+      .reduce((n, s) => Math.max(n, parseFollowerNumber(s.followers)), 0);
+    return { followers, score: m.score, reasons: m.reasons.filter((r) => !/Προηγούμενες συνεργασίες|Previous collaborations/.test(r)) };
+  });
 
   // Website share image → our own storage (no hotlinking). Any failure = category cover later.
   let siteCover: string | null = null;

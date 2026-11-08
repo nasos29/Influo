@@ -23,7 +23,7 @@ export type AiPrefill = {
 
 export type SiteBrandInfo = { name: string | null; logo: string | null; cover?: string | null; colors: string[]; source?: string } | null;
 type Pkg = { name: string; slots: number | null; deliverables: string; price: number | null };
-type Match = { followers: number };
+type Match = { followers: number; score?: number; reasons?: string[] };
 
 const GOALS = [
   ["awareness", "Αναγνωρισιμότητα brand"],
@@ -403,18 +403,32 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
                           ))}
                         </div>
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">{result.matchCount ?? result.matches.length} creators ταιριάζουν με την καμπάνιά σας</p>
+                          <p className="text-sm font-semibold text-slate-900">{result.matchCount ?? result.matches.length} ταιριάζουν · δείχνουμε τους {Math.min(8, result.matches.length)} καλύτερους</p>
                           {typeof result.exactCount === "number" && (result.matchCount ?? 0) > result.exactCount && (
                             <p className="text-xs text-slate-600">{result.exactCount} στην ίδια κατηγορία · {(result.matchCount ?? 0) - result.exactCount} σε σχετικές κατηγορίες</p>
                           )}
                         </div>
                       </div>
                       {f.length > 0 && (
-                        <p className="mt-2 text-sm text-slate-700">Ακόλουθοι (κορυφαίοι {f.length}): {fmt(Math.min(...f))}–{fmt(Math.max(...f))} · μέσος όρος {fmt(Math.round(f.reduce((a, b) => a + b, 0) / f.length))}</p>
+                        <p className="mt-2 text-sm text-slate-700">Ακόλουθοι (top {f.length}): {fmt(Math.min(...f))}–{fmt(Math.max(...f))} · μέσος όρος {fmt(Math.round(f.reduce((a, b) => a + b, 0) / f.length))}</p>
                       )}
                     </div>
                   );
                 })()}
+                {result.matches.some((m) => m.reasons?.length) && (
+                  <ol className="mt-2 space-y-1 text-xs text-slate-700">
+                    {result.matches.map((m, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="font-semibold text-slate-900">#{i + 1}</span>
+                        <span>
+                          {typeof m.score === "number" ? `${m.score}% · ` : ""}
+                          {m.followers ? `${m.followers >= 1000 ? `${Math.round(m.followers / 100) / 10}K` : m.followers} ακόλουθοι · ` : ""}
+                          {(m.reasons || []).slice(0, 2).join(" · ")}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
                 <p className="text-xs text-slate-500 mt-1">Τους συγκεκριμένους creators τους βλέπετε μετά τη δημοσίευση, στο βήμα της πρόσκλησης.</p>
               </div>
             )}

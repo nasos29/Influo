@@ -707,25 +707,69 @@ export function buildMatchReasons(
 }
 
 /**
- * Cap a tied cluster so the list never shows 100% and identical scores spread out.
+ * Displayed scores: never 100%, ties spread by 1, and never higher than the row above.
  * Order stays the incoming rank (highest raw score first).
  */
 function spreadDisplayedScores<T extends { score: number }>(ranked: T[]): void {
-  let nextShown = 95;
+  let prevShown = 96;
   let lastRaw: number | null = null;
   for (const match of ranked) {
-    if (lastRaw === null || match.score < lastRaw) {
-      nextShown = Math.min(95, match.score);
-      lastRaw = match.score;
-    } else {
-      nextShown = Math.max(1, nextShown - 1);
-    }
-    match.score = nextShown;
+    const tie = lastRaw !== null && match.score === lastRaw;
+    lastRaw = match.score;
+    const shown = Math.max(1, Math.min(95, match.score, tie ? prevShown - 1 : prevShown - (prevShown > match.score ? 0 : 1)));
+    match.score = shown;
+    prevShown = shown;
   }
 }
 
+/** Engagement above this, or on accounts below MIN_FOLLOWERS_FOR_ER, is treated as bad data. */
+const MAX_PLAUSIBLE_ER = 25;
+const MIN_FOLLOWERS_FOR_ER = 500;
+
+type PlatformStat = { platform: string; followers: number; followersRaw: string; er: number | null; erRaw: string | null };
+
+function platformStats(influencer: InfluencerProfile): PlatformStat[] {
+  const out: PlatformStat[] = [];
+  for (const acc of Array.isArray(influencer.accounts) ? influencer.accounts : []) {
+    const a = acc as { platform?: string; followers?: string; engagement_rate?: string };
+    if (!a?.platform) continue;
+    const followers = parseFollowers(a.followers);
+    const er = a.engagement_rate ? parseEngagementRate(a.engagement_rate) : 0;
+    const plausible = er > 0 && er <= MAX_PLAUSIBLE_ER && followers >= MIN_FOLLOWERS_FOR_ER;
+    out.push({ platform: a.platform.toLowerCase(), followers, followersRaw: String(a.followers ?? ""), er: plausible ? er : null, erRaw: plausible ? String(a.engagement_rate) : null });
+  }
+  return out;
+}
+
+/** 0..1 on a log scale: ~1k → 0.2, 10k → 0.55, 100k+ → 1. */
+function reachScore(followers: number): number {
+  if (!(followers > 0)) return 0.1;
+  return Math.max(0.05, Math.min(1, (Math.log10(followers) - 2.4) / 2.6));
+}
+
+function budgetFitScore(price: number | null | undefined, budgetPerCreator: number | null | undefined): number {
+  if (!budgetPerCreator || budgetPerCreator <= 0) return 0.5;
+  if (!price || price <= 0) return 0.4; // unknown price: slightly below neutral
+  const r = price / budgetPerCreator;
+  if (r <= 1) return 1;
+  if (r <= 1.3) return 0.6;
+  if (r <= 2) return 0.3;
+  return 0.1;
+}
+
+export type MatchContext = {
+  /** Campaign wizard: only creators on these platforms, scored on those platforms. Dashboard: omit. */
+  platforms?: string[] | null;
+  budgetPerCreator?: number | null;
+  goal?: string | null;
+  /** Neighbouring categories that count as a weaker match. */
+  relatedCategories?: string[] | null;
+};
+
 /**
- * Main recommendation function – professional algorithm for brands (category/niche, engagement, brand safe, value).
+ * Shared recommendation scoring (brand dashboard + campaign wizard). No AI calls.
+ * Weights (of 100): category 35, engagement 20, reach 12, budget fit 10 (or value 10 when no budget),
+ * value 8, location 5, rating 10 only when reviews exist; renormalized to 100. Skill bonus up to +4.
  */
 export function recommendInfluencers(
   brand: BrandProfile,
@@ -736,81 +780,77 @@ export function recommendInfluencers(
     preferVerified?: boolean;
     preferHighRating?: boolean;
     lang?: 'el' | 'en';
+    context?: MatchContext;
   }
 ): MatchScore[] {
   const limit = options?.limit || 10;
-  const minScore = options?.minScore || 30;
-  const preferVerified = options?.preferVerified !== false;
-  const preferHighRating = options?.preferHighRating !== false;
+  const minScore = options?.minScore || 50;
   const lang = options?.lang || 'el';
+  const ctx = options?.context || {};
+  const wantPlatforms = (ctx.platforms || []).map((p) => p.toLowerCase()).filter(Boolean);
+  const related = ctx.relatedCategories || [];
+  const brandCategory = brand.category || brand.industry;
+  const reachWeight = ctx.goal === "ugc" ? 4 : ctx.goal === "awareness" ? 15 : 12;
 
   const list = Array.isArray(influencers) ? influencers : [];
-  console.log('[Recommendations] Processing', list.length, 'influencers for brand:', brand.brand_name, 'category:', brand.category || brand.industry);
 
   const scores: MatchScore[] = list
-    .flatMap((influencer): MatchScore[] => {
+    .flatMap((original): MatchScore[] => {
       try {
-      const audit = influencer.auditpr_audit;
-      const overlap = sharedCategoryKeys(
-        brand.category || brand.industry,
-        influencer.categories?.length ? influencer.categories : influencer.category
-      );
-      let categoryMatch = calculateCategoryMatch(
-        brand.category || brand.industry,
-        influencer.category,
-        influencer.categories,
-        audit?.niche,
-        audit?.niche_en
-      );
-      // A loose niche or "lifestyle" mapping must not read as a perfect category match.
-      if (overlap.length === 0) categoryMatch = Math.min(categoryMatch, 0.55);
-      else categoryMatch = Math.max(categoryMatch, 0.95);
-
-      const locationMatch = brand.location && influencer.location
-        ? calculateLocationMatch(brand.location, influencer.location)
-        : 0.5;
-      const brandSafeScore = audit?.brandSafe === true ? 1.0 : 0.5;
-
-      const strengths = {
-        categoryMatch: categoryMatch,
-        nicheMatch: categoryMatch,
-        engagementQuality: calculateEngagementQuality(influencer.engagement_rate),
-        ratingQuality: calculateRatingQuality(influencer.avg_rating, influencer.total_reviews),
-        valuePrice: calculateValueScore(
-          influencer.min_rate,
-          influencer.engagement_rate,
-          influencer.followers_count
-        ),
-        locationMatch,
-        verifiedStatus: influencer.verified ? 1.0 : 0.5,
-        brandSafe: brandSafeScore,
+      const all = platformStats(original);
+      const stats = wantPlatforms.length ? all.filter((s) => wantPlatforms.includes(s.platform)) : all;
+      if (wantPlatforms.length && stats.length === 0) return [];
+      const best = stats.reduce<PlatformStat | null>((m, s) => (!m || s.followers > m.followers ? s : m), null);
+      // Work on a view limited to the relevant platforms with only plausible engagement values.
+      const erObj: Record<string, string> = {};
+      for (const s of stats) if (s.erRaw) erObj[s.platform] = s.erRaw;
+      const influencer: InfluencerProfile = {
+        ...original,
+        engagement_rate: Object.keys(erObj).length ? erObj : null,
+        followers_count: best ? best.followersRaw : original.followers_count,
       };
 
-      // Weights: category/niche 35%, engagement 22%, value 14%, verified 5%, rating 14%, brandSafe 5%, location 5% (when used)
-      let score = 0;
-      score += strengths.categoryMatch * 35;
-      score += strengths.engagementQuality * 22;
-      score += strengths.valuePrice * 14;
-      score += strengths.verifiedStatus * 5;
-      score += strengths.brandSafe * 5;
-
-      if (influencer.total_reviews && influencer.total_reviews > 0) {
-        score += strengths.ratingQuality * 14;
+      const audit = influencer.auditpr_audit;
+      const cats = influencer.categories?.length ? influencer.categories : parseStoredCategories(influencer.category);
+      const overlap = sharedCategoryKeys(brandCategory, cats);
+      const nearOverlap = overlap.length ? [] : related.filter((c) => sharedCategoryKeys(c, cats).length > 0);
+      let categoryMatch = calculateCategoryMatch(brandCategory, influencer.category, influencer.categories, audit?.niche, audit?.niche_en);
+      const nicheHit = Boolean(brandCategory) && Math.max(
+        labelMatchScore(String(brandCategory), asText(audit?.niche)),
+        labelMatchScore(String(brandCategory), asText(audit?.niche_en))
+      ) >= 0.85;
+      if (overlap.length) {
+        const primary = cats[0] && overlap.includes(cats[0]);
+        categoryMatch = primary || nicheHit ? 1 : 0.85;
+        if (cats.length > 5 && !primary && !nicheHit) categoryMatch -= 0.15; // ticks many categories
+      } else if (nearOverlap.length) {
+        categoryMatch = 0.6;
       } else {
-        score += 0.5 * 14;
+        categoryMatch = Math.min(categoryMatch, 0.45);
       }
 
-      if (locationMatch !== 0.5) {
-        score += strengths.locationMatch * 5;
-      } else {
-        score += 0.5 * 5;
-      }
+      const locationMatch = brand.location && influencer.location ? calculateLocationMatch(brand.location, influencer.location) : 0.5;
+      const er = parseEngagementRate(influencer.engagement_rate);
+      const engagementQuality = er > 0 ? calculateEngagementQuality(influencer.engagement_rate) : 0.35;
+      const price = typeof influencer.from_price === "number" && influencer.from_price > 0 ? influencer.from_price : parseMinRate(influencer.min_rate) || null;
+      const valuePrice = calculateValueScore(price ? String(price) : null, influencer.engagement_rate, influencer.followers_count);
+      const budgetFit = budgetFitScore(price, ctx.budgetPerCreator);
+      const reach = reachScore(best?.followers || 0);
+      const hasReviews = Boolean(influencer.total_reviews && influencer.total_reviews > 0);
+      const ratingQuality = calculateRatingQuality(influencer.avg_rating, influencer.total_reviews);
 
-      let bonusPoints = 0;
-      if (strengths.categoryMatch >= 0.9 && strengths.engagementQuality >= 0.7) bonusPoints += 5;
-      if (strengths.categoryMatch >= 0.9 && strengths.brandSafe === 1) bonusPoints += 2; // Niche + brand-safe
-      if (influencer.total_reviews && influencer.total_reviews >= 10 && influencer.avg_rating && influencer.avg_rating >= 4.5) bonusPoints += 2;
-      if (strengths.valuePrice >= 0.8 && strengths.engagementQuality >= 0.8) bonusPoints += 2;
+      const parts: Array<[number, number]> = [
+        [categoryMatch, 35],
+        [engagementQuality, 20],
+        [reach, reachWeight],
+        [valuePrice, 8],
+        [ctx.budgetPerCreator ? budgetFit : valuePrice, 10],
+        [locationMatch, brand.location ? 5 : 0],
+        [ratingQuality, hasReviews ? 10 : 0],
+      ];
+      const totalW = parts.reduce((n, [, w]) => n + w, 0);
+      let score = (parts.reduce((n, [v, w]) => n + v * w, 0) / totalW) * 100;
+
       const brief = asText(brand.brief).toLowerCase();
       const matchedSkills = sanitizeSkills(influencer.skills).filter((key) => {
         if (!brief) return false;
@@ -819,21 +859,28 @@ export function recommendInfluencers(
         const plain = key.replace(/_/g, " ");
         return brief.includes(el) || brief.includes(en) || brief.includes(plain) || brief.includes(key);
       });
-      if (matchedSkills.length) bonusPoints += Math.min(4, matchedSkills.length * 2);
-      score += bonusPoints;
+      if (matchedSkills.length) score += Math.min(4, matchedSkills.length * 2);
       score = Math.min(score, 100);
 
       const reasons = buildMatchReasons(brand, influencer, matchedSkills, lang);
+      if (!overlap.length && nearOverlap.length && reasons.length < 3) {
+        const label = nearOverlap.map((c) => categoryLabel(c, lang) || c).slice(0, 2).join(", ");
+        reasons.unshift(lang === "en" ? `Related category: ${label}` : `Σχετική κατηγορία: ${label}`);
+      }
+      if (best && best.followers >= 1000 && reasons.length < 3) {
+        const n = best.followers >= 1000 ? `${Math.round(best.followers / 100) / 10}K`.replace(".0K", "K") : String(best.followers);
+        reasons.push(lang === "en" ? `${n} followers on ${platformLabel(best.platform)}` : `${n} ακόλουθοι στο ${platformLabel(best.platform)}`);
+      }
 
       return [{
-        influencer,
+        influencer: original,
         score: Math.round(score),
-        reasons,
+        reasons: reasons.slice(0, 3),
         auditWhyLine: null,
-        strengths,
+        strengths: { categoryMatch, nicheMatch: categoryMatch, engagementQuality, ratingQuality, valuePrice, locationMatch, verifiedStatus: influencer.verified ? 1 : 0.5, brandSafe: audit?.brandSafe === true ? 1 : 0.5 },
       }];
       } catch (err) {
-        console.error("[Recommendations] skip influencer", influencer?.id, err);
+        console.error("[Recommendations] skip influencer", original?.id, err);
         return [];
       }
     })
@@ -841,12 +888,12 @@ export function recommendInfluencers(
     .sort((a, b) => b.score - a.score);
 
   spreadDisplayedScores(scores);
-  const presented = scores.slice(0, limit);
+  return scores.slice(0, limit);
+}
 
-  console.log('[Recommendations] Final matches:', presented.length, 'out of', list.length, 'influencers');
-  console.log('[Recommendations] Top matches:', presented.slice(0, 5).map(m => ({ name: m.influencer.display_name, score: m.score })));
-
-  return presented;
+/** Total creators that pass the shared scoring (for "N ταιριάζουν"). */
+export function countMatchingInfluencers(brand: BrandProfile, influencers: InfluencerProfile[], options?: { minScore?: number; context?: MatchContext }): number {
+  return recommendInfluencers(brand, influencers, { ...options, limit: 100000 }).length;
 }
 
 /**
