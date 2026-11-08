@@ -784,7 +784,7 @@ export function recommendInfluencers(
   }
 ): MatchScore[] {
   const limit = options?.limit || 10;
-  const minScore = options?.minScore || 30;
+  const minScore = options?.minScore || 50;
   const lang = options?.lang || 'el';
   const ctx = options?.context || {};
   const wantPlatforms = (ctx.platforms || []).map((p) => p.toLowerCase()).filter(Boolean);

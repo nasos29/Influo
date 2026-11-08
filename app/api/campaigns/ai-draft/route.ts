@@ -290,7 +290,7 @@ export async function POST(request: NextRequest) {
   const ranked = recommendInfluencers(
     { id: brand.id, brand_name: brand.brand_name || "", category, contact_email: "", location: location || null, brief: `${title} ${description}` },
     pool,
-    { limit: 100000, minScore: 30, lang: "el", context: { platforms, budgetPerCreator: budgetPerCreator || price || null, goal, relatedCategories: related } }
+    { limit: 100000, minScore: 50, lang: "el", context: { platforms, budgetPerCreator: budgetPerCreator || price || null, goal, relatedCategories: related } }
   );
   const matchCount = ranked.length;
   const exactCount = ranked.filter((m) => sharedCategoryKeys(category, m.influencer.categories).length > 0).length;
