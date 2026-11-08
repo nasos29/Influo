@@ -109,7 +109,7 @@ export default function ApplicantCard({
     <article className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
       <div className="flex gap-3">
         <button type="button" onClick={() => avatar && setZoom(true)} className="shrink-0 rounded-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" aria-label={el ? "Μεγέθυνση φωτογραφίας" : "Enlarge photo"}>
-          <CreatorPhoto src={avatar} name={name} className="w-16 h-16" rounded="rounded-full" />
+          <CreatorPhoto src={avatar} name={name} className="w-16 h-16" rounded="rounded-full" size={64} />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">

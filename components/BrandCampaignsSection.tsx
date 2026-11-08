@@ -1911,7 +1911,7 @@ export default function BrandCampaignsSection({
           <ul className="mt-3 space-y-2">
             {invites.map((match) => (
               <li key={match.id} className="bg-white rounded-lg border border-blue-100 p-3 flex flex-col sm:flex-row sm:items-center gap-3">
-                <CreatorPhoto src={match.avatar_url} name={displayNameForLang(match.display_name, lang)} className="w-12 h-12" rounded="rounded-full" />
+                <CreatorPhoto src={match.avatar_url} name={displayNameForLang(match.display_name, lang)} className="w-12 h-12" rounded="rounded-full" size={48} />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-900">{displayNameForLang(match.display_name, lang)}</p>
                   <PlatformFollowers accounts={match.accounts} lang={lang} />
