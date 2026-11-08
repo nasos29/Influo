@@ -16,6 +16,7 @@ export default function AdminNoticesPanel({ lang }: { lang: "el" | "en" }) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -40,10 +41,25 @@ export default function AdminNoticesPanel({ lang }: { lang: "el" | "en" }) {
     void load();
   };
 
+  const deleteNotice = async (id: string) => {
+    setBusyId(id);
+    try {
+      await fetch("/api/admin/notices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ id }),
+      });
+      void load();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const t = {
     title: { el: "Ειδοποιήσεις", en: "Notices" }[lang],
     all: { el: "Σήμανση όλων ως αναγνωσμένα", en: "Mark all read" }[lang],
     read: { el: "Αναγνώστηκε", en: "Mark read" }[lang],
+    delete: { el: "Διαγραφή", en: "Delete" }[lang],
     empty: { el: "Καμία ειδοποίηση.", en: "No notices." }[lang],
   };
 
@@ -76,11 +92,21 @@ export default function AdminNoticesPanel({ lang }: { lang: "el" | "en" }) {
                     {n.body && <p className="text-xs text-slate-600 break-words">{n.body}</p>}
                     <p className="text-xs text-slate-400">{new Date(n.created_at).toLocaleString(lang === "el" ? "el-GR" : "en-GB", { timeZone: "Europe/Athens" })}</p>
                   </div>
-                  {!n.read_at && (
-                    <button type="button" onClick={() => markRead({ id: n.id })} className="shrink-0 text-xs text-blue-700 hover:underline">
-                      {t.read}
+                  <div className="shrink-0 flex flex-col items-end gap-1">
+                    {!n.read_at && (
+                      <button type="button" onClick={() => markRead({ id: n.id })} className="text-xs text-blue-700 hover:underline">
+                        {t.read}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void deleteNotice(n.id)}
+                      disabled={busyId === n.id}
+                      className="text-xs text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      {t.delete}
                     </button>
-                  )}
+                  </div>
                 </li>
               ))}
             </ul>

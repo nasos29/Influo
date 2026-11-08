@@ -377,9 +377,11 @@ const t = {
     ann_send: "Αποστολή ανακοινώσεως",
     ann_sent: "Απεστάλη",
     refresh_social: "Ανανέωση Social",
-    refresh_social_all: "Ανανέωση social stats για όλους",
+    refresh_social_all: "Social όλοι",
+    refresh_social_all_title: "Ανανέωση social stats για όλους",
     refresh_audit: "Ανανέωση AI",
-    backfill_audit: "Backfill Gemini audit (μία φορά για όλους)",
+    backfill_audit: "Gemini όλοι",
+    backfill_audit_title: "Gemini audit (μία φορά για όλους)",
     col_campaign_title: "Τίτλος καμπάνιας",
     col_campaign_status: "Κατάσταση",
     campaigns_schema_missing:
@@ -475,9 +477,11 @@ const t = {
     ann_send: "Send announcement",
     ann_sent: "Sent",
     refresh_social: "Refresh Social",
-    refresh_social_all: "Refresh social stats for all",
+    refresh_social_all: "Social all",
+    refresh_social_all_title: "Refresh social stats for all",
     refresh_audit: "Refresh AI",
-    backfill_audit: "Backfill Gemini audit (once for all)",
+    backfill_audit: "Gemini all",
+    backfill_audit_title: "Gemini audit (once for all)",
     tab_campaigns: "Brand campaigns",
     col_campaign_title: "Campaign title",
     col_campaign_status: "Status",
@@ -4810,121 +4814,131 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           {activeTab === "influencers" && (
             <>
               {/* Search & Filters (server-side) */}
-              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row gap-3">
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder={lang === "el" ? "Αναζήτηση ονόματος, email ή username…" : "Search name, email, or username…"}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
-                  />
+              <div className="p-4 border-b border-slate-200 flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                  <div className="flex-1 min-w-0">
+                    <input
+                      type="text"
+                      placeholder={lang === "el" ? "Αναζήτηση ονόματος, email ή username…" : "Search name, email, or username…"}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
+                    />
+                  </div>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as "all" | "verified" | "pending")}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 shrink-0"
+                  >
+                    <option value="all">{txt.filter}: {lang === "el" ? "Όλοι" : "All"}</option>
+                    <option value="verified">{lang === "el" ? "Εγκεκριμένοι" : "Approved"}</option>
+                    <option value="pending">{lang === "el" ? "Εκκρεμείς" : "Pending"}</option>
+                  </select>
+                  <select
+                    value={reasonFilter}
+                    onChange={(e) => setReasonFilter(e.target.value)}
+                    aria-label={lang === "el" ? "Λόγος αναμονής" : "Pending reason"}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 shrink-0"
+                  >
+                    <option value="all">{lang === "el" ? "Λόγος: όλοι" : "Reason: all"}</option>
+                    {Object.entries(UNAPPROVAL_KINDS).map(([key, k]) => (
+                      <option key={key} value={key}>{k[lang]}</option>
+                    ))}
+                    <option value="none">{lang === "el" ? "Χωρίς καταγεγραμμένο λόγο" : "No recorded reason"}</option>
+                  </select>
                 </div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as "all" | "verified" | "pending")}
-                  className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
-                >
-                  <option value="all">{txt.filter}: {lang === "el" ? "Όλοι" : "All"}</option>
-                  <option value="verified">{lang === "el" ? "Εγκεκριμένοι" : "Approved"}</option>
-                  <option value="pending">{lang === "el" ? "Εκκρεμείς" : "Pending"}</option>
-                </select>
-                <select
-                  value={reasonFilter}
-                  onChange={(e) => setReasonFilter(e.target.value)}
-                  aria-label={lang === "el" ? "Λόγος αναμονής" : "Pending reason"}
-                  className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500"
-                >
-                  <option value="all">{lang === "el" ? "Λόγος: όλοι" : "Reason: all"}</option>
-                  {Object.entries(UNAPPROVAL_KINDS).map(([key, k]) => (
-                    <option key={key} value={key}>{k[lang]}</option>
-                  ))}
-                  <option value="none">{lang === "el" ? "Χωρίς καταγεγραμμένο λόγο" : "No recorded reason"}</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setDataQualityOpen((v) => !v)}
-                  className={`px-3 py-2 rounded-lg border text-sm font-medium ${dataQualityOpen ? "border-amber-400 bg-amber-100 text-amber-900" : "border-amber-200 bg-amber-50 text-amber-800"}`}
-                >
-                  ⚠ Με προειδοποίηση ({Object.keys(dataQuality).length})
-                </button>
-                <button
-                  onClick={exportData}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium transition-colors"
-                >
-                  {txt.export}
-                </button>
-                <button
-                  onClick={() => refreshSocialStats()}
-                  disabled={refreshingSocialAll}
-                  className="px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {refreshingSocialAll ? '...' : txt.refresh_social_all}
-                </button>
-                <button
-                  onClick={async () => {
-                    const okAudit = await confirmAction({
-                      title: { el: "Gemini audit", en: "Gemini audit" }[lang],
-                      body: { el: "Θα τρέξει Gemini audit για όλους σε batch (15-15). Θα δεις την πρόοδο και θα τελειώσει μόνο του.", en: "This runs a Gemini audit for everyone in batches of 15. You will see progress until it finishes." }[lang],
-                      confirmLabel: { el: "Συνέχεια", en: "Continue" }[lang],
-                      cancelLabel: { el: "Άκυρο", en: "Cancel" }[lang],
-                    });
-                    if (!okAudit) return;
-                    setBackfillingAudit(true);
-                    setBackfillProgress(lang === 'el' ? 'Ξεκίνημα...' : 'Starting...');
-                    let totalUpdated = 0;
-                    const limit = 15;
-                    let skip = 0;
-                    try {
-                      while (true) {
-                        setBackfillProgress(lang === 'el' ? `${totalUpdated} ενημερώθηκαν μέχρι τώρα...` : `${totalUpdated} updated so far...`);
-                        const res = await fetch('/api/admin/backfill-audit', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) }, body: JSON.stringify({ limit, skip }) });
-                        const contentType = res.headers.get('content-type') ?? '';
-                        let data: { updated?: number; hasMore?: boolean; errors?: string[]; error?: string } = {};
-                        if (contentType.includes('application/json')) {
-                          data = await res.json();
-                        } else {
-                          const text = await res.text();
-                          const is524 = res.status === 524;
-                          const msg = text.startsWith('<')
-                            ? (is524
-                              ? (lang === 'el' ? 'Timeout (524): το batch διήρκησε πολύ.' : 'Timeout (524): batch took too long.')
-                              : (lang === 'el' ? `Ο server απάντησε με HTML. Status: ${res.status}` : `Server returned HTML. Status: ${res.status}`))
-                            : `HTTP ${res.status}: ${text.slice(0, 200)}`;
-                          throw new Error(msg);
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDataQualityOpen((v) => !v)}
+                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium whitespace-nowrap ${dataQualityOpen ? "border-amber-400 bg-amber-100 text-amber-900" : "border-amber-200 bg-amber-50 text-amber-800"}`}
+                  >
+                    ⚠ Με προειδοποίηση ({Object.keys(dataQuality).length})
+                  </button>
+                  <button
+                    onClick={exportData}
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-colors whitespace-nowrap"
+                  >
+                    {txt.export}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => refreshSocialStats()}
+                    disabled={refreshingSocialAll}
+                    title={txt.refresh_social_all_title}
+                    aria-label={txt.refresh_social_all_title}
+                    className="px-2.5 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {refreshingSocialAll ? "..." : txt.refresh_social_all}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const okAudit = await confirmAction({
+                        title: { el: "Gemini audit", en: "Gemini audit" }[lang],
+                        body: { el: "Θα τρέξει Gemini audit για όλους σε batch (15-15). Θα δεις την πρόοδο και θα τελειώσει μόνο του.", en: "This runs a Gemini audit for everyone in batches of 15. You will see progress until it finishes." }[lang],
+                        confirmLabel: { el: "Συνέχεια", en: "Continue" }[lang],
+                        cancelLabel: { el: "Άκυρο", en: "Cancel" }[lang],
+                      });
+                      if (!okAudit) return;
+                      setBackfillingAudit(true);
+                      setBackfillProgress(lang === "el" ? "Ξεκίνημα..." : "Starting...");
+                      let totalUpdated = 0;
+                      const limit = 15;
+                      let skip = 0;
+                      try {
+                        while (true) {
+                          setBackfillProgress(lang === "el" ? `${totalUpdated} ενημερώθηκαν μέχρι τώρα...` : `${totalUpdated} updated so far...`);
+                          const res = await fetch("/api/admin/backfill-audit", { method: "POST", headers: { "Content-Type": "application/json", ...(await adminAuthHeaders()) }, body: JSON.stringify({ limit, skip }) });
+                          const contentType = res.headers.get("content-type") ?? "";
+                          let data: { updated?: number; hasMore?: boolean; errors?: string[]; error?: string } = {};
+                          if (contentType.includes("application/json")) {
+                            data = await res.json();
+                          } else {
+                            const text = await res.text();
+                            const is524 = res.status === 524;
+                            const msg = text.startsWith("<")
+                              ? (is524
+                                ? (lang === "el" ? "Timeout (524): το batch διήρκησε πολύ." : "Timeout (524): batch took too long.")
+                                : (lang === "el" ? `Ο server απάντησε με HTML. Status: ${res.status}` : `Server returned HTML. Status: ${res.status}`))
+                              : `HTTP ${res.status}: ${text.slice(0, 200)}`;
+                            throw new Error(msg);
+                          }
+                          if (!res.ok) {
+                            notify((data.error || res.statusText) as string);
+                            break;
+                          }
+                          const batchUpdated = data.updated ?? 0;
+                          totalUpdated += batchUpdated;
+                          if (!data.hasMore || batchUpdated === 0) {
+                            setBackfillProgress(null);
+                            notify(lang === "el" ? `Ολοκλήρωση: ${totalUpdated} influencers ενημερώθηκαν συνολικά.` : `Done: ${totalUpdated} influencers updated in total.`);
+                            break;
+                          }
+                          skip += limit;
+                          await new Promise((r) => setTimeout(r, 300));
                         }
-                        if (!res.ok) {
-                          notify((data.error || res.statusText) as string);
-                          break;
-                        }
-                        const batchUpdated = data.updated ?? 0;
-                        totalUpdated += batchUpdated;
-                        if (!data.hasMore || batchUpdated === 0) {
-                          setBackfillProgress(null);
-                          notify(lang === 'el' ? `Ολοκλήρωση: ${totalUpdated} influencers ενημερώθηκαν συνολικά.` : `Done: ${totalUpdated} influencers updated in total.`);
-                          break;
-                        }
-                        skip += limit;
-                        await new Promise((r) => setTimeout(r, 300));
+                      } catch (e) {
+                        setBackfillProgress(null);
+                        notify(e instanceof Error ? e.message : "Failed");
+                      } finally {
+                        setBackfillingAudit(false);
+                        setBackfillProgress(null);
                       }
-                    } catch (e) {
-                      setBackfillProgress(null);
-                      notify(e instanceof Error ? e.message : 'Failed');
-                    } finally {
-                      setBackfillingAudit(false);
-                      setBackfillProgress(null);
-                    }
-                  }}
-                  disabled={backfillingAudit}
-                  className="px-4 py-2 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {backfillingAudit ? '...' : txt.backfill_audit}
-                </button>
-                {backfillProgress && (
-                  <span className="text-sm text-amber-700 ml-1">
-                    {backfillProgress}
-                  </span>
-                )}
+                    }}
+                    disabled={backfillingAudit}
+                    title={txt.backfill_audit_title}
+                    aria-label={txt.backfill_audit_title}
+                    className="px-2.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  >
+                    {backfillingAudit ? "..." : txt.backfill_audit}
+                  </button>
+                  {backfillProgress && (
+                    <span className="text-xs text-amber-700">
+                      {backfillProgress}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Bulk Actions */}
