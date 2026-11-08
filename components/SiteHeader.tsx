@@ -155,7 +155,7 @@ export default function SiteHeader({
       href: navHref(lang, "/docs", "/en/docs"),
       active: pathMatches(pathname, ["/docs", "/en/docs"]),
     },
-  ];
+  ].filter((item) => item.key !== "docs" || (identityReady && userKind !== "none"));
 
   const switchLang = () => {
     const next: Lang = lang === "el" ? "en" : "el";
