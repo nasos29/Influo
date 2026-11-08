@@ -31,7 +31,7 @@ const fmt = (n: number) => Math.round(n).toLocaleString("el-GR");
 
 export function creatorDataQualityFlags(
   accounts: unknown,
-  snapshots?: Array<{ total_followers: number | null; snapshot_at: string }> | null
+  snapshots?: Array<{ total_followers: number | null; snapshot_at: string; accounts?: Array<{ platform: string; username: string; followers: number }> | null }> | null
 ): DataQualityFlag[] {
   const flags: DataQualityFlag[] = [];
   const list = (Array.isArray(accounts) ? accounts : []) as Acc[];
@@ -68,10 +68,22 @@ export function creatorDataQualityFlags(
   }
   const snaps = (snapshots || []).filter((s) => Number(s.total_followers) > 0).slice(0, 2);
   if (snaps.length === 2) {
-    const [cur, prev] = [Number(snaps[0].total_followers), Number(snaps[1].total_followers)];
+    // Like-for-like: only accounts present (same platform+username) in both snapshots.
+    const a0 = snaps[0].accounts || [], a1 = snaps[1].accounts || [];
+    let cur = Number(snaps[0].total_followers), prev = Number(snaps[1].total_followers);
+    if (a0.length && a1.length) {
+      const old = new Map(a1.map((r) => [`${r.platform}:${r.username}`, Number(r.followers) || 0]));
+      const both = a0.filter((r) => old.has(`${r.platform}:${r.username}`));
+      cur = both.reduce((n, r) => n + (Number(r.followers) || 0), 0);
+      prev = both.reduce((n, r) => n + (old.get(`${r.platform}:${r.username}`) || 0), 0);
+    } else if (a0.length !== a1.length) {
+      cur = prev = 0;
+    }
+    if (cur > 0 && prev > 0) {
     const change = (cur - prev) / prev;
     if (Math.abs(change) >= 0.5 && Math.abs(cur - prev) >= 300)
       flags.push({ code: "followers_jump", message: `Σύνολο ακολούθων άλλαξε από ${fmt(prev)} σε ${fmt(cur)} (${change > 0 ? "+" : ""}${Math.round(change * 100)}%) μεταξύ των δύο τελευταίων ανανεώσεων.` });
+    }
   }
   return flags;
 }

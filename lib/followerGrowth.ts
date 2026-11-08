@@ -100,7 +100,7 @@ export function isFollowerCompositionBreak(prevTotal: number, nextTotal: number)
 
 /**
  * Sum followers only for accounts present on both sides (same platform+username).
- * Falls back to unique platform match when username changed but one account per platform.
+ * Accounts added/removed or renamed inside the window are ignored (like-for-like only).
  */
 export function matchedFollowerTotals(
   current: SnapshotAccountFollowers[],
@@ -109,13 +109,7 @@ export function matchedFollowerTotals(
   if (!current.length || !baseline.length) return null;
 
   const baselineByKey = new Map<string, SnapshotAccountFollowers>();
-  const baselineByPlatform = new Map<string, SnapshotAccountFollowers[]>();
-  for (const row of baseline) {
-    baselineByKey.set(`${row.platform}:${row.username}`, row);
-    const list = baselineByPlatform.get(row.platform) || [];
-    list.push(row);
-    baselineByPlatform.set(row.platform, list);
-  }
+  for (const row of baseline) baselineByKey.set(`${row.platform}:${row.username}`, row);
 
   let currentSum = 0;
   let baselineSum = 0;
@@ -127,12 +121,6 @@ export function matchedFollowerTotals(
       baselineSum += exact.followers;
       matched += 1;
       continue;
-    }
-    const samePlatform = baselineByPlatform.get(row.platform) || [];
-    if (samePlatform.length === 1) {
-      currentSum += row.followers;
-      baselineSum += samePlatform[0].followers;
-      matched += 1;
     }
   }
   if (!matched || !(baselineSum > 0) || !(currentSum > 0)) return null;
@@ -172,12 +160,15 @@ export function computeFollowerGrowth(
       withAccounts.find((s) => now - s.at >= windowMs) ||
       withAccounts.find((s) => now - s.at >= minFallbackAgeMs) ||
       null;
+    // Snapshots store accounts but none is old enough: no valid baseline yet → hide the metric.
+    if (withAccounts.length && !matchedBaseline) return null;
     if (matchedBaseline?.accounts?.length) {
       const matched = matchedFollowerTotals(currentAccounts, matchedBaseline.accounts);
       if (matched) {
         const growth = isSameFollowerDisplayBucket(matched.current, matched.baseline)
           ? 0
           : Math.round(matched.current - matched.baseline);
+        if (matchedBaseline.accounts.length && matched.matched === 0) return null;
         return {
           currentTotal: matched.current,
           oldTotal: matched.baseline,
@@ -187,10 +178,12 @@ export function computeFollowerGrowth(
           seriesSource: ascending.filter((s) => s.at >= matchedBaseline.at),
         };
       }
+      // Stored accounts but nothing comparable (all added/renamed) → hide instead of comparing totals.
+      return null;
     }
   }
 
-  // 2) Totals path: drop snapshots from before the latest "lost account" cliff.
+  // 2) Totals path (legacy snapshots without per-account rows): drop snapshots from before the latest "lost account" cliff.
   const aligned: FollowerSnapshotPoint[] = [];
   for (const s of ascending) {
     const total = alignFollowerSnapshotToCurrent(s.total, currentTotal);
@@ -207,7 +200,7 @@ export function computeFollowerGrowth(
   }
   const era = aligned.slice(eraStartIdx);
   const baselineWindow = [...era].reverse().find((s) => now - s.at >= windowMs);
-  const fallback = era.find((s) => now - s.at >= minFallbackAgeMs) || era[0];
+  const fallback = [...era].reverse().find((s) => now - s.at >= minFallbackAgeMs) || null;
   const baseline = baselineWindow || fallback;
   if (!baseline || !(baseline.total > 0)) return null;
 

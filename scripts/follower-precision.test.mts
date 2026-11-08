@@ -45,9 +45,8 @@ test("growth ignores lost Instagram account cliff for Dimitrios-like history", (
     28100,
     now
   );
-  assert.ok(result);
-  assert.equal(result!.growth, 0);
-  assert.equal(result!.oldTotal, 28100);
+  // Era after the lost-account cliff is younger than 7 days: no valid baseline, metric hidden.
+  assert.equal(result, null);
 });
 
 test("matchedFollowerTotals compares only shared platforms", () => {
@@ -75,8 +74,35 @@ test("growth ignores 1.1k rounding noise like Pinelopi 1120→1100", () => {
     1100,
     now
   );
-  assert.ok(result);
-  assert.equal(result!.growth, 0);
+  // Baseline younger than 7 days: hidden rather than a noisy %.
+  assert.equal(result, null);
   assert.equal(isSameFollowerDisplayBucket(1120, 1100), true);
   assert.equal(isSameFollowerDisplayBucket(13300, 13000), false);
+});
+
+test("growth hidden when an account was added inside the window (Evangelia)", () => {
+  const now = Date.parse("2026-11-08T16:00:00Z");
+  const result = computeFollowerGrowth(
+    [
+      { total: 1500, at: Date.parse("2026-11-08T12:36:00Z"), accounts: [{ platform: "tiktok", username: "e", followers: 1500 }] },
+      { total: 3965, at: Date.parse("2026-11-08T12:37:00Z"), accounts: [{ platform: "tiktok", username: "e", followers: 1500 }, { platform: "instagram", username: "e", followers: 2465 }] },
+    ],
+    [{ platform: "tiktok", username: "e", followers: 1488 }, { platform: "instagram", username: "e", followers: 2463 }],
+    3951,
+    now
+  );
+  assert.equal(result, null);
+});
+
+test("growth compares only accounts present in both snapshots", () => {
+  const now = Date.parse("2026-11-20T12:00:00Z");
+  const result = computeFollowerGrowth(
+    [{ total: 1500, at: Date.parse("2026-11-01T12:00:00Z"), accounts: [{ platform: "tiktok", username: "e", followers: 1500 }] }],
+    [{ platform: "tiktok", username: "e", followers: 1600 }, { platform: "instagram", username: "e", followers: 2463 }],
+    4063,
+    now
+  );
+  assert.ok(result);
+  assert.equal(result!.oldTotal, 1500);
+  assert.equal(result!.growth, 100);
 });
