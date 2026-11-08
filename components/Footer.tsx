@@ -253,11 +253,11 @@ export default function Footer({ lang = "el", showAppPromo = true }: FooterProps
                   {lang === "el" ? "Κατάλογος Επιχειρήσεων" : "Brands Directory"}
                 </Link>
               </li>
-              <li>
+              {loggedIn && <li>
                 <Link href={lang === "en" ? "/en/docs" : "/docs"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.guide}
                 </Link>
-              </li>
+              </li>}
               <li>
                 <Link href={lang === "en" ? "/en/get-app" : "/get-app"} className="text-slate-400 hover:text-white transition-colors text-sm">
                   {txt.getApp}
