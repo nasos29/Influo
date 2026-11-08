@@ -15,15 +15,24 @@ export default function CreatorPhoto({
   name,
   className = "",
   rounded = "rounded-none",
+  /**
+   * Optional storage transform size in CSS px (square). When set, requests 2× via
+   * Supabase image transform for small thumbs. Omit for large card/hero photos so
+   * the original stays sharp (object-cover crops in CSS).
+   */
+  size,
 }: {
   src?: string | null;
   name: string;
   className?: string;
   rounded?: string;
+  size?: number;
 }) {
   const [failed, setFailed] = useState(false);
   const raw = typeof src === "string" ? src.trim() : "";
-  const sized = raw ? (getStorageCardUrl(raw, 128, 128) ?? raw) : "";
+  const thumbPx = size && size > 0 ? Math.max(Math.round(size * 2), 160) : 0;
+  const sized =
+    raw && thumbPx > 0 ? (getStorageCardUrl(raw, thumbPx, thumbPx) ?? raw) : raw;
   const url = sized ? (getCachedImageUrl(sized) ?? sized) : "";
   const usable = url && !failed && !/placeholder|default-avatar/i.test(url);
 
