@@ -5,6 +5,7 @@ import { CATEGORIES, categoryLabel, parseStoredCategories } from "@/lib/categori
 import { findContactInfo } from "@/lib/contactFilter";
 import { statsFromAccounts, parseFollowerNumber } from "@/lib/platformStats";
 import { sharedCategoryKeys } from "@/lib/recommendations";
+import { packagesForViewer, listedPriceAmount } from "@/lib/servicePackages";
 import { fetchWebsiteBrand, normalizeWebsite, type SiteBrand } from "@/lib/siteBrand";
 
 export const maxDuration = 30;
@@ -30,6 +31,14 @@ const AGES = new Set(["18-24", "25-34", "35-44", "45+", "all"]);
 const GENDERS = new Set(["women", "men", "all"]);
 const PLATFORMS = new Set(["instagram", "tiktok", "youtube"]);
 const CONTENT = new Set(["reel", "story", "post", "carousel", "tiktok", "tiktok_live", "youtube", "youtube_short", "ugc"]);
+/** Drop sentences that state the fee; the preview shows it on its own line. */
+function stripFee(text: string): string {
+  return text
+    .split(/(?<=[.!;\n])\s+/)
+    .filter((s) => !(/\d/.test(s) && /(αμοιβ|fee|compensation|€|\beur\b|ευρώ)/i.test(s)))
+    .join(" ")
+    .trim();
+}
 const TIMING = new Set(["asap", "2weeks", "month", "flexible"]);
 
 function pick<T extends string>(value: unknown, allowed: Set<string>, fallback: T): T {
@@ -136,7 +145,57 @@ export async function POST(request: NextRequest) {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY || "").trim();
   if (!apiKey) return NextResponse.json({ error: "ai_unavailable", message: { el: "Το AI δεν είναι διαθέσιμο τώρα. Χρησιμοποιήστε τη φόρμα.", en: "AI is unavailable. Use the form." } }, { status: 503 });
 
-  const perCreatorHint = budget > 0 ? Math.max(20, Math.round(budget / (slots || 3))) : 0;
+  // Market price from real Influo creator packages (read-only), for comparable deliverables.
+  const WANT: Record<string, [string, string[]]> = {
+    reel: ["instagram", ["reel"]], story: ["instagram", ["story"]], post: ["instagram", ["post"]], carousel: ["instagram", ["carousel"]],
+    tiktok: ["tiktok", ["video"]], tiktok_live: ["tiktok", ["live"]], youtube: ["youtube", ["video"]], youtube_short: ["youtube", ["short"]],
+    ugc: ["ugc", ["ugc_video", "ugc_photo"]],
+  };
+  let marketMedian: number | null = null;
+  try {
+    const { data: priceRows } = await admin
+      .from("influencers")
+      .select("category, accounts, service_packages, rate_card")
+      .eq("approved", true)
+      .limit(500);
+    const samples: number[] = [];
+    for (const r of priceRows || []) {
+      if (category && sharedCategoryKeys(category, r.category).length === 0) continue;
+      const perCreator: number[] = [];
+      for (const pkg of packagesForViewer(r.service_packages, r.rate_card, r.accounts)) {
+        const amount = listedPriceAmount(pkg.price);
+        if (!amount || amount <= 0) continue;
+        const unit = amount / Math.max(1, Number(pkg.quantity) || 1);
+        const matchesContent = content.length
+          ? content.some((c) => WANT[c] && WANT[c][0] === pkg.platform && WANT[c][1].includes(pkg.type))
+          : platforms.includes(pkg.platform);
+        if (matchesContent) perCreator.push(unit);
+      }
+      if (perCreator.length) samples.push(perCreator.reduce((a, b) => a + b, 0) / perCreator.length);
+    }
+    samples.sort((a, b) => a - b);
+    // Trim outliers (outside 1.5×IQR) before taking the median.
+    const q = (f: number) => samples[Math.min(samples.length - 1, Math.floor(f * (samples.length - 1)))];
+    const iqr = samples.length >= 4 ? q(0.75) - q(0.25) : 0;
+    const kept = iqr > 0 ? samples.filter((v) => v >= q(0.25) - 1.5 * iqr && v <= q(0.75) + 1.5 * iqr) : samples;
+    if (kept.length >= 3) {
+      const m = kept.length % 2 ? kept[(kept.length - 1) / 2] : (kept[kept.length / 2 - 1] + kept[kept.length / 2]) / 2;
+      marketMedian = Math.max(10, Math.round(m));
+    }
+  } catch (err) {
+    console.warn("[ai-draft] market median failed", err instanceof Error ? err.message.slice(0, 80) : "error");
+  }
+  const budgetPerCreator = budget > 0 ? Math.round(budget / (slots || 3)) : 0;
+  const perCreatorHint = marketMedian
+    ? budget > 0 ? Math.max(10, Math.min(marketMedian, budgetPerCreator)) : marketMedian
+    : budget > 0 ? Math.max(20, budgetPerCreator) : 0;
+  let marketNote: { el: string; en: string } | null = null;
+  if (marketMedian && budgetPerCreator > 0) {
+    if (budgetPerCreator < marketMedian * 0.6)
+      marketNote = { el: `Το budget ανά creator (~${budgetPerCreator} €) είναι αρκετά κάτω από τη μέση τιμή στο Influo (~${marketMedian} €). Ίσως βρείτε λιγότερους creators ή χρειαστεί λιγότερα παραδοτέα.`, en: `Budget per creator (~${budgetPerCreator} €) is well below the Influo median (~${marketMedian} €). Expect fewer creators or fewer deliverables.` };
+    else if (budgetPerCreator > marketMedian * 1.6)
+      marketNote = { el: `Το budget ανά creator (~${budgetPerCreator} €) είναι αρκετά πάνω από τη μέση τιμή στο Influo (~${marketMedian} €). Μπορείτε να πάρετε περισσότερους creators ή περισσότερα παραδοτέα.`, en: `Budget per creator (~${budgetPerCreator} €) is well above the Influo median (~${marketMedian} €). You could add more creators or deliverables.` };
+  }
   // Compact prompt: facts only, strict short JSON.
   const prompt = [
     "Γράψε σε σωστά ελληνικά μια καμπάνια influencer για ελληνική πλατφόρμα. Επαγγελματικό, σύντομο ύφος, χωρίς emoji, χωρίς links/email/τηλέφωνα.",
@@ -149,7 +208,8 @@ export async function POST(request: NextRequest) {
     budget > 0 ? `Συνολικό budget: ${budget} €.` : "Αμοιβή: προϊόν/ανταλλαγή.",
     slots ? `Creators: ${slots}.` : "Creators: χωρίς όριο.",
     `Χρονισμός: ${{ asap: "άμεσα", "2weeks": "σε 2 εβδομάδες", month: "μέσα στον μήνα", flexible: "ευέλικτος" }[timing]}.`,
-    `Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ.","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"requires_presence":true/false (πρόταση),${category ? "" : '"category":"key",'}"packages":[ΥΠΟΧΡΕΩΤΙΚΑ 2 ή 3 διαφορετικά πακέτα (π.χ. λιγότεροι creators με περισσότερα παραδοτέα vs περισσότεροι creators με λιγότερα), όλα μέσα στο budget και σύμφωνα με τον στόχο: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}`,
+    marketMedian ? `Μέση τιμή αγοράς στο Influo για αυτά τα παραδοτέα: ~${marketMedian} € ανά creator. Βάσισε τις τιμές των πακέτων σε αυτήν (μέσα στο budget).` : "",
+    `Επέστρεψε ΜΟΝΟ JSON: {"title":"<=70 χαρ.","description":"2-4 προτάσεις, <=600 χαρ., ΧΩΡΙΣ αμοιβή/τιμή/ποσά σε € (η αμοιβή μπαίνει μόνο στο price_per_creator)","deliverables":"π.χ. 1 Reel, 3 Stories","slots":αριθμός ή null,"price_per_creator":ακέραιος σε € ή 0,"requires_presence":true/false (πρόταση),${category ? "" : '"category":"key",'}"packages":[ΥΠΟΧΡΕΩΤΙΚΑ 2 ή 3 διαφορετικά πακέτα (π.χ. λιγότεροι creators με περισσότερα παραδοτέα vs περισσότεροι creators με λιγότερα), όλα μέσα στο budget και σύμφωνα με τον στόχο: {"name":"<=30 χαρ.","slots":αριθμός,"deliverables":"ανά creator, <=80 χαρ.","price":ακέραιος € ανά creator ή 0}]}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -188,10 +248,10 @@ export async function POST(request: NextRequest) {
       ? text.split(/(?<=[.!;·])\s+/).filter((part) => !findContactInfo(part)).join(" ").trim()
       : text;
   const title = stripContact(clean(draft.title, 90));
-  const description = stripContact(clean(draft.description, 900));
+  const description = stripFee(stripContact(clean(draft.description, 900)));
   const deliverables = stripContact(clean(draft.deliverables, 200));
   const aiPrice = Math.round(Number(draft.price_per_creator) || 0);
-  const price = aiPrice > 0 ? Math.min(aiPrice, budget > 0 ? budget : aiPrice) : perCreatorHint;
+  const price = marketMedian ? perCreatorHint : aiPrice > 0 ? Math.min(aiPrice, budget > 0 ? budget : aiPrice) : perCreatorHint;
   const outSlots = slots ?? (Number.isFinite(Number(draft.slots)) && Number(draft.slots) > 0 ? Math.min(100, Math.round(Number(draft.slots))) : null);
   const packages = (Array.isArray(draft.packages) ? draft.packages : [])
     .slice(0, 3)
@@ -245,6 +305,8 @@ export async function POST(request: NextRequest) {
       deliverables,
       slots: outSlots,
       pricePerCreator: price > 0 ? price : null,
+      marketMedian,
+      marketNote,
       category,
       platforms,
       location,
