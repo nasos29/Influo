@@ -479,8 +479,8 @@ export default function DocsPage() {
             </SectionHeading>
             <p className="text-slate-600 mb-6 max-w-prose">
               {lang === "el"
-                ? "Οι τιμές στο προφίλ είναι δημόσιες. Τις βλέπουν όλοι, και χωρίς σύνδεση. Το ευρώ γράφεται μετά το ποσό, με κενό: 50 €."
-                : "Prices on a profile are public. Anyone can see them, including visitors who are not signed in. The euro sign sits after the amount, with a space: 50 €."}
+                ? "Οι τιμές στο προφίλ είναι δημόσιες. Τις βλέπουν όλοι, και χωρίς σύνδεση."
+                : "Prices on a profile are public. Anyone can see them, including visitors who are not signed in."}
             </p>
             <div className="grid md:grid-cols-2 gap-4 my-6">
               <div className="border border-slate-200 rounded-xl p-5 bg-slate-50">
