@@ -21,7 +21,6 @@ const EL_SKILL_PHRASE: Record<SkillKey, { prep: "για" | "με"; text: string 
   voiceover: { prep: "με", text: "voiceover" },
   subtitles: { prep: "με", text: "υπότιτλους" },
   drone: { prep: "με", text: "λήψεις drone" },
-  drone_piloting: { prep: "με", text: "χειρισμό drone" },
   studio_lighting: { prep: "με", text: "φωτισμό στούντιο" },
   on_camera: { prep: "με", text: "παρουσίαση στην κάμερα" },
   acting: { prep: "με", text: "ηθοποιία" },
