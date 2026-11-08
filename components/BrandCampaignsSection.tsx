@@ -836,6 +836,8 @@ export default function BrandCampaignsSection({
   useEffect(() => {
     if (!startNew || startNewOnce.current || loading) return;
     startNewOnce.current = true;
+    // Don't resume a previous AI preview when starting a new campaign.
+    clearSessionKeys("influo:ai-wizard:");
     const draft = restoreDraftFull();
     setForm(draft?.form || emptyForm());
     setDraftRestored(!!draft);
@@ -856,6 +858,8 @@ export default function BrandCampaignsSection({
   };
 
   const openNew = () => {
+    // Clear prior AI wizard result so "Create with AI" never flashes the last draft.
+    clearSessionKeys("influo:ai-wizard:");
     const draft = restoreDraftFull();
     setForm(draft?.form || emptyForm());
     setDraftRestored(!!draft);
@@ -1410,6 +1414,7 @@ export default function BrandCampaignsSection({
           onClose={() => setAiOpen(false)}
           onApply={(fill, siteBrand) => {
             setAiOpen(false);
+            clearSessionKeys("influo:ai-wizard:");
             setSiteBrand(siteBrand);
             applyPrefill(siteBrand?.cover ? { ...fill, cover_url: siteBrand.cover } : fill, 3);
           }}
@@ -1462,7 +1467,15 @@ export default function BrandCampaignsSection({
           <div className="flex flex-wrap items-start justify-between gap-2">
             <h3 className="font-semibold text-slate-900">{editing === "new" ? t.new : t.edit}</h3>
             {editing === "new" && (
-              <button type="button" onClick={() => setAiOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 hover:bg-blue-100">
+              <button
+                type="button"
+                onClick={() => {
+                  // Clear before mount so useSessionState initializers see empty storage.
+                  clearSessionKeys("influo:ai-wizard:");
+                  setAiOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-800 hover:bg-blue-100"
+              >
                 {lang === "el" ? "Δημιουργία με AI" : "Create with AI"}
               </button>
             )}
@@ -1471,7 +1484,18 @@ export default function BrandCampaignsSection({
           {editing === "new" && draftRestored && (
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
               <span className="flex-1 min-w-0">{lang === "el" ? "Συνεχίζετε από το αποθηκευμένο πρόχειρο." : "Continuing from your saved draft."}</span>
-              <button type="button" onClick={() => { clearDraft(); setForm(emptyForm()); setDraftRestored(false); setFieldErrors({}); setStep(1); }} className="text-sm font-medium text-blue-700 hover:underline">
+              <button
+                type="button"
+                onClick={() => {
+                  clearDraft();
+                  clearSessionKeys("influo:ai-wizard:");
+                  setForm(emptyForm());
+                  setDraftRestored(false);
+                  setFieldErrors({});
+                  setStep(1);
+                }}
+                className="text-sm font-medium text-blue-700 hover:underline"
+              >
                 {lang === "el" ? "Νέα από την αρχή" : "Start over"}
               </button>
             </div>

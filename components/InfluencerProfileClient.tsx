@@ -1155,11 +1155,11 @@ export default function InfluencerProfile(props: {
     setLoading(false);
   };
 
-  // Refresh after the server render. Keep the server HTML if the request fails.
+  // Client fetch only when SSR did not provide a profile (avoid duplicate public API hit).
   useEffect(() => {
-    if (!id) return;
+    if (!id || props.initialProfile) return;
     fetchProfile().catch(() => setLoading(false));
-  }, [id]);
+  }, [id, props.initialProfile]);
 
   // Exact prices only after client auth (brand / admin / own). Never from ISR HTML.
   useEffect(() => {

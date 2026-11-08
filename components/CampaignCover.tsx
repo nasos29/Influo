@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import FastImage from "@/components/FastImage";
-import { getCachedImageUrl } from "@/lib/imageProxy";
+import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 import { fallbackCategoryCover } from "@/lib/campaignCovers";
 
 export function PlatformIcon({ platform, colored = true, className = "w-3.5 h-3.5" }: { platform: string; colored?: boolean; className?: string }) {
@@ -104,6 +104,13 @@ export default function CampaignCover({
   const useFallback = !coverUrl || coverFailed;
   const effectiveCover = useFallback ? (fallbackFailed ? null : fallbackCategoryCover(category, seed || title)) : coverUrl;
   const hasCover = Boolean(effectiveCover);
+  // Card-sized transforms for Supabase covers (full uploads are ~1600px); proxy cache after.
+  const coverW = aspect === "16/9" ? (priority ? 1280 : 800) : priority ? 800 : 640;
+  const coverH = aspect === "16/9" ? Math.round((coverW * 9) / 16) : Math.round((coverW * 3) / 4);
+  const sizedCover = effectiveCover
+    ? (getStorageCardUrl(effectiveCover, coverW, coverH) ?? effectiveCover)
+    : null;
+  const displayCover = sizedCover ? (getCachedImageUrl(sizedCover) ?? sizedCover) : null;
   // One resolved URL for the sharp mark and the blurred backdrop so the second
   // paint is a browser-cache hit (no extra Supabase egress).
   const logoSrc = logoUrl && !logoFailed ? getCachedImageUrl(logoUrl) ?? logoUrl : null;
@@ -148,17 +155,17 @@ export default function CampaignCover({
           {/* Blurred fill of the same image (same URL → cache hit), so the whole cover shows without cropping. */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
             <FastImage
-              src={effectiveCover as string}
+              src={displayCover as string}
               alt=""
               fill
               className="scale-110 object-cover blur-2xl opacity-80"
               sizes={sizes}
-              priority={priority}
+              priority={false}
             />
             <div className="absolute inset-0 bg-slate-900/25" />
           </div>
           <FastImage
-            src={effectiveCover as string}
+            src={displayCover as string}
             alt={title}
             fill
             className="object-contain"

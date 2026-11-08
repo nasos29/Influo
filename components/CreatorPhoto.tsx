@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getCachedImageUrl } from "@/lib/imageProxy";
+import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -23,7 +23,8 @@ export default function CreatorPhoto({
 }) {
   const [failed, setFailed] = useState(false);
   const raw = typeof src === "string" ? src.trim() : "";
-  const url = raw ? (getCachedImageUrl(raw) ?? raw) : "";
+  const sized = raw ? (getStorageCardUrl(raw, 128, 128) ?? raw) : "";
+  const url = sized ? (getCachedImageUrl(sized) ?? sized) : "";
   const usable = url && !failed && !/placeholder|default-avatar/i.test(url);
 
   if (!usable) {
@@ -43,6 +44,8 @@ export default function CreatorPhoto({
       src={url}
       alt=""
       referrerPolicy="no-referrer"
+      loading="lazy"
+      decoding="async"
       className={`object-cover ${rounded} ${className}`}
       onError={() => setFailed(true)}
     />

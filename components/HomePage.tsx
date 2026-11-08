@@ -443,7 +443,7 @@ export default function Home({
           <div className="relative z-10 max-w-7xl mx-auto">
             <div className="grid lg:grid-cols-[0.8fr_1.6fr_0.8fr] gap-8 lg:gap-10 items-stretch">
               
-              {/* Left Image */}
+              {/* Left Image — sole desktop LCP candidate */}
               <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
                 <Image 
                   src={HERO_INFLUENCER_IMAGE}
@@ -473,7 +473,6 @@ export default function Home({
                   alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
                   fill
                   className="object-cover object-center"
-                  priority
                   sizes="(max-width: 1024px) 100vw, 33vw"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
@@ -774,7 +773,7 @@ export default function Home({
                           src={logo.src}
                           alt={logo.name}
                           className="h-full w-full object-contain"
-                          loading="eager"
+                          loading="lazy"
                           decoding="async"
                           onError={(e) => {
                             const target = e.currentTarget as HTMLImageElement;
