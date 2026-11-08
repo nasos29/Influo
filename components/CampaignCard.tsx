@@ -152,6 +152,7 @@ export default function CampaignCard({
   footer,
   className = "",
   viewCta = false,
+  onOpen,
 }: {
   campaign: CampaignCardData;
   lang: "el" | "en";
@@ -161,6 +162,8 @@ export default function CampaignCard({
   className?: string;
   /** Show a "View campaign →" button at the bottom (public lists). Visual only: the card's stretched link handles the click. */
   viewCta?: boolean;
+  /** Owner views: card click runs this (e.g. open management) instead of navigating to the public page. */
+  onOpen?: () => void;
 }) {
   const localized = localizeCampaignCopy(campaign, lang);
   const brand = brandOf(campaign.brands);
@@ -228,12 +231,22 @@ export default function CampaignCard({
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <h3 className="min-w-0 flex-1 text-lg font-bold text-slate-900 leading-snug line-clamp-2">
-            <Link
-              href={link}
-              className="inline-flex min-h-[44px] items-center text-inherit after:absolute after:inset-0 after:z-[1] after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
-            >
-              {localized.title}
-            </Link>
+            {onOpen ? (
+              <button
+                type="button"
+                onClick={onOpen}
+                className="inline-flex min-h-[44px] items-center text-left text-inherit font-bold after:absolute after:inset-0 after:z-[1] after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
+              >
+                {localized.title}
+              </button>
+            ) : (
+              <Link
+                href={link}
+                className="inline-flex min-h-[44px] items-center text-inherit after:absolute after:inset-0 after:z-[1] after:rounded-2xl after:content-[''] focus-visible:outline-none group-hover:text-blue-700 sm:min-h-0"
+              >
+                {localized.title}
+              </Link>
+            )}
           </h3>
           {publicBadge ? (
             <span

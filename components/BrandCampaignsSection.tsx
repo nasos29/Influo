@@ -219,7 +219,7 @@ const extra = langPack({
   verified_card_body: { el: "Μπορείτε να δημοσιεύετε καμπάνιες δημόσια.", en: "You can publish campaigns publicly." },
   open_locked: { el: "Η κατάσταση «Ανοιχτή» είναι διαθέσιμη μετά την επαλήθευση.", en: "Open status is available after verification." },
   migration: { el: "Χρειάζεται το docs/CAMPAIGN_WORKFLOW_2026.sql στο Supabase για τα νέα πεδία.", en: "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase for the new fields." },
-  public_page: { el: "Δημόσια σελίδα", en: "Public page" },
+  public_page: { el: "Δημόσια σελίδα ↗", en: "Public page ↗" },
   card_start: { el: "Έναρξη", en: "Starts" },
   accept: { el: "Αποδοχή", en: "Accept" },
   profile: { el: "Προφίλ", en: "Profile" },
@@ -1968,6 +1968,15 @@ export default function BrandCampaignsSection({
                   campaign={row}
                   lang={lang}
                   hideBrand
+                  onOpen={() => {
+                    // Owner view: drafts open the editor; live/closed campaigns open their applications.
+                    if (row.status === "draft") {
+                      openEdit(row);
+                    } else {
+                      setExpandedId(expandedId === row.id ? null : row.id);
+                      if (expandedId !== row.id) void loadApplications(row.id);
+                    }
+                  }}
                   footer={
                     <div className="flex flex-col gap-3">
                       <p className="text-xs text-slate-600">
@@ -1979,7 +1988,7 @@ export default function BrandCampaignsSection({
                           .join(" · ")}
                       </p>
                       {row.status === "open" && (
-                        <Link href={`/campaigns/${row.id}`} className="inline-block text-sm text-blue-600 hover:underline">
+                        <Link href={`/campaigns/${row.id}`} target="_blank" rel="noopener" className="relative z-10 inline-block self-start text-xs text-slate-500 hover:text-blue-600 hover:underline">
                           {x.public_page}
                         </Link>
                       )}
