@@ -155,7 +155,12 @@ export default function SiteHeader({
       href: navHref(lang, "/docs", "/en/docs"),
       active: pathMatches(pathname, ["/docs", "/en/docs"]),
     },
-  ].filter((item) => item.key !== "docs" || (identityReady && userKind !== "none"));
+  ].filter((item) => {
+    const signedIn = identityReady && userKind !== "none";
+    if (item.key === "docs") return signedIn;
+    if (item.key === "for-brands" || item.key === "for-influencers") return !signedIn;
+    return true;
+  });
 
   const switchLang = () => {
     const next: Lang = lang === "el" ? "en" : "el";
