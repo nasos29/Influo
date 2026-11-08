@@ -1,3 +1,4 @@
+import { isStaticCover } from "@/lib/campaignCovers";
 import { normalizeCategoryToken } from "@/lib/categories";
 
 const STATUSES = new Set(["draft", "open", "closed"]);
@@ -185,7 +186,7 @@ export function parseAdminCampaignPatch(body: unknown): AdminCampaignPatchResult
       const url = record.cover_url.trim();
       let valid = false;
       try {
-        valid = new URL(url).protocol === "https:" && url.length <= 1000;
+        valid = isStaticCover(url) || (new URL(url).protocol === "https:" && url.length <= 1000);
       } catch {
         valid = false;
       }

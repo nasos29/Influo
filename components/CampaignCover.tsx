@@ -3,6 +3,7 @@
 import { useState } from "react";
 import FastImage from "@/components/FastImage";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import { fallbackCategoryCover } from "@/lib/campaignCovers";
 
 export function PlatformIcon({ platform, colored = true, className = "w-3.5 h-3.5" }: { platform: string; colored?: boolean; className?: string }) {
   const common = `${className} shrink-0`;
@@ -72,6 +73,7 @@ function brandInitials(name: string | null | undefined): string {
 
 export default function CampaignCover({
   coverUrl,
+  seed,
   title,
   brandName,
   logoUrl,
@@ -83,6 +85,8 @@ export default function CampaignCover({
   priority = false,
 }: {
   coverUrl?: string | null;
+  /** Stable seed (campaign id) for the category fallback cover. */
+  seed?: string | null;
   title: string;
   brandName?: string | null;
   logoUrl?: string | null;
@@ -96,7 +100,10 @@ export default function CampaignCover({
   const [coverFailed, setCoverFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const aspectClass = aspect === "16/9" ? "aspect-video" : "aspect-[4/3]";
-  const hasCover = Boolean(coverUrl) && !coverFailed;
+  const [fallbackFailed, setFallbackFailed] = useState(false);
+  const useFallback = !coverUrl || coverFailed;
+  const effectiveCover = useFallback ? (fallbackFailed ? null : fallbackCategoryCover(category, seed || title)) : coverUrl;
+  const hasCover = Boolean(effectiveCover);
   // One resolved URL for the sharp mark and the blurred backdrop so the second
   // paint is a browser-cache hit (no extra Supabase egress).
   const logoSrc = logoUrl && !logoFailed ? getCachedImageUrl(logoUrl) ?? logoUrl : null;
@@ -141,7 +148,7 @@ export default function CampaignCover({
           {/* Blurred fill of the same image (same URL → cache hit), so the whole cover shows without cropping. */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
             <FastImage
-              src={coverUrl as string}
+              src={effectiveCover as string}
               alt=""
               fill
               className="scale-110 object-cover blur-2xl opacity-80"
@@ -151,13 +158,13 @@ export default function CampaignCover({
             <div className="absolute inset-0 bg-slate-900/25" />
           </div>
           <FastImage
-            src={coverUrl as string}
+            src={effectiveCover as string}
             alt={title}
             fill
             className="object-contain"
             sizes={sizes}
             priority={priority}
-            onError={() => setCoverFailed(true)}
+            onError={() => (useFallback ? setFallbackFailed(true) : setCoverFailed(true))}
           />
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
           <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div>

@@ -494,6 +494,7 @@ export default function AdminCampaignDetail({
         >
           <CampaignCover
             coverUrl={form.cover_url || null}
+            seed={campaign.id}
             title={form.title || campaign.title}
             brandName={brand.name}
             logoUrl={brand.logo}
