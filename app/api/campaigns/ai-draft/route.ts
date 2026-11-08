@@ -29,7 +29,7 @@ const GOALS: Record<string, string> = {
 const AGES = new Set(["18-24", "25-34", "35-44", "45+", "all"]);
 const GENDERS = new Set(["women", "men", "all"]);
 const PLATFORMS = new Set(["instagram", "tiktok", "youtube"]);
-const CONTENT = new Set(["reel", "story", "post", "tiktok", "youtube", "ugc"]);
+const CONTENT = new Set(["reel", "story", "post", "carousel", "tiktok", "tiktok_live", "youtube", "youtube_short", "ugc"]);
 const TIMING = new Set(["asap", "2weeks", "month", "flexible"]);
 
 function pick<T extends string>(value: unknown, allowed: Set<string>, fallback: T): T {
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
   const inPerson = body.inPerson === true;
   const location = inPerson ? clean(body.location, 60) : "";
   let platforms = (Array.isArray(body.platforms) ? body.platforms : []).filter((p): p is string => typeof p === "string" && PLATFORMS.has(p)).slice(0, 4);
-  const content = (Array.isArray(body.content) ? body.content : []).filter((p): p is string => typeof p === "string" && CONTENT.has(p)).slice(0, 6);
+  const content = (Array.isArray(body.content) ? body.content : []).filter((p): p is string => typeof p === "string" && CONTENT.has(p)).slice(0, 9);
   const budget = Math.max(0, Math.min(100000, Math.round(Number(body.budget) || 0)));
   const slotsRaw = Math.round(Number(body.slots) || 0);
   const slots = slotsRaw > 0 ? Math.min(100, slotsRaw) : null;

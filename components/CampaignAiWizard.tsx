@@ -34,7 +34,14 @@ const GOALS = [
   ["event", "Κάλυψη εκδήλωσης"],
 ] as const;
 const PLATFORMS = [["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube"]] as const;
-const CONTENT = [["reel", "Reel"], ["story", "Stories"], ["post", "Post"], ["tiktok", "TikTok βίντεο"], ["youtube", "YouTube βίντεο"], ["ugc", "UGC (χωρίς δημοσίευση)"]] as const;
+const CONTENT_BY_PLATFORM: Record<string, readonly (readonly [string, string])[]> = {
+  instagram: [["post", "Post"], ["reel", "Reel"], ["story", "Stories"], ["carousel", "Carousel"]],
+  tiktok: [["tiktok", "TikTok βίντεο"], ["tiktok_live", "TikTok Live"]],
+  youtube: [["youtube", "YouTube βίντεο"], ["youtube_short", "YouTube Short"]],
+};
+const CONTENT_GENERAL = [["ugc", "UGC (χωρίς δημοσίευση)"]] as const;
+const allowedContent = (platforms: string[]) =>
+  new Set([...platforms.flatMap((p) => (CONTENT_BY_PLATFORM[p] || []).map(([id]) => id)), ...CONTENT_GENERAL.map(([id]) => id)]);
 
 function addDays(days: number): string {
   const d = new Date(Date.now() + days * 86400000);
@@ -134,7 +141,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
       const res = await sessionFetch("/api/campaigns/ai-draft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content, budget: Number(budget) || 0, slots: Number(slots) || 0, timing, ...(fromSource ? { website: website.trim(), goal: siteGoal } : {}) }),
+        body: JSON.stringify({ goal, category, product, age, gender, inPerson, location, platforms, content: content.filter((c) => allowedContent(platforms).has(c)), budget: Number(budget) || 0, slots: Number(slots) || 0, timing, ...(fromSource ? { website: website.trim(), goal: siteGoal } : {}) }),
       });
       const data = (await res.json().catch(() => ({}))) as {
         draft?: { title: string; description: string; deliverables: string; slots: number | null; pricePerCreator: number | null; location: string; compensation: "money" | "product"; budget: number | null; timing: string; requiresPresence?: boolean; category?: string; platforms?: string[] };
@@ -277,15 +284,23 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
                 <p className="text-sm font-medium text-slate-700">Πλατφόρμες</p>
                 <div className="flex flex-wrap gap-2">
                   {PLATFORMS.map(([id, label]) => (
-                    <button key={id} type="button" onClick={() => toggle(platforms, setPlatforms, id)} className={`rounded-full border px-3 py-1.5 text-sm ${platforms.includes(id) ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}>{label}</button>
+                    <button key={id} type="button" onClick={() => { const next = platforms.includes(id) ? platforms.filter((x) => x !== id) : [...platforms, id]; setPlatforms(next); const ok = allowedContent(next); setContent(content.filter((c) => ok.has(c))); }} className={`rounded-full border px-3 py-1.5 text-sm ${platforms.includes(id) ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}>{label}</button>
                   ))}
                 </div>
                 <p className="text-sm font-medium text-slate-700 pt-1">Τύπος περιεχομένου</p>
-                <div className="flex flex-wrap gap-2">
-                  {CONTENT.map(([id, label]) => (
-                    <button key={id} type="button" onClick={() => toggle(content, setContent, id)} className={`rounded-full border px-3 py-1.5 text-sm ${content.includes(id) ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}>{label}</button>
-                  ))}
-                </div>
+                {[
+                  ...PLATFORMS.filter(([pid]) => platforms.includes(pid)).map(([pid, plabel]) => [plabel, CONTENT_BY_PLATFORM[pid] || []] as const),
+                  ["Γενικά", CONTENT_GENERAL] as const,
+                ].map(([groupLabel, items]) => (
+                  <div key={groupLabel}>
+                    <p className="text-xs text-slate-500 mb-1">{groupLabel}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {items.map(([id, label]) => (
+                        <button key={id} type="button" onClick={() => toggle(content, setContent, id)} className={`rounded-full border px-3 py-1.5 text-sm ${content.includes(id) ? "border-blue-600 bg-blue-50 text-blue-800" : "border-slate-300 text-slate-700"}`}>{label}</button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </>
             )}
             {q === 5 && (
