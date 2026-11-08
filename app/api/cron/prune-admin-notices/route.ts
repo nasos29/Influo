@@ -1,5 +1,5 @@
 /**
- * Daily: delete read admin_notices older than 30 days. Unread rows are never deleted.
+ * Daily: delete read admin_notices older than 5 days. Unread rows are never deleted.
  * Auth: Authorization: Bearer CRON_SECRET (or Vercel cron headers).
  */
 

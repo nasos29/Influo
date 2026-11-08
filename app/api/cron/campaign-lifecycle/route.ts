@@ -69,7 +69,7 @@ async function applicationsCount(campaignId: string): Promise<number> {
 }
 
 /**
- * Auto-closes open campaigns past deadline / 30 days, and sends a 3-day reminder.
+ * Auto-closes open campaigns past deadline / default open window, and sends a 3-day reminder.
  */
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");

@@ -328,7 +328,7 @@ export function closedToBrand(input: { brandEmail: string; brandName: string; ca
     html: shell(
       "Η καμπάνια έκλεισε",
       `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
-       <p>Η καμπάνια σας έκλεισε αυτόματα (προθεσμία ή 30 ημέρες από το άνοιγμα).</p>
+       <p>Η καμπάνια σας έκλεισε αυτόματα (προθεσμία ή αυτόματη διάρκεια από το άνοιγμα).</p>
        ${campaignSummaryHtml([
          ["Καμπάνια", input.campaignTitle],
          ["Αιτήσεις", String(Number.isFinite(input.applicationsCount) ? input.applicationsCount : 0)],

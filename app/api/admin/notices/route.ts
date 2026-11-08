@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const denied = await rejectUnlessAdmin(req);
   if (denied) return denied;
   const admin = supabaseService();
-  // Safe on-load cleanup: only read rows older than 30 days; never unread.
+  // Safe on-load cleanup: only read rows older than 5 days; never unread.
   void pruneOldReadAdminNotices(admin);
   const [{ data, error }, { count }] = await Promise.all([
     admin.from("admin_notices").select("id, kind, title, body, url, created_at, read_at").order("created_at", { ascending: false }).limit(50),
