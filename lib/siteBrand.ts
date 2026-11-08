@@ -14,6 +14,8 @@ export type SiteBrand = {
   name: string | null;
   text: string;
   logo: string | null;
+  /** Large share image (og:image / twitter:image), absolute http(s) URL. */
+  cover: string | null;
   colors: string[];
 };
 
@@ -178,6 +180,66 @@ function logoFrom(html: string, base: string): string | null {
   );
 }
 
+function coverFrom(html: string, base: string): string | null {
+  for (const key of ["og:image:secure_url", "og:image", "og:image:url", "twitter:image", "twitter:image:src"]) {
+    const u = abs(meta(html, key), base);
+    if (u && !/\.svg(\?|$)/i.test(u)) return u;
+  }
+  return null;
+}
+
+const IMAGE_MAX_BYTES = 5_000_000;
+const IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/** SSRF-safe image download (public hosts only, re-checked redirects, timeout, size cap, raster types only). */
+export async function safeFetchImage(raw: string): Promise<{ bytes: Buffer; type: string; ext: string } | null> {
+  let current = raw;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const url = await assertPublicUrl(current);
+    const res = await fetch(url, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+      headers: { "User-Agent": UA, Accept: "image/webp,image/jpeg,image/png" },
+    });
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get("location");
+      await res.body?.cancel().catch(() => {});
+      if (!loc) return null;
+      current = new URL(loc, url).toString();
+      continue;
+    }
+    const type = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const declared = Number(res.headers.get("content-length") || 0);
+    if (!res.ok || !IMAGE_TYPES[type] || declared > IMAGE_MAX_BYTES) {
+      await res.body?.cancel().catch(() => {});
+      return null;
+    }
+    const reader = res.body?.getReader();
+    if (!reader) return null;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      size += value.length;
+      if (size > IMAGE_MAX_BYTES) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(Buffer.from(value));
+    }
+    const bytes = Buffer.concat(chunks);
+    // Magic-byte check so a mislabeled HTML/SVG never gets stored as an image.
+    const isJpg = bytes[0] === 0xff && bytes[1] === 0xd8;
+    const isPng = bytes.subarray(0, 4).toString("hex") === "89504e47";
+    const isWebp = bytes.subarray(0, 4).toString() === "RIFF" && bytes.subarray(8, 12).toString() === "WEBP";
+    if (bytes.length < 2000 || !(isJpg || isPng || isWebp)) return null;
+    const realType = isJpg ? "image/jpeg" : isPng ? "image/png" : "image/webp";
+    return { bytes, type: realType, ext: IMAGE_TYPES[realType] };
+  }
+  return null;
+}
+
 export function normalizeWebsite(input: string): string | null {
   const v = input.trim();
   if (!v || v.length > 300) return null;
@@ -195,5 +257,5 @@ export async function fetchWebsiteBrand(url: string): Promise<SiteBrand> {
   const name = meta(html, "og:site_name") || decode(html.match(/<title[^>]*>([^<]{1,120})/i)?.[1] || "").trim() || null;
   const desc = meta(html, "description") || meta(html, "og:description") || "";
   const text = `${desc} ${pageText(html)}`.replace(/\s+/g, " ").trim().slice(0, 4000);
-  return { source: "website", url: page.url, name, text, logo: logoFrom(html, page.url), colors: brandColors(html) };
+  return { source: "website", url: page.url, name, text, logo: logoFrom(html, page.url), cover: coverFrom(html, page.url), colors: brandColors(html) };
 }

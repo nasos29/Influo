@@ -450,6 +450,7 @@ export default function CampaignPublicView({
               })()}
               <CampaignCover
                 coverUrl={campaign.cover_url}
+                seed={campaign.id}
                 title={localized?.title || campaign.title}
                 brandName={brand?.brand_name}
                 logoUrl={brand?.logo_url}

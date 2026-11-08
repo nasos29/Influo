@@ -19,6 +19,7 @@ import { clearSessionKeys, useBackGesture } from "@/lib/useFormPersistence";
 import CampaignAiWizard, { type SiteBrandInfo } from "@/components/CampaignAiWizard";
 import PlatformActivityBadge from "@/components/PlatformActivityBadge";
 import CampaignCover from "@/components/CampaignCover";
+import CoverGalleryModal from "@/components/CoverGalleryModal";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -609,6 +610,7 @@ export default function BrandCampaignsSection({
   /** Logo/colors read from the brand site (preview only; not stored). */
   const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
   const [coverUploading, setCoverUploading] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -1398,7 +1400,7 @@ export default function BrandCampaignsSection({
           onApply={(fill, siteBrand) => {
             setAiOpen(false);
             setSiteBrand(siteBrand);
-            applyPrefill(fill, 3);
+            applyPrefill(siteBrand?.cover ? { ...fill, cover_url: siteBrand.cover } : fill, 3);
           }}
         />
       )}
@@ -1572,6 +1574,18 @@ export default function BrandCampaignsSection({
                 />
                 <p className="text-xs text-slate-500">{COVER_HINT}</p>
                 {coverCrop.dialog}
+                {galleryOpen && (
+                  <CoverGalleryModal
+                    category={form.category}
+                    lang={lang === "el" ? "el" : "en"}
+                    current={form.cover_url}
+                    onClose={() => setGalleryOpen(false)}
+                    onPick={(url) => {
+                      setForm((prev) => ({ ...prev, cover_url: url }));
+                      setGalleryOpen(false);
+                    }}
+                  />
+                )}
                 {form.cover_url ? (
                   <div className="space-y-2">
                     <div className="max-w-md rounded-xl overflow-hidden border border-slate-200">
@@ -1581,12 +1595,16 @@ export default function BrandCampaignsSection({
                       <button type="button" disabled={coverUploading} onClick={() => coverInputRef.current?.click()} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                         {coverUploading ? wz.cover_uploading : wz.cover_change}
                       </button>
+                      <button type="button" disabled={coverUploading} onClick={() => setGalleryOpen(true)} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                        {lang === "el" ? "Επιλογή από γκαλερί" : "Choose from gallery"}
+                      </button>
                       <button type="button" disabled={coverUploading} onClick={() => setForm({ ...form, cover_url: "" })} className="text-sm px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-50">
                         {wz.cover_remove}
                       </button>
                     </div>
                   </div>
                 ) : (
+                  <div className="space-y-2">
                   <button
                     type="button"
                     disabled={coverUploading}
@@ -1595,6 +1613,10 @@ export default function BrandCampaignsSection({
                   >
                     {coverUploading ? wz.cover_uploading : `+ ${wz.cover_choose}`}
                   </button>
+                  <button type="button" disabled={coverUploading} onClick={() => setGalleryOpen(true)} className="text-sm px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+                    {lang === "el" ? "Επιλογή από γκαλερί" : "Choose from gallery"}
+                  </button>
+                  </div>
                 )}
                 <p className="text-xs text-slate-500 mt-1">{wz.cover_hint}</p>
               </div>

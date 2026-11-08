@@ -6,7 +6,7 @@ import { findContactInfo } from "@/lib/contactFilter";
 import { statsFromAccounts, parseFollowerNumber } from "@/lib/platformStats";
 import { sharedCategoryKeys } from "@/lib/recommendations";
 import { packagesForViewer, listedPriceAmount } from "@/lib/servicePackages";
-import { fetchWebsiteBrand, normalizeWebsite, type SiteBrand } from "@/lib/siteBrand";
+import { fetchWebsiteBrand, normalizeWebsite, safeFetchImage, type SiteBrand } from "@/lib/siteBrand";
 
 export const maxDuration = 30;
 
@@ -297,6 +297,21 @@ export async function POST(request: NextRequest) {
     // Anonymous before publish: no ids, names, photos or links (brands see creators in the invite step).
     .map(({ followers }) => ({ followers }));
 
+  // Website share image → our own storage (no hotlinking). Any failure = category cover later.
+  let siteCover: string | null = null;
+  if (site?.cover) {
+    try {
+      const img = await safeFetchImage(site.cover);
+      if (img) {
+        const path = `${brand.id}/site-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${img.ext}`;
+        const up = await admin.storage.from("campaign-covers").upload(path, img.bytes, { contentType: img.type, upsert: false });
+        if (!up.error) siteCover = admin.storage.from("campaign-covers").getPublicUrl(path).data.publicUrl || null;
+      }
+    } catch (err) {
+      console.warn("[ai-draft] site cover failed", err instanceof Error ? err.message.slice(0, 80) : "error");
+    }
+  }
+
   return NextResponse.json({
     ok: true,
     draft: {
@@ -317,6 +332,6 @@ export async function POST(request: NextRequest) {
     },
     packages,
     matches,
-    brand: site ? { name: site.name, logo: site.logo, colors: site.colors, source: site.source } : null,
+    brand: site ? { name: site.name, logo: site.logo, cover: siteCover, colors: site.colors, source: site.source } : null,
   });
 }

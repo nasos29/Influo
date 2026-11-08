@@ -21,7 +21,7 @@ export type AiPrefill = {
   requires_presence: boolean;
 };
 
-export type SiteBrandInfo = { name: string | null; logo: string | null; colors: string[]; source?: string } | null;
+export type SiteBrandInfo = { name: string | null; logo: string | null; cover?: string | null; colors: string[]; source?: string } | null;
 type Pkg = { name: string; slots: number | null; deliverables: string; price: number | null };
 type Match = { followers: number };
 

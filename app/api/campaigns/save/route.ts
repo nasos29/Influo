@@ -1,3 +1,4 @@
+import { isStaticCover, randomCategoryCover } from "@/lib/campaignCovers";
 import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { NextRequest, NextResponse, after } from "next/server";
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
     const trimmed = body.cover_url.trim();
     let valid = false;
     try {
-      valid = new URL(trimmed).protocol === "https:" && trimmed.length <= 1000;
+      valid = isStaticCover(trimmed) || (new URL(trimmed).protocol === "https:" && trimmed.length <= 1000);
     } catch {
       valid = false;
     }
@@ -205,6 +206,8 @@ export async function POST(request: NextRequest) {
   };
 
   if (coverUrl !== undefined) payload.cover_url = coverUrl;
+  // New campaign without an image: store one fixed category cover so it never changes per view.
+  if (!existing && !coverUrl) payload.cover_url = randomCategoryCover(categoryRaw);
   // slots: undefined = leave untouched, null/"" = no limit, 1..500 = number of creators.
   if (typeof body.requires_presence === "boolean") payload.requires_presence = body.requires_presence;
   if (body.slots !== undefined) {

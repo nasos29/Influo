@@ -187,6 +187,7 @@ export default function CampaignCard({
       <div className="pointer-events-none relative z-0 [&_*]:pointer-events-none">
         <CampaignCover
           coverUrl={campaign.cover_url}
+          seed={campaign.id}
           title={localized.title}
           brandName={hideBrand ? null : brand?.brand_name}
           logoUrl={hideBrand ? null : brand?.logo_url}
