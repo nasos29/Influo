@@ -6,7 +6,7 @@ import { findContactInfo } from "@/lib/contactFilter";
 import { statsFromAccounts, parseFollowerNumber } from "@/lib/platformStats";
 import { sharedCategoryKeys } from "@/lib/recommendations";
 import { packagesForViewer, listedPriceAmount } from "@/lib/servicePackages";
-import { fetchWebsiteBrand, normalizeWebsite, safeFetchImage, type SiteBrand } from "@/lib/siteBrand";
+import { fetchWebsiteBrand, normalizeWebsite, safeFetchImage, looksLikePhotoCover, type SiteBrand } from "@/lib/siteBrand";
 
 export const maxDuration = 30;
 
@@ -302,7 +302,7 @@ export async function POST(request: NextRequest) {
   if (site?.cover) {
     try {
       const img = await safeFetchImage(site.cover);
-      if (img) {
+      if (img && (await looksLikePhotoCover(site.cover, img.bytes))) {
         const path = `${brand.id}/site-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${img.ext}`;
         const up = await admin.storage.from("campaign-covers").upload(path, img.bytes, { contentType: img.type, upsert: false });
         if (!up.error) siteCover = admin.storage.from("campaign-covers").getPublicUrl(path).data.publicUrl || null;

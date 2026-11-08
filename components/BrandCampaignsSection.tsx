@@ -611,6 +611,17 @@ export default function BrandCampaignsSection({
   const [siteBrand, setSiteBrand] = useState<SiteBrandInfo>(null);
   const [coverUploading, setCoverUploading] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  // Own brand name/logo for the card badge (dashboard rows are loaded without the brands join).
+  const [ownBrand, setOwnBrand] = useState<{ brand_name: string | null; logo_url: string | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void Promise.resolve(supabase.from("brands").select("brand_name, logo_url").eq("id", brandId).maybeSingle()).then(({ data }) => {
+      if (alive && data) setOwnBrand(data as { brand_name: string | null; logo_url: string | null });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [brandId]);
   const coverInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -1965,7 +1976,7 @@ export default function BrandCampaignsSection({
             {rows.map((row) => (
               <li key={row.id} className="space-y-3">
                 <CampaignCard
-                  campaign={row}
+                  campaign={ownBrand ? { ...row, brands: ownBrand } : row}
                   lang={lang}
                   hideBrand
                   onOpen={() => {
