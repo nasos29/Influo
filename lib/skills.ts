@@ -21,6 +21,7 @@ export const SKILL_GROUPS = [
       { key: "voiceover", label: { el: "Voiceover", en: "Voiceover" } },
       { key: "subtitles", label: { el: "Υπότιτλοι", en: "Subtitles/captions" } },
       { key: "drone", label: { el: "Λήψεις drone", en: "Drone footage" } },
+      { key: "drone_piloting", label: { el: "Χειρισμός drone", en: "Drone piloting" } },
       { key: "studio_lighting", label: { el: "Studio φωτισμός", en: "Studio lighting" } },
     ],
   },

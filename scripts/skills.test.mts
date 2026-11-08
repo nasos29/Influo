@@ -14,6 +14,7 @@ test("sanitizeSkills keeps known keys, drops duplicates, and stops at 10", () =>
     "voiceover",
     "subtitles",
     "drone",
+    "drone_piloting",
     "studio_lighting",
     "on_camera",
     "acting",
@@ -26,7 +27,10 @@ test("sanitizeSkills keeps known keys, drops duplicates, and stops at 10", () =>
   assert.equal(clean.filter((key) => key === "ugc").length, 1);
   assert.equal(clean.includes("copywriting" as never), false);
   assert.equal(skillLabel("ugc", "el"), "UGC");
+  assert.equal(skillLabel("drone_piloting", "el"), "Χειρισμός drone");
+  assert.equal(skillLabel("drone_piloting", "en"), "Drone piloting");
   assert.equal(skillLabel("nope", "en"), "");
+  assert.equal(SKILLS.includes("drone_piloting"), true);
   assert.equal(SKILLS.includes("short_video" as never), false);
   assert.deepEqual(sanitizeSkills(["short_video", "ugc"]), ["ugc"]);
   assert.equal(skillLabel("short_video", "el"), "");

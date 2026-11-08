@@ -96,6 +96,7 @@ const EXTRA_SKILL_WORDS: Partial<Record<SkillKey, string[]>> = {
   color_grading: ["χρωματική διόρθωση", "χρωματικη διορθωση"],
   subtitles: ["υποτιτλοι", "υπότιτλους", "υποτιτλους", "captions"],
   drone: ["ληψεις drone", "drone footage"],
+  drone_piloting: ["χειρισμος drone", "χειρισμό drone", "drone piloting", "drone pilot"],
   studio_lighting: ["φωτισμό στούντιο", "φωτισμο στούντιο", "φωτισμός στούντιο"],
   voiceover: ["voice over", "φωνη", "αφήγηση"],
   social_strategy: ["social media", "στρατηγικη social", "στρατηγική για social"],

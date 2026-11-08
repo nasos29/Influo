@@ -13,7 +13,7 @@ type Lang = "el" | "en";
 
 const COPY = {
   el: {
-    title: "Βρες τον κατάλληλο Έλληνα influencer για το brand σου",
+    title: "Βρες τον κατάλληλο influencer και ψηφιακό δημιουργό για το brand σου",
     subtitle: "Αναζήτησε ανά κατηγορία, πλατφόρμα και τιμή. Δες πραγματικά στατιστικά και κλείσε συνεργασία απευθείας.",
     search: "Αναζήτηση",
     searchLabel: "Αναζήτηση creators",
@@ -23,7 +23,7 @@ const COPY = {
     creatorLink: "Γράψου δωρεάν",
   },
   en: {
-    title: "Find the right Greek influencer for your brand",
+    title: "Find the right influencer and content creator for your brand",
     subtitle: "Search by category, platform and price. See real stats and book collaborations directly.",
     search: "Search",
     searchLabel: "Search creators",
