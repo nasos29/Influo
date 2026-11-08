@@ -20,11 +20,11 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Influencers Ελλάδα: Βρες Influencer για το Brand σου | Influo",
+    default: "Influencer και Ψηφιακός Δημιουργός για το Brand σου | Influo",
     template: "%s | Influo",
   },
-  description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
-  keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα", "Unboxing", "unboxing influencer"],
+  description: "Βρες influencers και ψηφιακούς δημιουργούς στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
+  keywords: ["influencer marketing", "influencer marketing Ελλάδα", "brand collaborations", "content creators", "ψηφιακός δημιουργός", "Ελλάδα", "πλατφόρμα influencers", "διαφήμιση στα social media", "συνεργασίες με brands", "creator economy", "διαφημίσεις influencers", "προώθηση προϊόντων", "influencer Ελλάδα", "Unboxing", "unboxing influencer"],
   authors: [{ name: "Influo" }],
   creator: "Influo",
   publisher: "Influo",
@@ -39,21 +39,21 @@ export const metadata: Metadata = {
     alternateLocale: ["en_US"],
     url: "/",
     siteName: SITE_NAME,
-    title: "Influencers Ελλάδα: Βρες Influencer για το Brand σου | Influo",
-    description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
+    title: "Influencer και Ψηφιακός Δημιουργός για το Brand σου | Influo",
+    description: "Βρες influencers και ψηφιακούς δημιουργούς στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget. Δωρεάν εγγραφή για brands και creators, verified προφίλ και καμπάνιες σε ένα μέρος.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Influo — Influencers στην Ελλάδα",
+        alt: "Influo — Influencers και ψηφιακοί δημιουργοί στην Ελλάδα",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Influencers Ελλάδα: Βρες Influencer για το Brand σου | Influo",
-    description: "Βρες influencers στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget.",
+    title: "Influencer και Ψηφιακός Δημιουργός για το Brand σου | Influo",
+    description: "Βρες influencers και ψηφιακούς δημιουργούς στην Ελλάδα ανά κατηγορία, πλατφόρμα και budget.",
     images: ["/og-image.png"],
   },
   robots: {
@@ -104,7 +104,7 @@ export default async function RootLayout({
     url: SITE_URL,
     logo: `${SITE_URL}/logo-512.png`,
     email: ORGANIZATION_EMAIL,
-    description: "Πλατφόρμα influencer marketing στην Ελλάδα. Βρες influencers ανά κατηγορία, πλατφόρμα και budget.",
+    description: "Πλατφόρμα influencer marketing στην Ελλάδα. Βρες influencers και ψηφιακούς δημιουργούς ανά κατηγορία, πλατφόρμα και budget.",
     inLanguage: "el",
     sameAs: ORGANIZATION_SAME_AS,
     contactPoint: {
