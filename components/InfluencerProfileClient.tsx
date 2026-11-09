@@ -2193,7 +2193,7 @@ export default function InfluencerProfile(props: {
       </div>
 
       {/* overflow-x-clip keeps the cover overlap in bounds without a scroll container, so the hire card can stick */}
-      <div className="max-w-profile mx-auto px-4 sm:px-6 relative -mt-24 z-10 min-w-0 overflow-x-clip">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative -mt-24 z-10 min-w-0 overflow-x-clip">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-w-0">
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
@@ -2494,7 +2494,7 @@ export default function InfluencerProfile(props: {
 
               return (
                 <>
-                <div className="grid grid-cols-2 gap-3 items-stretch sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 min-[1440px]:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 items-stretch sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {availablePlatforms.some((p) => {
                     const er = engagementRates[p.key];
                     return er && er !== "-";
@@ -2928,7 +2928,7 @@ export default function InfluencerProfile(props: {
                     <>
                         <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
                             <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.about}</h2>
-                            <p className="max-w-[75ch] text-slate-600 leading-relaxed whitespace-pre-wrap">
+                            <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
                                 {lang === 'en' && profile.bio_en ? profile.bio_en : (profile.bio || txt.no_bio)}
                             </p>
                             {(() => {
@@ -3019,7 +3019,7 @@ export default function InfluencerProfile(props: {
                                     <p className="mb-3 text-xs text-slate-500 italic">Available in Greek</p>
                                   ) : null;
                                 })()}
-                                <ul className="max-w-[75ch] space-y-2 text-slate-600 text-sm leading-relaxed list-none">
+                                <ul className="space-y-2 text-slate-600 text-sm leading-relaxed list-none">
                                     {(lang === 'en' && profile.auditpr_audit.scoreBreakdown_en?.length ? profile.auditpr_audit.scoreBreakdown_en : profile.auditpr_audit.scoreBreakdown).map((item, idx) => (
                                         <li key={idx} className="flex gap-2">
                                             <span className="text-indigo-500 mt-0.5 shrink-0">•</span>
@@ -3085,7 +3085,7 @@ export default function InfluencerProfile(props: {
                                       if (!note) return null;
                                       return (
                                         <div className="mt-6 border-t border-slate-100 pt-5">
-                                          <p className="max-w-[75ch] text-sm leading-relaxed text-slate-600">
+                                          <p className="text-sm leading-relaxed text-slate-600">
                                             <span className="font-semibold text-slate-800">{lang === "en" ? "Strengths" : "Δυνατά σημεία"}: </span>
                                             {localizeCategoryText(note, lang)}
                                           </p>
@@ -3110,7 +3110,7 @@ export default function InfluencerProfile(props: {
                               return (
                                 <div>
                                   <h3 className="text-lg font-bold text-slate-900 mb-4">{txt.portfolio}</h3>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 min-[1440px]:grid-cols-3 gap-6">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {portfolioItems.map((vid, i) => {
                                         const isVideo = isDefinitelyVideo(vid);
                                         const isImage = isDefinitelyImage(vid);
@@ -3349,7 +3349,7 @@ export default function InfluencerProfile(props: {
                         <p className="text-lg">{txt.reviews_empty}</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-1 gap-4 sm:gap-6 min-w-0 min-[1440px]:grid-cols-2">
+                      <div className="space-y-4 sm:space-y-6 min-w-0">
                         {reviews.map((review: any) => (
                           <div key={review.id} className="min-w-0 border border-slate-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow overflow-hidden">
                             <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
@@ -3373,7 +3373,7 @@ export default function InfluencerProfile(props: {
                               </span>
                             )}
                             {review.review_text && (
-                              <p className="max-w-[75ch] text-slate-700 leading-relaxed break-words">{review.review_text}</p>
+                              <p className="text-slate-700 leading-relaxed break-words">{review.review_text}</p>
                             )}
                           </div>
                         ))}
