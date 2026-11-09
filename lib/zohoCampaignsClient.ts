@@ -47,6 +47,17 @@ export function extractZohoCampaignKey(payload: unknown): string {
   );
 }
 
+export function extractZohoListKey(payload: unknown): string {
+  const root = asRecord(payload);
+  const nested = asRecord(root.response);
+  return pickString(
+    root.listkey,
+    root.listKey,
+    nested.listkey,
+    nested.listKey
+  );
+}
+
 async function readJsonSafe(res: Response): Promise<unknown> {
   const text = await res.text();
   if (!text.trim()) return {};
@@ -171,6 +182,72 @@ export async function zohoListUnsubscribe(
 
 function paramsWith(listKey: string, contactinfo: string): Record<string, string> {
   return { listkey: listKey, contactinfo };
+}
+
+/**
+ * Create a private mailing list and seed it with up to 10 emails (Zoho API limit).
+ * Remaining contacts should be added via zohoListSubscribe.
+ */
+export async function zohoCreateListWithContacts(
+  opts: {
+    listName: string;
+    emails: string[];
+    description?: string;
+  },
+  env: ZohoCampaignsEnv = getZohoCampaignsEnv()
+): Promise<{ listKey: string; seededEmails: string[]; raw: unknown }> {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of opts.emails) {
+    const email = raw.trim().toLowerCase();
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    unique.push(email);
+  }
+  if (unique.length === 0) {
+    throw new Error("zohoCreateListWithContacts requires at least one email");
+  }
+
+  const seededEmails = unique.slice(0, 10);
+  const raw = await zohoFormPost(
+    "/addlistandcontacts",
+    {
+      listname: opts.listName.slice(0, 100),
+      signupform: "private",
+      mode: "newlist",
+      emailids: seededEmails.join(","),
+      ...(opts.description
+        ? { listdescription: opts.description.slice(0, 250) }
+        : {}),
+    },
+    env
+  );
+  const listKey = extractZohoListKey(raw);
+  if (!listKey) {
+    throw new Error(
+      `Zoho addlistandcontacts missing listkey: ${JSON.stringify(raw).slice(0, 400)}`
+    );
+  }
+  return { listKey, seededEmails, raw };
+}
+
+/**
+ * Delete a mailing list. Prefer deletecontacts=off so org contacts used by
+ * permanent creators/brands lists are not removed (free-plan contact cap).
+ */
+export async function zohoDeleteMailingList(
+  listKey: string,
+  opts?: { deleteContacts?: boolean },
+  env?: ZohoCampaignsEnv
+): Promise<unknown> {
+  return zohoFormGet(
+    "/deletemailinglist",
+    {
+      listkey: listKey,
+      deletecontacts: opts?.deleteContacts ? "on" : "off",
+    },
+    env
+  );
 }
 
 export async function zohoCreateCampaign(

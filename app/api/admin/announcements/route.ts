@@ -6,10 +6,15 @@ import { rejectUnlessAdmin } from '@/lib/apiAuth';
 import { parseSpecificTargetIds } from '@/lib/announcementTargets';
 import { getSiteSettings } from '@/lib/siteSettingsServer';
 import { shouldUseZohoForAnnouncements } from '@/lib/zohoCampaignsConfig';
-import { sendAnnouncementViaZoho } from '@/lib/zohoAnnouncementCampaign';
+import {
+  sendAnnouncementViaZoho,
+  sendAnnouncementViaZohoToSelected,
+  type ZohoSelectedContact,
+} from '@/lib/zohoAnnouncementCampaign';
 import {
   ANNOUNCEMENT_EMAIL_SUBJECT,
   announcementEmailHtml,
+  dashboardPathForAudience,
 } from '@/lib/zohoAnnouncementContent';
 
 const supabaseAdmin = createClient(
@@ -21,9 +26,22 @@ const supabaseAdmin = createClient(
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
 const FROM_EMAIL = 'noreply@influo.gr';
+const CREATOR_DASHBOARD_PATH = '/login?redirect=/dashboard';
+const BRAND_DASHBOARD_PATH = dashboardPathForAudience('brands');
 
 const ANNOUNCEMENT_TARGET_TYPES = ['all', 'specific', 'all_brands', 'specific_brand'] as const;
 type AnnouncementTargetType = (typeof ANNOUNCEMENT_TARGET_TYPES)[number];
+
+type ContactRow = {
+  email: string;
+  displayName: string;
+  optedOut: boolean;
+  influencerId?: string | number | null;
+};
+
+function isMissingOptOutColumn(message: string | undefined): boolean {
+  return /announcements_email_opted_out|PGRST204|42703/i.test(String(message || ''));
+}
 
 async function zohoAnnouncementsEnabled(): Promise<boolean> {
   try {
@@ -43,6 +61,7 @@ async function sendAnnouncementEmails(emails: string[], dashboardPath: string) {
   const unique = Array.from(
     new Set(emails.map((e) => e.trim().toLowerCase()).filter((e) => e.length > 0))
   );
+  if (unique.length === 0) return;
   const html = announcementEmailHtml(dashboardPath, SITE_URL);
   const chunkSize = 50;
   for (let i = 0; i < unique.length; i += chunkSize) {
@@ -60,94 +79,298 @@ async function sendAnnouncementEmails(emails: string[], dashboardPath: string) {
   }
 }
 
+/**
+ * Zoho when flag+creds ON; Resend only when flag OFF or Zoho fails.
+ * Never sends both for the same announcement.
+ */
+async function deliverAnnouncementEmails(opts: {
+  useZoho: boolean;
+  audience: 'creators' | 'brands';
+  mode: 'all' | 'selected';
+  title: string;
+  contacts: ZohoSelectedContact[];
+  /** When flag OFF, Resend historically ignored opt-out — pass unfiltered emails. */
+  resendEmails: string[];
+  dashboardPath: string;
+}): Promise<'zoho' | 'resend' | 'skipped'> {
+  const zohoContacts = opts.contacts.filter((c) => c.email.trim().length > 0);
+  if (opts.useZoho) {
+    if (zohoContacts.length === 0) {
+      console.info(
+        `[admin announcements] Zoho ${opts.audience} ${opts.mode}: no opted-in contacts; skip email`
+      );
+      return 'skipped';
+    }
+    const zohoResult =
+      opts.mode === 'all'
+        ? await sendAnnouncementViaZoho({
+            audience: opts.audience,
+            title: opts.title,
+            siteUrl: SITE_URL,
+          })
+        : await sendAnnouncementViaZohoToSelected({
+            audience: opts.audience,
+            contacts: zohoContacts,
+            title: opts.title,
+            siteUrl: SITE_URL,
+          });
+    if (zohoResult.ok) {
+      console.info(
+        `[admin announcements] Zoho ${opts.audience} ${opts.mode} campaign sent`,
+        zohoResult.campaignKey,
+        {
+          subscribed: zohoResult.subscribed,
+          listDeleted: zohoResult.listDeleted,
+          syncErrors: zohoResult.syncErrors.length ? zohoResult.syncErrors : undefined,
+        }
+      );
+      return 'zoho';
+    }
+    console.warn(
+      `[admin announcements] Zoho ${opts.audience} ${opts.mode} failed; falling back to Resend (no double send)`,
+      zohoResult.error,
+      zohoResult.syncErrors.length ? { syncErrors: zohoResult.syncErrors } : ''
+    );
+    await sendAnnouncementEmails(
+      zohoContacts.map((c) => c.email),
+      opts.dashboardPath
+    );
+    return 'resend';
+  }
+
+  await sendAnnouncementEmails(opts.resendEmails, opts.dashboardPath);
+  return 'resend';
+}
+
+async function loadAllCreatorContacts(respectOptOut: boolean): Promise<ContactRow[]> {
+  const withOpt = await supabaseAdmin
+    .from('influencers')
+    .select('id, contact_email, display_name, announcements_email_opted_out')
+    .eq('approved', true)
+    .not('contact_email', 'is', null);
+  let rows: Array<{
+    id: string | number | null;
+    contact_email: string | null;
+    display_name: string | null;
+    announcements_email_opted_out?: boolean | null;
+  }> = [];
+  if (withOpt.error && respectOptOut && isMissingOptOutColumn(withOpt.error.message)) {
+    const legacy = await supabaseAdmin
+      .from('influencers')
+      .select('id, contact_email, display_name')
+      .eq('approved', true)
+      .not('contact_email', 'is', null);
+    if (legacy.error) {
+      console.warn('[admin announcements] load creators:', legacy.error.message);
+      return [];
+    }
+    rows = legacy.data || [];
+  } else if (withOpt.error) {
+    console.warn('[admin announcements] load creators:', withOpt.error.message);
+    return [];
+  } else {
+    rows = withOpt.data || [];
+  }
+  return rows
+    .map((row) => {
+      const email = String(row.contact_email || '')
+        .trim()
+        .toLowerCase();
+      return {
+        email,
+        displayName: String(row.display_name || '').trim(),
+        optedOut: respectOptOut ? Boolean(row.announcements_email_opted_out) : false,
+        influencerId: row.id,
+      };
+    })
+    .filter((c) => c.email.length > 0);
+}
+
+async function loadSelectedCreatorContacts(
+  authIds: string[],
+  respectOptOut: boolean
+): Promise<ContactRow[]> {
+  if (authIds.length === 0) return [];
+  const withOpt = await supabaseAdmin
+    .from('influencers')
+    .select('id, auth_user_id, contact_email, display_name, announcements_email_opted_out')
+    .in('auth_user_id', authIds);
+  let rows: Array<{
+    id: string | number | null;
+    auth_user_id: string | null;
+    contact_email: string | null;
+    display_name: string | null;
+    announcements_email_opted_out?: boolean | null;
+  }> = [];
+  if (withOpt.error && respectOptOut && isMissingOptOutColumn(withOpt.error.message)) {
+    const legacy = await supabaseAdmin
+      .from('influencers')
+      .select('id, auth_user_id, contact_email, display_name')
+      .in('auth_user_id', authIds);
+    if (legacy.error) {
+      console.warn('[admin announcements] load selected creators:', legacy.error.message);
+      return [];
+    }
+    rows = legacy.data || [];
+  } else if (withOpt.error) {
+    console.warn('[admin announcements] load selected creators:', withOpt.error.message);
+    return [];
+  } else {
+    rows = withOpt.data || [];
+  }
+  const byAuth = new Map<string, ContactRow>();
+  for (const row of rows) {
+    const auth = String(row.auth_user_id || '');
+    const email = String(row.contact_email || '')
+      .trim()
+      .toLowerCase();
+    if (!auth || !email) continue;
+    byAuth.set(auth, {
+      email,
+      displayName: String(row.display_name || '').trim(),
+      optedOut: respectOptOut ? Boolean(row.announcements_email_opted_out) : false,
+      influencerId: row.id,
+    });
+  }
+  const out: ContactRow[] = [];
+  for (const authId of authIds) {
+    const row = byAuth.get(authId);
+    if (!row) {
+      console.warn('[admin announcements] No contact_email for target_influencer_id', authId);
+      continue;
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+async function loadAllBrandContacts(respectOptOut: boolean): Promise<ContactRow[]> {
+  const withOpt = await supabaseAdmin
+    .from('brands')
+    .select('id, contact_email, brand_name, announcements_email_opted_out')
+    .not('contact_email', 'is', null);
+  let rows: Array<{
+    id: string | null;
+    contact_email: string | null;
+    brand_name: string | null;
+    announcements_email_opted_out?: boolean | null;
+  }> = [];
+  if (withOpt.error && respectOptOut && isMissingOptOutColumn(withOpt.error.message)) {
+    const legacy = await supabaseAdmin
+      .from('brands')
+      .select('id, contact_email, brand_name')
+      .not('contact_email', 'is', null);
+    if (legacy.error) {
+      console.warn('[admin announcements] load brands:', legacy.error.message);
+      return [];
+    }
+    rows = legacy.data || [];
+  } else if (withOpt.error) {
+    console.warn('[admin announcements] load brands:', withOpt.error.message);
+    return [];
+  } else {
+    rows = withOpt.data || [];
+  }
+  return rows
+    .map((row) => {
+      const email = String(row.contact_email || '')
+        .trim()
+        .toLowerCase();
+      return {
+        email,
+        displayName: String(row.brand_name || '').trim(),
+        optedOut: respectOptOut ? Boolean(row.announcements_email_opted_out) : false,
+      };
+    })
+    .filter((c) => c.email.length > 0);
+}
+
+async function loadSelectedBrandContacts(
+  brandIds: string[],
+  respectOptOut: boolean
+): Promise<ContactRow[]> {
+  if (brandIds.length === 0) return [];
+  const withOpt = await supabaseAdmin
+    .from('brands')
+    .select('id, contact_email, brand_name, announcements_email_opted_out')
+    .in('id', brandIds);
+  let rows: Array<{
+    id: string | null;
+    contact_email: string | null;
+    brand_name: string | null;
+    announcements_email_opted_out?: boolean | null;
+  }> = [];
+  if (withOpt.error && respectOptOut && isMissingOptOutColumn(withOpt.error.message)) {
+    const legacy = await supabaseAdmin.from('brands').select('id, contact_email, brand_name').in('id', brandIds);
+    if (legacy.error) {
+      console.warn('[admin announcements] load selected brands:', legacy.error.message);
+      return [];
+    }
+    rows = legacy.data || [];
+  } else if (withOpt.error) {
+    console.warn('[admin announcements] load selected brands:', withOpt.error.message);
+    return [];
+  } else {
+    rows = withOpt.data || [];
+  }
+  const byId = new Map<string, ContactRow>();
+  for (const row of rows) {
+    const id = String(row.id || '');
+    const email = String(row.contact_email || '')
+      .trim()
+      .toLowerCase();
+    if (!id || !email) continue;
+    byId.set(id, {
+      email,
+      displayName: String(row.brand_name || '').trim(),
+      optedOut: respectOptOut ? Boolean(row.announcements_email_opted_out) : false,
+    });
+  }
+  const out: ContactRow[] = [];
+  for (const brandId of brandIds) {
+    const row = byId.get(brandId);
+    if (!row) {
+      console.warn('[admin announcements] No contact_email for target_brand_id', brandId);
+      continue;
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+function toZohoContacts(rows: ContactRow[]): ZohoSelectedContact[] {
+  return rows
+    .filter((r) => !r.optedOut)
+    .map((r) => ({ email: r.email, displayName: r.displayName || undefined }));
+}
+
 async function notifyInfluencerRecipients(
   title: string,
   target_type: 'all' | 'specific',
-  target_influencer_id?: string | null
+  target_influencer_ids?: string[]
 ) {
   try {
     const useZoho = await zohoAnnouncementsEnabled();
+    const rows =
+      target_type === 'all'
+        ? await loadAllCreatorContacts(useZoho)
+        : await loadSelectedCreatorContacts(target_influencer_ids || [], useZoho);
 
-    if (target_type === 'all' && useZoho) {
-      const zohoResult = await sendAnnouncementViaZoho({
-        audience: 'creators',
-        title,
-        siteUrl: SITE_URL,
-      });
-      if (!zohoResult.ok) {
-        console.warn('[admin announcements] Zoho creators campaign failed:', zohoResult.error);
-      } else {
-        console.info(
-          '[admin announcements] Zoho creators campaign sent',
-          zohoResult.campaignKey,
-          zohoResult.syncErrors.length ? { syncErrors: zohoResult.syncErrors } : ''
-        );
+    for (const row of rows) {
+      if (useZoho && row.optedOut) {
+        console.info('[admin announcements] skip opted-out influencer email', row.email);
       }
-    } else {
-      let emails: string[] = [];
-      if (target_type === 'all') {
-        const { data: infList } = await supabaseAdmin
-          .from('influencers')
-          .select('contact_email')
-          .eq('approved', true)
-          .not('contact_email', 'is', null);
-        emails = (infList || [])
-          .map((r: { contact_email: string | null }) => r.contact_email)
-          .filter((e): e is string => !!e && e.trim().length > 0);
-      } else if (target_influencer_id) {
-        let infRow: {
-          contact_email: string | null;
-          announcements_email_opted_out?: boolean | null;
-        } | null = null;
-        const byAuth = await supabaseAdmin
-          .from('influencers')
-          .select('contact_email, announcements_email_opted_out')
-          .eq('auth_user_id', target_influencer_id)
-          .maybeSingle();
-        if (byAuth.error && /announcements_email_opted_out|PGRST204|42703/i.test(byAuth.error.message)) {
-          const legacy = await supabaseAdmin
-            .from('influencers')
-            .select('contact_email')
-            .eq('auth_user_id', target_influencer_id)
-            .maybeSingle();
-          infRow = legacy.data;
-        } else if (byAuth.data) {
-          infRow = byAuth.data;
-        } else {
-          const idNum = Number(target_influencer_id);
-          if (!Number.isNaN(idNum)) {
-            const byId = await supabaseAdmin
-              .from('influencers')
-              .select('contact_email, announcements_email_opted_out')
-              .eq('id', idNum)
-              .maybeSingle();
-            if (byId.error && /announcements_email_opted_out|PGRST204|42703/i.test(byId.error.message || '')) {
-              const legacy = await supabaseAdmin
-                .from('influencers')
-                .select('contact_email')
-                .eq('id', idNum)
-                .maybeSingle();
-              infRow = legacy.data;
-            } else if (byId.data) {
-              infRow = byId.data;
-            }
-          }
-        }
-        if (infRow?.contact_email?.trim()) {
-          if (useZoho && infRow.announcements_email_opted_out) {
-            console.info(
-              '[admin announcements] skip opted-out influencer',
-              target_influencer_id
-            );
-          } else {
-            emails = [infRow.contact_email.trim()];
-          }
-        } else {
-          console.warn('[admin announcements] No contact_email for target_influencer_id', target_influencer_id);
-        }
-      }
-      await sendAnnouncementEmails(emails, '/login?redirect=/dashboard');
     }
+
+    await deliverAnnouncementEmails({
+      useZoho,
+      audience: 'creators',
+      mode: target_type === 'all' ? 'all' : 'selected',
+      title,
+      contacts: toZohoContacts(rows),
+      resendEmails: rows.map((r) => r.email),
+      dashboardPath: CREATOR_DASHBOARD_PATH,
+    });
   } catch (emailErr) {
     console.warn('[admin announcements] influencer email notify:', emailErr);
   }
@@ -167,36 +390,20 @@ async function notifyInfluencerRecipients(
           })
         );
       await Promise.allSettled(pushJobs);
-    } else if (target_influencer_id) {
-      let infId: string | number | null = null;
-      const byAuth = await supabaseAdmin
+    } else if (target_influencer_ids && target_influencer_ids.length > 0) {
+      const { data: idRows } = await supabaseAdmin
         .from('influencers')
-        .select('id')
-        .eq('auth_user_id', target_influencer_id)
-        .maybeSingle();
-      if (byAuth.data?.id != null) {
-        infId = byAuth.data.id;
-      } else {
-        const idNum = Number(target_influencer_id);
-        if (!Number.isNaN(idNum)) {
-          const byId = await supabaseAdmin
-            .from('influencers')
-            .select('id')
-            .eq('id', idNum)
-            .maybeSingle();
-          if (byId.data?.id != null) infId = byId.data.id;
-        } else {
-          const byStr = await supabaseAdmin
-            .from('influencers')
-            .select('id')
-            .eq('id', target_influencer_id)
-            .maybeSingle();
-          if (byStr.data?.id != null) infId = byStr.data.id;
-        }
-      }
-      if (infId != null) {
-        await sendPushInfluencerAnnouncement(String(infId), title);
-      }
+        .select('id, auth_user_id')
+        .in('auth_user_id', target_influencer_ids);
+      const pushJobs = (idRows || [])
+        .filter((row) => row?.id != null)
+        .map((row) =>
+          sendPushInfluencerAnnouncement(String(row.id), title).catch((err) => {
+            console.warn('[admin announcements] push failed for', row?.id, err);
+            return { sent: 0, failed: 1 };
+          })
+        );
+      await Promise.allSettled(pushJobs);
     }
   } catch (pushErr) {
     console.warn('[admin announcements] influencer push notify:', pushErr);
@@ -206,81 +413,35 @@ async function notifyInfluencerRecipients(
 async function notifyBrandRecipients(
   title: string,
   target_type: 'all_brands' | 'specific_brand',
-  target_brand_id?: string | null
+  target_brand_ids?: string[]
 ) {
   try {
     const useZoho = await zohoAnnouncementsEnabled();
-    let emails: string[] = [];
+    const rows =
+      target_type === 'all_brands'
+        ? await loadAllBrandContacts(useZoho)
+        : await loadSelectedBrandContacts(target_brand_ids || [], useZoho);
 
-    if (target_type === 'all_brands' && useZoho) {
-      const zohoResult = await sendAnnouncementViaZoho({
-        audience: 'brands',
-        title,
-        siteUrl: SITE_URL,
-      });
-      if (!zohoResult.ok) {
-        console.warn('[admin announcements] Zoho brands campaign failed:', zohoResult.error);
-      } else {
-        console.info(
-          '[admin announcements] Zoho brands campaign sent',
-          zohoResult.campaignKey,
-          zohoResult.syncErrors.length ? { syncErrors: zohoResult.syncErrors } : ''
-        );
+    for (const row of rows) {
+      if (useZoho && row.optedOut) {
+        console.info('[admin announcements] skip opted-out brand email', row.email);
       }
-      // Web push stays local (not Zoho); still notify brands that have a contact email.
-      const { data: brandList } = await supabaseAdmin
-        .from('brands')
-        .select('contact_email')
-        .not('contact_email', 'is', null);
-      emails = (brandList || [])
-        .map((r: { contact_email: string | null }) => r.contact_email)
-        .filter((e): e is string => !!e && e.trim().length > 0);
-    } else if (target_type === 'all_brands') {
-      const { data: brandList } = await supabaseAdmin
-        .from('brands')
-        .select('contact_email')
-        .not('contact_email', 'is', null);
-      emails = (brandList || [])
-        .map((r: { contact_email: string | null }) => r.contact_email)
-        .filter((e): e is string => !!e && e.trim().length > 0);
-      await sendAnnouncementEmails(
-        emails,
-        `/brand/login?redirect=${encodeURIComponent('/brand/dashboard?tab=announcements')}`
-      );
-    } else if (target_brand_id) {
-      const withOpt = await supabaseAdmin
-        .from('brands')
-        .select('contact_email, announcements_email_opted_out')
-        .eq('id', target_brand_id)
-        .maybeSingle();
-      let brandRow: {
-        contact_email: string | null;
-        announcements_email_opted_out?: boolean | null;
-      } | null = withOpt.data;
-      if (withOpt.error && /announcements_email_opted_out|PGRST204|42703/i.test(withOpt.error.message)) {
-        const legacy = await supabaseAdmin
-          .from('brands')
-          .select('contact_email')
-          .eq('id', target_brand_id)
-          .maybeSingle();
-        brandRow = legacy.data;
-      }
-      if (brandRow?.contact_email?.trim()) {
-        if (useZoho && brandRow.announcements_email_opted_out) {
-          console.info('[admin announcements] skip opted-out brand', target_brand_id);
-        } else {
-          emails = [brandRow.contact_email.trim()];
-        }
-      } else {
-        console.warn('[admin announcements] No contact_email for target_brand_id', target_brand_id);
-      }
-      await sendAnnouncementEmails(
-        emails,
-        `/brand/login?redirect=${encodeURIComponent('/brand/dashboard?tab=announcements')}`
-      );
     }
 
-    const pushJobs = emails.map((email) =>
+    // Push uses contact emails regardless of mail provider.
+    const pushEmails = rows.map((r) => r.email);
+
+    await deliverAnnouncementEmails({
+      useZoho,
+      audience: 'brands',
+      mode: target_type === 'all_brands' ? 'all' : 'selected',
+      title,
+      contacts: toZohoContacts(rows),
+      resendEmails: rows.map((r) => r.email),
+      dashboardPath: BRAND_DASHBOARD_PATH,
+    });
+
+    const pushJobs = pushEmails.map((email) =>
       sendPushBrandAnnouncement(email, title).catch((err) => {
         console.warn('[admin announcements] brand push failed for', email, err);
         return { sent: 0, failed: 1 };
@@ -499,11 +660,7 @@ export async function POST(request: NextRequest) {
 
       const rows = data || [];
       const notifyIds = resolved.authIds;
-      after(() =>
-        Promise.allSettled(
-          notifyIds.map((id) => notifyInfluencerRecipients(title, 'specific', id))
-        )
-      );
+      after(() => notifyInfluencerRecipients(title, 'specific', notifyIds));
 
       return NextResponse.json({ data: rows, count: rows.length });
     }
@@ -544,11 +701,7 @@ export async function POST(request: NextRequest) {
 
     const rows = data || [];
     const notifyIds = resolved.brandIds;
-    after(() =>
-      Promise.allSettled(
-        notifyIds.map((id) => notifyBrandRecipients(title, 'specific_brand', id))
-      )
-    );
+    after(() => notifyBrandRecipients(title, 'specific_brand', notifyIds));
 
     return NextResponse.json({ data: rows, count: rows.length });
   } catch (err: unknown) {
