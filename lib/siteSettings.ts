@@ -54,7 +54,11 @@ export type SiteSettingMeta = {
   min: number;
   max: number;
   label: { el: string; en: string };
-  help: { el: string; en: string };
+  /**
+   * Short plain-language description (el/en) shown on every admin settings tile.
+   * Explain what the setting does and where it appears. Required for every setting.
+   */
+  description: { el: string; en: string };
   /** Safe for public CSS / client display. */
   public: boolean;
   /** When set, admin UI shows a select instead of a number input. */
@@ -71,9 +75,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Κάρτες creators ανά σειρά (≥1536px)",
       en: "Creator cards per row (≥1536px)",
     },
-    help: {
-      el: "Πόσες κάρτες creators εμφανίζονται σε μία σειρά σε μεγάλες οθόνες.",
-      en: "How many creator cards appear in one row on large screens.",
+    description: {
+      el: "Πόσες κάρτες influencers δείχνει σε κάθε σειρά σε μεγάλες οθόνες (≥1536px).",
+      en: "How many influencer cards per row on large screens (≥1536px).",
     },
     public: true,
   },
@@ -86,9 +90,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Κάρτες καμπανιών ανά σειρά (≥1536px)",
       en: "Campaign cards per row (≥1536px)",
     },
-    help: {
-      el: "Πόσες κάρτες καμπανιών εμφανίζονται σε μία σειρά σε μεγάλες οθόνες.",
-      en: "How many campaign cards appear in one row on large screens.",
+    description: {
+      el: "Πόσες κάρτες καμπανιών ανά σειρά στις λίστες (αρχική, /campaigns) σε μεγάλες οθόνες.",
+      en: "How many campaign cards per row in lists (home, /campaigns) on large screens.",
     },
     public: true,
   },
@@ -101,9 +105,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Προεπιλεγμένη διάρκεια καμπάνιας (ημέρες)",
       en: "Default campaign duration (days)",
     },
-    help: {
-      el: "Όταν το brand δεν ορίζει προθεσμία, η καμπάνια κλείνει αυτόματα μετά από τόσες ημέρες.",
-      en: "When a brand sets no deadline, the campaign auto-closes after this many days.",
+    description: {
+      el: "Αν το brand δεν ορίσει προθεσμία, η καμπάνια κλείνει αυτόματα μετά από τόσες ημέρες.",
+      en: "If a brand sets no deadline, the campaign auto-closes after this many days.",
     },
     public: true,
   },
@@ -116,9 +120,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Υπενθύμιση κλεισίματος καμπάνιας (ημέρες πριν)",
       en: "Campaign close reminder (days before)",
     },
-    help: {
+    description: {
       el: "Πόσες ημέρες πριν το αυτόματο κλείσιμο παίρνει υπενθύμιση το brand.",
-      en: "How many days before auto-close the brand gets a reminder.",
+      en: "Days before auto-close when the brand gets a reminder.",
     },
     public: true,
   },
@@ -131,8 +135,8 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Διατήρηση διαβασμένων ειδοποιήσεων admin (ημέρες)",
       en: "Keep read admin notices (days)",
     },
-    help: {
-      el: "Διαβασμένες ειδοποιήσεις admin διαγράφονται αυτόματα μετά από τόσες ημέρες.",
+    description: {
+      el: "Διαβασμένες ειδοποιήσεις στο admin διαγράφονται αυτόματα μετά από τόσες ημέρες.",
       en: "Read admin notices are auto-deleted after this many days.",
     },
     public: false,
@@ -146,9 +150,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Creators στην αρχική (Κατάλογος Influencers)",
       en: "Homepage creators (directory section)",
     },
-    help: {
-      el: "Πόσοι creators εμφανίζονται στο τμήμα καταλόγου της αρχικής (ιδανικά 2× σειρές wide).",
-      en: "How many creators appear in the homepage directory preview (ideally 2× wide rows).",
+    description: {
+      el: "Πόσοι creators εμφανίζονται στο τμήμα καταλόγου της αρχικής σελίδας.",
+      en: "How many creators appear in the homepage directory preview section.",
     },
     public: true,
   },
@@ -161,8 +165,8 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Καμπάνιες στην αρχική",
       en: "Homepage campaigns",
     },
-    help: {
-      el: "Πόσες ανοιχτές καμπάνιες εμφανίζονται στην αρχική.",
+    description: {
+      el: "Πόσες ανοιχτές καμπάνιες εμφανίζονται στην αρχική σελίδα.",
       en: "How many open campaigns appear on the homepage.",
     },
     public: true,
@@ -176,9 +180,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Νεοεγκεκριμένοι creators στην αρχική",
       en: "Newly approved creators on homepage",
     },
-    help: {
-      el: "Πόσοι νεοεγκεκριμένοι creators εμφανίζονται στο carousel.",
-      en: "How many newly approved creators appear in the carousel.",
+    description: {
+      el: "Πόσοι νεοεγκεκριμένοι creators εμφανίζονται στο carousel της αρχικής.",
+      en: "How many newly approved creators appear in the homepage carousel.",
     },
     public: true,
   },
@@ -191,9 +195,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Top influencers στην αρχική",
       en: "Top influencers on homepage",
     },
-    help: {
-      el: "Πόσοι creators εμφανίζονται στο Top influencers carousel.",
-      en: "How many creators appear in the Top influencers carousel.",
+    description: {
+      el: "Πόσοι creators εμφανίζονται στο Top influencers carousel της αρχικής.",
+      en: "How many creators appear in the homepage Top influencers carousel.",
     },
     public: true,
   },
@@ -206,9 +210,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Badge «Νέος» (μέγιστες ημέρες λογαριασμού)",
       en: "“New” badge (max account age days)",
     },
-    help: {
-      el: "Το badge New εμφανίζεται όταν ο λογαριασμός είναι νεότερος από τόσες ημέρες.",
-      en: "The New badge shows when the account is younger than this many days.",
+    description: {
+      el: "Το badge «Νέος» στις κάρτες creators όσο ο λογαριασμός είναι νεότερος από τόσες ημέρες.",
+      en: "“New” badge on creator cards while the account is younger than this many days.",
     },
     public: true,
   },
@@ -221,9 +225,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Άρθρα blog ανά σειρά (≥1536px)",
       en: "Blog posts per row (≥1536px)",
     },
-    help: {
-      el: "Πόσα άρθρα εμφανίζονται σε μία σειρά στο blog σε μεγάλες οθόνες.",
-      en: "How many blog posts appear in one row on large screens.",
+    description: {
+      el: "Πόσα άρθρα ανά σειρά στη σελίδα /blog σε μεγάλες οθόνες (≥1536px).",
+      en: "How many posts per row on /blog on large screens (≥1536px).",
     },
     public: true,
   },
@@ -236,31 +240,31 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Σχεδίαση φίλτρων καταλόγου",
       en: "Directory filter design",
     },
-    help: {
-      el: "Επιλέξτε εμφάνιση φίλτρων: οριζόντια chips, πλευρική στήλη, ή συμπαγής μπάρα dropdown.",
-      en: "Choose filter layout: horizontal chips, sidebar, or compact dropdown bar.",
+    description: {
+      el: "Εμφάνιση φίλτρων στον κατάλογο influencers: 1 = Chips, 2 = Sidebar, 3 = Dropdown.",
+      en: "Directory filter layout: 1 = Chips, 2 = Sidebar, 3 = Dropdown.",
     },
     public: true,
     options: [
       {
         value: 1,
         label: {
-          el: "Οριζόντια chips / pill bar (προεπιλογή)",
-          en: "Horizontal chips / pill bar (default)",
+          el: "1 = Chips (οριζόντια)",
+          en: "1 = Chips (horizontal)",
         },
       },
       {
         value: 2,
         label: {
-          el: "Πλευρική στήλη (sidebar)",
-          en: "Sidebar",
+          el: "2 = Sidebar",
+          en: "2 = Sidebar",
         },
       },
       {
         value: 3,
         label: {
-          el: "Συμπαγής μπάρα dropdown",
-          en: "Compact dropdown bar",
+          el: "3 = Dropdown",
+          en: "3 = Dropdown",
         },
       },
     ],
@@ -274,24 +278,24 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Στυλ κάρτας καμπάνιας",
       en: "Campaign card style",
     },
-    help: {
-      el: "Εμφάνιση καρτών στις λίστες καμπανιών (αρχική, /campaigns). Το premium είναι η νέα προεπιλογή· classic επαναφέρει την προηγούμενη όψη.",
-      en: "Campaign list card look (homepage, /campaigns). Premium is the new default; classic restores the previous layout.",
+    description: {
+      el: "Στυλ κάρτας στις λίστες καμπανιών (αρχική, /campaigns): 1 = Premium, 2 = Classic.",
+      en: "Campaign list card style (home, /campaigns): 1 = Premium, 2 = Classic.",
     },
     public: true,
     options: [
       {
         value: 1,
         label: {
-          el: "Premium (νέα προεπιλογή)",
-          en: "Premium (new default)",
+          el: "1 = Premium",
+          en: "1 = Premium",
         },
       },
       {
         value: 2,
         label: {
-          el: "Classic (προηγούμενο)",
-          en: "Classic (previous)",
+          el: "2 = Classic",
+          en: "2 = Classic",
         },
       },
     ],
@@ -305,9 +309,9 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       el: "Μέγιστο ύψος εικόνας λεπτομερειών καμπάνιας (px)",
       en: "Campaign detail image max height (px)",
     },
-    help: {
-      el: "Μέγιστο ύψος του cover στη δημόσια σελίδα καμπάνιας σε μεγάλες οθόνες. Στο κινητό μένει ως έχει.",
-      en: "Max cover height on the public campaign detail page on large screens. Mobile stays unchanged.",
+    description: {
+      el: "Μέγ. ύψος cover στη δημόσια σελίδα καμπάνιας σε μεγάλες οθόνες· στο κινητό μένει ως έχει.",
+      en: "Max cover height on the public campaign detail page on large screens; mobile unchanged.",
     },
     public: true,
   },
