@@ -21,6 +21,7 @@ import LocationTypeahead from '@/components/LocationTypeahead';
 import { sanitizeSkills } from '@/lib/skills';
 import { lookupAuthUser, logoutEverywhere } from '@/lib/authSession';
 import CreatorPhoto from '@/components/CreatorPhoto';
+import { getCreatorCardPhotoUrl } from '@/lib/imageProxy';
 import PlatformFollowers from '@/components/PlatformFollowers';
 import Messaging from '@/components/Messaging';
 import { useOwnPresenceHeartbeat } from '@/lib/useOwnPresenceHeartbeat';
@@ -2718,7 +2719,7 @@ export default function BrandDashboardContent() {
                   >
                     <div className="creator-card-media">
                       <CreatorPhoto
-                        src={inf.avatar_url}
+                        src={getCreatorCardPhotoUrl(inf.avatar_url) ?? inf.avatar_url}
                         name={shownName}
                         className="creator-card-media__img"
                       />

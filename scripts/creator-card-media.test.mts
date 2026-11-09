@@ -18,7 +18,7 @@ test("shared creator-card-media CSS fills any aspect without gaps or stretch", (
   assert.match(css, /overflow:\s*hidden/);
   assert.match(css, /\.creator-card-media__img\s*\{/);
   assert.match(css, /object-fit:\s*cover/);
-  assert.match(css, /object-position:\s*center\s+18%/);
+  assert.match(css, /object-position:\s*center\s+center/);
 });
 
 test("InfluencerCard uses shared media frame + width-only CDN URL", () => {
@@ -35,5 +35,8 @@ test("CDN helper leaves framing to CSS for portrait/landscape/square uploads", (
   const out = getCreatorCardPhotoUrl(sample)!;
   assert.ok(out.includes(`width=${CREATOR_CARD_PHOTO_WIDTH}`));
   assert.ok(!out.includes("height="), "no hard CDN crop — CSS object-fit handles tall/wide/square");
-  assert.ok(!out.includes("resize="));
+  assert.ok(
+    out.includes("resize=contain"),
+    "width-only must use contain; default cover returns a vertical strip (eye/wall zoom)"
+  );
 });

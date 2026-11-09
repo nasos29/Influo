@@ -455,9 +455,9 @@ textarea:focus-visible {
 
 /*
  * Shared creator-card photo frame.
- * Any upload aspect/orientation fills the 4:5 slot via object-fit:cover;
- * object-position biases toward the upper third (faces). Existing Storage
- * files are unchanged — framing is CSS-only and applies to future uploads too.
+ * Pair with getCreatorCardPhotoUrl (width + resize=contain) so the CDN keeps
+ * the full subject; object-fit:cover fills 4:5 with centered crop (same bias
+ * as the pre-#373 CDN cover crop). Existing Storage files are unchanged.
  */
 .creator-card-media {
   position: relative;
@@ -479,7 +479,7 @@ textarea:focus-visible {
   height: 100%;
   max-width: none;
   object-fit: cover;
-  object-position: center 18%;
+  object-position: center center;
 }
 
 /* Influencer carousel card widths: ~2 on mobile, 4 on md–xl, settings-driven at 2xl. */

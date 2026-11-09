@@ -43,7 +43,10 @@ export const CREATOR_CARD_PHOTO_WIDTH = 640;
  * so the transformed result is cached on Vercel instead of re-hit every page.
  *
  * Pass height for hard cover crops (square thumbs). Omit height for creator
- * cards so CSS `object-fit: cover` + `object-position` control framing.
+ * cards so CSS `object-fit: cover` + `object-position` control framing —
+ * but then you MUST set resize=contain. Supabase defaults to cover; with only
+ * width that yields a vertical center strip (e.g. 640×2048 from 1536×2048),
+ * which CSS then zooms into an eye/wall crop inside the 4:5 card.
  */
 export function getStorageCardUrl(
   url: string | null | undefined,
@@ -71,12 +74,15 @@ export function getStorageCardUrl(
   if (height && height > 0) {
     params.set("height", String(Math.max(32, Math.round(height))));
     params.set("resize", "cover");
+  } else {
+    // Width-only: keep full subject/aspect. Never omit resize (CDN default=cover).
+    params.set("resize", "contain");
   }
 
   return `${originAndPath}/storage/v1/render/image/public/${objectPath}?${params.toString()}`;
 }
 
-/** Creator-card photo URL: width-scaled only; CSS crops to 4:5 with face bias. */
+/** Creator-card photo URL: width-scaled contain; CSS crops to 4:5 with face bias. */
 export function getCreatorCardPhotoUrl(
   url: string | null | undefined
 ): string | null | undefined {
