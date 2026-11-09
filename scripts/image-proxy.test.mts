@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { getCachedImageUrl, getStorageCardUrl } from "../lib/imageProxy.ts";
+import {
+  CREATOR_CARD_PHOTO_WIDTH,
+  getCachedImageUrl,
+  getCreatorCardPhotoUrl,
+  getStorageCardUrl,
+} from "../lib/imageProxy.ts";
 
 const SAMPLE =
   "https://abcd.supabase.co/storage/v1/object/public/avatars/user.webp";
@@ -42,5 +47,22 @@ describe("getStorageCardUrl", () => {
     assert.ok(out?.includes("/storage/v1/render/image/public/avatars/user.webp"));
     assert.ok(out?.includes("width=200"));
     assert.ok(out?.includes("height=200"));
+    assert.ok(out?.includes("resize=cover"));
+  });
+
+  it("omits height/cover when only width is set (CSS crops creator cards)", () => {
+    const out = getStorageCardUrl(SAMPLE, 640);
+    assert.ok(out?.includes("width=640"));
+    assert.ok(!out?.includes("height="));
+    assert.ok(!out?.includes("resize="));
+  });
+});
+
+describe("getCreatorCardPhotoUrl", () => {
+  it("uses width-only CDN scale for any upload aspect", () => {
+    const out = getCreatorCardPhotoUrl(SAMPLE);
+    assert.ok(out?.includes(`width=${CREATOR_CARD_PHOTO_WIDTH}`));
+    assert.ok(!out?.includes("height="));
+    assert.ok(!out?.includes("resize="));
   });
 });

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <title>Creator card photo fit — portrait / landscape / square</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; background: #f8fafc; color: #0f172a; }
+    h1 { font-size: 1.1rem; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 180px)); gap: 1.5rem; }
+    .creator-card-media {
+      position: relative;
+      aspect-ratio: 4 / 5;
+      width: 100%;
+      overflow: hidden;
+      border-radius: 1rem;
+      background-color: #f1f5f9;
+      isolation: isolate;
+      transform: translateZ(0);
+    }
+    .creator-card-media__img {
+      position: absolute;
+      inset: 0;
+      box-sizing: border-box;
+      display: block;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      object-fit: cover;
+      object-position: center 18%;
+    }
+    .label { margin-top: 0.5rem; font-size: 0.85rem; color: #475569; }
+  </style>
+</head>
+<body>
+  <h1>Shared .creator-card-media — any upload aspect fills 4:5</h1>
+  <p>Portrait (3:4), landscape (16:9), small square (1:1). No gaps, stretch, or overflow past rounded corners.</p>
+  <div class="grid" id="grid"></div>
+  <script>
+    function make(w, h, label, faceY) {
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      const g = ctx.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, "#94a3b8"); g.addColorStop(1, "#334155");
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      // "face" circle near top
+      ctx.fillStyle = "#fde68a";
+      ctx.beginPath();
+      ctx.arc(w * 0.5, h * faceY, Math.min(w, h) * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#0f172a";
+      ctx.font = `${Math.max(14, Math.round(w / 12))}px sans-serif`;
+      ctx.fillText(`${w}×${h}`, 12, 28);
+
+      const wrap = document.createElement("div");
+      const media = document.createElement("div");
+      media.className = "creator-card-media";
+      const img = document.createElement("img");
+      img.className = "creator-card-media__img";
+      img.alt = label;
+      img.src = c.toDataURL("image/png");
+      media.appendChild(img);
+      const lab = document.createElement("div");
+      lab.className = "label";
+      lab.textContent = label;
+      wrap.appendChild(media);
+      wrap.appendChild(lab);
+      document.getElementById("grid").appendChild(wrap);
+    }
+    make(600, 900, "Tall portrait", 0.22);
+    make(1280, 720, "Wide landscape", 0.28);
+    make(200, 200, "Small square", 0.35);
+  </script>
+</body>
+</html>

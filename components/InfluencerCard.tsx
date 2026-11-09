@@ -5,7 +5,7 @@ import { Badge, getBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
-import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
+import { getCachedImageUrl, getCreatorCardPhotoUrl } from "@/lib/imageProxy";
 import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import { displayLocation } from "@/lib/displayLocation";
 import type { TrustChip } from "@/lib/trustSignals";
@@ -140,7 +140,8 @@ export default function InfluencerCard({
 }: InfluencerCardProps) {
   const available = isAvailableStatus(availabilityStatus);
   const displayName = displayNameForLang(name, lang || "el");
-  const cardUrl = avatar ? getStorageCardUrl(avatar, 480, 600) : null;
+  // Width-only CDN scale; CSS .creator-card-media crops any aspect to 4:5.
+  const cardUrl = avatar ? getCreatorCardPhotoUrl(avatar) : null;
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
   const priceLabel = formatFromPriceLabel(from_price, lang === "en" ? "en" : "el");
   const ranked = rankedPlatforms(followers, socials);
@@ -236,13 +237,15 @@ export default function InfluencerCard({
 
   return (
     <div className="group h-full flex flex-col cursor-pointer">
-      <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-slate-100">
+      <div className="creator-card-media">
         {photoSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element -- Storage CDN + proxy URLs
           <img
             src={photoSrc}
             alt={displayName}
             loading="lazy"
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+            decoding="async"
+            className="creator-card-media__img transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-slate-100">

@@ -1031,7 +1031,7 @@ export default function Directory({
         <div className={cardGridClass}>
           {[...Array(8)].map((_, i) => (
             <div key={i} className="animate-pulse">
-              <div className="aspect-[4/5] rounded-2xl bg-slate-200" />
+              <div className="creator-card-media bg-slate-200" />
               <div className="mt-3 space-y-2">
                 <div className="h-4 w-3/4 rounded bg-slate-200" />
                 <div className="h-3 w-1/2 rounded bg-slate-200" />

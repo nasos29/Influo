@@ -433,6 +433,35 @@ textarea:focus-visible {
   }
 }
 
+/*
+ * Shared creator-card photo frame.
+ * Any upload aspect/orientation fills the 4:5 slot via object-fit:cover;
+ * object-position biases toward the upper third (faces). Existing Storage
+ * files are unchanged — framing is CSS-only and applies to future uploads too.
+ */
+.creator-card-media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 1rem; /* Tailwind rounded-2xl */
+  background-color: #f1f5f9; /* slate-100 */
+  isolation: isolate;
+  /* Force a containing layer so hover scale stays clipped to rounded corners */
+  transform: translateZ(0);
+}
+.creator-card-media__img {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center 18%;
+}
+
 /* Influencer carousel card widths: ~2 on mobile, 4 on md–xl, settings-driven at 2xl. */
 .influencer-carousel-card {
   width: 45%;

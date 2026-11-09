@@ -34,10 +34,16 @@ export function getCachedImageUrl(url: string | null | undefined): string | null
   return trimmed;
 }
 
+/** CDN width for public creator cards (~2× a 5-col card on 1920px). */
+export const CREATOR_CARD_PHOTO_WIDTH = 640;
+
 /**
  * Resize public Supabase Storage images at the CDN (Image Transformation).
  * Cuts bytes per view when originals are large; pair with getCachedImageUrl
  * so the transformed result is cached on Vercel instead of re-hit every page.
+ *
+ * Pass height for hard cover crops (square thumbs). Omit height for creator
+ * cards so CSS `object-fit: cover` + `object-position` control framing.
  */
 export function getStorageCardUrl(
   url: string | null | undefined,
@@ -60,12 +66,19 @@ export function getStorageCardUrl(
 
   const params = new URLSearchParams({
     width: String(Math.max(32, Math.round(width))),
-    resize: "cover",
     quality: "50",
   });
   if (height && height > 0) {
     params.set("height", String(Math.max(32, Math.round(height))));
+    params.set("resize", "cover");
   }
 
   return `${originAndPath}/storage/v1/render/image/public/${objectPath}?${params.toString()}`;
+}
+
+/** Creator-card photo URL: width-scaled only; CSS crops to 4:5 with face bias. */
+export function getCreatorCardPhotoUrl(
+  url: string | null | undefined
+): string | null | undefined {
+  return getStorageCardUrl(url, CREATOR_CARD_PHOTO_WIDTH);
 }
