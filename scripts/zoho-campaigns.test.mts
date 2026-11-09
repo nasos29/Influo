@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   extractEmailsFromZohoListContacts,
   extractZohoCampaignKey,
+  extractZohoEmailList,
   extractZohoListKey,
   zohoResponseOk,
 } from "../lib/zohoCampaignsClient.ts";
@@ -77,6 +78,19 @@ test("extract list key from addlistandcontacts response shapes", () => {
     "nested-key"
   );
   assert.equal(extractZohoListKey({ code: "0" }), "");
+});
+
+test("extract ignored contacts from addlistandcontacts payload", () => {
+  assert.deepEqual(
+    extractZohoEmailList(
+      {
+        ignored_contacts: ["Support@Influo.gr", "a@example.com"],
+        code: "0",
+      },
+      "ignored_contacts"
+    ),
+    ["support@influo.gr", "a@example.com"]
+  );
 });
 
 test("admin settings description covers selected recipients + Resend fallback", () => {

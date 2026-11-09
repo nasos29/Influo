@@ -204,10 +204,17 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
       env
     );
     listKey = created.listKey;
-    subscribed = created.seededEmails.length;
+    subscribed = created.acceptedEmails.length;
+    if (created.ignoredEmails.length > 0) {
+      syncErrors.push(
+        `ignored_contacts: ${created.ignoredEmails.slice(0, 5).join(",")}${
+          created.ignoredEmails.length > 5 ? "…" : ""
+        }`
+      );
+    }
 
-    const seeded = new Set(created.seededEmails);
-    const remaining = contacts.filter((c) => !seeded.has(c.email));
+    const handled = new Set(created.requestedEmails);
+    const remaining = contacts.filter((c) => !handled.has(c.email));
     if (remaining.length > 0) {
       const subResults = await mapPool(remaining, 4, async (c) => {
         try {
@@ -221,6 +228,10 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
             env
           );
           const msg = JSON.stringify(raw).toLowerCase();
+          // Zoho 2005 = group/role address (e.g. support@) — treat as hard skip.
+          if (msg.includes('"code":"2005"') || msg.includes("group email")) {
+            return { ok: false as const, error: `ignored group/role email: ${c.email}` };
+          }
           if (zohoResponseOk(raw) || msg.includes("already") || msg.includes("subscribed")) {
             return { ok: true as const };
           }
@@ -239,7 +250,9 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
     }
 
     if (subscribed === 0) {
-      throw new Error("no contacts subscribed to temporary Zoho list");
+      throw new Error(
+        `no contacts on temporary Zoho list (requested=${contacts.length}, ignored=${created.ignoredEmails.length})`
+      );
     }
 
     const { campaignKey } = await sendCampaignToListKey(

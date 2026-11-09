@@ -184,9 +184,31 @@ function paramsWith(listKey: string, contactinfo: string): Record<string, string
   return { listkey: listKey, contactinfo };
 }
 
+/** Normalize email arrays Zoho returns (ignored_contacts, existing_contacts, …). */
+export function extractZohoEmailList(payload: unknown, ...keys: string[]): string[] {
+  const root = asRecord(payload);
+  const nested = asRecord(root.response);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const key of keys) {
+    const raw = root[key] ?? nested[key];
+    const arr = Array.isArray(raw) ? raw : [];
+    for (const item of arr) {
+      const email = String(item || "")
+        .trim()
+        .toLowerCase();
+      if (!email || seen.has(email)) continue;
+      seen.add(email);
+      out.push(email);
+    }
+  }
+  return out;
+}
+
 /**
  * Create a private mailing list and seed it with up to 10 emails (Zoho API limit).
  * Remaining contacts should be added via zohoListSubscribe.
+ * Zoho may put role/group addresses in ignored_contacts without adding them.
  */
 export async function zohoCreateListWithContacts(
   opts: {
@@ -195,7 +217,13 @@ export async function zohoCreateListWithContacts(
     description?: string;
   },
   env: ZohoCampaignsEnv = getZohoCampaignsEnv()
-): Promise<{ listKey: string; seededEmails: string[]; raw: unknown }> {
+): Promise<{
+  listKey: string;
+  requestedEmails: string[];
+  ignoredEmails: string[];
+  acceptedEmails: string[];
+  raw: unknown;
+}> {
   const unique: string[] = [];
   const seen = new Set<string>();
   for (const raw of opts.emails) {
@@ -208,14 +236,14 @@ export async function zohoCreateListWithContacts(
     throw new Error("zohoCreateListWithContacts requires at least one email");
   }
 
-  const seededEmails = unique.slice(0, 10);
+  const requestedEmails = unique.slice(0, 10);
   const raw = await zohoFormPost(
     "/addlistandcontacts",
     {
       listname: opts.listName.slice(0, 100),
       signupform: "private",
       mode: "newlist",
-      emailids: seededEmails.join(","),
+      emailids: requestedEmails.join(","),
       ...(opts.description
         ? { listdescription: opts.description.slice(0, 250) }
         : {}),
@@ -228,7 +256,10 @@ export async function zohoCreateListWithContacts(
       `Zoho addlistandcontacts missing listkey: ${JSON.stringify(raw).slice(0, 400)}`
     );
   }
-  return { listKey, seededEmails, raw };
+  const ignoredEmails = extractZohoEmailList(raw, "ignored_contacts", "ignored_contact");
+  const ignoredSet = new Set(ignoredEmails);
+  const acceptedEmails = requestedEmails.filter((e) => !ignoredSet.has(e));
+  return { listKey, requestedEmails, ignoredEmails, acceptedEmails, raw };
 }
 
 /**
