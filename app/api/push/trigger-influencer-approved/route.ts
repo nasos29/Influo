@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
+import { rejectUnlessAdmin } from '@/lib/apiAuth';
 import { sendPushInfluencerAccountApproved } from '@/lib/push';
 
 export async function POST(req: Request) {
   try {
+    const denied = await rejectUnlessAdmin(req);
+    if (denied) return denied;
+
     const body = await req.json();
     const influencerId =
       body.influencerId != null && body.influencerId !== '' ? String(body.influencerId).trim() : '';

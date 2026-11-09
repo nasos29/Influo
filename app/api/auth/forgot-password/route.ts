@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
+import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
 
 const NOREPLY = 'noreply@influo.gr';
 
@@ -41,6 +42,10 @@ async function emailAllowedForReset(supabaseAdmin: SupabaseClient, email: string
 
 export async function POST(req: Request) {
   try {
+    if (!allowRateLimit('forgot-password', clientIpFromRequest(req), 5, 60_000)) {
+      return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
+    }
+
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !serviceKey) {

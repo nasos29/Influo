@@ -2,15 +2,31 @@
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 import { formatDisplayDateTime } from '@/lib/formatDate';
+import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr';
 const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
+function escapeHtml(s: string): string {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export async function POST(req: Request) {
   try {
+    if (!allowRateLimit('contact', clientIpFromRequest(req), 5, 60_000)) {
+      return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
+    }
+
     const body = await req.json();
-    const { name, email, subject, message } = body;
+    const name = String(body.name || '').trim().slice(0, 200);
+    const email = String(body.email || '').trim().slice(0, 320);
+    const subject = String(body.subject || '').trim().slice(0, 200);
+    const message = String(body.message || '').trim().slice(0, 5000);
 
     // Validation
     if (!name || !email || !subject || !message) {
@@ -37,8 +53,13 @@ export async function POST(req: Request) {
       );
     }
 
-    // Prepare email content
-    const emailSubject = `Contact Form: ${subject}`;
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message).replace(/\n/g, '<br>');
+
+    // Always to admin only — never a user-controlled recipient.
+    const emailSubject = `Contact Form: ${safeSubject}`;
     const emailHtml = `
       <!DOCTYPE html>
       <html>
@@ -64,19 +85,19 @@ export async function POST(req: Request) {
             <div class="content">
               <div class="field">
                 <span class="field-label">Όνομα:</span>
-                <div class="field-value">${name}</div>
+                <div class="field-value">${safeName}</div>
               </div>
               <div class="field">
                 <span class="field-label">Email:</span>
-                <div class="field-value">${email}</div>
+                <div class="field-value">${safeEmail}</div>
               </div>
               <div class="field">
                 <span class="field-label">Θέμα:</span>
-                <div class="field-value">${subject}</div>
+                <div class="field-value">${safeSubject}</div>
               </div>
               <div class="field">
                 <span class="field-label">Μήνυμα:</span>
-                <div class="message-box">${message.replace(/\n/g, '<br>')}</div>
+                <div class="message-box">${safeMessage}</div>
               </div>
               <div class="footer">
                 <p>Αυτό το email στάλθηκε από τη φόρμα επικοινωνίας στο Influo.gr</p>
@@ -102,22 +123,22 @@ export async function POST(req: Request) {
 
       console.log('Contact form email sent successfully:', { to: ADMIN_RECEIVING_EMAIL, data });
       return NextResponse.json({ success: true, message: 'Email sent successfully' });
-    } catch (sendError: any) {
+    } catch (sendError: unknown) {
       console.error('Resend send error:', sendError);
       return NextResponse.json(
         { 
           success: false, 
-          error: sendError?.message || 'Failed to send email'
+          error: sendError instanceof Error ? sendError.message : 'Failed to send email'
         }, 
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Contact form API error:", error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error?.message || 'Unknown error occurred'
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }, 
       { status: 500 }
     );

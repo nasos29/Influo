@@ -2,16 +2,50 @@ import { Resend } from 'resend';
 import { applicationToBrand, closedToBrand, closingSoonToBrand, notSelectedToCreator, publishedToAdmin } from "@/lib/campaignMail";
 import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
-import { supabaseService } from '@/lib/apiAuth';
+import { rejectUnlessAdmin, supabaseService, userFromBearer } from '@/lib/apiAuth';
 import { formatEuroAmount } from '@/lib/formatEuro';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/formatDate';
+import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // --- ΤΑ VERIFIED EMAILS ---
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr'; 
 const SUPPORT_SENDER_EMAIL = 'support@influo.gr'; // For custom/admin emails
-const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com'; 
+const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
+
+/** Browser-callable: fixed templates only; recipients constrained per type. */
+const PUBLIC_EMAIL_TYPES = new Set([
+  'signup_influencer',
+  'signup_admin',
+  'signup_brand_admin',
+  'profile_edit_admin',
+]);
+
+/** Server/cron only — Authorization: Bearer CRON_SECRET. */
+const INTERNAL_EMAIL_TYPES = new Set([
+  'message_admin_notification',
+  'message_offline',
+  'message_influencer_to_brand',
+  'message_brand_to_influencer',
+  'conversation_end',
+  'proposal_influencer_notification',
+  'proposal_brand_confirmation',
+  'proposal_admin_notification',
+  'proposal_accepted_brand',
+  'counter_proposal_notification',
+  'collaboration_complete',
+  'campaign_application_brand',
+  'campaign_closed_brand',
+  'campaign_closed_applicant',
+  'campaign_closing_soon_brand',
+  'campaign_published_admin',
+  'conversation_digest',
+  'approved',
+  'password_reset',
+]);
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
 
 function escapeHtml(s: string): string {
   return String(s)
@@ -45,33 +79,69 @@ export async function POST(req: Request) {
     });
 
     // Validation - email is optional for admin notifications
-    if (!type) {
+    if (!type || typeof type !== 'string') {
       console.error('[Email API] Missing type field');
       return NextResponse.json(
         { success: false, error: 'Missing required field: type' },
         { status: 400 }
       );
     }
-    
-    const threadEmailTypes = new Set([
-      'message_admin_notification',
-      'message_offline',
-      'message_influencer_to_brand',
-      'message_brand_to_influencer',
-      'conversation_end',
-      // Proposal mail is sent by the proposal routes, to the address on the private tables.
-      'proposal_influencer_notification',
-      'proposal_brand_confirmation',
-      'proposal_admin_notification',
-      'proposal_accepted_brand',
-      'counter_proposal_notification',
-      'collaboration_complete',
-    ]);
-    if (threadEmailTypes.has(type)) {
+
+    // Auth gates — custom_email was an open relay (any to/subject/html, no auth).
+    if (type === 'custom_email') {
+      const denied = await rejectUnlessAdmin(req);
+      if (denied) return denied;
+    } else if (INTERNAL_EMAIL_TYPES.has(type)) {
       const secret = process.env.CRON_SECRET;
       if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
+    } else if (PUBLIC_EMAIL_TYPES.has(type)) {
+      const ip = clientIpFromRequest(req);
+      if (!allowRateLimit('emails-public', ip, 10, 60_000)) {
+        return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
+      }
+      if (type === 'profile_edit_admin') {
+        const user = await userFromBearer(req);
+        if (!user) {
+          return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+        }
+      }
+      if (type === 'signup_influencer' || type === 'signup_admin') {
+        const checkEmail = String(email || '').trim();
+        if (!checkEmail || !EMAIL_RE.test(checkEmail)) {
+          return NextResponse.json({ success: false, error: 'Invalid email' }, { status: 400 });
+        }
+        const { data: pending } = await supabaseService()
+          .from('influencers')
+          .select('id')
+          .ilike('contact_email', checkEmail)
+          .eq('approved', false)
+          .limit(1);
+        if (!pending?.[0]?.id) {
+          return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        }
+      }
+      if (type === 'signup_brand_admin') {
+        const checkEmail = String(email || '').trim();
+        if (!checkEmail || !EMAIL_RE.test(checkEmail)) {
+          return NextResponse.json({ success: false, error: 'Invalid email' }, { status: 400 });
+        }
+        const adminDb = supabaseService();
+        const { data: brand } = await adminDb
+          .from('brands')
+          .select('id')
+          .ilike('contact_email', checkEmail)
+          .limit(1);
+        if (!brand?.[0]?.id) {
+          return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+        }
+      }
+    } else {
+      return NextResponse.json(
+        { success: false, error: `Invalid email type: ${type}` },
+        { status: 400 }
+      );
     }
 
     // Some email types don't require email field (admin notifications)
@@ -777,28 +847,30 @@ export async function POST(req: Request) {
         html = built.html;
     }
     else if (type === 'custom_email') {
-        // Custom email sent by admin - uses support@influo.gr
-        toEmail = bodyToEmail || email;
-        if (!toEmail) {
+        // Admin-only (gated above). Recipient + content length capped.
+        toEmail = String(bodyToEmail || email || '').trim();
+        if (!toEmail || !EMAIL_RE.test(toEmail)) {
           return NextResponse.json(
-            { success: false, error: 'Missing required field: toEmail or email' },
+            { success: false, error: 'Missing or invalid toEmail' },
             { status: 400 }
           );
         }
-        if (!customSubject) {
+        const subj = String(customSubject || '').trim().slice(0, 200);
+        const bodyHtml = String(customHtml || '').trim().slice(0, 50_000);
+        if (!subj) {
           return NextResponse.json(
             { success: false, error: 'Missing required field: customSubject' },
             { status: 400 }
           );
         }
-        if (!customHtml) {
+        if (!bodyHtml) {
           return NextResponse.json(
             { success: false, error: 'Missing required field: customHtml' },
             { status: 400 }
           );
         }
-        subject = customSubject;
-        html = customHtml;
+        subject = subj;
+        html = bodyHtml;
     }
 
     // Validation: Check if subject and html are set
