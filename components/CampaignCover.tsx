@@ -83,6 +83,7 @@ export default function CampaignCover({
   className = "",
   sizes = "(max-width: 768px) 100vw, 400px",
   priority = false,
+  showBrandMark = true,
 }: {
   coverUrl?: string | null;
   /** Stable seed (campaign id) for the category fallback cover. */
@@ -96,6 +97,8 @@ export default function CampaignCover({
   className?: string;
   sizes?: string;
   priority?: boolean;
+  /** When false, skip the bottom-left logo/initials mark (e.g. premium cards show avatar in the body). */
+  showBrandMark?: boolean;
 }) {
   const [coverFailed, setCoverFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
@@ -174,11 +177,15 @@ export default function CampaignCover({
             onError={() => (useFallback ? setFallbackFailed(true) : setCoverFailed(true))}
           />
           <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
-          <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div>
+          {showBrandMark ? (
+            <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div>
+          ) : null}
         </>
       ) : (
         // No image: neutral background; only the small brand logo bottom-left when the brand has one.
-        logoSrc ? <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div> : null
+        showBrandMark && logoSrc ? (
+          <div className="absolute left-3 bottom-3 z-10">{logoMark("w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem]", "text-lg", true)}</div>
+        ) : null
       )}
       {platformList.length > 0 && (
         <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/50 px-3 py-2 ring-1 ring-white/30 backdrop-blur-md sm:min-h-0 sm:px-2.5 sm:py-1.5">

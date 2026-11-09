@@ -526,6 +526,7 @@ export default function CampaignCard({
           category={campaign.category}
           platforms={platforms}
           aspect="16/9"
+          showBrandMark={false}
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/25 to-transparent" />
         {statusBadge && (
