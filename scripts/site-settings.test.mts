@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   SITE_SETTING_DEFAULTS,
+  SITE_SETTING_KEYS,
+  SITE_SETTING_META,
   campaignCardStyleFromSetting,
   coerceSiteSetting,
   filterUiVariantFromSetting,
@@ -85,4 +87,18 @@ test("campaign card style mapping", () => {
   assert.equal(campaignCardStyleFromSetting(1), "premium");
   assert.equal(campaignCardStyleFromSetting(2), "classic");
   assert.equal(campaignCardStyleFromSetting(0), "premium");
+});
+
+test("every setting has el/en description and labeled options", () => {
+  for (const key of SITE_SETTING_KEYS) {
+    const meta = SITE_SETTING_META[key];
+    assert.ok(meta.description.el.trim().length > 0, `${key} missing el description`);
+    assert.ok(meta.description.en.trim().length > 0, `${key} missing en description`);
+    if (meta.options) {
+      for (const opt of meta.options) {
+        assert.match(String(opt.label.el), new RegExp(`^${opt.value}\\s*=`));
+        assert.match(String(opt.label.en), new RegExp(`^${opt.value}\\s*=`));
+      }
+    }
+  }
 });

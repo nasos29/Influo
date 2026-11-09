@@ -77,25 +77,18 @@ const SHORT_LABEL: Record<SiteSettingKey, { el: string; en: string }> = {
   admin_notice_read_retention_days: { el: "Διαβασμένα notices", en: "Read notices keep" },
 };
 
-/** Optional one-line tile descriptions (small text under the title). */
-const SHORT_DESC: Partial<Record<SiteSettingKey, { el: string; en: string }>> = {
-  campaign_detail_image_max_height_px: {
-    el: "Μέγ. ύψος cover στη σελίδα καμπάνιας (desktop).",
-    en: "Max cover height on campaign detail (desktop).",
-  },
-};
-
+/** Compact select labels — full labels live on SITE_SETTING_META.options. */
 const SHORT_OPTION: Partial<
   Record<SiteSettingKey, Array<{ value: number; el: string; en: string }>>
 > = {
   filter_ui_variant: [
-    { value: 1, el: "Chips", en: "Chips" },
-    { value: 2, el: "Sidebar", en: "Sidebar" },
-    { value: 3, el: "Dropdown", en: "Dropdown" },
+    { value: 1, el: "1 = Chips", en: "1 = Chips" },
+    { value: 2, el: "2 = Sidebar", en: "2 = Sidebar" },
+    { value: 3, el: "3 = Dropdown", en: "3 = Dropdown" },
   ],
   campaign_card_style: [
-    { value: 1, el: "Premium", en: "Premium" },
-    { value: 2, el: "Classic", en: "Classic" },
+    { value: 1, el: "1 = Premium", en: "1 = Premium" },
+    { value: 2, el: "2 = Classic", en: "2 = Classic" },
   ],
 };
 
@@ -329,16 +322,15 @@ export default function AdminSettingsPage() {
                       <li
                         key={key}
                         className={[
-                          "relative flex min-h-[7.5rem] flex-col rounded-lg border bg-white p-2.5 shadow-sm transition-colors",
+                          "relative flex min-h-[8.25rem] flex-col rounded-lg border bg-white p-2.5 shadow-sm transition-colors",
                           dirty
                             ? "border-amber-300 ring-1 ring-amber-200/70"
                             : justSaved
                               ? "border-emerald-300 ring-1 ring-emerald-200/70"
                               : "border-slate-200",
                         ].join(" ")}
-                        title={item.help[lang]}
                       >
-                        <div className="mb-1.5 flex items-start justify-between gap-1">
+                        <div className="mb-1 flex items-start justify-between gap-1">
                           <label
                             className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-900"
                             htmlFor={`setting-${key}`}
@@ -368,11 +360,12 @@ export default function AdminSettingsPage() {
                             ) : null}
                           </span>
                         </div>
-                        {SHORT_DESC[key] ? (
-                          <p className="mb-1.5 line-clamp-2 text-[10px] leading-tight text-slate-500">
-                            {SHORT_DESC[key]![lang]}
-                          </p>
-                        ) : null}
+                        <p
+                          className="mb-1.5 line-clamp-2 text-[10px] leading-tight text-slate-500"
+                          title={item.description[lang]}
+                        >
+                          {item.description[lang]}
+                        </p>
 
                         <div className="mt-auto space-y-1.5">
                           {item.options ? (
