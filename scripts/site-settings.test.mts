@@ -24,6 +24,7 @@ test("defaults match current product behavior", () => {
   assert.equal(SITE_SETTING_DEFAULTS.blog_posts_per_row_wide, 4);
   assert.equal(SITE_SETTING_DEFAULTS.filter_ui_variant, 1);
   assert.equal(SITE_SETTING_DEFAULTS.campaign_card_style, 1);
+  assert.equal(SITE_SETTING_DEFAULTS.campaign_detail_image_max_height_px, 420);
 });
 
 test("coerce clamps invalid values to defaults", () => {
@@ -38,6 +39,9 @@ test("coerce clamps invalid values to defaults", () => {
   assert.equal(coerceSiteSetting("filter_ui_variant", 9), 1);
   assert.equal(coerceSiteSetting("campaign_card_style", 2), 2);
   assert.equal(coerceSiteSetting("campaign_card_style", 9), 1);
+  assert.equal(coerceSiteSetting("campaign_detail_image_max_height_px", 500), 500);
+  assert.equal(coerceSiteSetting("campaign_detail_image_max_height_px", 239), 420);
+  assert.equal(coerceSiteSetting("campaign_detail_image_max_height_px", 801), 420);
 });
 
 test("merge overlays stored rows onto defaults", () => {
@@ -58,6 +62,7 @@ test("public settings omit admin-only retention key", () => {
   assert.equal(pub.filter_ui_variant, 1);
   assert.equal(pub.blog_posts_per_row_wide, 4);
   assert.equal(pub.campaign_card_style, 1);
+  assert.equal(pub.campaign_detail_image_max_height_px, 420);
   assert.equal(pub.admin_notice_read_retention_days, undefined);
 });
 
@@ -66,6 +71,7 @@ test("css vars encode wide grid counts", () => {
   assert.match(css, /--creator-cols-wide:5/);
   assert.match(css, /--campaign-cols-wide:4/);
   assert.match(css, /--blog-cols-wide:4/);
+  assert.match(css, /--campaign-detail-cover-max-h:420px/);
 });
 
 test("filter ui variant mapping", () => {

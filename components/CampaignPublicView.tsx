@@ -27,6 +27,7 @@ import { displayLocation } from "@/lib/displayLocation";
 import { localizeCampaignCopy } from "@/lib/campaignLocalized";
 import CampaignCover, { PlatformIcon } from "@/components/CampaignCover";
 import FastImage from "@/components/FastImage";
+import { useSiteSettings } from "@/components/SiteSettingsProvider";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -118,6 +119,7 @@ export default function CampaignPublicView({
   initialCampaign?: Campaign | null;
 }) {
   const pathname = usePathname();
+  const siteSettings = useSiteSettings();
   const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : getStoredLanguage() === "en" ? "en" : "el");
   const el = lang === "el";
   const [campaign, setCampaign] = useState<Campaign | null>(initialCampaign);
@@ -459,6 +461,7 @@ export default function CampaignPublicView({
                 aspect="16/9"
                 sizes="(max-width: 1024px) 100vw, 1024px"
                 priority
+                desktopMaxHeightPx={siteSettings.campaign_detail_image_max_height_px}
               />
             </div>
 

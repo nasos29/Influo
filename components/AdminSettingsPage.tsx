@@ -45,7 +45,11 @@ const SETTING_GROUPS: Array<{
   },
   {
     id: "campaigns",
-    keys: ["campaign_default_days", "campaign_reminder_days_before"],
+    keys: [
+      "campaign_default_days",
+      "campaign_reminder_days_before",
+      "campaign_detail_image_max_height_px",
+    ],
     label: { el: "Καμπάνιες", en: "Campaigns" },
   },
   {
@@ -69,7 +73,16 @@ const SHORT_LABEL: Record<SiteSettingKey, { el: string; en: string }> = {
   new_badge_max_days: { el: "Badge «Νέος»", en: "“New” badge days" },
   campaign_default_days: { el: "Διάρκεια καμπάνιας", en: "Campaign duration" },
   campaign_reminder_days_before: { el: "Υπενθύμιση κλεισίματος", en: "Close reminder" },
+  campaign_detail_image_max_height_px: { el: "Ύψος cover λεπτομερειών", en: "Detail cover height" },
   admin_notice_read_retention_days: { el: "Διαβασμένα notices", en: "Read notices keep" },
+};
+
+/** Optional one-line tile descriptions (small text under the title). */
+const SHORT_DESC: Partial<Record<SiteSettingKey, { el: string; en: string }>> = {
+  campaign_detail_image_max_height_px: {
+    el: "Μέγ. ύψος cover στη σελίδα καμπάνιας (desktop).",
+    en: "Max cover height on campaign detail (desktop).",
+  },
 };
 
 const SHORT_OPTION: Partial<
@@ -355,6 +368,11 @@ export default function AdminSettingsPage() {
                             ) : null}
                           </span>
                         </div>
+                        {SHORT_DESC[key] ? (
+                          <p className="mb-1.5 line-clamp-2 text-[10px] leading-tight text-slate-500">
+                            {SHORT_DESC[key]![lang]}
+                          </p>
+                        ) : null}
 
                         <div className="mt-auto space-y-1.5">
                           {item.options ? (

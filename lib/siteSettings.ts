@@ -17,6 +17,7 @@ export const SITE_SETTING_KEYS = [
   "blog_posts_per_row_wide",
   "filter_ui_variant",
   "campaign_card_style",
+  "campaign_detail_image_max_height_px",
 ] as const;
 
 export type SiteSettingKey = (typeof SITE_SETTING_KEYS)[number];
@@ -295,6 +296,21 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       },
     ],
   },
+  campaign_detail_image_max_height_px: {
+    key: "campaign_detail_image_max_height_px",
+    default: 420,
+    min: 240,
+    max: 800,
+    label: {
+      el: "Μέγιστο ύψος εικόνας λεπτομερειών καμπάνιας (px)",
+      en: "Campaign detail image max height (px)",
+    },
+    help: {
+      el: "Μέγιστο ύψος του cover στη δημόσια σελίδα καμπάνιας σε μεγάλες οθόνες. Στο κινητό μένει ως έχει.",
+      en: "Max cover height on the public campaign detail page on large screens. Mobile stays unchanged.",
+    },
+    public: true,
+  },
 };
 
 export const SITE_SETTING_DEFAULTS: SiteSettings = Object.fromEntries(
@@ -357,5 +373,6 @@ export function siteSettingsCssVars(settings: SiteSettings): string {
     `--creator-cols-wide:${settings.creator_cards_per_row_wide}`,
     `--campaign-cols-wide:${settings.campaign_cards_per_row_wide}`,
     `--blog-cols-wide:${settings.blog_posts_per_row_wide}`,
+    `--campaign-detail-cover-max-h:${settings.campaign_detail_image_max_height_px}px`,
   ].join(";");
 }
