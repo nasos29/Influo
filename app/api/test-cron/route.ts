@@ -5,16 +5,12 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-// Test endpoint to manually trigger the inactive conversations check
-// WARNING: Only use this for testing in development!
+/** Dev/ops probe for inactive conversations. Auth: Bearer CRON_SECRET only. */
 export async function GET(req: Request) {
-  // Only allow in development or with proper authentication
-  const isDevelopment = process.env.NODE_ENV === 'development';
+  const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get('authorization');
-  const testSecret = process.env.TEST_CRON_SECRET || 'test-secret-123';
-
-  if (!isDevelopment && authHeader !== `Bearer ${testSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized. Use this endpoint only for testing.' }, { status: 401 });
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
@@ -26,20 +22,16 @@ export async function GET(req: Request) {
       tenMinutesAgo: tenMinutesAgo.toISOString()
     });
 
-    // Find conversations where both parties have been inactive for 10+ minutes
     const { data: allConversations, error: fetchError } = await supabaseAdmin
       .from('conversations')
       .select('id, influencer_name, influencer_email, brand_name, brand_email, last_activity_influencer, last_activity_brand, closed_at')
-      .is('closed_at', null); // Not already closed
+      .is('closed_at', null);
 
     if (fetchError) {
       console.error('[Test Cron] Error fetching conversations:', fetchError);
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
     }
 
-    console.log(`[Test Cron] Found ${allConversations?.length || 0} open conversations`);
-
-    // Show details of all open conversations
     const conversationDetails = (allConversations || []).map(conv => {
       const influencerInactive = !conv.last_activity_influencer || 
         new Date(conv.last_activity_influencer) < tenMinutesAgo;
@@ -64,7 +56,6 @@ export async function GET(req: Request) {
       };
     });
 
-    // Filter conversations that should be closed
     const inactiveConversations = conversationDetails.filter(conv => conv.shouldClose);
 
     return NextResponse.json({
@@ -82,9 +73,11 @@ export async function GET(req: Request) {
       }))
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Test Cron] Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
   }
 }
-

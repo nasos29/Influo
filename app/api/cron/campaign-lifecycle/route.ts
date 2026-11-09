@@ -37,9 +37,13 @@ function brandOf(row: OpenCampaign): BrandBits | null {
 
 async function sendEmail(payload: Record<string, unknown>): Promise<boolean> {
   try {
+    const cronSecret = process.env.CRON_SECRET;
     const res = await fetch(`${SITE_URL}/api/emails`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {}),
+      },
       body: JSON.stringify(payload),
     });
     if (!res.ok) {

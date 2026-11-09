@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server';
 import { sendPushAdminNewInfluencerPending } from '@/lib/push';
 import { addAdminNotice } from '@/lib/adminNotice';
 import { supabaseService } from '@/lib/apiAuth';
+import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
 
 /** Called after influencer signup so admin gets a push (same trust model as signup_admin email). */
 export async function POST(req: Request) {
   try {
+    if (!allowRateLimit('push-admin-signup', clientIpFromRequest(req), 10, 60_000)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
     const body = await req.json();
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';

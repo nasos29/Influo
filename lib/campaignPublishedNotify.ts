@@ -90,9 +90,13 @@ export async function notifyCampaignPublished(
   });
 
   // Public site URL, never the internal request origin (https → http port fails).
+  const cronSecret = process.env.CRON_SECRET;
   const adminJob = fetch(`${siteUrl()}/api/emails`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {}),
+    },
     body: JSON.stringify({ type: "campaign_published_admin", campaignId, campaignTitle: row.title, brandName, budget: row.budget }),
     signal: AbortSignal.timeout(12000),
   })

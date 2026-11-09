@@ -3561,7 +3561,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 // Approval email is sent by /api/admin/influencers/update.
                 fetch('/api/push/trigger-influencer-approved', {
                   method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
                   body: JSON.stringify({ influencerId: String(id), displayName: userName }),
                 }).catch(() => {});
         }
@@ -4267,7 +4267,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               const approvedUser = users.find((u) => u.id === userId);
               await fetch('/api/push/trigger-influencer-approved', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...(await adminAuthHeaders()) },
                 body: JSON.stringify({
                   influencerId: String(userId),
                   displayName: approvedUser?.display_name || 'Influencer',

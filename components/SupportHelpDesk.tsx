@@ -491,6 +491,7 @@ export default function SupportHelpDesk({ adminEmail }: { adminEmail: string }) 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(await adminAuthHeaders()),
         },
         body: JSON.stringify({
           type: 'custom_email',

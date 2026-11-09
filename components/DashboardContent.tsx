@@ -784,7 +784,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
 
             // Send email notification to admin
             try {
-                await fetch('/api/emails', {
+                await sessionFetch('/api/emails', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
