@@ -41,12 +41,12 @@ export default function DirectoryPageView({
   }, [pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="min-h-screen flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* Content */}
-      <main className="flex-1">
-        <div className="max-w-page mx-auto px-4 sm:px-6 py-8">
+      <main className="flex-1 min-w-0">
+        <div className="max-w-page mx-auto px-4 sm:px-6 py-8 min-w-0">
           <div className="mb-8">
             <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{heading?.h1 || t[lang].title}</h1>
             <p className="text-lg text-slate-600">{heading?.subtitle || t[lang].subtitle}</p>

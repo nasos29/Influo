@@ -181,21 +181,42 @@ export default function AdminSettingsPage() {
                   </label>
                   <p className="mt-1 text-sm text-slate-600">{item.help[lang]}</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {t.range(item.min, item.max, item.default)}
+                    {item.options
+                      ? lang === "el"
+                        ? `Προεπιλογή: ${item.options.find((o) => o.value === item.default)?.label.el || item.default}`
+                        : `Default: ${item.options.find((o) => o.value === item.default)?.label.en || item.default}`
+                      : t.range(item.min, item.max, item.default)}
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <input
-                      id={`setting-${key}`}
-                      type="number"
-                      min={item.min}
-                      max={item.max}
-                      step={1}
-                      value={draft[key] ?? String(settings[key])}
-                      onChange={(e) =>
-                        setDraft((prev) => ({ ...prev, [key]: e.target.value }))
-                      }
-                      className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10"
-                    />
+                    {item.options ? (
+                      <select
+                        id={`setting-${key}`}
+                        value={draft[key] ?? String(settings[key])}
+                        onChange={(e) =>
+                          setDraft((prev) => ({ ...prev, [key]: e.target.value }))
+                        }
+                        className="min-w-[16rem] max-w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10"
+                      >
+                        {item.options.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label[lang]}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id={`setting-${key}`}
+                        type="number"
+                        min={item.min}
+                        max={item.max}
+                        step={1}
+                        value={draft[key] ?? String(settings[key])}
+                        onChange={(e) =>
+                          setDraft((prev) => ({ ...prev, [key]: e.target.value }))
+                        }
+                        className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10"
+                      />
+                    )}
                     <button
                       type="button"
                       disabled={busy || !dirty}

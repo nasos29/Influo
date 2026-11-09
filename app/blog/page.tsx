@@ -213,12 +213,12 @@ export default function BlogPage() {
   const displayPosts = posts.length > 0 ? posts : initialPosts;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
       <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* Hero */}
       <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-        <div className="max-w-4xl mx-auto text-center">
+        <div className="max-w-page mx-auto text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">
             {lang === "el" ? "Blog Influencer Marketing" : "Influencer Marketing Blog"}
           </h1>
@@ -232,18 +232,18 @@ export default function BlogPage() {
 
       {/* Blog Posts */}
       <section className="py-16 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-page mx-auto">
           {displayPosts.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-slate-600">{lang === "el" ? "Δεν υπάρχουν άρθρα ακόμα." : "No articles yet."}</p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 grid-blog-wide">
               {displayPosts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((post) => (
               <Link 
                 key={post.slug} 
                 href={lang === "en" ? `/en/blog/${post.slug}` : `/blog/${post.slug}`}
-                className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-xl transition-all group"
+                className="min-w-0 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden hover:shadow-xl transition-all group"
               >
                 <div className="relative h-48 overflow-hidden">
                   <Image

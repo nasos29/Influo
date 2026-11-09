@@ -538,9 +538,9 @@ export default function Home({
                 {txt.open_campaigns_subtitle}
               </p>
             </div>
-            <ul className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3 grid-campaigns-wide">
+            <ul className="grid-campaigns-responsive auto-rows-fr">
               {openCampaigns.map((campaign) => (
-                <li key={campaign.id} className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
+                <li key={campaign.id} className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
                   <CampaignCard campaign={campaign} lang={lang} viewCta />
                 </li>
               ))}
