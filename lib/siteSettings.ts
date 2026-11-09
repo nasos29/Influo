@@ -19,6 +19,7 @@ export const SITE_SETTING_KEYS = [
   "campaign_card_style",
   "campaign_detail_image_max_height_px",
   "profile_page_max_width_px",
+  "zoho_campaigns_announcements",
 ] as const;
 
 export type SiteSettingKey = (typeof SITE_SETTING_KEYS)[number];
@@ -330,6 +331,37 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       en: "Main container width on the public creator profile on large screens (≥1440px); mobile/laptop unchanged.",
     },
     public: true,
+  },
+  zoho_campaigns_announcements: {
+    key: "zoho_campaigns_announcements",
+    default: 0,
+    min: 0,
+    max: 1,
+    label: {
+      el: "Ανακοινώσεις μέσω Zoho Campaigns",
+      en: "Announcements via Zoho Campaigns",
+    },
+    description: {
+      el: "ON: μαζικές ανακοινώσεις (όλοι creators/brands) μέσω Zoho· OFF: Resend όπως σήμερα. Χρειάζονται env keys στον server.",
+      en: "ON: bulk announcements (all creators/brands) via Zoho; OFF: Resend as today. Needs server env keys.",
+    },
+    public: false,
+    options: [
+      {
+        value: 0,
+        label: {
+          el: "0 = OFF (Resend)",
+          en: "0 = OFF (Resend)",
+        },
+      },
+      {
+        value: 1,
+        label: {
+          el: "1 = ON (Zoho)",
+          en: "1 = ON (Zoho)",
+        },
+      },
+    ],
   },
 };
 

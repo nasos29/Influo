@@ -4,6 +4,13 @@ import { Resend } from 'resend';
 import { sendPushBrandAnnouncement, sendPushInfluencerAnnouncement } from '@/lib/push';
 import { rejectUnlessAdmin } from '@/lib/apiAuth';
 import { parseSpecificTargetIds } from '@/lib/announcementTargets';
+import { getSiteSettings } from '@/lib/siteSettingsServer';
+import { shouldUseZohoForAnnouncements } from '@/lib/zohoCampaignsConfig';
+import { sendAnnouncementViaZoho } from '@/lib/zohoAnnouncementCampaign';
+import {
+  ANNOUNCEMENT_EMAIL_SUBJECT,
+  announcementEmailHtml,
+} from '@/lib/zohoAnnouncementContent';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,15 +25,14 @@ const FROM_EMAIL = 'noreply@influo.gr';
 const ANNOUNCEMENT_TARGET_TYPES = ['all', 'specific', 'all_brands', 'specific_brand'] as const;
 type AnnouncementTargetType = (typeof ANNOUNCEMENT_TARGET_TYPES)[number];
 
-const ANNOUNCEMENT_EMAIL_SUBJECT = 'Υπάρχει μια νέα ανακοίνωση στο Influo';
-
-function announcementEmailHtml(dashboardPath: string) {
-  return `
-<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 560px; margin: 0 auto;">
-  <p style="margin: 0 0 16px 0;">Υπάρχει μια νέα ανακοίνωση στο Influo.</p>
-  <p style="margin: 0 0 20px 0;">Συνδέσου στο dashboard σου για να τη δεις.</p>
-  <p style="margin: 0;"><a href="${SITE_URL}${dashboardPath}" style="color: #2563eb; font-weight: 600;">Άνοιξε το Influo →</a></p>
-</div>`;
+async function zohoAnnouncementsEnabled(): Promise<boolean> {
+  try {
+    const settings = await getSiteSettings();
+    return shouldUseZohoForAnnouncements(settings.zoho_campaigns_announcements);
+  } catch (err) {
+    console.warn('[admin announcements] site_settings read failed; using Resend path', err);
+    return false;
+  }
 }
 
 async function sendAnnouncementEmails(emails: string[], dashboardPath: string) {
@@ -37,7 +43,7 @@ async function sendAnnouncementEmails(emails: string[], dashboardPath: string) {
   const unique = Array.from(
     new Set(emails.map((e) => e.trim().toLowerCase()).filter((e) => e.length > 0))
   );
-  const html = announcementEmailHtml(dashboardPath);
+  const html = announcementEmailHtml(dashboardPath, SITE_URL);
   const chunkSize = 50;
   for (let i = 0; i < unique.length; i += chunkSize) {
     const chunk = unique.slice(i, i + chunkSize);
@@ -60,43 +66,88 @@ async function notifyInfluencerRecipients(
   target_influencer_id?: string | null
 ) {
   try {
-    let emails: string[] = [];
-    if (target_type === 'all') {
-      const { data: infList } = await supabaseAdmin
-        .from('influencers')
-        .select('contact_email')
-        .eq('approved', true)
-        .not('contact_email', 'is', null);
-      emails = (infList || [])
-        .map((r: { contact_email: string | null }) => r.contact_email)
-        .filter((e): e is string => !!e && e.trim().length > 0);
-    } else if (target_influencer_id) {
-      let infRow: { contact_email: string | null } | null = null;
-      const byAuth = await supabaseAdmin
-        .from('influencers')
-        .select('contact_email')
-        .eq('auth_user_id', target_influencer_id)
-        .maybeSingle();
-      if (byAuth.data) {
-        infRow = byAuth.data;
+    const useZoho = await zohoAnnouncementsEnabled();
+
+    if (target_type === 'all' && useZoho) {
+      const zohoResult = await sendAnnouncementViaZoho({
+        audience: 'creators',
+        title,
+        siteUrl: SITE_URL,
+      });
+      if (!zohoResult.ok) {
+        console.warn('[admin announcements] Zoho creators campaign failed:', zohoResult.error);
       } else {
-        const idNum = Number(target_influencer_id);
-        if (!Number.isNaN(idNum)) {
-          const byId = await supabaseAdmin
+        console.info(
+          '[admin announcements] Zoho creators campaign sent',
+          zohoResult.campaignKey,
+          zohoResult.syncErrors.length ? { syncErrors: zohoResult.syncErrors } : ''
+        );
+      }
+    } else {
+      let emails: string[] = [];
+      if (target_type === 'all') {
+        const { data: infList } = await supabaseAdmin
+          .from('influencers')
+          .select('contact_email')
+          .eq('approved', true)
+          .not('contact_email', 'is', null);
+        emails = (infList || [])
+          .map((r: { contact_email: string | null }) => r.contact_email)
+          .filter((e): e is string => !!e && e.trim().length > 0);
+      } else if (target_influencer_id) {
+        let infRow: {
+          contact_email: string | null;
+          announcements_email_opted_out?: boolean | null;
+        } | null = null;
+        const byAuth = await supabaseAdmin
+          .from('influencers')
+          .select('contact_email, announcements_email_opted_out')
+          .eq('auth_user_id', target_influencer_id)
+          .maybeSingle();
+        if (byAuth.error && /announcements_email_opted_out|PGRST204|42703/i.test(byAuth.error.message)) {
+          const legacy = await supabaseAdmin
             .from('influencers')
             .select('contact_email')
-            .eq('id', idNum)
+            .eq('auth_user_id', target_influencer_id)
             .maybeSingle();
-          if (byId.data) infRow = byId.data;
+          infRow = legacy.data;
+        } else if (byAuth.data) {
+          infRow = byAuth.data;
+        } else {
+          const idNum = Number(target_influencer_id);
+          if (!Number.isNaN(idNum)) {
+            const byId = await supabaseAdmin
+              .from('influencers')
+              .select('contact_email, announcements_email_opted_out')
+              .eq('id', idNum)
+              .maybeSingle();
+            if (byId.error && /announcements_email_opted_out|PGRST204|42703/i.test(byId.error.message || '')) {
+              const legacy = await supabaseAdmin
+                .from('influencers')
+                .select('contact_email')
+                .eq('id', idNum)
+                .maybeSingle();
+              infRow = legacy.data;
+            } else if (byId.data) {
+              infRow = byId.data;
+            }
+          }
+        }
+        if (infRow?.contact_email?.trim()) {
+          if (useZoho && infRow.announcements_email_opted_out) {
+            console.info(
+              '[admin announcements] skip opted-out influencer',
+              target_influencer_id
+            );
+          } else {
+            emails = [infRow.contact_email.trim()];
+          }
+        } else {
+          console.warn('[admin announcements] No contact_email for target_influencer_id', target_influencer_id);
         }
       }
-      if (infRow?.contact_email?.trim()) {
-        emails = [infRow.contact_email.trim()];
-      } else {
-        console.warn('[admin announcements] No contact_email for target_influencer_id', target_influencer_id);
-      }
+      await sendAnnouncementEmails(emails, '/login?redirect=/dashboard');
     }
-    await sendAnnouncementEmails(emails, '/login?redirect=/dashboard');
   } catch (emailErr) {
     console.warn('[admin announcements] influencer email notify:', emailErr);
   }
@@ -158,8 +209,25 @@ async function notifyBrandRecipients(
   target_brand_id?: string | null
 ) {
   try {
+    const useZoho = await zohoAnnouncementsEnabled();
     let emails: string[] = [];
-    if (target_type === 'all_brands') {
+
+    if (target_type === 'all_brands' && useZoho) {
+      const zohoResult = await sendAnnouncementViaZoho({
+        audience: 'brands',
+        title,
+        siteUrl: SITE_URL,
+      });
+      if (!zohoResult.ok) {
+        console.warn('[admin announcements] Zoho brands campaign failed:', zohoResult.error);
+      } else {
+        console.info(
+          '[admin announcements] Zoho brands campaign sent',
+          zohoResult.campaignKey,
+          zohoResult.syncErrors.length ? { syncErrors: zohoResult.syncErrors } : ''
+        );
+      }
+      // Web push stays local (not Zoho); still notify brands that have a contact email.
       const { data: brandList } = await supabaseAdmin
         .from('brands')
         .select('contact_email')
@@ -167,22 +235,50 @@ async function notifyBrandRecipients(
       emails = (brandList || [])
         .map((r: { contact_email: string | null }) => r.contact_email)
         .filter((e): e is string => !!e && e.trim().length > 0);
-    } else if (target_brand_id) {
-      const { data: brandRow } = await supabaseAdmin
+    } else if (target_type === 'all_brands') {
+      const { data: brandList } = await supabaseAdmin
         .from('brands')
         .select('contact_email')
+        .not('contact_email', 'is', null);
+      emails = (brandList || [])
+        .map((r: { contact_email: string | null }) => r.contact_email)
+        .filter((e): e is string => !!e && e.trim().length > 0);
+      await sendAnnouncementEmails(
+        emails,
+        `/brand/login?redirect=${encodeURIComponent('/brand/dashboard?tab=announcements')}`
+      );
+    } else if (target_brand_id) {
+      const withOpt = await supabaseAdmin
+        .from('brands')
+        .select('contact_email, announcements_email_opted_out')
         .eq('id', target_brand_id)
         .maybeSingle();
+      let brandRow: {
+        contact_email: string | null;
+        announcements_email_opted_out?: boolean | null;
+      } | null = withOpt.data;
+      if (withOpt.error && /announcements_email_opted_out|PGRST204|42703/i.test(withOpt.error.message)) {
+        const legacy = await supabaseAdmin
+          .from('brands')
+          .select('contact_email')
+          .eq('id', target_brand_id)
+          .maybeSingle();
+        brandRow = legacy.data;
+      }
       if (brandRow?.contact_email?.trim()) {
-        emails = [brandRow.contact_email.trim()];
+        if (useZoho && brandRow.announcements_email_opted_out) {
+          console.info('[admin announcements] skip opted-out brand', target_brand_id);
+        } else {
+          emails = [brandRow.contact_email.trim()];
+        }
       } else {
         console.warn('[admin announcements] No contact_email for target_brand_id', target_brand_id);
       }
+      await sendAnnouncementEmails(
+        emails,
+        `/brand/login?redirect=${encodeURIComponent('/brand/dashboard?tab=announcements')}`
+      );
     }
-    await sendAnnouncementEmails(
-      emails,
-      `/brand/login?redirect=${encodeURIComponent('/brand/dashboard?tab=announcements')}`
-    );
 
     const pushJobs = emails.map((email) =>
       sendPushBrandAnnouncement(email, title).catch((err) => {
