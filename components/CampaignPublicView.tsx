@@ -421,7 +421,7 @@ export default function CampaignPublicView({
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 pb-20">
       <SiteHeader lang={lang === "en" ? "en" : "el"} onLangChange={setLang} />
-      <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
+      <main className="flex-1 max-w-page mx-auto px-4 py-10 w-full">
         <Link href={lang === "en" ? "/en/campaigns" : "/campaigns"} className="text-sm text-blue-600 hover:underline">
           {el ? "← Ανοιχτές καμπάνιες" : "← Open campaigns"}
         </Link>
@@ -633,7 +633,7 @@ export default function CampaignPublicView({
       </main>
       {campaign && !loading && !missing && !loadError && audience.kind !== "brand" && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.08)]">
-          <div className="max-w-5xl mx-auto flex items-center gap-3">
+          <div className="max-w-page mx-auto flex items-center gap-3">
             <div className="min-w-0 flex-1 hidden sm:block">
               <p className="text-sm font-semibold text-slate-900 truncate">{localized?.title || campaign.title}</p>
               {closes && <p className={`text-xs ${closes.urgent ? "text-red-700" : "text-slate-500"}`}>{closes.text}</p>}

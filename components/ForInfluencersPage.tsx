@@ -288,7 +288,7 @@ export default function ForInfluencersPage({ stats }: Props) {
             aria-hidden
           />
         </div>
-        <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 md:py-28">
+        <div className="relative mx-auto max-w-page-md px-4 py-20 sm:px-6 md:py-28">
           <p className="mb-3 text-sm font-semibold tracking-wide text-blue-300">
             {MARKETING_SHARED.brand}
           </p>

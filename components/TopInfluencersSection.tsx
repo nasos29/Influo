@@ -106,7 +106,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
 
   return (
     <section className="relative py-16 md:py-24 px-6 bg-white border-b border-slate-100">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-page mx-auto">
         <InfluencerCardCarousel
           lang={lang}
           loading={loading}

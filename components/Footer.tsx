@@ -112,7 +112,7 @@ export default function Footer({ lang = "el", showAppPromo = true }: FooterProps
       {showAppPromo ? <InfluoAppPromoSection lang={lang} /> : null}
       <footer className="mt-10 overflow-x-clip overflow-y-visible border-t border-slate-700 md:mt-14">
       <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        <div className="max-w-page mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         {/* Main Footer Content */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 md:gap-12 mb-12">
           {/* Brand Column */}

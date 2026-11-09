@@ -356,6 +356,25 @@ textarea:focus-visible {
   }
 }
 
+/*
+ * Public page shells: same as max-w-7xl / max-w-6xl below 2xl,
+ * wider on large desktops so 1920px+ feels fuller without changing laptop layout.
+ */
+.max-w-page {
+  max-width: 80rem; /* 1280px — Tailwind max-w-7xl */
+}
+.max-w-page-md {
+  max-width: 72rem; /* 1152px — Tailwind max-w-6xl */
+}
+@media (min-width: 1536px) {
+  .max-w-page {
+    max-width: 1536px;
+  }
+  .max-w-page-md {
+    max-width: 1440px;
+  }
+}
+
 /* Admin dashboard dark mode: invert the shell (keeps all existing light utilities). */
 .admin-shell--dark {
   color-scheme: dark;
