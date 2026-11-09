@@ -422,7 +422,7 @@ export default function InfluencerCardCarousel({
         <div className={`flex gap-4 overflow-hidden md:gap-6 ${SCROLLBAR_HIDE}`} aria-hidden>
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className={INFLUENCER_CAROUSEL_CARD_CLASS}>
-              <div className="aspect-[4/5] rounded-2xl bg-slate-100 animate-pulse" />
+              <div className="creator-card-media animate-pulse" />
               <div className="mt-3 h-4 w-3/4 rounded bg-slate-100 animate-pulse" />
               <div className="mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
             </div>

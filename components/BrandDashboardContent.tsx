@@ -2684,7 +2684,7 @@ export default function BrandDashboardContent() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
               {Array.from({ length: 4 }, (_, i) => (
                 <div key={i} className="bg-white rounded-xl border border-slate-200 overflow-hidden animate-pulse">
-                  <div className="aspect-[4/5] bg-slate-200" />
+                  <div className="creator-card-media bg-slate-200" />
                   <div className="p-4 space-y-3">
                     <div className="h-3 bg-slate-200 rounded w-2/3" />
                     <div className="h-3 bg-slate-200 rounded w-1/2" />
@@ -2716,11 +2716,11 @@ export default function BrandDashboardContent() {
                     key={inf.id}
                     className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
                   >
-                    <div className="relative aspect-[4/5] bg-slate-100">
+                    <div className="creator-card-media">
                       <CreatorPhoto
                         src={inf.avatar_url}
                         name={shownName}
-                        className="absolute inset-0 h-full w-full object-cover"
+                        className="creator-card-media__img"
                       />
                       <span className={`absolute left-3 top-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${
                         match.score >= 80 ? "bg-emerald-600 text-white" :

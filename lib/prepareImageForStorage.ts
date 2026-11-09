@@ -1,6 +1,10 @@
 /**
  * Resize + encode profile/brand images before Supabase Storage upload (WebP when supported, else JPEG).
  * Reduces egress: smaller files from Storage/CDN.
+ *
+ * Bakes EXIF/orientation into pixels (`imageOrientation: 'from-image'`) so card
+ * CSS never depends on client EXIF handling. Does not mutate the user's local
+ * original file — only the uploaded Storage object is the derivative.
  */
 
 export type PrepareImageOptions = {
@@ -58,18 +62,28 @@ export async function prepareImageForStorage(
   let height: number;
   let bitmap: ImageBitmap | null = null;
   let imgEl: HTMLImageElement | null = null;
+  /** True when decode applied EXIF orientation — always re-encode to bake it. */
+  let orientedDecode = false;
 
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     width = bitmap.width;
     height = bitmap.height;
+    orientedDecode = true;
   } catch {
     try {
-      imgEl = await loadImageElement(file);
-      width = imgEl.naturalWidth;
-      height = imgEl.naturalHeight;
+      bitmap = await createImageBitmap(file);
+      width = bitmap.width;
+      height = bitmap.height;
+      orientedDecode = true;
     } catch {
-      return file;
+      try {
+        imgEl = await loadImageElement(file);
+        width = imgEl.naturalWidth;
+        height = imgEl.naturalHeight;
+      } catch {
+        return file;
+      }
     }
   }
 
@@ -103,21 +117,28 @@ export async function prepareImageForStorage(
   }
 
   const baseName = stripExtension(file.name).replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80) || 'image';
+  const downscaled = outW < width || outH < height;
+  const mustBake = orientedDecode || downscaled;
 
   const webpBlob = await canvasToBlob(canvas, 'image/webp', webpQ);
+  const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', jpegQ);
+
+  // Prefer smaller WebP when it beats the original.
   if (webpBlob && webpBlob.size > 0 && webpBlob.size < file.size) {
     return new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
   }
 
-  const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', jpegQ);
+  // Prefer smaller JPEG when it beats the original.
   if (jpegBlob && jpegBlob.size > 0 && jpegBlob.size < file.size) {
     return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
   }
 
-  // We downscaled but neither codec beat the original size — still ship the
-  // smaller-dimension JPEG so Storage serves fewer pixels on every view.
-  if ((outW < width || outH < height) && jpegBlob && jpegBlob.size > 0) {
+  // Bake oriented / downscaled pixels even when encode is not smaller than the source.
+  if (mustBake && jpegBlob && jpegBlob.size > 0) {
     return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+  }
+  if (mustBake && webpBlob && webpBlob.size > 0) {
+    return new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
   }
 
   return file;
