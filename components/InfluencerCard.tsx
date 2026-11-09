@@ -116,7 +116,7 @@ function PlatformPill({
 }) {
   const Icon = PLATFORM_META.find((p) => p.key === platformKey)?.Icon ?? InstagramIcon;
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold text-white sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
       <Icon className="h-2.5 w-2.5 shrink-0 sm:h-3.5 sm:w-3.5" />
       <span className="tabular-nums">{formatNum(count)}</span>
     </span>
@@ -228,7 +228,7 @@ export default function InfluencerCard({
             <PlatformPill key={p.key} platformKey={p.key} count={p.count} />
           ))}
         </div>
-        <span className="inline-flex items-center rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm sm:px-2 sm:py-1 sm:text-[11px]">
+        <span className="inline-flex items-center rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white sm:px-2 sm:py-1 sm:text-[11px]">
           +{ranked.length - 2}
         </span>
       </div>

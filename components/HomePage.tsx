@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory, { type Influencer } from "@/components/Directory";
@@ -208,6 +208,8 @@ export default function Home({
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [homeDirectoryIds, setHomeDirectoryIds] = useState<string[]>([]);
+  const [brandMarqueeOffscreen, setBrandMarqueeOffscreen] = useState(false);
+  const brandMarqueeRef = useRef<HTMLDivElement>(null);
   const txt = t[lang];
   const handleHomeDirectoryIds = useCallback((ids: string[]) => {
     setHomeDirectoryIds((prev) => {
@@ -397,6 +399,21 @@ export default function Home({
     setBrandSlideLogos(picked);
   }, [brandsReady, verifiedBrands]);
 
+  // Pause CSS marquee while off-screen so compositor work stops during scroll elsewhere.
+  useEffect(() => {
+    const el = brandMarqueeRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        setBrandMarqueeOffscreen(!entry?.isIntersecting);
+      },
+      { rootMargin: "80px 0px", threshold: 0 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [brandSlideLogos]);
+
   return (
     <>
       {/* SEO Structured Data */}
@@ -441,10 +458,10 @@ export default function Home({
           {/* Gray background with handshake pattern */}
           <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100"></div>
           
-          {/* Decorative background elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/10 rounded-full blur-3xl"></div>
-            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-100/10 rounded-full blur-3xl"></div>
+          {/* Soft wash without filter:blur (large blur-3xl orbs were a scroll paint hotspot). */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+            <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.22)_0%,transparent_70%)]" />
+            <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(233,213,255,0.18)_0%,transparent_70%)]" />
           </div>
           
           <div className="relative z-10 max-w-page mx-auto">
@@ -514,16 +531,20 @@ export default function Home({
           </div>
         </section>
 
-      <HomeHowItWorks lang={lang} />
+      <div className="home-section-cv">
+        <HomeHowItWorks lang={lang} />
+      </div>
 
       {/* Top Influencers of the Month */}
-      <TopInfluencersSection lang={lang} limit={homeTopInfluencersLimit} />
+      <div className="home-section-cv">
+        <TopInfluencersSection lang={lang} limit={homeTopInfluencersLimit} />
+      </div>
 
       {openCampaigns.length > 0 && (
-        <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80">
+        <section className="home-section-cv relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80">
           <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-            <div className="absolute -top-24 right-0 w-80 h-80 bg-blue-100/30 rounded-full blur-3xl" />
-            <div className="absolute -bottom-24 left-0 w-80 h-80 bg-slate-200/40 rounded-full blur-3xl" />
+            <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.45)_0%,transparent_70%)]" />
+            <div className="absolute -bottom-24 left-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.55)_0%,transparent_70%)]" />
           </div>
           <div className="relative max-w-page mx-auto">
             <div className="text-center mb-12 max-w-2xl mx-auto">
@@ -582,7 +603,7 @@ export default function Home({
       )}
 
       {/* Directory Section — preview; full catalog stays on /directory */}
-      <section className="relative py-20 px-6 bg-white" id="directory">
+      <section className="home-section-cv relative py-20 px-6 bg-white" id="directory">
         <div
           className="absolute inset-0 opacity-[0.015] pointer-events-none"
           style={{
@@ -607,14 +628,16 @@ export default function Home({
       </section>
 
       {/* Newly Approved Influencers */}
-      <NewlyApprovedInfluencersSection
-        lang={lang}
-        excludeIds={homeDirectoryIds}
-        limit={homeNewlyApprovedLimit}
-      />
+      <div className="home-section-cv">
+        <NewlyApprovedInfluencersSection
+          lang={lang}
+          excludeIds={homeDirectoryIds}
+          limit={homeNewlyApprovedLimit}
+        />
+      </div>
 
       {/* Brand Section */}
-        <section className="relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">
+        <section className="home-section-cv relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">
           <div className="max-w-page-md mx-auto relative">
             <div className="text-center mb-14">
               <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_section_title}</h2>
@@ -707,7 +730,7 @@ export default function Home({
         </section>
 
       {/* Brands Logos Slideshow */}
-      <section className="py-16 bg-white">
+      <section className="home-section-cv py-16 bg-white">
         <div className="max-w-page mx-auto px-6">
           <div className="text-center mb-12">
             <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>
@@ -719,7 +742,7 @@ export default function Home({
           </div>
           
           {/* Slideshow Container with gradient fade */}
-          <div className="relative overflow-hidden">
+          <div ref={brandMarqueeRef} className="relative overflow-hidden">
             {/* Left gradient fade */}
             <div className="absolute left-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
             {/* Right gradient fade */}
@@ -734,7 +757,7 @@ export default function Home({
               return (
                 <div
                   key={ready ? "brands-ready" : "brands-pending"}
-                  className={`flex items-center ${ready ? "animate-scroll" : ""}`}
+                  className={`flex items-center ${ready ? "animate-scroll" : ""} ${ready && brandMarqueeOffscreen ? "is-offscreen" : ""}`}
                 >
                   {track.map((logo, idx) => (
                     <a

@@ -226,7 +226,7 @@ export default function SiteHeader({
   );
 
   return (
-    <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm">
+    <header className="site-header sticky top-0 z-40 border-b border-slate-200/50 bg-white/92 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-white/80">
       <div className="max-w-page mx-auto flex justify-between items-center px-4 sm:px-6 py-4 gap-3">
         <Link href={lang === "en" ? "/en" : "/"} className="flex items-center gap-2 shrink-0" aria-label="Influo Home">
           <InfluoLogo className="h-10 w-auto" title="Influo" />

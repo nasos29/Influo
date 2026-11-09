@@ -333,9 +333,29 @@ textarea:focus-visible {
   animation: scroll 60s linear infinite;
   display: flex;
   width: max-content;
-  will-change: transform;
   transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
+}
+
+/* Pause brand marquee when off-screen (IO toggles .is-offscreen). */
+.animate-scroll.is-offscreen {
+  animation-play-state: paused;
+}
+
+/* Sticky header: modest blur + paint containment so scroll doesn't re-blur the page. */
+.site-header {
+  contain: layout paint;
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+
+/*
+ * Skip layout/paint for off-screen homepage slabs. contain-intrinsic-size
+ * keeps scrollbar size stable while sections are skipped.
+ */
+.home-section-cv {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 720px;
 }
 
 @media (min-width: 768px) {
