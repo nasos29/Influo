@@ -50,19 +50,19 @@ describe("getStorageCardUrl", () => {
     assert.ok(out?.includes("resize=cover"));
   });
 
-  it("omits height/cover when only width is set (CSS crops creator cards)", () => {
+  it("uses contain (not default cover) when only width is set", () => {
     const out = getStorageCardUrl(SAMPLE, 640);
     assert.ok(out?.includes("width=640"));
     assert.ok(!out?.includes("height="));
-    assert.ok(!out?.includes("resize="));
+    assert.ok(out?.includes("resize=contain"), "width-only must contain — bare width+cover strips the photo");
   });
 });
 
 describe("getCreatorCardPhotoUrl", () => {
-  it("uses width-only CDN scale for any upload aspect", () => {
+  it("uses width-only contain scale for any upload aspect", () => {
     const out = getCreatorCardPhotoUrl(SAMPLE);
     assert.ok(out?.includes(`width=${CREATOR_CARD_PHOTO_WIDTH}`));
     assert.ok(!out?.includes("height="));
-    assert.ok(!out?.includes("resize="));
+    assert.ok(out?.includes("resize=contain"));
   });
 });

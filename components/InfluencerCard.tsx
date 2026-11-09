@@ -140,7 +140,7 @@ export default function InfluencerCard({
 }: InfluencerCardProps) {
   const available = isAvailableStatus(availabilityStatus);
   const displayName = displayNameForLang(name, lang || "el");
-  // Width-only CDN scale; CSS .creator-card-media crops any aspect to 4:5.
+  // Width-only CDN contain (keeps full subject); CSS .creator-card-media crops to 4:5.
   const cardUrl = avatar ? getCreatorCardPhotoUrl(avatar) : null;
   const photoSrc = cardUrl ? getCachedImageUrl(cardUrl) ?? cardUrl : null;
   const priceLabel = formatFromPriceLabel(from_price, lang === "en" ? "en" : "el");
