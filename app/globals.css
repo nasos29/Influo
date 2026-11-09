@@ -376,16 +376,57 @@ textarea:focus-visible {
 }
 
 /*
+ * Responsive campaign grid (all breakpoints here so Tailwind lg:grid-cols-*
+ * cannot override the wide setting). Counts at ≥1536px come from
+ * --campaign-cols-wide (default 4). Cards cap so few items never stretch huge.
+ */
+.grid-campaigns-responsive {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: start;
+}
+.grid-campaigns-responsive > * {
+  min-width: 0;
+  width: 100%;
+  max-width: 28rem;
+  justify-self: stretch;
+}
+@media (min-width: 768px) {
+  .grid-campaigns-responsive {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-campaigns-responsive > * {
+    max-width: none;
+  }
+}
+@media (min-width: 1024px) {
+  .grid-campaigns-responsive {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1536px) {
+  .grid-campaigns-responsive {
+    grid-template-columns: repeat(var(--campaign-cols-wide, 4), minmax(0, 22rem));
+    justify-content: start;
+  }
+}
+
+/*
  * Wide card density (≥1536px). Counts come from --creator-cols-wide /
- * --campaign-cols-wide (site settings; defaults 5 / 4). Smaller breakpoints
- * keep their Tailwind grid classes.
+ * --campaign-cols-wide / --blog-cols-wide (site settings; defaults 5 / 4 / 4).
+ * Prefer .grid-campaigns-responsive for public campaign lists (avoids Tailwind
+ * utility override). .grid-campaigns-wide kept for legacy call sites.
  */
 @media (min-width: 1536px) {
   .grid-creators-wide {
-    grid-template-columns: repeat(var(--creator-cols-wide, 5), minmax(0, 1fr));
+    grid-template-columns: repeat(var(--creator-cols-wide, 5), minmax(0, 1fr)) !important;
   }
   .grid-campaigns-wide {
-    grid-template-columns: repeat(var(--campaign-cols-wide, 4), minmax(0, 1fr));
+    grid-template-columns: repeat(var(--campaign-cols-wide, 4), minmax(0, 1fr)) !important;
+  }
+  .grid-blog-wide {
+    grid-template-columns: repeat(var(--blog-cols-wide, 4), minmax(0, 1fr)) !important;
   }
 }
 

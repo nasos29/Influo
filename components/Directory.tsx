@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InfluencerCard from "./InfluencerCard";
-import { getBadges, BADGE_FILTER_TYPES, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
+import { getBadges, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
 import { normalizeGender, type GenderValue } from "../lib/gender";
 import { trustChipsFromAccounts } from "@/lib/trustSignals";
@@ -14,15 +13,13 @@ import { CATEGORIES, categoryTranslations, parseStoredCategories } from "@/lib/c
 import { formatEuro } from "@/lib/formatEuro";
 import { parseDirectoryPhrase } from "@/lib/directoryPhrase";
 import { useDirectoryTypewriter } from "@/components/directoryTypewriter";
-import {
-  badgeMinRateFromTier,
-  DIRECTORY_BUDGET_CAPS,
-} from "@/lib/publicInfluencer";
+import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { displayLocation } from "@/lib/displayLocation";
-import LocationTypeahead from "@/components/LocationTypeahead";
-import { SKILLS, sanitizeSkills, skillLabel } from "@/lib/skills";
+import { sanitizeSkills, skillLabel } from "@/lib/skills";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
+import { filterUiVariantFromSetting } from "@/lib/siteSettings";
+import DirectoryFilters from "@/components/DirectoryFilters";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -242,28 +239,6 @@ const t = {
   },
 };
 
-const SearchIcon = () => (
-  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-const LocationIcon = () => (
-  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-const FilterIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-  </svg>
-);
-const ChevronDown = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-  </svg>
-);
-
 const parseFollowerString = (str: string) => {
   if (!str) return 0;
   const clean = str.toLowerCase().replace(/,/g, "").trim();
@@ -296,126 +271,6 @@ const badgesForInfluencer = (
     { newBadgeMaxDays }
   );
 };
-
-const pillSelect =
-  "h-11 w-full appearance-none rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20 cursor-pointer";
-const pillInput =
-  "h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:shadow-[0_0_0_3px_rgba(15,23,42,0.08)]";
-const fieldLabel = "mb-1.5 block text-xs font-semibold text-slate-500";
-const chipBtn =
-  "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20";
-
-function closedMultiLabel(selected: string[], labelFor: (value: string) => string, placeholder: string): string {
-  if (!selected.length) return placeholder;
-  const first = labelFor(selected[0]) || selected[0];
-  if (selected.length === 1) return first;
-  return `${first} +${selected.length - 1}`;
-}
-
-function MultiFilterDropdown({
-  placeholder,
-  options,
-  selected,
-  onChange,
-  ariaLabel,
-}: {
-  placeholder: string;
-  options: { value: string; label: string }[];
-  selected: string[];
-  onChange: (next: string[]) => void;
-  ariaLabel: string;
-}) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false);
-  const [box, setBox] = useState<{ top: number; left: number; width: number } | null>(null);
-  const labels = new Map(options.map((option) => [option.value, option.label]));
-
-  useEffect(() => {
-    if (!open) return;
-    const place = () => {
-      const rect = buttonRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setBox({ top: rect.bottom + 6, left: rect.left, width: rect.width });
-    };
-    place();
-    const onPointer = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (buttonRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const toggle = (value: string) => {
-    const next = selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value];
-    onChange(options.map((option) => option.value).filter((value) => next.includes(value)));
-  };
-
-  const summary = closedMultiLabel(selected, (value) => labels.get(value) || value, placeholder);
-  const panel =
-    open && box && typeof document !== "undefined"
-      ? createPortal(
-          <div
-            ref={panelRef}
-            role="group"
-            aria-label={ariaLabel}
-            style={{ top: box.top, left: box.left, width: box.width }}
-            className="fixed z-50 max-h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-lg"
-          >
-            {options.map((option) => {
-              const checked = selected.includes(option.value);
-              return (
-                <label
-                  key={option.value}
-                  className="flex cursor-pointer items-center gap-2 rounded-xl px-2 py-2 text-sm text-slate-800 hover:bg-slate-50"
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggle(option.value)}
-                    className="h-4 w-4 rounded border-slate-300"
-                  />
-                  <span className="min-w-0">{option.label}</span>
-                </label>
-              );
-            })}
-          </div>,
-          document.body
-        )
-      : null;
-
-  return (
-    <>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        onClick={() => setOpen((current) => !current)}
-        className="flex h-11 w-full items-center rounded-full border border-slate-200 bg-white px-4 text-left text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20"
-      >
-        <span className="min-w-0 flex-1 truncate">{summary}</span>
-        <span className="ml-2 shrink-0 text-xs text-slate-400" aria-hidden>
-          ▾
-        </span>
-      </button>
-      {panel}
-    </>
-  );
-}
 
 export default function Directory({
   lang = "el",
@@ -1086,353 +941,84 @@ export default function Directory({
   }, [isHomePreview, onDisplayedIdsChange, displayedIdsKey]);
 
   const cardGridClass = isHomePreview
-    ? "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-x-6 md:gap-y-8 grid-creators-wide"
+    ? "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-5 md:gap-x-6 md:gap-y-8 grid-creators-wide"
     : "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8 grid-creators-wide";
 
-  return (
-    <div>
-      {/* Filter bar — Collabstr-style pills */}
-      <div className="mb-6 space-y-3">
-        {/* Top row: search → platform → category → location → filters → count */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative w-full sm:min-w-[200px] sm:flex-1">
-            <button
-              type="button"
-              className="absolute inset-y-0 left-0 flex items-center pl-3.5"
-              aria-label={txt.searchAria}
-              onClick={() => applyPhraseRef.current(searchQuery)}
-            >
-              <SearchIcon />
-            </button>
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                applyPhraseRef.current(searchQuery);
-              }}
-              onFocus={() => {
-                searchFocusedRef.current = true;
-                setSearchFocused(true);
-              }}
-              onBlur={() => {
-                searchFocusedRef.current = false;
-                setSearchFocused(false);
-              }}
-              className={pillInput}
-              aria-label={txt.searchAria}
-            />
-          </div>
+  const filterVariant = filterUiVariantFromSetting(settings.filter_ui_variant);
+  const useSidebarLayout = filterVariant === "sidebar" && !isHomePreview;
 
-          <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <div className="min-w-0 sm:min-w-[120px] sm:flex-none sm:w-40">
-              <select
-                value={platformFilter}
-                onChange={(e) => setPlatformFilter(e.target.value)}
-                className={pillSelect}
-                aria-label={txt.platAll}
-              >
-                <option value="All">{txt.platAll}</option>
-                <option value="Instagram">Instagram</option>
-                <option value="TikTok">TikTok</option>
-                <option value="YouTube">YouTube</option>
-              </select>
-            </div>
+  const filtersNode = (
+    <DirectoryFilters
+      variant={isHomePreview ? "chips" : filterVariant}
+      lang={lang}
+      txt={txt}
+      total={total}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+      searchPlaceholder={searchPlaceholder}
+      onSearchEnter={() => applyPhraseRef.current(searchQuery)}
+      onSearchFocus={() => {
+        searchFocusedRef.current = true;
+        setSearchFocused(true);
+      }}
+      onSearchBlur={() => {
+        searchFocusedRef.current = false;
+        setSearchFocused(false);
+      }}
+      platformFilter={platformFilter}
+      setPlatformFilter={setPlatformFilter}
+      categoryFilter={categoryFilter}
+      setCategoryFilterAndUrl={setCategoryFilterAndUrl}
+      locationQuery={locationQuery}
+      setLocationQuery={setLocationQuery}
+      showAdvanced={showAdvanced}
+      setShowAdvanced={setShowAdvanced}
+      extraFilterCount={extraFilterCount}
+      activeChips={activeChips}
+      clearFilters={clearFilters}
+      budgetMax={budgetMax}
+      setBudgetMax={setBudgetMax}
+      followerRange={followerRange}
+      setFollowerRange={setFollowerRange}
+      minEngagement={minEngagement}
+      setMinEngagement={setMinEngagement}
+      skillFilter={skillFilter}
+      onSkillFilterChange={(next) => {
+        setSkillFilter(next);
+        setPage(1);
+        replaceUrlParams((params) => {
+          if (!next.length) params.delete("skills");
+          else params.set("skills", next.join(","));
+          params.delete("page");
+        });
+      }}
+      languageFilter={languageFilter}
+      onLanguageFilterChange={(next) => {
+        setLanguageFilter(next);
+        setPage(1);
+        replaceUrlParams((params) => {
+          if (!next.length) params.delete("language");
+          else params.set("language", next.join(","));
+          params.delete("page");
+        });
+      }}
+      genderFilter={genderFilter}
+      setGenderFilter={setGenderFilter}
+      ageMin={ageMin}
+      setAgeMin={setAgeMin}
+      ageMax={ageMax}
+      setAgeMax={setAgeMax}
+      minRating={minRating}
+      setMinRating={setMinRating}
+      availabilityFilter={availabilityFilter}
+      setAvailabilityFilter={setAvailabilityFilter}
+      badgeFilter={badgeFilter}
+      setBadgeFilter={setBadgeFilter}
+    />
+  );
 
-            <div className="min-w-0 sm:min-w-[120px] sm:flex-none sm:w-48">
-              <select
-                value={(CATEGORIES as readonly string[]).includes(categoryFilter) ? categoryFilter : categoryFilter === "All" ? "All" : categoryFilter}
-                onChange={(e) => setCategoryFilterAndUrl(e.target.value)}
-                className={pillSelect}
-                aria-label={txt.catAll}
-              >
-                <option value="All">{txt.catAll}</option>
-                {categoryFilter !== "All" && !(CATEGORIES as readonly string[]).includes(categoryFilter) ? (
-                  <option value={categoryFilter}>
-                    {categoryFilter.split(",").map((part) => categoryTranslations[part.trim()]?.[lang] || part.trim()).join(", ")}
-                  </option>
-                ) : null}
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {categoryTranslations[cat] ? categoryTranslations[cat][lang] : cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="relative min-w-0 sm:min-w-[140px] sm:flex-none sm:w-44">
-              <div className="pointer-events-none absolute inset-y-0 z-10 left-0 flex items-center pl-3.5">
-                <LocationIcon />
-              </div>
-              <LocationTypeahead
-                lang={lang}
-                value={locationQuery}
-                onChange={setLocationQuery}
-                placeholder={txt.locPlace}
-                className={pillInput}
-                ariaLabel={txt.locPlace}
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              aria-expanded={showAdvanced}
-              className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-slate-900/20 sm:w-auto sm:justify-start ${
-                showAdvanced
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-              }`}
-            >
-              <FilterIcon />
-              <span>{txt.filters}</span>
-              {extraFilterCount > 0 ? (
-                <span
-                  className={`inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
-                    showAdvanced ? "bg-white text-slate-900" : "bg-slate-900 text-white"
-                  }`}
-                >
-                  {extraFilterCount}
-                </span>
-              ) : null}
-              <span className={`transition-transform ${showAdvanced ? "rotate-180" : ""}`}>
-                <ChevronDown />
-              </span>
-            </button>
-
-            <span className="col-span-2 ml-auto shrink-0 text-right text-xs font-medium text-slate-400 sm:col-span-1 sm:ml-0 sm:pl-1 sm:text-left">
-              {total} {txt.results}
-            </span>
-          </div>
-        </div>
-
-        {/* Active filter chips */}
-        {activeChips.length > 0 ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {activeChips.map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={chip.clear}
-                className={chipBtn}
-                aria-label={`${txt.clear}: ${chip.label}`}
-              >
-                <span className="max-w-[12rem] truncate">{chip.label}</span>
-                <span aria-hidden className="text-slate-400">
-                  ×
-                </span>
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="text-xs font-semibold text-slate-500 underline-offset-2 transition-colors hover:text-slate-900 hover:underline focus:outline-none focus:ring-2 focus:ring-slate-900/20 rounded"
-            >
-              {txt.clearAll}
-            </button>
-          </div>
-        ) : null}
-
-        {/* Advanced filters panel — grid collapse (no max-h clip) */}
-        <div
-          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-            showAdvanced ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
-        >
-          <div className="overflow-hidden min-h-0" aria-hidden={!showAdvanced} inert={!showAdvanced || undefined}>
-            <div className="rounded-2xl border border-slate-200 bg-white p-5">
-              <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
-                <div>
-                  <label className={fieldLabel}>{txt.fieldBudget}</label>
-                  <select
-                    value={budgetMax}
-                    onChange={(e) => setBudgetMax(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.budAll}</option>
-                    {DIRECTORY_BUDGET_CAPS.map((cap) => (
-                      <option key={cap} value={String(cap)}>
-                        {txt.budUpTo} {formatEuro(cap, lang)}
-                      </option>
-                    ))}
-                    <option value="Unlimited">{txt.budUnlimited}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldFollowers}</label>
-                  <select
-                    value={followerRange}
-                    onChange={(e) => setFollowerRange(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.follAll}</option>
-                    <option value="Nano">{txt.follNano}</option>
-                    <option value="Micro">{txt.follMicro}</option>
-                    <option value="Macro">{txt.follMacro}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldEngagement}</label>
-                  <select
-                    value={minEngagement}
-                    onChange={(e) => setMinEngagement(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.engAll}</option>
-                    <option value="1">
-                      {txt.engMin} 1%
-                    </option>
-                    <option value="3">
-                      {txt.engMin} 3% ({txt.engGood})
-                    </option>
-                    <option value="5">
-                      {txt.engMin} 5% ({txt.engHigh})
-                    </option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldSkills}</label>
-                  <MultiFilterDropdown
-                    ariaLabel={txt.fieldSkills}
-                    placeholder={txt.skillsAll}
-                    selected={skillFilter}
-                    options={SKILLS.map((key) => ({ value: key, label: skillLabel(key, lang) || key }))}
-                    onChange={(next) => {
-                      setSkillFilter(next);
-                      setPage(1);
-                      replaceUrlParams((params) => {
-                        if (!next.length) params.delete("skills");
-                        else params.set("skills", next.join(","));
-                        params.delete("page");
-                      });
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldLanguage}</label>
-                  <MultiFilterDropdown
-                    ariaLabel={txt.fieldLanguage}
-                    placeholder={txt.langAll}
-                    selected={languageFilter}
-                    options={LANGUAGES.map((item) => ({ value: item.code, label: item[lang] }))}
-                    onChange={(next) => {
-                      setLanguageFilter(next);
-                      setPage(1);
-                      replaceUrlParams((params) => {
-                        if (!next.length) params.delete("language");
-                        else params.set("language", next.join(","));
-                        params.delete("page");
-                      });
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldGender}</label>
-                  <select
-                    value={genderFilter}
-                    onChange={(e) => setGenderFilter(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.genAll}</option>
-                    <option value="Female">{txt.genFem}</option>
-                    <option value="Male">{txt.genMal}</option>
-                    <option value="AI">{txt.genAi}</option>
-                  </select>
-                </div>
-
-                <div className="col-span-1">
-                  <label className={fieldLabel}>{txt.fieldAge}</label>
-                  <div className="flex h-11 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 transition-colors hover:border-slate-300 focus-within:border-slate-900 focus-within:ring-2 focus-within:ring-slate-900/20">
-                    <input
-                      type="number"
-                      min={18}
-                      max={99}
-                      placeholder={txt.ageFrom}
-                      value={ageMin}
-                      onChange={(e) => setAgeMin(e.target.value)}
-                      className="h-full w-full min-w-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400"
-                      aria-label={txt.ageFrom}
-                    />
-                    <span className="shrink-0 text-slate-300" aria-hidden>
-                      –
-                    </span>
-                    <input
-                      type="number"
-                      min={18}
-                      max={99}
-                      placeholder={txt.ageTo}
-                      value={ageMax}
-                      onChange={(e) => setAgeMax(e.target.value)}
-                      className="h-full w-full min-w-0 bg-transparent text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400"
-                      aria-label={txt.ageTo}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldRating}</label>
-                  <select
-                    value={minRating}
-                    onChange={(e) => setMinRating(e.target.value)}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.ratingAll}</option>
-                    <option value="3">
-                      {txt.ratingMin} 3★
-                    </option>
-                    <option value="4">
-                      {txt.ratingMin} 4★
-                    </option>
-                    <option value="4.5">
-                      {txt.ratingMin} 4.5★
-                    </option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldAvailability}</label>
-                  <select
-                    value={availabilityFilter}
-                    onChange={(e) =>
-                      setAvailabilityFilter(e.target.value as "All" | "available" | "unavailable")
-                    }
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.availAll}</option>
-                    <option value="available">{txt.availYes}</option>
-                    <option value="unavailable">{txt.availNo}</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={fieldLabel}>{txt.fieldBadges}</label>
-                  <select
-                    value={badgeFilter}
-                    onChange={(e) => setBadgeFilter(e.target.value as BadgeType | "All")}
-                    className={pillSelect}
-                  >
-                    <option value="All">{txt.badgeAll}</option>
-                    {BADGE_FILTER_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {getBadgeFilterLabel(type, lang)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+  const resultsNode = (
+    <>
       {relaxedMax != null && maxPackagePrice.trim() ? (
         <p className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           {lang === "el"
@@ -1564,6 +1150,13 @@ export default function Directory({
           </button>
         </div>
       )}
+    </>
+  );
+
+  return (
+    <div className={useSidebarLayout ? "lg:flex lg:items-start lg:gap-8" : undefined}>
+      {filtersNode}
+      <div className={useSidebarLayout ? "min-w-0 flex-1" : undefined}>{resultsNode}</div>
     </div>
   );
 }

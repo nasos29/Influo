@@ -85,7 +85,16 @@ function bustSettingsCaches() {
   for (const tag of ["home-directory", "home-campaigns", "public-campaigns", "directory"]) {
     revalidateTag(tag, { expire: 0 });
   }
-  for (const pathName of ["/", "/en", "/directory", "/en/directory", "/campaigns", "/en/campaigns"]) {
+  for (const pathName of [
+    "/",
+    "/en",
+    "/directory",
+    "/en/directory",
+    "/campaigns",
+    "/en/campaigns",
+    "/blog",
+    "/en/blog",
+  ]) {
     revalidatePath(pathName);
   }
 }

@@ -124,10 +124,10 @@ export default function PublicCampaignsPage({
   const guestKind: PublicUserKind = userKind;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50">
+    <div className="min-h-screen flex flex-col overflow-x-hidden bg-slate-50">
       <SiteHeader lang={lang} onLangChange={setLang} />
 
-      <main className="flex-1 max-w-page mx-auto px-4 py-10 w-full">
+      <main className="flex-1 max-w-page mx-auto px-4 py-10 w-full min-w-0">
         <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
         <p className="text-slate-600 mt-2 max-w-2xl">{t.subtitle}</p>
         {identityReady && guestKind === "none" && (
@@ -151,9 +151,9 @@ export default function PublicCampaignsPage({
         {rows.length === 0 ? (
           <p className="mt-10 text-slate-500">{t.empty}</p>
         ) : (
-          <ul className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3 grid-campaigns-wide">
+          <ul className="mt-10 grid-campaigns-responsive">
             {rows.map((c) => (
-              <li key={c.id} className="h-full">
+              <li key={c.id} className="h-full min-w-0">
                 <CampaignCard
                   campaign={{ ...c, status: c.status || "open" }}
                   lang={lang}
