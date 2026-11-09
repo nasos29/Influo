@@ -609,6 +609,8 @@ export default function BrandCampaignsSection({
   const [invites, setInvites] = useState<InviteMatch[]>([]);
   const [inviteCampaignId, setInviteCampaignId] = useState<string | null>(null);
   const [invitingId, setInvitingId] = useState<string | null>(null);
+  /** Application id while accept/reject/shortlist is in flight (blocks double submit). */
+  const [decidingAppId, setDecidingAppId] = useState<string | null>(null);
   const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -1272,28 +1274,34 @@ export default function BrandCampaignsSection({
   };
 
   const updateAppStatus = async (app: ApplicationRow, status: string) => {
+    if (decidingAppId) return;
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) return;
-    const res = await fetch("/api/campaigns/application", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ applicationId: app.id, status }),
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toastError(body.error || "Error");
-      return;
-    }
-    toastSuccess(status === "accepted" ? x.accepted : x.status_updated);
-    if (expandedId) await loadApplications(expandedId);
-    onApplicationsUpdated?.();
-    if (status === "accepted") {
-      onOpenInfluencerMessage?.({
-        influencerId: app.influencer_id,
-        displayName: displayNameForLang(app.influencers?.display_name || "Influencer", lang),
-        conversationId: body.conversationId || null,
+    setDecidingAppId(app.id);
+    try {
+      const res = await fetch("/api/campaigns/application", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ applicationId: app.id, status }),
       });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError(body.error || "Error");
+        return;
+      }
+      toastSuccess(status === "accepted" ? x.accepted : x.status_updated);
+      if (expandedId) await loadApplications(expandedId);
+      onApplicationsUpdated?.();
+      if (status === "accepted") {
+        onOpenInfluencerMessage?.({
+          influencerId: app.influencer_id,
+          displayName: displayNameForLang(app.influencers?.display_name || "Influencer", lang),
+          conversationId: body.conversationId || null,
+        });
+      }
+    } finally {
+      setDecidingAppId(null);
     }
   };
 
@@ -1396,6 +1404,7 @@ export default function BrandCampaignsSection({
                               proposedPrice={app.proposed_price}
                               workLinks={app.work_links}
                               canDecide={app.status !== "withdrawn" && app.status !== "accepted"}
+                              deciding={decidingAppId === app.id}
                               onAccept={() => updateAppStatus(app, "accepted")}
                               onReject={() => updateAppStatus(app, "rejected")}
                               onShortlist={() => updateAppStatus(app, "shortlisted")}

@@ -290,6 +290,7 @@ export function NegotiateDialog({
               className="mt-3 space-y-2.5 sm:mt-5 sm:space-y-4"
               onSubmit={async (event) => {
                 event.preventDefault();
+                if (sending) return;
                 const qty = Math.round(Number(quantity));
                 const amount = parseEuroNumber(price);
                 if (!active || !Number.isFinite(qty) || qty < 1 || amount == null || amount <= 0) {
