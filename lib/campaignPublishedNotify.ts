@@ -3,6 +3,7 @@ import { isTestBrand } from "@/lib/testAccounts";
 import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 import { publishedToBrand } from "@/lib/campaignMail";
 import { campaignClosesAt } from "@/lib/campaignLifecycle";
+import { getSiteSetting } from "@/lib/siteSettingsServer";
 import { send, siteUrl } from "@/lib/proposalMail";
 import { queueCategoryCampaignEmails } from "@/lib/campaignCategoryEmail";
 import { sendPushNewOpenCampaignToAllApprovedInfluencers } from "@/lib/push";
@@ -109,7 +110,15 @@ export async function notifyCampaignPublished(
   if (brandEmail && (fresh || opts.force)) {
     let closesAt: string | null = null;
     try {
-      closesAt = campaignClosesAt({ deadline: row.deadline ?? null, opened_at: row.opened_at ?? null, created_at: row.created_at || new Date().toISOString() }).toISOString();
+      const defaultDays = await getSiteSetting("campaign_default_days");
+      closesAt = campaignClosesAt(
+        {
+          deadline: row.deadline ?? null,
+          opened_at: row.opened_at ?? null,
+          created_at: row.created_at || new Date().toISOString(),
+        },
+        { defaultDays }
+      ).toISOString();
     } catch {
       closesAt = null;
     }

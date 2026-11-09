@@ -1,4 +1,4 @@
-import { campaignClosesAt } from "./campaignLifecycle.ts";
+import { campaignClosesAt, type CampaignCloseOptions } from "./campaignLifecycle.ts";
 
 export type StatusBadgeInput = {
   status?: string | null;
@@ -10,7 +10,14 @@ export type StatusBadgeInput = {
 };
 
 /** One status badge for campaign covers: open = green, closed/full/expired = red, draft = amber. */
-export function campaignStatusBadge(c: StatusBadgeInput, lang: "el" | "en", now = Date.now()): { text: string; className: string } | null {
+export function campaignStatusBadge(
+  c: StatusBadgeInput,
+  lang: "el" | "en",
+  nowOrOpts: number | CampaignCloseOptions = Date.now(),
+  maybeOpts?: CampaignCloseOptions
+): { text: string; className: string } | null {
+  const now = typeof nowOrOpts === "number" ? nowOrOpts : Date.now();
+  const opts = typeof nowOrOpts === "number" ? maybeOpts : nowOrOpts;
   const el = lang === "el";
   const red = "bg-red-600 text-white";
   const outlined = "border-[1.5px] border-black";
@@ -19,7 +26,14 @@ export function campaignStatusBadge(c: StatusBadgeInput, lang: "el" | "en", now 
   if (c.slots != null && c.slots > 0 && (c.slots_filled ?? 0) >= c.slots) return { text: el ? "Πλήρης" : "Full", className: red };
   try {
     if (c.deadline || c.opened_at || c.created_at) {
-      const closes = campaignClosesAt({ deadline: c.deadline ?? null, opened_at: c.opened_at ?? null, created_at: c.created_at || new Date(now).toISOString() });
+      const closes = campaignClosesAt(
+        {
+          deadline: c.deadline ?? null,
+          opened_at: c.opened_at ?? null,
+          created_at: c.created_at || new Date(now).toISOString(),
+        },
+        opts
+      );
       if (closes.getTime() < now) return { text: el ? "Έληξε" : "Expired", className: red };
     }
   } catch {

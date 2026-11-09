@@ -2,21 +2,10 @@ import HomePage from "@/components/HomePage";
 import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
+import { getSiteSettings } from "@/lib/siteSettingsServer";
 import { unstable_cache } from "next/cache";
 
 export const revalidate = 3600;
-
-const cachedHomeInfluencers = unstable_cache(
-  () => loadPublicDirectoryCards(8),
-  ["home-directory-cards-page"],
-  { revalidate: 3600, tags: ["home-directory"] }
-);
-
-const cachedHomeCampaigns = unstable_cache(
-  () => loadHomeOpenCampaigns(3),
-  ["home-open-campaigns"],
-  { revalidate: 3600, tags: ["home-campaigns"] }
-);
 
 const cachedHomeTrust = unstable_cache(
   () => loadHomeTrustStats(),
@@ -25,9 +14,21 @@ const cachedHomeTrust = unstable_cache(
 );
 
 export default async function Page() {
+  const settings = await getSiteSettings();
+  const creatorsLimit = settings.homepage_creators_count;
+  const campaignsLimit = settings.homepage_campaigns_count;
+
   const [directoryPage, openCampaigns, trustStats] = await Promise.all([
-    cachedHomeInfluencers(),
-    cachedHomeCampaigns(),
+    unstable_cache(
+      () => loadPublicDirectoryCards(creatorsLimit),
+      ["home-directory-cards-page", String(creatorsLimit)],
+      { revalidate: 3600, tags: ["home-directory"] }
+    )(),
+    unstable_cache(
+      () => loadHomeOpenCampaigns(campaignsLimit),
+      ["home-open-campaigns", String(campaignsLimit)],
+      { revalidate: 3600, tags: ["home-campaigns"] }
+    )(),
     cachedHomeTrust(),
   ]);
   return (
@@ -36,6 +37,9 @@ export default async function Page() {
       initialDirectoryTotal={directoryPage.total}
       openCampaigns={openCampaigns}
       trustStats={trustStats}
+      homeCreatorsLimit={creatorsLimit}
+      homeNewlyApprovedLimit={settings.homepage_newly_approved_count}
+      homeTopInfluencersLimit={settings.homepage_top_influencers_count}
     />
   );
 }

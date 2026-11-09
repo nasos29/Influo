@@ -14,6 +14,7 @@ import CampaignCover from "@/components/CampaignCover";
 import BrandBadges from "@/components/BrandBadges";
 import { formatEuro } from "@/lib/formatEuro";
 import { formatDisplayDate } from "@/lib/formatDate";
+import { useSiteSettings } from "@/components/SiteSettingsProvider";
 
 export type CampaignCardBrand = {
   brand_name?: string | null;
@@ -100,9 +101,10 @@ function closesInLabel(
     opened_at?: string | null;
     created_at?: string | null;
   },
-  lang: "el" | "en"
+  lang: "el" | "en",
+  defaultDays?: number
 ): { text: string; urgent: boolean } | null {
-  const days = daysUntilCampaignCloses(campaign);
+  const days = daysUntilCampaignCloses(campaign, { defaultDays });
   if (days === null) return null;
   const t = closeCopy[lang];
   if (days < 0) return { text: t.ended, urgent: true };
@@ -165,13 +167,15 @@ export default function CampaignCard({
   /** Owner views: card click runs this (e.g. open management) instead of navigating to the public page. */
   onOpen?: () => void;
 }) {
+  const settings = useSiteSettings();
+  const defaultDays = settings.campaign_default_days;
   const localized = localizeCampaignCopy(campaign, lang);
   const brand = brandOf(campaign.brands);
   const link = href ?? `/campaigns/${campaign.id}`;
   const published = publishedAgoLabel(campaign.created_at, lang);
-  const closes = closesInLabel(campaign, lang);
+  const closes = closesInLabel(campaign, lang, defaultDays);
   const comp = compensationLabel(campaign.compensation_type, lang);
-  const statusBadge = campaignStatusBadge(campaign, lang);
+  const statusBadge = campaignStatusBadge(campaign, lang, { defaultDays });
   const cat = campaign.category ? categoryLabel(campaign.category, lang) || campaign.category : "";
   const deliverableChips = splitDeliverables(localized.deliverables);
   const platforms = Array.isArray(campaign.platforms) ? campaign.platforms : [];
@@ -381,17 +385,21 @@ export function campaignClosesMeta(
     opened_at?: string | null;
     created_at?: string | null;
   },
-  lang: "el" | "en"
+  lang: "el" | "en",
+  defaultDays?: number
 ): { text: string; urgent: boolean; dateLabel: string | null } | null {
-  const meta = closesInLabel(campaign, lang);
+  const meta = closesInLabel(campaign, lang, defaultDays);
   if (!meta) return null;
   const created = campaign.created_at || campaign.opened_at;
   if (!campaign.deadline && !created) return { ...meta, dateLabel: null };
-  const closes = campaignClosesAt({
-    deadline: campaign.deadline ?? null,
-    opened_at: campaign.opened_at ?? null,
-    created_at: (created || campaign.deadline) as string,
-  });
+  const closes = campaignClosesAt(
+    {
+      deadline: campaign.deadline ?? null,
+      opened_at: campaign.opened_at ?? null,
+      created_at: (created || campaign.deadline) as string,
+    },
+    { defaultDays }
+  );
   return {
     ...meta,
     dateLabel: formatDisplayDate(campaign.deadline || closes),

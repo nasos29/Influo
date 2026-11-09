@@ -35,8 +35,8 @@ export type NewlyApprovedInfluencer = {
   profile_slug?: string | null;
 };
 
-/** Show 8 after excluding home directory preview ids. */
-const DISPLAY_LIMIT = 8;
+/** Default show count after excluding home directory preview ids. */
+const DISPLAY_LIMIT_DEFAULT = 8;
 
 function buildSocials(accounts: NewlyApprovedInfluencer["accounts"]): {
   [key: string]: string | undefined;
@@ -90,13 +90,16 @@ const t = {
 export default function NewlyApprovedInfluencersSection({
   lang,
   excludeIds = [],
+  limit = DISPLAY_LIMIT_DEFAULT,
 }: {
   lang: Lang;
   /** Featured / other home cards — skip these so sections do not overlap. */
   excludeIds?: Array<string | number>;
+  limit?: number;
 }) {
   const [influencers, setInfluencers] = useState<NewlyApprovedInfluencer[]>([]);
   const [loading, setLoading] = useState(true);
+  const displayLimit = Math.max(1, Math.min(50, Math.round(limit) || DISPLAY_LIMIT_DEFAULT));
   const excludeSet = useMemo(
     () => new Set(excludeIds.map((id) => String(id))),
     [excludeIds]
@@ -131,10 +134,10 @@ export default function NewlyApprovedInfluencersSection({
       if (!id || excludeSet.has(id) || seen.has(id)) continue;
       seen.add(id);
       out.push(inf);
-      if (out.length >= DISPLAY_LIMIT) break;
+      if (out.length >= displayLimit) break;
     }
     return out;
-  }, [influencers, excludeSet]);
+  }, [influencers, excludeSet, displayLimit]);
 
   const txt = t[lang];
   const directoryHref = lang === "en" ? "/en/directory" : "/directory";

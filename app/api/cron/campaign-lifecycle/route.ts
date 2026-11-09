@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { creatorContact } from "@/lib/campaignNotify";
 import { createClient } from "@supabase/supabase-js";
-import {
-  CAMPAIGN_REMINDER_DAYS_BEFORE,
-  campaignClosesAt,
-} from "@/lib/campaignLifecycle";
+import { campaignClosesAt } from "@/lib/campaignLifecycle";
+import { getSiteSettings } from "@/lib/siteSettingsServer";
 import { SITE_URL } from "@/lib/site";
 
 export const maxDuration = 60;
@@ -109,9 +107,12 @@ export async function GET(req: Request) {
     let closed = 0;
     let reminded = 0;
     let emailsFailed = 0;
+    const settings = await getSiteSettings();
+    const defaultDays = settings.campaign_default_days;
+    const reminderDaysBefore = settings.campaign_reminder_days_before;
 
     for (const row of (data || []) as OpenCampaign[]) {
-      const closesAt = campaignClosesAt(row);
+      const closesAt = campaignClosesAt(row, { defaultDays });
       const brand = brandOf(row);
       const brandEmail = brand?.contact_email?.trim().toLowerCase() || "";
       const brandName = brand?.brand_name?.trim() || "Επιχείρηση";
@@ -186,7 +187,7 @@ export async function GET(req: Request) {
 
       if (row.close_reminder_sent_at) continue;
       const reminderAt = new Date(
-        closesAt.getTime() - CAMPAIGN_REMINDER_DAYS_BEFORE * 24 * 60 * 60 * 1000
+        closesAt.getTime() - reminderDaysBefore * 24 * 60 * 60 * 1000
       );
       if (now.getTime() < reminderAt.getTime()) continue;
 

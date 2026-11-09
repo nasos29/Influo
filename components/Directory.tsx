@@ -22,6 +22,7 @@ import { resolveCompletionRate } from "@/lib/completionRate";
 import { displayLocation } from "@/lib/displayLocation";
 import LocationTypeahead from "@/components/LocationTypeahead";
 import { SKILLS, sanitizeSkills, skillLabel } from "@/lib/skills";
+import { useSiteSettings } from "@/components/SiteSettingsProvider";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -271,7 +272,11 @@ const parseFollowerString = (str: string) => {
   return parseFloat(clean) || 0;
 };
 
-const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
+const badgesForInfluencer = (
+  inf: Influencer,
+  lang: "el" | "en",
+  newBadgeMaxDays?: number
+) => {
   const accountAgeDays = inf.created_at
     ? Math.floor((new Date().getTime() - new Date(inf.created_at).getTime()) / (1000 * 60 * 60 * 24))
     : 999;
@@ -287,7 +292,8 @@ const badgesForInfluencer = (inf: Influencer, lang: "el" | "en") => {
       min_rate: badgeMinRateFromTier(inf.price_tier),
       extra_badges: inf.extra_badges,
     },
-    lang
+    lang,
+    { newBadgeMaxDays }
   );
 };
 
@@ -431,6 +437,8 @@ export default function Directory({
 }) {
   const [influencers, setInfluencers] = useState<Influencer[]>(initialInfluencers);
   const [total, setTotal] = useState(initialTotal);
+  const settings = useSiteSettings();
+  const newBadgeMaxDays = settings.new_badge_max_days;
   const txt = t[lang];
   const isMountedRef = useRef(true);
   const router = useRouter();
@@ -1078,8 +1086,8 @@ export default function Directory({
   }, [isHomePreview, onDisplayedIdsChange, displayedIdsKey]);
 
   const cardGridClass = isHomePreview
-    ? "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-x-6 md:gap-y-8"
-    : "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8";
+    ? "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-4 md:gap-x-6 md:gap-y-8 grid-creators-wide"
+    : "grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 lg:gap-x-6 lg:gap-y-8 grid-creators-wide";
 
   return (
     <div>
@@ -1450,7 +1458,7 @@ export default function Directory({
         <>
           <div className={cardGridClass}>
             {displayedInfluencers.map((inf) => {
-              const badges = badgesForInfluencer(inf, lang);
+              const badges = badgesForInfluencer(inf, lang, newBadgeMaxDays);
 
               return (
                 <Link

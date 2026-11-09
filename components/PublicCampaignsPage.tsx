@@ -151,7 +151,7 @@ export default function PublicCampaignsPage({
         {rows.length === 0 ? (
           <p className="mt-10 text-slate-500">{t.empty}</p>
         ) : (
-          <ul className="mt-10 grid gap-4 md:grid-cols-2">
+          <ul className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3 grid-campaigns-wide">
             {rows.map((c) => (
               <li key={c.id} className="h-full">
                 <CampaignCard

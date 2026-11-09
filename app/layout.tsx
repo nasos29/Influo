@@ -7,8 +7,11 @@ import ChatDock from "@/components/ChatDock";
 import CookieConsent from "@/components/CookieConsent";
 import FeedbackHost from "@/components/Feedback";
 import HtmlLang from "@/components/HtmlLang";
+import { SiteSettingsProvider } from "@/components/SiteSettingsProvider";
 import { HEADER_AVATAR_BOOT_SCRIPT } from "@/lib/headerAvatarCache";
 import { ORGANIZATION_EMAIL, ORGANIZATION_SAME_AS, SITE_NAME, SITE_URL } from "@/lib/site";
+import { publicSiteSettings, siteSettingsCssVars } from "@/lib/siteSettings";
+import { getSiteSettings } from "@/lib/siteSettingsServer";
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
@@ -97,6 +100,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteSettings = await getSiteSettings();
+  const publicSettings = publicSiteSettings(siteSettings);
+  const settingsCss = siteSettingsCssVars(siteSettings);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
@@ -156,9 +163,12 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
-      <body
-        className={`${roboto.variable} font-sans antialiased`}
-      >
+      <body className={`${roboto.variable} font-sans antialiased`}>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `:root{${settingsCss}}`,
+          }}
+        />
         {/* Password recovery: Supabase may redirect to Site URL (/) if redirect_to is not allowlisted — send user to reset page with same hash. */}
         <Script id="recovery-hash-redirect" strategy="beforeInteractive">
           {`
@@ -176,12 +186,14 @@ export default async function RootLayout({
 })();
           `}
         </Script>
-        {children}
-        <ChatDock />
-        <ChunkErrorReload />
-        <HtmlLang />
-        <FeedbackHost />
-        <CookieConsent />
+        <SiteSettingsProvider settings={publicSettings}>
+          {children}
+          <ChatDock />
+          <ChunkErrorReload />
+          <HtmlLang />
+          <FeedbackHost />
+          <CookieConsent />
+        </SiteSettingsProvider>
       </body>
     </html>
   );

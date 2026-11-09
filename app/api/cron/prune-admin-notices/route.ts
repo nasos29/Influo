@@ -5,10 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import {
-  ADMIN_NOTICE_READ_RETENTION_DAYS,
-  pruneOldReadAdminNotices,
-} from "@/lib/pruneAdminNotices";
+import { pruneOldReadAdminNotices } from "@/lib/pruneAdminNotices";
+import { getSiteSetting } from "@/lib/siteSettingsServer";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -41,11 +39,12 @@ export async function GET(request: NextRequest) {
   if (denied) return denied;
 
   try {
-    const deleted = await pruneOldReadAdminNotices(supabaseAdmin);
+    const retentionDays = await getSiteSetting("admin_notice_read_retention_days");
+    const deleted = await pruneOldReadAdminNotices(supabaseAdmin, retentionDays);
     return NextResponse.json({
       ok: true,
       deleted,
-      retentionDays: ADMIN_NOTICE_READ_RETENTION_DAYS,
+      retentionDays,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal error";

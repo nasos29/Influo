@@ -181,11 +181,17 @@ export default function Home({
   initialDirectoryTotal = 0,
   openCampaigns = [],
   trustStats = { approvedInfluencers: null, openCampaigns: null },
+  homeCreatorsLimit = 8,
+  homeNewlyApprovedLimit = 8,
+  homeTopInfluencersLimit = 10,
 }: {
   initialInfluencers?: Influencer[];
   initialDirectoryTotal?: number;
   openCampaigns?: CampaignCardData[];
   trustStats?: HomeTrustStats;
+  homeCreatorsLimit?: number;
+  homeNewlyApprovedLimit?: number;
+  homeTopInfluencersLimit?: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -510,7 +516,7 @@ export default function Home({
       <HomeHowItWorks lang={lang} />
 
       {/* Top Influencers of the Month */}
-      <TopInfluencersSection lang={lang} />
+      <TopInfluencersSection lang={lang} limit={homeTopInfluencersLimit} />
 
       {openCampaigns.length > 0 && (
         <section className="relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80">
@@ -532,7 +538,7 @@ export default function Home({
                 {txt.open_campaigns_subtitle}
               </p>
             </div>
-            <ul className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid auto-rows-fr gap-4 md:grid-cols-2 lg:grid-cols-3 grid-campaigns-wide">
               {openCampaigns.map((campaign) => (
                 <li key={campaign.id} className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
                   <CampaignCard campaign={campaign} lang={lang} viewCta />
@@ -609,7 +615,7 @@ export default function Home({
         </section>
       )}
 
-      {/* Directory Section — preview of 8 cards; full catalog stays on /directory */}
+      {/* Directory Section — preview; full catalog stays on /directory */}
       <section className="relative py-20 px-6 bg-white" id="directory">
         <div
           className="absolute inset-0 opacity-[0.015] pointer-events-none"
@@ -627,7 +633,7 @@ export default function Home({
               lang={lang}
               initialInfluencers={initialInfluencers}
               initialTotal={initialDirectoryTotal}
-              homeLimit={8}
+              homeLimit={homeCreatorsLimit}
               onDisplayedIdsChange={handleHomeDirectoryIds}
             />
           </Suspense>
@@ -635,7 +641,11 @@ export default function Home({
       </section>
 
       {/* Newly Approved Influencers */}
-      <NewlyApprovedInfluencersSection lang={lang} excludeIds={homeDirectoryIds} />
+      <NewlyApprovedInfluencersSection
+        lang={lang}
+        excludeIds={homeDirectoryIds}
+        limit={homeNewlyApprovedLimit}
+      />
 
       {/* Brand Section */}
         <section className="relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">

@@ -3,7 +3,8 @@ export const CAMPAIGN_DEFAULT_DAYS = 15;
 export const CAMPAIGN_LEGACY_DEFAULT_DAYS = 30;
 /**
  * Campaigns opened at/before this instant without a deadline keep
- * CAMPAIGN_LEGACY_DEFAULT_DAYS. New opens (and reopens) use CAMPAIGN_DEFAULT_DAYS.
+ * CAMPAIGN_LEGACY_DEFAULT_DAYS. New opens (and reopens) use CAMPAIGN_DEFAULT_DAYS
+ * (or an admin-tuned override via opts.defaultDays).
  */
 export const CAMPAIGN_DEFAULT_DAYS_CUTOFF_ISO = "2026-11-08T18:00:00.000Z";
 export const CAMPAIGN_REMINDER_DAYS_BEFORE = 3;
@@ -17,16 +18,23 @@ export type CampaignCloseInput = {
   created_at: string;
 };
 
-function defaultDaysForOpenStart(start: Date): number {
-  return start.getTime() <= CUTOFF_MS
-    ? CAMPAIGN_LEGACY_DEFAULT_DAYS
-    : CAMPAIGN_DEFAULT_DAYS;
+export type CampaignCloseOptions = {
+  /** Override for post-cutoff default window (from site settings). */
+  defaultDays?: number;
+};
+
+function defaultDaysForOpenStart(start: Date, defaultDays = CAMPAIGN_DEFAULT_DAYS): number {
+  return start.getTime() <= CUTOFF_MS ? CAMPAIGN_LEGACY_DEFAULT_DAYS : defaultDays;
 }
 
-export function campaignClosesAt(c: CampaignCloseInput): Date {
+export function campaignClosesAt(
+  c: CampaignCloseInput,
+  opts?: CampaignCloseOptions
+): Date {
   if (c.deadline) return new Date(c.deadline);
   const start = new Date(c.opened_at ?? c.created_at);
-  return new Date(start.getTime() + defaultDaysForOpenStart(start) * DAY_MS);
+  const days = defaultDaysForOpenStart(start, opts?.defaultDays ?? CAMPAIGN_DEFAULT_DAYS);
+  return new Date(start.getTime() + days * DAY_MS);
 }
 
 /**
@@ -50,17 +58,23 @@ export function normalizeDeadlineForOpen(
  * Whole days remaining until campaignClosesAt (ceil).
  * Negative when already past close; null when dates are insufficient.
  */
-export function daysUntilCampaignCloses(c: {
-  deadline?: string | null;
-  opened_at?: string | null;
-  created_at?: string | null;
-}): number | null {
+export function daysUntilCampaignCloses(
+  c: {
+    deadline?: string | null;
+    opened_at?: string | null;
+    created_at?: string | null;
+  },
+  opts?: CampaignCloseOptions
+): number | null {
   const created = c.created_at || c.opened_at;
   if (!c.deadline && !created) return null;
-  const closes = campaignClosesAt({
-    deadline: c.deadline ?? null,
-    opened_at: c.opened_at ?? null,
-    created_at: created as string,
-  });
+  const closes = campaignClosesAt(
+    {
+      deadline: c.deadline ?? null,
+      opened_at: c.opened_at ?? null,
+      created_at: created as string,
+    },
+    opts
+  );
   return Math.ceil((closes.getTime() - Date.now()) / DAY_MS);
 }

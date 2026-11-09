@@ -74,9 +74,16 @@ const t = {
   },
 };
 
-export default function TopInfluencersSection({ lang }: { lang: Lang }) {
+export default function TopInfluencersSection({
+  lang,
+  limit = 10,
+}: {
+  lang: Lang;
+  limit?: number;
+}) {
   const [influencers, setInfluencers] = useState<TopInfluencer[]>([]);
   const [loading, setLoading] = useState(true);
+  const safeLimit = Math.max(1, Math.min(50, Math.round(limit) || 10));
 
   useEffect(() => {
     let cancelled = false;
@@ -99,7 +106,7 @@ export default function TopInfluencersSection({ lang }: { lang: Lang }) {
     };
   }, []);
 
-  const topTen = influencers.slice(0, 10);
+  const topTen = influencers.slice(0, safeLimit);
   if (!loading && topTen.length === 0) return null;
 
   const txt = t[lang];
