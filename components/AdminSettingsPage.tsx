@@ -76,7 +76,7 @@ const SHORT_LABEL: Record<SiteSettingKey, { el: string; en: string }> = {
   campaign_default_days: { el: "Διάρκεια καμπάνιας", en: "Campaign duration" },
   campaign_reminder_days_before: { el: "Υπενθύμιση κλεισίματος", en: "Close reminder" },
   campaign_detail_image_max_height_px: { el: "Ύψος cover λεπτομερειών", en: "Detail cover height" },
-  profile_page_max_width_px: { el: "Πλάτος προφίλ", en: "Profile width" },
+  profile_page_max_width_px: { el: "Πλάτος σχετικών", en: "Related width" },
   admin_notice_read_retention_days: { el: "Διαβασμένα notices", en: "Read notices keep" },
   zoho_campaigns_announcements: { el: "Zoho ανακοινώσεις", en: "Zoho announcements" },
 };

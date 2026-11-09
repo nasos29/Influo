@@ -323,12 +323,12 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
     min: 1152,
     max: 1600,
     label: {
-      el: "Μέγιστο πλάτος δημόσιου προφίλ (px)",
-      en: "Public profile max width (px)",
+      el: "Πλάτος σχετικών δημιουργών (px)",
+      en: "Related creators width (px)",
     },
     description: {
-      el: "Πλάτος κύριου container στο δημόσιο προφίλ creator σε μεγάλες οθόνες (≥1440px)· κινητό/laptop ως έχει.",
-      en: "Main container width on the public creator profile on large screens (≥1440px); mobile/laptop unchanged.",
+      el: "Πλάτος της ενότητας «Δημιουργοί σχετικοί με…» στο δημόσιο προφίλ σε μεγάλες οθόνες (≥1440px)· το κύριο προφίλ μένει max-w-6xl.",
+      en: "Width of the “Related creators” strip on the public profile on large screens (≥1440px); main profile shell stays max-w-6xl.",
     },
     public: true,
   },

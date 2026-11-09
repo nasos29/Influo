@@ -395,8 +395,9 @@ textarea:focus-visible {
   max-width: 72rem; /* 1152px — Tailwind max-w-6xl */
 }
 /*
- * Public creator profile shell: max-w-6xl below 1440px (mobile/tablet/laptop unchanged).
+ * Related/similar creators strip on the public profile: max-w-6xl below 1440px.
  * On ≥1440px uses --profile-page-max-w from site settings (default 1440px).
+ * Main profile shell stays on max-w-6xl.
  */
 .max-w-profile {
   max-width: 72rem; /* 1152px — Tailwind max-w-6xl */
