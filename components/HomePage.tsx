@@ -23,8 +23,19 @@ import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
+import {
+  defaultHomepageSectionOrder,
+  type HomepageSectionId,
+} from "@/lib/homepageSections";
 
 type Lang = "el" | "en";
+
+/**
+ * Homepage body sections are rendered from HOMEPAGE_SECTION_REGISTRY
+ * (lib/homepageSections.ts) via sectionOrder. Every wrapper must set
+ * data-homepage-section="<id>" — scripts/homepage-sections.test.mts asserts
+ * each rendered id exists in the registry (and vice versa for non-optional ids).
+ */
 
 const HERO_INFLUENCER_IMAGE = "/hero-influencer-left.png";
 const HERO_BRAND_COLLAB_IMAGE = "/hero-brand-collab-right.png";
@@ -185,6 +196,8 @@ export default function Home({
   homeCreatorsLimit = 8,
   homeNewlyApprovedLimit = 8,
   homeTopInfluencersLimit = 10,
+  sectionOrder = defaultHomepageSectionOrder(),
+  sectionHidden = [],
 }: {
   initialInfluencers?: Influencer[];
   initialDirectoryTotal?: number;
@@ -193,6 +206,8 @@ export default function Home({
   homeCreatorsLimit?: number;
   homeNewlyApprovedLimit?: number;
   homeTopInfluencersLimit?: number;
+  sectionOrder?: HomepageSectionId[];
+  sectionHidden?: HomepageSectionId[];
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -449,357 +464,385 @@ export default function Home({
         }}
       />
       
-      <div className="min-h-screen flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
+      <div className="home-page-root min-h-screen flex flex-col overflow-x-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50/30 font-sans text-slate-900 selection:bg-purple-200">
       {/* Header */}
         <SiteHeader lang={lang} onLangChange={setLang} onSignup={() => { setSignupType(null); setShowModal(true); }} />
 
-      {/* Hero Section — overflow-hidden only on lg+ so mobile twin photos aren't clipped by section overflow + shadow */}
-        <section className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-6 overflow-visible lg:overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100">
-          {/* Gray background with handshake pattern */}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100"></div>
-          
-          {/* Soft wash without filter:blur (large blur-3xl orbs were a scroll paint hotspot). */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
-            <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.22)_0%,transparent_70%)]" />
-            <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(233,213,255,0.18)_0%,transparent_70%)]" />
-          </div>
-          
-          <div className="relative z-10 max-w-page mx-auto">
-            <div className="grid lg:grid-cols-[0.8fr_1.6fr_0.8fr] gap-8 lg:gap-10 items-stretch">
-              
-              {/* Left Image — sole desktop LCP candidate */}
-              <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
-                <Image 
-                  src={HERO_INFLUENCER_IMAGE}
-                  alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
-                  fill
-                  className="object-cover object-center"
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 33vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              </div>
-              
-              {/* Center Content — brand-first hero with search (preview) */}
-              <div className="lg:min-h-[500px]">
-                <HomeHeroSearch
-                  lang={lang}
-                  influencers={initialInfluencers}
-                  total={initialDirectoryTotal}
-                  onCreatorSignup={() => { setSignupType("influencer"); setShowModal(true); }}
-                />
-              </div>
-
-              {/* Right Image */}
-              <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
-                <Image 
-                  src={HERO_BRAND_COLLAB_IMAGE}
-                  alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
-                  fill
-                  className="object-cover object-center"
-                  sizes="(max-width: 1024px) 100vw, 33vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-              </div>
-            </div>
-            
-            {/* Mobile Images — equal rounded rects; inset so left edge/shadow isn't clipped by viewport */}
-            <div className="lg:hidden grid grid-cols-2 gap-3 mt-12 px-2 box-border">
-              <div className="relative h-[280px] w-full min-w-0 rounded-2xl overflow-hidden shadow-xl ring-0">
-                <Image 
-                  src={HERO_INFLUENCER_IMAGE}
-                  alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
-                  fill
-                  className="object-cover object-[72%_center] rounded-2xl"
-                  sizes="50vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
-              </div>
-              <div className="relative h-[280px] w-full min-w-0 rounded-2xl overflow-hidden shadow-xl ring-0">
-                <Image 
-                  src={HERO_BRAND_COLLAB_IMAGE}
-                  alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
-                  fill
-                  className="object-cover object-center rounded-2xl"
-                  sizes="50vw"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
-              </div>
-            </div>
-
-            <HomeTrustStatsRow stats={trustStats} lang={lang} />
-          </div>
-        </section>
-
-      <div className="home-section-cv">
-        <HomeHowItWorks lang={lang} />
-      </div>
-
-      {/* Top Influencers of the Month */}
-      <div className="home-section-cv">
-        <TopInfluencersSection lang={lang} limit={homeTopInfluencersLimit} />
-      </div>
-
-      {openCampaigns.length > 0 && (
-        <section className="home-section-cv relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80">
-          <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-            <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.45)_0%,transparent_70%)]" />
-            <div className="absolute -bottom-24 left-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.55)_0%,transparent_70%)]" />
-          </div>
-          <div className="relative max-w-page mx-auto">
-            <div className="text-center mb-12 max-w-2xl mx-auto">
-              <div className="mb-3">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
-                  {txt.open_campaigns_eyebrow}
-                </span>
-              </div>
-              <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>
-                {txt.open_campaigns_title}
-              </h2>
-              <p className="text-base md:text-lg text-slate-600">
-                {txt.open_campaigns_subtitle}
-              </p>
-            </div>
-            <ul className="grid-campaigns-responsive auto-rows-fr">
-              {openCampaigns.map((campaign) => (
-                <li key={campaign.id} className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
-                  <CampaignCard campaign={campaign} lang={lang} viewCta />
-                </li>
-              ))}
-              {openCampaigns.length < 3 ? (
-                <li className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg">
-                  <PublishCampaignPromoCard
-                    lang={lang}
-                    href={
-                      userType === "brand"
-                        ? "/brand/dashboard?tab=campaigns"
-                        : "/brand/signup"
-                    }
-                    approvedInfluencers={trustStats.approvedInfluencers}
-                  />
-                </li>
-              ) : null}
-            </ul>
-            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <a
-                href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors shadow-sm"
-              >
-                {txt.open_campaigns_see_all}
-              </a>
-              <a
-                href={
-                  userType === "brand"
-                    ? "/brand/dashboard?tab=campaigns"
-                    : "/brand/signup"
-                }
-                className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-semibold border border-slate-200 transition-colors"
-              >
-                {txt.open_campaigns_post}
-              </a>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Directory Section — preview; full catalog stays on /directory */}
-      <section className="home-section-cv relative py-20 px-6 bg-white" id="directory">
-        <div
-          className="absolute inset-0 opacity-[0.015] pointer-events-none"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }}
-        />
-        <div className="relative max-w-page mx-auto">
-          <div className="text-center mb-12">
-            <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.dir_title}</h2>
-            <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
-          </div>
-          <Suspense fallback={<div className="h-40 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />}>
-            <Directory
-              lang={lang}
-              initialInfluencers={initialInfluencers}
-              initialTotal={initialDirectoryTotal}
-              homeLimit={homeCreatorsLimit}
-              onDisplayedIdsChange={handleHomeDirectoryIds}
-            />
-          </Suspense>
-        </div>
-      </section>
-
-      {/* Newly Approved Influencers */}
-      <div className="home-section-cv">
-        <NewlyApprovedInfluencersSection
-          lang={lang}
-          excludeIds={homeDirectoryIds}
-          limit={homeNewlyApprovedLimit}
-        />
-      </div>
-
-      {/* Brand Section */}
-        <section className="home-section-cv relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">
-          <div className="max-w-page-md mx-auto relative">
-            <div className="text-center mb-14">
-              <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_section_title}</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">{txt.brand_section_desc}</p>
-              <button
-                type="button"
-                onClick={() => {
-                  setSignupType("brand");
-                  setShowModal(true);
-                }}
-                className="inline-block px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
-              >
-                {txt.brand_section_btn}
-              </button>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
-              {([
-                {
-                  key: "search",
-                  title: txt.brand_feat_search_title,
-                  desc: txt.brand_feat_search_desc,
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
-                    </svg>
-                  ),
-                },
-                {
-                  key: "campaigns",
-                  title: txt.brand_feat_campaigns_title,
-                  desc: txt.brand_feat_campaigns_desc,
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.993 3.993 0 01-1.564-.317z" />
-                    </svg>
-                  ),
-                },
-                {
-                  key: "manage",
-                  title: txt.brand_feat_manage_title,
-                  desc: txt.brand_feat_manage_desc,
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                  ),
-                },
-                {
-                  key: "verified",
-                  title: txt.brand_feat_verified_title,
-                  desc: txt.brand_feat_verified_desc,
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  ),
-                },
-                {
-                  key: "ai",
-                  title: txt.brand_feat_ai_title,
-                  desc: txt.brand_feat_ai_desc,
-                  badge: txt.brand_feat_ai_badge,
-                  icon: (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                  ),
-                },
-              ] as const).map((feat) => (
-                <article
-                  key={feat.key}
-                  className="group flex flex-col h-full bg-white border border-slate-200/90 p-5 md:p-6 rounded-lg hover:border-slate-300 hover:bg-white transition-colors duration-200"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
-                      {feat.icon}
-                    </div>
-                    {"badge" in feat && feat.badge ? (
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
-                        {feat.badge}
-                      </span>
-                    ) : null}
-                  </div>
-                  <h4 className="text-base font-semibold text-slate-900 mb-2 tracking-tight">{feat.title}</h4>
-                  <p className="text-slate-600 text-sm leading-relaxed flex-1">{feat.desc}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-      {/* Brands Logos Slideshow */}
-      <section className="home-section-cv py-16 bg-white">
-        <div className="max-w-page mx-auto px-6">
-          <div className="text-center mb-12">
-            <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>
-              {lang === "el" ? "Συνεργάζονται μαζί μας" : "Trusted by"}
-            </h3>
-            <p className="text-slate-500 text-sm md:text-base">
-              {lang === "el" ? "Αξιόπιστα brands που συνεργάζονται με influencers μέσω της πλατφόρμας μας" : "Trusted brands collaborating with influencers through our platform"}
-            </p>
-          </div>
-          
-          {/* Slideshow Container with gradient fade */}
-          <div ref={brandMarqueeRef} className="relative overflow-hidden">
-            {/* Left gradient fade */}
-            <div className="absolute left-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
-            {/* Right gradient fade */}
-            <div className="absolute right-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
-
-            {(() => {
-              // Until client pick settles, show dummy only (no scroll). Then identical halves for -50% loop.
-              const logos = brandSlideLogos ?? DUMMY_LOGOS;
-              const ready = brandSlideLogos != null;
-              const track = ready ? [...logos, ...logos] : logos;
-
+      {sectionOrder
+        .filter((id) => !sectionHidden.includes(id))
+        .map((sectionId) => {
+          switch (sectionId) {
+            case "hero":
               return (
-                <div
-                  key={ready ? "brands-ready" : "brands-pending"}
-                  className={`flex items-center ${ready ? "animate-scroll" : ""} ${ready && brandMarqueeOffscreen ? "is-offscreen" : ""}`}
+                <section
+                  key={sectionId}
+                  data-homepage-section="hero"
+                  className="relative pt-16 pb-24 md:pt-24 md:pb-32 px-6 overflow-visible lg:overflow-hidden bg-gradient-to-br from-slate-50 via-white to-slate-100"
                 >
-                  {track.map((logo, idx) => (
-                    <a
-                      key={`${logo.key}-${idx}`}
-                      href={logo.href}
-                      target="_blank"
-                      rel="nofollow noopener noreferrer"
-                      className="flex h-12 w-[140px] shrink-0 items-center justify-center pr-8 opacity-60 grayscale transition-opacity duration-300 hover:opacity-100 md:h-16 md:w-[180px] md:pr-12 lg:h-20 lg:w-[200px] lg:pr-16"
-                    >
-                      {logo.src ? (
-                        <img
-                          src={logo.src}
-                          alt={logo.name}
-                          className="h-full w-full object-contain"
-                          loading="lazy"
-                          decoding="async"
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement;
-                            target.style.display = "none";
-                            const parent = target.parentElement;
-                            if (parent && !parent.querySelector(".text-fallback")) {
-                              const textFallback = document.createElement("div");
-                              textFallback.className =
-                                "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
-                              textFallback.textContent = logo.name;
-                              parent.appendChild(textFallback);
-                            }
-                          }}
+                  <div className="absolute inset-0 bg-gradient-to-r from-slate-100 via-slate-50 to-slate-100"></div>
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
+                    <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.22)_0%,transparent_70%)]" />
+                    <div className="absolute bottom-0 left-0 h-[500px] w-[500px] rounded-full bg-[radial-gradient(circle,rgba(233,213,255,0.18)_0%,transparent_70%)]" />
+                  </div>
+                  <div className="relative z-10 max-w-page mx-auto">
+                    <div className="grid lg:grid-cols-[0.8fr_1.6fr_0.8fr] gap-8 lg:gap-10 items-stretch">
+                      <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
+                        <Image
+                          src={HERO_INFLUENCER_IMAGE}
+                          alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
+                          fill
+                          className="object-cover object-center"
+                          priority
+                          sizes="(max-width: 1024px) 100vw, 33vw"
                         />
-                      ) : (
-                        <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
-                          {logo.name}
-                        </div>
-                      )}
-                    </a>
-                  ))}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                      </div>
+                      <div className="lg:min-h-[500px]">
+                        <HomeHeroSearch
+                          lang={lang}
+                          influencers={initialInfluencers}
+                          total={initialDirectoryTotal}
+                          onCreatorSignup={() => { setSignupType("influencer"); setShowModal(true); }}
+                        />
+                      </div>
+                      <div className="hidden lg:block relative min-h-[500px] h-full rounded-2xl overflow-hidden shadow-2xl">
+                        <Image
+                          src={HERO_BRAND_COLLAB_IMAGE}
+                          alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
+                          fill
+                          className="object-cover object-center"
+                          sizes="(max-width: 1024px) 100vw, 33vw"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                      </div>
+                    </div>
+                    <div className="lg:hidden grid grid-cols-2 gap-3 mt-12 px-2 box-border">
+                      <div className="relative h-[280px] w-full min-w-0 rounded-2xl overflow-hidden shadow-xl ring-0">
+                        <Image
+                          src={HERO_INFLUENCER_IMAGE}
+                          alt={lang === "en" ? "Influencer creating content for social media" : "Influencer δημιουργεί περιεχόμενο για social media"}
+                          fill
+                          className="object-cover object-[72%_center] rounded-2xl"
+                          sizes="50vw"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
+                      </div>
+                      <div className="relative h-[280px] w-full min-w-0 rounded-2xl overflow-hidden shadow-xl ring-0">
+                        <Image
+                          src={HERO_BRAND_COLLAB_IMAGE}
+                          alt={lang === "en" ? "Brand starting a collaboration with an influencer" : "Brand ξεκινά συνεργασία με influencer"}
+                          fill
+                          className="object-cover object-center rounded-2xl"
+                          sizes="50vw"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
+                      </div>
+                    </div>
+                    <HomeTrustStatsRow stats={trustStats} lang={lang} />
+                  </div>
+                </section>
+              );
+
+            case "how_it_works":
+              return (
+                <div key={sectionId} data-homepage-section="how_it_works" className="home-section-cv">
+                  <HomeHowItWorks lang={lang} />
                 </div>
               );
-            })()}
-          </div>
-        </div>
-      </section>
+
+            case "top_influencers":
+              return (
+                <div key={sectionId} data-homepage-section="top_influencers" className="home-section-cv">
+                  <TopInfluencersSection lang={lang} limit={homeTopInfluencersLimit} />
+                </div>
+              );
+
+            case "open_campaigns":
+              if (openCampaigns.length === 0) return null;
+              return (
+                <section
+                  key={sectionId}
+                  data-homepage-section="open_campaigns"
+                  className="home-section-cv relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80"
+                >
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
+                    <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.45)_0%,transparent_70%)]" />
+                    <div className="absolute -bottom-24 left-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.55)_0%,transparent_70%)]" />
+                  </div>
+                  <div className="relative max-w-page mx-auto">
+                    <div className="text-center mb-12 max-w-2xl mx-auto">
+                      <div className="mb-3">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
+                          {txt.open_campaigns_eyebrow}
+                        </span>
+                      </div>
+                      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>
+                        {txt.open_campaigns_title}
+                      </h2>
+                      <p className="text-base md:text-lg text-slate-600">
+                        {txt.open_campaigns_subtitle}
+                      </p>
+                    </div>
+                    <ul className="grid-campaigns-responsive auto-rows-fr">
+                      {openCampaigns.map((campaign) => (
+                        <li key={campaign.id} className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
+                          <CampaignCard campaign={campaign} lang={lang} viewCta />
+                        </li>
+                      ))}
+                      {openCampaigns.length < 3 ? (
+                        <li className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg">
+                          <PublishCampaignPromoCard
+                            lang={lang}
+                            href={
+                              userType === "brand"
+                                ? "/brand/dashboard?tab=campaigns"
+                                : "/brand/signup"
+                            }
+                            approvedInfluencers={trustStats.approvedInfluencers}
+                          />
+                        </li>
+                      ) : null}
+                    </ul>
+                    <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <a
+                        href={lang === "en" ? "/en/campaigns" : "/campaigns"}
+                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors shadow-sm"
+                      >
+                        {txt.open_campaigns_see_all}
+                      </a>
+                      <a
+                        href={
+                          userType === "brand"
+                            ? "/brand/dashboard?tab=campaigns"
+                            : "/brand/signup"
+                        }
+                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-semibold border border-slate-200 transition-colors"
+                      >
+                        {txt.open_campaigns_post}
+                      </a>
+                    </div>
+                  </div>
+                </section>
+              );
+
+            case "directory":
+              return (
+                <section
+                  key={sectionId}
+                  data-homepage-section="directory"
+                  className="home-section-cv relative py-20 px-6 bg-white"
+                  id="directory"
+                >
+                  <div
+                    className="absolute inset-0 opacity-[0.015] pointer-events-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+                    }}
+                  />
+                  <div className="relative max-w-page mx-auto">
+                    <div className="text-center mb-12">
+                      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.dir_title}</h2>
+                      <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
+                    </div>
+                    <Suspense fallback={<div className="h-40 rounded-2xl bg-slate-50 animate-pulse" aria-hidden />}>
+                      <Directory
+                        lang={lang}
+                        initialInfluencers={initialInfluencers}
+                        initialTotal={initialDirectoryTotal}
+                        homeLimit={homeCreatorsLimit}
+                        onDisplayedIdsChange={handleHomeDirectoryIds}
+                      />
+                    </Suspense>
+                  </div>
+                </section>
+              );
+
+            case "brand_cta":
+              return (
+                <section
+                  key={sectionId}
+                  data-homepage-section="brand_cta"
+                  className="home-section-cv relative py-20 px-6 bg-slate-50 border-y border-slate-100"
+                  id="brands"
+                >
+                  <div className="max-w-page-md mx-auto relative">
+                    <div className="text-center mb-14">
+                      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_section_title}</h2>
+                      <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">{txt.brand_section_desc}</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignupType("brand");
+                          setShowModal(true);
+                        }}
+                        className="inline-block cursor-pointer px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
+                      >
+                        {txt.brand_section_btn}
+                      </button>
+                    </div>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
+                      {([
+                        {
+                          key: "search",
+                          title: txt.brand_feat_search_title,
+                          desc: txt.brand_feat_search_desc,
+                          icon: (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          key: "campaigns",
+                          title: txt.brand_feat_campaigns_title,
+                          desc: txt.brand_feat_campaigns_desc,
+                          icon: (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.993 3.993 0 01-1.564-.317z" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          key: "manage",
+                          title: txt.brand_feat_manage_title,
+                          desc: txt.brand_feat_manage_desc,
+                          icon: (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          key: "verified",
+                          title: txt.brand_feat_verified_title,
+                          desc: txt.brand_feat_verified_desc,
+                          icon: (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          key: "ai",
+                          title: txt.brand_feat_ai_title,
+                          desc: txt.brand_feat_ai_desc,
+                          badge: txt.brand_feat_ai_badge,
+                          icon: (
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                          ),
+                        },
+                      ] as const).map((feat) => (
+                        <article
+                          key={feat.key}
+                          className="group flex flex-col h-full bg-white border border-slate-200/90 p-5 md:p-6 rounded-lg hover:border-slate-300 hover:bg-white transition-colors duration-200"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-4">
+                            <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
+                              {feat.icon}
+                            </div>
+                            {"badge" in feat && feat.badge ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 border border-slate-200 px-2 py-0.5 rounded">
+                                {feat.badge}
+                              </span>
+                            ) : null}
+                          </div>
+                          <h4 className="text-base font-semibold text-slate-900 mb-2 tracking-tight">{feat.title}</h4>
+                          <p className="text-slate-600 text-sm leading-relaxed flex-1">{feat.desc}</p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              );
+
+            case "newly_approved":
+              return (
+                <div key={sectionId} data-homepage-section="newly_approved" className="home-section-cv">
+                  <NewlyApprovedInfluencersSection
+                    lang={lang}
+                    excludeIds={homeDirectoryIds}
+                    limit={homeNewlyApprovedLimit}
+                  />
+                </div>
+              );
+
+            case "brand_logos":
+              return (
+                <section
+                  key={sectionId}
+                  data-homepage-section="brand_logos"
+                  className="home-section-cv py-16 bg-white"
+                >
+                  <div className="max-w-page mx-auto px-6">
+                    <div className="text-center mb-12">
+                      <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>
+                        {lang === "el" ? "Συνεργάζονται μαζί μας" : "Trusted by"}
+                      </h3>
+                      <p className="text-slate-500 text-sm md:text-base">
+                        {lang === "el" ? "Αξιόπιστα brands που συνεργάζονται με influencers μέσω της πλατφόρμας μας" : "Trusted brands collaborating with influencers through our platform"}
+                      </p>
+                    </div>
+                    <div ref={brandMarqueeRef} className="relative overflow-hidden">
+                      <div className="absolute left-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+                      <div className="absolute right-0 top-0 bottom-0 w-32 md:w-48 lg:w-64 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none"></div>
+                      {(() => {
+                        const logos = brandSlideLogos ?? DUMMY_LOGOS;
+                        const ready = brandSlideLogos != null;
+                        const track = ready ? [...logos, ...logos] : logos;
+                        return (
+                          <div
+                            key={ready ? "brands-ready" : "brands-pending"}
+                            className={`flex items-center ${ready ? "animate-scroll" : ""} ${ready && brandMarqueeOffscreen ? "is-offscreen" : ""}`}
+                          >
+                            {track.map((logo, idx) => (
+                              <a
+                                key={`${logo.key}-${idx}`}
+                                href={logo.href}
+                                target="_blank"
+                                rel="nofollow noopener noreferrer"
+                                className="flex h-12 w-[140px] shrink-0 items-center justify-center pr-8 opacity-60 grayscale transition-opacity duration-300 hover:opacity-100 md:h-16 md:w-[180px] md:pr-12 lg:h-20 lg:w-[200px] lg:pr-16"
+                              >
+                                {logo.src ? (
+                                  <img
+                                    src={logo.src}
+                                    alt={logo.name}
+                                    className="h-full w-full object-contain"
+                                    loading="lazy"
+                                    decoding="async"
+                                    onError={(e) => {
+                                      const target = e.currentTarget as HTMLImageElement;
+                                      target.style.display = "none";
+                                      const parent = target.parentElement;
+                                      if (parent && !parent.querySelector(".text-fallback")) {
+                                        const textFallback = document.createElement("div");
+                                        textFallback.className =
+                                          "text-fallback font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap";
+                                        textFallback.textContent = logo.name;
+                                        parent.appendChild(textFallback);
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="font-semibold text-sm md:text-base lg:text-lg text-slate-400 whitespace-nowrap">
+                                    {logo.name}
+                                  </div>
+                                )}
+                              </a>
+                            ))}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </section>
+              );
+
+            default:
+              return null;
+          }
+        })}
 
       {/* Footer */}
       <Footer lang={lang} />

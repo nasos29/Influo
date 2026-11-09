@@ -11,6 +11,7 @@ import {
   type SiteSettings,
 } from "@/lib/siteSettings";
 import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
+import AdminHomepageSectionOrderPanel from "@/components/AdminHomepageSectionOrderPanel";
 
 type Lang = "el" | "en";
 
@@ -298,6 +299,7 @@ export default function AdminSettingsPage() {
           <p className="text-sm text-slate-500">{lang === "el" ? "Φόρτωση…" : "Loading…"}</p>
         ) : (
           <div className="space-y-5">
+            <AdminHomepageSectionOrderPanel lang={lang} />
             {SETTING_GROUPS.map((group) => (
               <section key={group.id} aria-labelledby={`settings-group-${group.id}`}>
                 <h2
