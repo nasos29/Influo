@@ -23,7 +23,8 @@ export function getZohoCampaignsEnv(): ZohoCampaignsEnv {
     refreshToken: (process.env.ZOHO_CAMPAIGNS_REFRESH_TOKEN || "").trim(),
     creatorsListKey: (process.env.ZOHO_CAMPAIGNS_LIST_KEY_CREATORS || "").trim(),
     brandsListKey: (process.env.ZOHO_CAMPAIGNS_LIST_KEY_BRANDS || "").trim(),
-    fromEmail: (process.env.ZOHO_CAMPAIGNS_FROM_EMAIL || "noreply@influo.gr").trim(),
+    // Zoho Campaigns requires a verified sender; Influo account uses support@.
+    fromEmail: (process.env.ZOHO_CAMPAIGNS_FROM_EMAIL || "support@influo.gr").trim(),
     fromName: (process.env.ZOHO_CAMPAIGNS_FROM_NAME || "Influo").trim(),
     topicId: (process.env.ZOHO_CAMPAIGNS_TOPIC_ID || "").trim(),
     accountsBase: (process.env.ZOHO_CAMPAIGNS_ACCOUNTS_BASE || "https://accounts.zoho.eu").replace(

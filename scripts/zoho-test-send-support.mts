@@ -47,6 +47,7 @@ async function main() {
   const listName = `Influo test support ${stamp}`.slice(0, 100);
 
   console.log("[zoho-test] creating temp list with ONLY", testEmail);
+  console.log("[zoho-test] from_email=", env.fromEmail);
   const created = await zohoCreateListWithContacts(
     {
       listName,
@@ -56,30 +57,50 @@ async function main() {
     env
   );
   console.log("[zoho-test] listKey=", created.listKey);
+  console.log(
+    "[zoho-test] accepted=",
+    created.acceptedEmails,
+    "ignored=",
+    created.ignoredEmails,
+    "createRaw=",
+    JSON.stringify(created.raw).slice(0, 400)
+  );
 
   let campaignKey = "";
   let sendAccepted = false;
   let sendRaw: unknown = null;
   let deleteOk = false;
+  let blockedReason = "";
 
   try {
-    const createdCampaign = await zohoCreateCampaign(
-      {
-        name: `Influo Zoho test ${stamp}`.slice(0, 180),
-        subject: ANNOUNCEMENT_EMAIL_SUBJECT,
-        listKey: created.listKey,
-        contentUrl: announcementContentUrl("creators", siteUrl),
-      },
-      env
-    );
-    campaignKey = createdCampaign.campaignKey;
-    console.log("[zoho-test] campaignKey=", campaignKey);
+    if (created.acceptedEmails.length === 0) {
+      blockedReason =
+        "Zoho ignored the only test contact (role/group addresses like support@ are often rejected as list contacts). No campaign sent; nobody else emailed.";
+      console.warn("[zoho-test]", blockedReason);
+    } else {
+      const createdCampaign = await zohoCreateCampaign(
+        {
+          name: `Influo Zoho test ${stamp}`.slice(0, 180),
+          subject: ANNOUNCEMENT_EMAIL_SUBJECT,
+          listKey: created.listKey,
+          contentUrl: announcementContentUrl("creators", siteUrl),
+        },
+        env
+      );
+      campaignKey = createdCampaign.campaignKey;
+      console.log("[zoho-test] campaignKey=", campaignKey);
 
-    sendRaw = await zohoSendCampaign(campaignKey, env);
-    const msg = JSON.stringify(sendRaw).toLowerCase();
-    sendAccepted =
-      zohoResponseOk(sendRaw) || msg.includes("inprogress") || msg.includes("success");
-    console.log("[zoho-test] send accepted=", sendAccepted, "raw=", JSON.stringify(sendRaw).slice(0, 500));
+      sendRaw = await zohoSendCampaign(campaignKey, env);
+      const msg = JSON.stringify(sendRaw).toLowerCase();
+      sendAccepted =
+        zohoResponseOk(sendRaw) || msg.includes("inprogress") || msg.includes("success");
+      console.log(
+        "[zoho-test] send accepted=",
+        sendAccepted,
+        "raw=",
+        JSON.stringify(sendRaw).slice(0, 500)
+      );
+    }
   } finally {
     try {
       const delRaw = await zohoDeleteMailingList(
@@ -101,11 +122,15 @@ async function main() {
   const summary = {
     ok: sendAccepted,
     testEmail,
+    fromEmail: env.fromEmail,
     listKey: created.listKey,
+    acceptedEmails: created.acceptedEmails,
+    ignoredEmails: created.ignoredEmails,
     campaignKey,
     sendAccepted,
+    blockedReason: blockedReason || undefined,
     listDeleted: deleteOk,
-    sendRawPreview: JSON.stringify(sendRaw).slice(0, 400),
+    sendRawPreview: sendRaw ? JSON.stringify(sendRaw).slice(0, 400) : undefined,
   };
   console.log("[zoho-test] SUMMARY", JSON.stringify(summary, null, 2));
   if (!sendAccepted) process.exitCode = 1;
