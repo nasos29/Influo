@@ -13,6 +13,7 @@ import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluence
 import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
 import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
+import PublishCampaignPromoCard from "@/components/PublishCampaignPromoCard";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -545,51 +546,16 @@ export default function Home({
                 </li>
               ))}
               {openCampaigns.length < 3 ? (
-                <li className="h-full rounded-2xl transition-shadow duration-200 hover:shadow-lg">
-                  <div className="flex h-full flex-col justify-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <span className="mb-3 mx-auto inline-flex w-fit items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 border border-emerald-100">
-                      {lang === "en" ? "For brands" : "Για επιχειρήσεις"}
-                    </span>
-                    <h3 className="text-center text-xl font-bold tracking-tight text-slate-900">
-                      {lang === "en" ? "Post a campaign for free" : "Δημοσίευσε καμπάνια δωρεάν"}
-                    </h3>
-                    <p className="mt-3 max-w-lg text-base text-slate-600 leading-relaxed">
-                      {lang === "en"
-                        ? "Describe what you need and your budget. Creators apply with their price and you choose who to work with."
-                        : "Γράψε τι χρειάζεσαι και το budget σου. Οι creators κάνουν αίτηση με την τιμή τους και εσύ επιλέγεις με ποιον θα συνεργαστείς."}
-                    </p>
-                    <ul className="mt-5 space-y-2 text-sm text-slate-700">
-                      {(lang === "en"
-                        ? [
-                            "No subscription, no cost to publish",
-                            "Create your campaign with AI in 1 minute",
-                            "Ready packages or build your own, remote or in person",
-                            "Estimated views and matching creators before publishing",
-                            "Applications from verified creators with photo, followers and collaborations",
-                            "Chat and agree inside Influo",
-                          ]
-                        : [
-                            "Χωρίς συνδρομή και χωρίς κόστος δημοσίευσης",
-                            "Φτιάξε την καμπάνια με AI σε 1 λεπτό",
-                            "Έτοιμα πακέτα ή φτιάξε το δικό σου, εξ αποστάσεως ή με παρουσία",
-                            "Εκτιμώμενες προβολές και creators που ταιριάζουν πριν τη δημοσίευση",
-                            "Αιτήσεις από verified creators με φωτογραφία, ακόλουθους και συνεργασίες",
-                            "Συζήτηση και συμφωνία μέσα στο Influo",
-                          ]
-                      ).map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <span className="mt-0.5 text-emerald-600" aria-hidden>✓</span>
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    <a
-                      href={userType === "brand" ? "/brand/dashboard?tab=campaigns" : "/brand/signup"}
-                      className="mt-7 mx-auto inline-flex w-fit items-center justify-center rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-slate-800"
-                    >
-                      {lang === "en" ? "Post a campaign" : "Δημοσίευσε καμπάνια"} →
-                    </a>
-                  </div>
+                <li className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg">
+                  <PublishCampaignPromoCard
+                    lang={lang}
+                    href={
+                      userType === "brand"
+                        ? "/brand/dashboard?tab=campaigns"
+                        : "/brand/signup"
+                    }
+                    approvedInfluencers={trustStats.approvedInfluencers}
+                  />
                 </li>
               ) : null}
             </ul>
