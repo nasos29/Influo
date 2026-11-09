@@ -30,6 +30,7 @@ const SETTING_GROUPS: Array<{
       "blog_posts_per_row_wide",
       "filter_ui_variant",
       "campaign_card_style",
+      "profile_page_max_width_px",
     ],
     label: { el: "Διάταξη", en: "Layout" },
   },
@@ -75,6 +76,7 @@ const SHORT_LABEL: Record<SiteSettingKey, { el: string; en: string }> = {
   campaign_default_days: { el: "Διάρκεια καμπάνιας", en: "Campaign duration" },
   campaign_reminder_days_before: { el: "Υπενθύμιση κλεισίματος", en: "Close reminder" },
   campaign_detail_image_max_height_px: { el: "Ύψος cover λεπτομερειών", en: "Detail cover height" },
+  profile_page_max_width_px: { el: "Πλάτος προφίλ", en: "Profile width" },
   admin_notice_read_retention_days: { el: "Διαβασμένα notices", en: "Read notices keep" },
 };
 
