@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Settings } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, Minus, Plus, RotateCcw, Settings } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import {
   SITE_SETTING_KEYS,
@@ -14,30 +14,102 @@ import { getStoredLanguage, setStoredLanguage } from "@/lib/language";
 
 type Lang = "el" | "en";
 
+type SettingGroupId = "layout" | "homepage" | "campaigns" | "admin";
+
+const SETTING_GROUPS: Array<{
+  id: SettingGroupId;
+  keys: SiteSettingKey[];
+  label: { el: string; en: string };
+}> = [
+  {
+    id: "layout",
+    keys: [
+      "creator_cards_per_row_wide",
+      "campaign_cards_per_row_wide",
+      "blog_posts_per_row_wide",
+      "filter_ui_variant",
+      "campaign_card_style",
+    ],
+    label: { el: "Διάταξη", en: "Layout" },
+  },
+  {
+    id: "homepage",
+    keys: [
+      "homepage_creators_count",
+      "homepage_campaigns_count",
+      "homepage_newly_approved_count",
+      "homepage_top_influencers_count",
+      "new_badge_max_days",
+    ],
+    label: { el: "Αρχική", en: "Homepage" },
+  },
+  {
+    id: "campaigns",
+    keys: ["campaign_default_days", "campaign_reminder_days_before"],
+    label: { el: "Καμπάνιες", en: "Campaigns" },
+  },
+  {
+    id: "admin",
+    keys: ["admin_notice_read_retention_days"],
+    label: { el: "Admin", en: "Admin" },
+  },
+];
+
+/** Compact tile titles — full labels stay in title/help. */
+const SHORT_LABEL: Record<SiteSettingKey, { el: string; en: string }> = {
+  creator_cards_per_row_wide: { el: "Creators / σειρά", en: "Creators / row" },
+  campaign_cards_per_row_wide: { el: "Καμπάνιες / σειρά", en: "Campaigns / row" },
+  blog_posts_per_row_wide: { el: "Blog / σειρά", en: "Blog / row" },
+  filter_ui_variant: { el: "Φίλτρα καταλόγου", en: "Directory filters" },
+  campaign_card_style: { el: "Στυλ κάρτας", en: "Card style" },
+  homepage_creators_count: { el: "Creators αρχικής", en: "Home creators" },
+  homepage_campaigns_count: { el: "Καμπάνιες αρχικής", en: "Home campaigns" },
+  homepage_newly_approved_count: { el: "Νεοεγκεκριμένοι", en: "Newly approved" },
+  homepage_top_influencers_count: { el: "Top influencers", en: "Top influencers" },
+  new_badge_max_days: { el: "Badge «Νέος»", en: "“New” badge days" },
+  campaign_default_days: { el: "Διάρκεια καμπάνιας", en: "Campaign duration" },
+  campaign_reminder_days_before: { el: "Υπενθύμιση κλεισίματος", en: "Close reminder" },
+  admin_notice_read_retention_days: { el: "Διαβασμένα notices", en: "Read notices keep" },
+};
+
+const SHORT_OPTION: Partial<
+  Record<SiteSettingKey, Array<{ value: number; el: string; en: string }>>
+> = {
+  filter_ui_variant: [
+    { value: 1, el: "Chips", en: "Chips" },
+    { value: 2, el: "Sidebar", en: "Sidebar" },
+    { value: 3, el: "Dropdown", en: "Dropdown" },
+  ],
+  campaign_card_style: [
+    { value: 1, el: "Premium", en: "Premium" },
+    { value: 2, el: "Classic", en: "Classic" },
+  ],
+};
+
 const copy = {
   el: {
     title: "Ρυθμίσεις ιστοτόπου",
-    sub: "Τιμές εμφάνισης και κύκλου ζωής — με ασφαλή προεπιλογές.",
-    back: "Πίσω στο admin",
+    sub: "Συμπαγής πίνακας — προεπιλογές με ασφάλεια.",
+    back: "Πίσω",
     save: "Αποθήκευση",
     reset: "Επαναφορά",
-    saving: "Αποθήκευση…",
-    saved: "Αποθηκεύτηκε.",
-    range: (min: number, max: number, def: number) =>
-      `Εύρος ${min}–${max}. Προεπιλογή ${def}.`,
+    saving: "…",
+    saved: "OK",
+    dirty: "Αλλαγές",
+    range: (min: number, max: number, def: number) => `${min}–${max} · def ${def}`,
     loadError: "Αποτυχία φόρτωσης ρυθμίσεων.",
     saveError: "Αποτυχία αποθήκευσης.",
   },
   en: {
     title: "Site settings",
-    sub: "Display and lifecycle knobs — safe defaults until you change them.",
-    back: "Back to admin",
+    sub: "Dense control board — safe defaults.",
+    back: "Back",
     save: "Save",
     reset: "Reset",
-    saving: "Saving…",
-    saved: "Saved.",
-    range: (min: number, max: number, def: number) =>
-      `Range ${min}–${max}. Default ${def}.`,
+    saving: "…",
+    saved: "OK",
+    dirty: "Edited",
+    range: (min: number, max: number, def: number) => `${min}–${max} · def ${def}`,
     loadError: "Failed to load settings.",
     saveError: "Failed to save.",
   },
@@ -49,18 +121,35 @@ async function adminAuthHeaders(): Promise<Record<string, string>> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function parseDraftValue(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
 export default function AdminSettingsPage() {
   const [lang, setLang] = useState<Lang>("el");
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [draft, setDraft] = useState<Partial<Record<SiteSettingKey, string>>>({});
-  const [meta] = useState<SiteSettingMeta[]>(
-    SITE_SETTING_KEYS.map((key) => SITE_SETTING_META[key])
-  );
+  const [metaByKey] = useState<Record<SiteSettingKey, SiteSettingMeta>>(() => {
+    const map = {} as Record<SiteSettingKey, SiteSettingMeta>;
+    for (const key of SITE_SETTING_KEYS) map[key] = SITE_SETTING_META[key];
+    return map;
+  });
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const t = copy[lang];
+
+  const dirtyCount = useMemo(() => {
+    if (!settings) return 0;
+    let n = 0;
+    for (const key of SITE_SETTING_KEYS) {
+      if (String(settings[key]) !== String(draft[key] ?? "")) n += 1;
+    }
+    return n;
+  }, [settings, draft]);
 
   useEffect(() => {
     setLang(getStoredLanguage());
@@ -88,7 +177,13 @@ export default function AdminSettingsPage() {
     void load();
   }, [load]);
 
-  async function saveKey(key: SiteSettingKey, reset = false) {
+  useEffect(() => {
+    if (!savedKey) return;
+    const id = window.setTimeout(() => setSavedKey(null), 1600);
+    return () => window.clearTimeout(id);
+  }, [savedKey]);
+
+  async function saveKey(key: SiteSettingKey, reset = false, valueOverride?: number) {
     if (!settings) return;
     setBusyKey(key);
     setMessage(null);
@@ -96,7 +191,7 @@ export default function AdminSettingsPage() {
     try {
       const body = reset
         ? { key, reset: true }
-        : { key, value: Number(draft[key]) };
+        : { key, value: valueOverride ?? Number(draft[key]) };
       const res = await fetch("/api/admin/settings", {
         method: "PATCH",
         headers: {
@@ -110,6 +205,7 @@ export default function AdminSettingsPage() {
       const next = data.settings as SiteSettings;
       setSettings(next);
       setDraft((prev) => ({ ...prev, [key]: String(next[key]) }));
+      setSavedKey(key);
       setMessage(t.saved);
     } catch (err) {
       setError(err instanceof Error ? err.message : t.saveError);
@@ -118,18 +214,58 @@ export default function AdminSettingsPage() {
     }
   }
 
+  function setDraftValue(key: SiteSettingKey, value: string) {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function commitNumber(key: SiteSettingKey, nextRaw: string) {
+    if (!settings) return;
+    const meta = metaByKey[key];
+    let n = parseDraftValue(nextRaw, settings[key]);
+    if (n < meta.min) n = meta.min;
+    if (n > meta.max) n = meta.max;
+    setDraftValue(key, String(n));
+    if (n === settings[key]) return;
+    await saveKey(key, false, n);
+  }
+
+  async function stepNumber(key: SiteSettingKey, delta: number) {
+    if (!settings) return;
+    const meta = metaByKey[key];
+    const current = parseDraftValue(draft[key], settings[key]);
+    const next = Math.min(meta.max, Math.max(meta.min, current + delta));
+    setDraftValue(key, String(next));
+    if (next === settings[key]) return;
+    await saveKey(key, false, next);
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+      <div className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+        <div className="flex items-center justify-between gap-3 px-3 py-3 sm:px-4 lg:px-5">
           <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
-              <Settings className="w-5 h-5 text-slate-700" aria-hidden />
-              {t.title}
+            <h1 className="flex items-center gap-2 text-base font-semibold text-slate-900 sm:text-lg">
+              <Settings className="h-4 w-4 shrink-0 text-slate-600" aria-hidden />
+              <span className="truncate">{t.title}</span>
             </h1>
-            <p className="text-sm text-slate-500">{t.sub}</p>
+            <p className="truncate text-xs text-slate-500">{t.sub}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {dirtyCount > 0 ? (
+              <span className="hidden sm:inline rounded-md bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+                {dirtyCount} {t.dirty}
+              </span>
+            ) : null}
+            {message && !error ? (
+              <span className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700" role="status">
+                {message}
+              </span>
+            ) : null}
+            {error ? (
+              <span className="max-w-[12rem] truncate rounded-md bg-red-50 px-2 py-1 text-[11px] font-medium text-red-700" role="alert">
+                {error}
+              </span>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -137,13 +273,13 @@ export default function AdminSettingsPage() {
                 setLang(next);
                 setStoredLanguage(next);
               }}
-              className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50"
+              className="inline-flex h-9 items-center rounded-md px-2.5 text-xs font-medium text-blue-700 hover:bg-blue-50"
             >
-              {lang === "el" ? "English" : "Ελληνικά"}
+              {lang === "el" ? "EN" : "EL"}
             </button>
             <a
               href="/admin"
-              className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex h-9 items-center rounded-md border border-slate-200 px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
             >
               {t.back}
             </a>
@@ -151,93 +287,159 @@ export default function AdminSettingsPage() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-        {message ? (
-          <p className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2" role="status">
-            {message}
-          </p>
-        ) : null}
-        {error ? (
-          <p className="text-sm text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2" role="alert">
-            {error}
-          </p>
-        ) : null}
-
+      <div className="px-3 py-4 sm:px-4 lg:px-5 sm:py-5">
         {loading || !settings ? (
-          <p className="text-slate-500">{lang === "el" ? "Φόρτωση…" : "Loading…"}</p>
+          <p className="text-sm text-slate-500">{lang === "el" ? "Φόρτωση…" : "Loading…"}</p>
         ) : (
-          <ul className="space-y-4">
-            {meta.map((item) => {
-              const key = item.key;
-              const dirty = String(settings[key]) !== String(draft[key] ?? "");
-              const busy = busyKey === key;
-              return (
-                <li
-                  key={key}
-                  className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm"
+          <div className="space-y-5">
+            {SETTING_GROUPS.map((group) => (
+              <section key={group.id} aria-labelledby={`settings-group-${group.id}`}>
+                <h2
+                  id={`settings-group-${group.id}`}
+                  className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500"
                 >
-                  <label className="block text-sm font-semibold text-slate-900" htmlFor={`setting-${key}`}>
-                    {item.label[lang]}
-                  </label>
-                  <p className="mt-1 text-sm text-slate-600">{item.help[lang]}</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    {item.options
-                      ? lang === "el"
-                        ? `Προεπιλογή: ${item.options.find((o) => o.value === item.default)?.label.el || item.default}`
-                        : `Default: ${item.options.find((o) => o.value === item.default)?.label.en || item.default}`
-                      : t.range(item.min, item.max, item.default)}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    {item.options ? (
-                      <select
-                        id={`setting-${key}`}
-                        value={draft[key] ?? String(settings[key])}
-                        onChange={(e) =>
-                          setDraft((prev) => ({ ...prev, [key]: e.target.value }))
-                        }
-                        className="min-w-[16rem] max-w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10"
+                  {group.label[lang]}
+                </h2>
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 min-[1800px]:grid-cols-8">
+                  {group.keys.map((key) => {
+                    const item = metaByKey[key];
+                    const valueStr = draft[key] ?? String(settings[key]);
+                    const dirty = String(settings[key]) !== String(valueStr);
+                    const busy = busyKey === key;
+                    const justSaved = savedKey === key;
+                    const shortOpts = SHORT_OPTION[key];
+                    const hint = item.options
+                      ? `def ${item.default}`
+                      : t.range(item.min, item.max, item.default);
+
+                    return (
+                      <li
+                        key={key}
+                        className={[
+                          "relative flex min-h-[7.5rem] flex-col rounded-lg border bg-white p-2.5 shadow-sm transition-colors",
+                          dirty
+                            ? "border-amber-300 ring-1 ring-amber-200/70"
+                            : justSaved
+                              ? "border-emerald-300 ring-1 ring-emerald-200/70"
+                              : "border-slate-200",
+                        ].join(" ")}
+                        title={item.help[lang]}
                       >
-                        {item.options.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label[lang]}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        id={`setting-${key}`}
-                        type="number"
-                        min={item.min}
-                        max={item.max}
-                        step={1}
-                        value={draft[key] ?? String(settings[key])}
-                        onChange={(e) =>
-                          setDraft((prev) => ({ ...prev, [key]: e.target.value }))
-                        }
-                        className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10"
-                      />
-                    )}
-                    <button
-                      type="button"
-                      disabled={busy || !dirty}
-                      onClick={() => void saveKey(key)}
-                      className="inline-flex min-h-10 items-center rounded-lg bg-slate-900 px-3 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-40"
-                    >
-                      {busy ? t.saving : t.save}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || settings[key] === item.default}
-                      onClick={() => void saveKey(key, true)}
-                      className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      {t.reset}
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                        <div className="mb-1.5 flex items-start justify-between gap-1">
+                          <label
+                            className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-900"
+                            htmlFor={`setting-${key}`}
+                            title={item.label[lang]}
+                          >
+                            {SHORT_LABEL[key][lang]}
+                          </label>
+                          <span
+                            className={[
+                              "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px]",
+                              busy
+                                ? "bg-slate-100 text-slate-500"
+                                : justSaved
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : dirty
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-transparent text-transparent",
+                            ].join(" ")}
+                            aria-hidden={!busy && !justSaved && !dirty}
+                          >
+                            {busy ? (
+                              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-slate-400" />
+                            ) : justSaved ? (
+                              <Check className="h-3 w-3" />
+                            ) : dirty ? (
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                            ) : null}
+                          </span>
+                        </div>
+
+                        <div className="mt-auto space-y-1.5">
+                          {item.options ? (
+                            <select
+                              id={`setting-${key}`}
+                              value={valueStr}
+                              disabled={busy}
+                              onChange={(e) => {
+                                const next = e.target.value;
+                                setDraftValue(key, next);
+                                void saveKey(key, false, Number(next));
+                              }}
+                              className="w-full rounded-md border border-slate-300 bg-white px-1.5 py-1.5 text-[12px] text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:opacity-50"
+                            >
+                              {(shortOpts || item.options.map((o) => ({
+                                value: o.value,
+                                el: o.label.el,
+                                en: o.label.en,
+                              }))).map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                  {lang === "el" ? opt.el : opt.en}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                aria-label="−"
+                                disabled={busy || parseDraftValue(valueStr, settings[key]) <= item.min}
+                                onClick={() => void stepNumber(key, -1)}
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+                              >
+                                <Minus className="h-3.5 w-3.5" />
+                              </button>
+                              <input
+                                id={`setting-${key}`}
+                                type="number"
+                                min={item.min}
+                                max={item.max}
+                                step={1}
+                                value={valueStr}
+                                disabled={busy}
+                                onChange={(e) => setDraftValue(key, e.target.value)}
+                                onBlur={(e) => void commitNumber(key, e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                                className="min-w-0 flex-1 rounded-md border border-slate-300 px-1 py-1.5 text-center text-sm font-medium tabular-nums text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-900/10 disabled:opacity-50"
+                              />
+                              <button
+                                type="button"
+                                aria-label="+"
+                                disabled={busy || parseDraftValue(valueStr, settings[key]) >= item.max}
+                                onClick={() => void stepNumber(key, 1)}
+                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-35"
+                              >
+                                <Plus className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-1">
+                            <p className="truncate text-[10px] leading-tight text-slate-400">{hint}</p>
+                            <button
+                              type="button"
+                              title={t.reset}
+                              aria-label={t.reset}
+                              disabled={busy || settings[key] === item.default}
+                              onClick={() => void saveKey(key, true)}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-25"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+          </div>
         )}
       </div>
     </div>
