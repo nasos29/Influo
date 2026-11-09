@@ -384,13 +384,16 @@ textarea:focus-visible {
   display: grid;
   gap: 1rem;
   grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 1fr;
   justify-content: start;
+  align-items: stretch;
 }
 .grid-campaigns-responsive > * {
   min-width: 0;
   width: 100%;
   max-width: 28rem;
   justify-self: stretch;
+  height: 100%;
 }
 @media (min-width: 768px) {
   .grid-campaigns-responsive {
