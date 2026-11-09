@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import { pruneOldReadAdminNotices } from "@/lib/pruneAdminNotices";
+import { getSiteSetting } from "@/lib/siteSettingsServer";
 
 /** Admin only: latest notices + unread count. Also prunes old read notices (best-effort). */
 export async function GET(req: NextRequest) {
   const denied = await rejectUnlessAdmin(req);
   if (denied) return denied;
   const admin = supabaseService();
-  // Safe on-load cleanup: only read rows older than 5 days; never unread.
-  void pruneOldReadAdminNotices(admin);
+  // Safe on-load cleanup: only read rows older than retention; never unread.
+  void getSiteSetting("admin_notice_read_retention_days").then((days) =>
+    pruneOldReadAdminNotices(admin, days)
+  );
   const [{ data, error }, { count }] = await Promise.all([
     admin.from("admin_notices").select("id, kind, title, body, url, created_at, read_at").order("created_at", { ascending: false }).limit(50),
     admin.from("admin_notices").select("id", { count: "exact", head: true }).is("read_at", null),

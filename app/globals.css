@@ -375,6 +375,39 @@ textarea:focus-visible {
   }
 }
 
+/*
+ * Wide card density (≥1536px). Counts come from --creator-cols-wide /
+ * --campaign-cols-wide (site settings; defaults 5 / 4). Smaller breakpoints
+ * keep their Tailwind grid classes.
+ */
+@media (min-width: 1536px) {
+  .grid-creators-wide {
+    grid-template-columns: repeat(var(--creator-cols-wide, 5), minmax(0, 1fr));
+  }
+  .grid-campaigns-wide {
+    grid-template-columns: repeat(var(--campaign-cols-wide, 4), minmax(0, 1fr));
+  }
+}
+
+/* Influencer carousel card widths: ~2 on mobile, 4 on md–xl, settings-driven at 2xl. */
+.influencer-carousel-card {
+  width: 45%;
+  flex-shrink: 0;
+  scroll-snap-align: start;
+}
+@media (min-width: 768px) {
+  .influencer-carousel-card {
+    width: calc((100% - 3 * 1.5rem) / 4);
+  }
+}
+@media (min-width: 1536px) {
+  .influencer-carousel-card {
+    width: calc(
+      (100% - (var(--creator-cols-wide, 5) - 1) * 1.5rem) / var(--creator-cols-wide, 5)
+    );
+  }
+}
+
 /* Admin dashboard dark mode: invert the shell (keeps all existing light utilities). */
 .admin-shell--dark {
   color-scheme: dark;

@@ -37,8 +37,8 @@ test("normalizeDeadlineForOpen: null stays null", () => {
   assert.equal(result.clearedPastDeadline, false);
 });
 
-test("reopen with cleared deadline uses 30 days from opened_at", () => {
-  const openedAt = "2026-10-26T15:00:00.000Z";
+test("post-cutoff open without deadline uses CAMPAIGN_DEFAULT_DAYS", () => {
+  const openedAt = "2026-11-09T12:00:00.000Z";
   const closes = campaignClosesAt({
     deadline: null,
     opened_at: openedAt,
@@ -54,4 +54,18 @@ test("reopen with cleared deadline uses 30 days from opened_at", () => {
     created_at: openedAt,
   });
   assert.ok(days !== null && days >= CAMPAIGN_DEFAULT_DAYS - 1 && days <= CAMPAIGN_DEFAULT_DAYS);
+});
+
+test("campaignClosesAt respects defaultDays override after cutoff", () => {
+  const openedAt = "2026-11-09T12:00:00.000Z";
+  const closes = campaignClosesAt(
+    {
+      deadline: null,
+      opened_at: openedAt,
+      created_at: openedAt,
+    },
+    { defaultDays: 20 }
+  );
+  const expected = new Date(new Date(openedAt).getTime() + 20 * 24 * 60 * 60 * 1000);
+  assert.equal(closes.toISOString(), expected.toISOString());
 });

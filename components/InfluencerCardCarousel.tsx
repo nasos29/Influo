@@ -14,8 +14,7 @@ const NAV_COPY = {
   next: { el: "Επόμενοι", en: "Next" },
 } as const;
 
-export const INFLUENCER_CAROUSEL_CARD_CLASS =
-  "w-[45%] shrink-0 snap-start md:w-[calc((100%-3*1.5rem)/4)]";
+export const INFLUENCER_CAROUSEL_CARD_CLASS = "influencer-carousel-card";
 
 type Lang = "el" | "en";
 
@@ -59,7 +58,7 @@ function NavButtons({
 /**
  * Shared horizontal snap carousel used by SimilarInfluencers,
  * NewlyApprovedInfluencersSection, and TopInfluencersSection
- * (mobile ~2 visible, desktop 4 + ‹ ›).
+ * (mobile ~2 visible, md–xl 4, ≥1536px from site setting default 5 + ‹ ›).
  */
 export default function InfluencerCardCarousel({
   lang,

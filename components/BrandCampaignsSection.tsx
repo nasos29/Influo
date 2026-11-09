@@ -30,6 +30,8 @@ import { campaignServiceType } from "@/lib/campaignServiceLabel";
 import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { responseText } from "@/lib/bilingualError";
 import { campaignField } from "@/lib/campaignLocalized";
+import { useSiteSettings } from "@/components/SiteSettingsProvider";
+import { CAMPAIGN_DEFAULT_DAYS } from "@/lib/campaignLifecycle";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -168,6 +170,18 @@ function langPack<K extends string>(rows: Record<K, LangPair>) {
   return pack;
 }
 
+function deadlineAutoCloseCopy(lang: "el" | "en", days: number): string {
+  return lang === "el"
+    ? `Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε ${days} μέρες.`
+    : `If you do not set a deadline, the campaign closes automatically after ${days} days.`;
+}
+
+function deadlineClearedOnOpenCopy(lang: "el" | "en", days: number): string {
+  return lang === "el"
+    ? `Η παλιά προθεσμία είχε περάσει, οπότε η καμπάνια άνοιξε για ${days} μέρες. Μπορείτε να ορίσετε νέα προθεσμία από την επεξεργασία.`
+    : `The old deadline had passed, so the campaign reopened for ${days} days. You can set a new deadline by editing it.`;
+}
+
 const extra = langPack({
   required: { el: "υποχρεωτικό", en: "required" },
   form_platforms: { el: "Πλατφόρμες", en: "Platforms" },
@@ -180,14 +194,6 @@ const extra = langPack({
   comp_both: { el: "Χρήματα και προϊόν", en: "Money and product" },
   date_order: { el: "Μορφή ηη/μμ/εεεε, π.χ. 15/11/2026.", en: "Format dd/mm/yyyy, e.g. 15/11/2026." },
   deadline_after_start: { el: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.", en: "The deadline must be after the start date." },
-  deadline_auto_close: {
-    el: "Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε 15 μέρες.",
-    en: "If you do not set a deadline, the campaign closes automatically after 15 days.",
-  },
-  deadline_cleared_on_open: {
-    el: "Η παλιά προθεσμία είχε περάσει, οπότε η καμπάνια άνοιξε για 15 μέρες. Μπορείτε να ορίσετε νέα προθεσμία από την επεξεργασία.",
-    en: "The old deadline had passed, so the campaign reopened for 15 days. You can set a new deadline by editing it.",
-  },
   contact_hint: {
     el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
     en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
@@ -577,6 +583,8 @@ export default function BrandCampaignsSection({
   /** Opens the existing create form once, from /brand/dashboard?tab=campaigns&new=1. */
   startNew?: boolean;
 }) {
+  const settings = useSiteSettings();
+  const campaignDefaultDays = settings.campaign_default_days || CAMPAIGN_DEFAULT_DAYS;
   const t = txt[lang];
   const x = extra[lang];
   const wz = wiz[lang];
@@ -1790,7 +1798,7 @@ export default function BrandCampaignsSection({
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
                   <DmyDateField min={form.starts_on || campaignDateBounds().min} max={campaignDateBounds().max} value={form.deadline} onChange={(deadline) => { setForm({ ...form, deadline }); clearFieldError("deadline"); }} />
-                  <p className="text-xs text-slate-500 mt-1">{x.deadline_auto_close}</p>
+                  <p className="text-xs text-slate-500 mt-1">{deadlineAutoCloseCopy(lang, campaignDefaultDays)}</p>
                   <FieldError msg={fieldErrors.deadline} />
                 </div>
               </div>
@@ -1891,7 +1899,7 @@ export default function BrandCampaignsSection({
           className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 items-start"
         >
           <p className="text-sm text-amber-950 flex-1 min-w-0 leading-relaxed">
-            {x.deadline_cleared_on_open}
+            {deadlineClearedOnOpenCopy(lang, campaignDefaultDays)}
           </p>
           <button
             type="button"

@@ -166,7 +166,11 @@ const BADGE_LABELS_EL: Record<BadgeType, string> = {
  * that is shown only as the small ✓ on the avatar (stats checked by Influo).
  * Returns at most one badge (highest priority), or [].
  */
-export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'): Badge[] {
+export function getBadges(
+  metrics: InfluencerMetrics,
+  lang: 'el' | 'en' = 'el',
+  opts?: { newBadgeMaxDays?: number }
+): Badge[] {
   const badges: Badge[] = [];
   const maxFollowers = getMaxFollowers(metrics.followers);
   const engagementRate = parseEngagementRate(metrics.engagement_rate);
@@ -176,6 +180,7 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
   const totalReviews = metrics.total_reviews || 0;
   const avgRating = metrics.avg_rating || 0;
   const minRate = listedPriceMin(metrics.min_rate) ?? 0;
+  const newBadgeMaxDays = opts?.newBadgeMaxDays ?? NEW_BADGE_MAX_DAYS;
 
   // TOP PERFORMER - High engagement rate (>5%) και followers > 10k
   if (engagementRate > 5 && maxFollowers > 10000) {
@@ -227,7 +232,7 @@ export function getBadges(metrics: InfluencerMetrics, lang: 'el' | 'en' = 'el'):
     b.type === 'top_performer' || b.type === 'pro' || b.type === 'elite' || b.type === 'vip'
   );
 
-  if (accountAgeDays < NEW_BADGE_MAX_DAYS && !hasHighPriorityBadge) {
+  if (accountAgeDays < newBadgeMaxDays && !hasHighPriorityBadge) {
     badges.push({
       type: 'new',
       ...BADGE_DEFINITIONS.new,

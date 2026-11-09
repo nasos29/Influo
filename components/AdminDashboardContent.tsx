@@ -20,6 +20,7 @@ import {
   MessageSquare,
   Moon,
   Newspaper,
+  Settings,
   Sun,
   Users,
   X,
@@ -4479,6 +4480,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 <LifeBuoy className="w-4 h-4" aria-hidden="true" />
                 Help Desk
               </a>
+              <a href="/admin/settings" className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Settings className="w-4 h-4" aria-hidden="true" />
+                {{ el: "Ρυθμίσεις", en: "Settings" }[lang]}
+              </a>
               <button
                 type="button"
                 onClick={toggleDarkMode}
@@ -4534,6 +4539,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               <a href="/admin/support" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-purple-700 hover:bg-purple-50">
                 <LifeBuoy className="w-4 h-4" aria-hidden="true" />
                 Help Desk
+              </a>
+              <a href="/admin/settings" className="min-h-11 inline-flex items-center gap-2 rounded-lg px-3 text-sm font-medium text-slate-700 hover:bg-slate-50">
+                <Settings className="w-4 h-4" aria-hidden="true" />
+                {{ el: "Ρυθμίσεις", en: "Settings" }[lang]}
               </a>
               <button
                 type="button"
