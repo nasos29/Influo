@@ -145,7 +145,7 @@ export default function TopInfluencersSection({
                 className={`relative ${INFLUENCER_CAROUSEL_CARD_CLASS}`}
               >
                 <span
-                  className="pointer-events-none absolute top-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/80 text-xs font-bold text-white backdrop-blur-sm"
+                  className="pointer-events-none absolute top-2 left-2 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-slate-900/85 text-xs font-bold text-white"
                   aria-hidden
                 >
                   #{idx + 1}

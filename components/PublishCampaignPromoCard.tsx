@@ -101,11 +101,11 @@ export default function PublishCampaignPromoCard({
   return (
     <div className="relative flex h-full flex-col overflow-hidden rounded-2xl border border-blue-200/70 bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/50 p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-6">
       <div
-        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-blue-400/15 blur-3xl"
+        className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(96,165,250,0.22)_0%,transparent_70%)]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-3xl"
+        className="pointer-events-none absolute -bottom-20 -left-10 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(129,140,248,0.16)_0%,transparent_70%)]"
         aria-hidden
       />
 
@@ -126,7 +126,7 @@ export default function PublishCampaignPromoCard({
           className="relative mt-5 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
           aria-hidden="true"
         >
-          <span className="absolute right-2 top-2 z-10 rounded-full bg-slate-900/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm">
+          <span className="absolute right-2 top-2 z-10 rounded-full bg-slate-900/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
             {txt.example}
           </span>
           <div className="h-16 bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 sm:h-[4.5rem]" />

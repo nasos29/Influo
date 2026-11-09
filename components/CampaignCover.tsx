@@ -114,6 +114,11 @@ export default function CampaignCover({
     ? (getStorageCardUrl(effectiveCover, coverW, coverH) ?? effectiveCover)
     : null;
   const displayCover = sizedCover ? (getCachedImageUrl(sizedCover) ?? sizedCover) : null;
+  // Tiny soft-fill source: blur a ~48px texture instead of a full card bitmap.
+  const softFillRaw = effectiveCover
+    ? (getStorageCardUrl(effectiveCover, 48, Math.round((48 * coverH) / coverW)) ?? effectiveCover)
+    : null;
+  const softFillCover = softFillRaw ? (getCachedImageUrl(softFillRaw) ?? softFillRaw) : null;
   // One resolved URL for the sharp mark and the blurred backdrop so the second
   // paint is a browser-cache hit (no extra Supabase egress).
   const logoSrc = logoUrl && !logoFailed ? getCachedImageUrl(logoUrl) ?? logoUrl : null;
@@ -125,7 +130,7 @@ export default function CampaignCover({
   const logoMark = (sizeClass: string, textClass: string, onPhoto = false) => (
     <div
       className={`relative ${sizeClass} overflow-hidden rounded-2xl shadow-[0_8px_24px_rgba(0,0,0,0.28)] ring-1 ring-white/40 flex items-center justify-center ${
-        logoSrc ? "bg-white" : onPhoto ? "bg-slate-950/55 backdrop-blur-md" : "bg-white/15 backdrop-blur-sm"
+        logoSrc ? "bg-white" : onPhoto ? "bg-slate-950/70" : "bg-white/25"
       }`}
     >
       {logoSrc ? (
@@ -155,16 +160,19 @@ export default function CampaignCover({
     >
       {hasCover ? (
         <>
-          {/* Blurred fill of the same image (same URL → cache hit), so the whole cover shows without cropping. */}
+          {/* Soft letterbox fill: tiny downscaled source + modest blur (not full-res blur-2xl). */}
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-            <FastImage
-              src={displayCover as string}
-              alt=""
-              fill
-              className="scale-110 object-cover blur-2xl opacity-80"
-              sizes={sizes}
-              priority={false}
-            />
+            {softFillCover ? (
+              // eslint-disable-next-line @next/next/no-img-element -- intentional tiny soft-fill bitmap
+              <img
+                src={softFillCover}
+                alt=""
+                className="absolute inset-0 h-full w-full scale-110 object-cover opacity-80 [filter:blur(18px)]"
+                loading={imageLoading}
+                decoding="async"
+                aria-hidden
+              />
+            ) : null}
             <div className="absolute inset-0 bg-slate-900/25" />
           </div>
           <FastImage
@@ -188,7 +196,7 @@ export default function CampaignCover({
         ) : null
       )}
       {platformList.length > 0 && (
-        <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/50 px-3 py-2 ring-1 ring-white/30 backdrop-blur-md sm:min-h-0 sm:px-2.5 sm:py-1.5">
+        <div className="absolute right-3 bottom-3 z-20 inline-flex min-h-[44px] items-center gap-1.5 rounded-full bg-slate-950/70 px-3 py-2 ring-1 ring-white/30 sm:min-h-0 sm:px-2.5 sm:py-1.5">
           {platformList.map((p) => (
             <PlatformIcon key={p} platform={p} colored={false} className="w-4 h-4" />
           ))}

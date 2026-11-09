@@ -101,7 +101,7 @@ export default function CookieConsent() {
 
   return (
     <div className="fixed bottom-0 inset-x-0 z-[70] p-3 sm:p-4 pointer-events-none">
-      <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white/95 shadow-[0_8px_30px_rgba(15,23,42,0.12)] backdrop-blur px-4 py-3 sm:px-5 sm:py-3.5">
+      <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.12)] px-4 py-3 sm:px-5 sm:py-3.5">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <p className="text-[13px] leading-snug text-slate-600 flex-1">
             {el

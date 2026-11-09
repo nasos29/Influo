@@ -334,8 +334,8 @@ export default function CampaignCard({
             <span
               className={`pointer-events-none absolute right-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
                 closes.urgent
-                  ? "bg-red-600/90 text-white ring-1 ring-white/30 backdrop-blur-md"
-                  : "bg-white/80 text-slate-900 ring-1 ring-white/70 backdrop-blur-md"
+                  ? "bg-red-600/95 text-white ring-1 ring-white/30"
+                  : "bg-white/90 text-slate-900 ring-1 ring-white/70"
               }`}
             >
               {closes.text}
