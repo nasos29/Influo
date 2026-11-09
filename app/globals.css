@@ -358,6 +358,14 @@ textarea:focus-visible {
   contain-intrinsic-size: auto 720px;
 }
 
+/* Homepage: hand cursor on all clickable controls (Tailwind preflight leaves buttons as default). */
+.home-page-root :is(a, button, [role="button"], summary, label[for]) {
+  cursor: pointer;
+}
+.home-page-root :is(a, button, [role="button"]):disabled {
+  cursor: not-allowed;
+}
+
 @media (min-width: 768px) {
   .animate-scroll {
     animation: scroll 55s linear infinite;

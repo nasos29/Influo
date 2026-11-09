@@ -2,7 +2,7 @@ import HomePage from "@/components/HomePage";
 import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
-import { getSiteSettings } from "@/lib/siteSettingsServer";
+import { getHomepageSectionOrderSetting, getSiteSettings } from "@/lib/siteSettingsServer";
 import { unstable_cache } from "next/cache";
 
 export const revalidate = 3600;
@@ -14,7 +14,10 @@ const cachedHomeTrust = unstable_cache(
 );
 
 export default async function Page() {
-  const settings = await getSiteSettings();
+  const [settings, sectionOrderSetting] = await Promise.all([
+    getSiteSettings(),
+    getHomepageSectionOrderSetting(),
+  ]);
   const creatorsLimit = settings.homepage_creators_count;
   const campaignsLimit = settings.homepage_campaigns_count;
 
@@ -40,6 +43,8 @@ export default async function Page() {
       homeCreatorsLimit={creatorsLimit}
       homeNewlyApprovedLimit={settings.homepage_newly_approved_count}
       homeTopInfluencersLimit={settings.homepage_top_influencers_count}
+      sectionOrder={sectionOrderSetting.order}
+      sectionHidden={sectionOrderSetting.hidden}
     />
   );
 }
