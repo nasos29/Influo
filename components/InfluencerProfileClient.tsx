@@ -1318,6 +1318,7 @@ export default function InfluencerProfile(props: {
   // --- HANDLER: SEND PROPOSAL (UPDATED) ---
   const handleSendProposal = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (sending) return;
     const offered = Array.isArray(profile?.service_packages) ? profile.service_packages : [];
     const matchedOffer = proposalPackageId
       ? offered.find((pkg) => pkg.id === proposalPackageId)

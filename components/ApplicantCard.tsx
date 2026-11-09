@@ -65,6 +65,7 @@ export default function ApplicantCard({
   proposedPrice,
   workLinks,
   canDecide,
+  deciding,
   onAccept,
   onReject,
   onShortlist,
@@ -84,6 +85,8 @@ export default function ApplicantCard({
   proposedPrice: number | null | undefined;
   workLinks: string | null | undefined;
   canDecide: boolean;
+  /** True while an accept/reject/shortlist request is in flight for this card. */
+  deciding?: boolean;
   onAccept: () => void;
   onReject: () => void;
   onShortlist: () => void;
@@ -214,9 +217,23 @@ export default function ApplicantCard({
       <div className="mt-3 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 items-center">
         {canDecide ? (
           <>
-            <button type="button" onClick={onAccept} className="text-sm px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium">{el ? "Αποδοχή" : "Accept"}</button>
+            <button
+              type="button"
+              onClick={onAccept}
+              disabled={!!deciding}
+              className="text-sm px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium disabled:opacity-50"
+            >
+              {deciding ? (el ? "Επεξεργασία…" : "Working…") : el ? "Αποδοχή" : "Accept"}
+            </button>
             {status !== "rejected" ? (
-              <button type="button" onClick={onReject} className="text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-medium">{el ? "Απόρριψη" : "Reject"}</button>
+              <button
+                type="button"
+                onClick={onReject}
+                disabled={!!deciding}
+                className="text-sm px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-medium disabled:opacity-50"
+              >
+                {el ? "Απόρριψη" : "Reject"}
+              </button>
             ) : <span />}
           </>
         ) : null}
@@ -232,10 +249,10 @@ export default function ApplicantCard({
         </a>
         {canDecide && status !== "shortlisted" ? (
           <div className="relative col-span-2 sm:col-span-1">
-            <button type="button" onClick={() => setMenu((v) => !v)} className="text-sm px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 w-full sm:w-auto" aria-haspopup="menu" aria-expanded={menu} aria-label={el ? "Περισσότερες ενέργειες" : "More actions"}>⋯</button>
+            <button type="button" onClick={() => setMenu((v) => !v)} disabled={!!deciding} className="text-sm px-3 py-2 rounded-lg text-slate-600 hover:bg-slate-100 w-full sm:w-auto disabled:opacity-50" aria-haspopup="menu" aria-expanded={menu} aria-label={el ? "Περισσότερες ενέργειες" : "More actions"}>⋯</button>
             {menu ? (
               <div role="menu" className="absolute z-10 mt-1 right-0 sm:left-0 sm:right-auto bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[10rem]">
-                <button type="button" role="menuitem" onClick={() => { setMenu(false); onShortlist(); }} className="block w-full text-left text-sm px-3 py-2 hover:bg-slate-50">{el ? "Στη λίστα επιλογών" : "Shortlist"}</button>
+                <button type="button" role="menuitem" disabled={!!deciding} onClick={() => { setMenu(false); onShortlist(); }} className="block w-full text-left text-sm px-3 py-2 hover:bg-slate-50 disabled:opacity-50">{el ? "Στη λίστα επιλογών" : "Shortlist"}</button>
               </div>
             ) : null}
           </div>

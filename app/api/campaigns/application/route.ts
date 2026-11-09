@@ -184,8 +184,29 @@ function notifyAcceptedApplication(input: {
   });
 }
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
+import { ACTIVE_PROPOSAL_STATUSES } from "@/lib/campaignProposalIdempotency";
 
 const STATUSES = new Set(["pending", "shortlisted", "rejected", "accepted"]);
+
+/** Oldest active campaign proposal for this brand + creator + service label, if any. */
+async function findActiveCampaignProposal(
+  admin: ReturnType<typeof supabaseService>,
+  brandId: string,
+  influencerId: string,
+  serviceType: string
+): Promise<{ id: string | number } | null> {
+  const { data } = await admin
+    .from("proposals")
+    .select("id")
+    .eq("brand_id", brandId)
+    .eq("influencer_id", influencerId)
+    .eq("service_type", serviceType)
+    .in("status", [...ACTIVE_PROPOSAL_STATUSES])
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.id != null ? { id: data.id as string | number } : null;
+}
 
 async function createApplication(request: NextRequest, body: Record<string, unknown>) {
   const user = await userFromBearer(request);
@@ -387,57 +408,100 @@ export async function POST(request: NextRequest) {
     const brandName = brandRow?.brand_name || "Brand";
     const brandEmail = (brandRow?.contact_email || user.email || "").toLowerCase();
     const budget = Math.max(1, Number(campaign.budget) || 0);
-    const { data: proposal, error: proposalError } = await admin
-      .from("proposals")
-      .insert([
-        {
-          influencer_id: app.influencer_id,
-          brand_name: brandName,
-          brand_email: brandEmail,
-          brand_id: user.id,
-          service_type: `Καμπάνια: ${campaign.title}`.slice(0, 120),
-          budget,
-          message: `Αποδοχή αίτησης για την καμπάνια «${campaign.title}».`,
-          status: "accepted",
-          counter_proposal_status: "none",
-        },
-      ])
-      .select("id")
-      .single();
-    if (!proposalError && proposal) {
-      proposalId = proposal.id;
-      if (app.status !== "accepted") notifyAcceptedApplication({
-        influencerId: String(app.influencer_id),
-        brandEmail,
-        brandName,
-        campaignTitle: campaign.title,
-        budget,
-        proposalId: proposal.id,
-      });
+    const serviceType = `Καμπάνια: ${campaign.title}`.slice(0, 120);
+    const alreadyAccepted = app.status === "accepted";
+    // Idempotent: reuse the first active proposal for this brand + creator + campaign label.
+    const existing = await findActiveCampaignProposal(admin, user.id, String(app.influencer_id), serviceType);
+    if (existing) {
+      proposalId = existing.id;
       try {
         conversationId = await ensureProposalThread({
           influencerId: String(app.influencer_id),
           brandEmail,
           brandName,
-          proposalId: proposal.id,
+          proposalId: existing.id,
           content: `Η αίτησή σας για «${campaign.title}» έγινε αποδεκτή. Μπορούμε να συνεχίσουμε εδώ.`,
-          replaceLink: true,
+          // Do not append another accept message on a double submit / retry.
+          replaceLink: false,
           alreadyNotified: true,
         });
       } catch (err) {
         console.error("[campaign accept thread]", err);
       }
-    } else if (proposalError) {
-      console.error("[campaign accept proposal]", proposalError.message);
-      if (app.status !== "accepted") {
-        notifyAcceptedApplication({
-          influencerId: String(app.influencer_id),
-          brandEmail,
-          brandName,
-          campaignTitle: campaign.title,
-          budget,
-          proposalId: null,
-        });
+    } else {
+      const { data: proposal, error: proposalError } = await admin
+        .from("proposals")
+        .insert([
+          {
+            influencer_id: app.influencer_id,
+            brand_name: brandName,
+            brand_email: brandEmail,
+            brand_id: user.id,
+            service_type: serviceType,
+            budget,
+            message: `Αποδοχή αίτησης για την καμπάνια «${campaign.title}».`,
+            status: "accepted",
+            counter_proposal_status: "none",
+          },
+        ])
+        .select("id")
+        .single();
+      if (!proposalError && proposal) {
+        proposalId = proposal.id;
+        if (!alreadyAccepted) {
+          notifyAcceptedApplication({
+            influencerId: String(app.influencer_id),
+            brandEmail,
+            brandName,
+            campaignTitle: campaign.title,
+            budget,
+            proposalId: proposal.id,
+          });
+        }
+        try {
+          conversationId = await ensureProposalThread({
+            influencerId: String(app.influencer_id),
+            brandEmail,
+            brandName,
+            proposalId: proposal.id,
+            content: `Η αίτησή σας για «${campaign.title}» έγινε αποδεκτή. Μπορούμε να συνεχίσουμε εδώ.`,
+            replaceLink: true,
+            alreadyNotified: true,
+          });
+        } catch (err) {
+          console.error("[campaign accept thread]", err);
+        }
+      } else if (proposalError) {
+        // Race: unique index or parallel accept may have created the row first.
+        const raced = await findActiveCampaignProposal(admin, user.id, String(app.influencer_id), serviceType);
+        if (raced) {
+          proposalId = raced.id;
+          try {
+            conversationId = await ensureProposalThread({
+              influencerId: String(app.influencer_id),
+              brandEmail,
+              brandName,
+              proposalId: raced.id,
+              content: `Η αίτησή σας για «${campaign.title}» έγινε αποδεκτή. Μπορούμε να συνεχίσουμε εδώ.`,
+              replaceLink: false,
+              alreadyNotified: true,
+            });
+          } catch (err) {
+            console.error("[campaign accept thread]", err);
+          }
+        } else {
+          console.error("[campaign accept proposal]", proposalError.message);
+          if (!alreadyAccepted) {
+            notifyAcceptedApplication({
+              influencerId: String(app.influencer_id),
+              brandEmail,
+              brandName,
+              campaignTitle: campaign.title,
+              budget,
+              proposalId: null,
+            });
+          }
+        }
       }
     }
   }

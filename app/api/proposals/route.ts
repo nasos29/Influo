@@ -15,6 +15,11 @@ import {
   normEmail,
   partyProposalView,
 } from "@/lib/proposalParty";
+import {
+  ACTIVE_PROPOSAL_STATUSES,
+  isCampaignServiceType,
+  shouldBlockDuplicateCampaignProposal,
+} from "@/lib/campaignProposalIdempotency";
 
 const PROPOSAL_COLUMNS =
   "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline";
@@ -233,6 +238,36 @@ export async function POST(request: Request) {
     }
 
     const selectedExtras = floor && floor.ok ? floor.extras : [];
+
+    // Campaign invites: refuse a second active proposal for the same brand + creator + campaign label.
+    if (isCampaignServiceType(service) && brandId) {
+      const { data: activeRows, error: activeError } = await supabaseService()
+        .from("proposals")
+        .select("id")
+        .eq("brand_id", brandId)
+        .eq("influencer_id", influencerId)
+        .eq("service_type", service)
+        .in("status", [...ACTIVE_PROPOSAL_STATUSES])
+        .order("created_at", { ascending: true })
+        .limit(1);
+      if (activeError) {
+        console.error("[proposal create] active campaign lookup", activeError.message);
+      } else if (shouldBlockDuplicateCampaignProposal(service, activeRows?.length || 0)) {
+        return NextResponse.json(
+          {
+            error: "Υπάρχει ήδη ενεργή πρόταση για αυτή την καμπάνια με τον ίδιο δημιουργό.",
+            message: {
+              el: "Υπάρχει ήδη ενεργή πρόταση για αυτή την καμπάνια με τον ίδιο δημιουργό.",
+              en: "An active proposal already exists for this campaign with the same creator.",
+            },
+            code: "duplicate_active_campaign_proposal",
+            proposalId: activeRows![0].id,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     const saved = await insertProposal({
       influencer_id: influencerId,
       brand_name: brandName,
