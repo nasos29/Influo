@@ -170,21 +170,33 @@ export default function SiteHeader({
     setMobileOpen(false);
   };
 
-  const accountLink = !identityReady ? (
+  // Pending + hot-slot stay in the DOM for the head boot script (cached avatar /
+  // likely session) so guests keep «Σύνδεση» in SSR HTML with no grey-circle flash.
+  const bootSlots = (
     <>
-      <span className="header-avatar-pending inline-block h-10 w-10 rounded-full bg-slate-200 animate-pulse" aria-hidden />
+      <span
+        className={`header-avatar-pending h-10 w-10 rounded-full bg-slate-200 animate-pulse ${identityReady ? "hidden" : "inline-block"}`}
+        aria-hidden
+      />
       <span
         className="header-avatar-hot-slot hidden h-10 w-10 overflow-hidden rounded-full border-2 border-slate-300 bg-slate-100"
         aria-hidden
       />
     </>
+  );
+
+  const accountLink = !identityReady ? (
+    bootSlots
   ) : userKind === "none" ? (
-    <Link
-      href={dashboardPath}
-      className="inline-flex min-h-[44px] items-center text-sm font-medium text-blue-600 hover:underline whitespace-nowrap"
-    >
-      {dashboardLabel}
-    </Link>
+    <>
+      {bootSlots}
+      <Link
+        href={dashboardPath}
+        className="header-login-link inline-flex min-h-[44px] items-center text-sm font-medium text-blue-600 hover:underline whitespace-nowrap"
+      >
+        {dashboardLabel}
+      </Link>
+    </>
   ) : (
     <AccountAvatar
       href={dashboardPath}
@@ -235,7 +247,7 @@ export default function SiteHeader({
               <button
                 type="button"
                 onClick={openSignup}
-                className="inline-flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                className="header-signup-btn inline-flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
               >
                 {t.signup}
               </button>
@@ -276,7 +288,7 @@ export default function SiteHeader({
                 <button
                   type="button"
                   onClick={openSignup}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
+                  className="header-signup-btn block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900"
                 >
                   {t.signup}
                 </button>

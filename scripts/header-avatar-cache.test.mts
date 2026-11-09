@@ -1,15 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { hasLikelySupabaseAuthSession } from "../lib/authStorage.ts";
 import {
   clearHeaderAvatarCache,
+  getHeaderAvatarServerSnapshot,
   getHeaderAvatarSnapshot,
   HEADER_AVATAR_BOOT_SCRIPT,
   resetHeaderAvatarCacheForTests,
   writeHeaderAvatarCache,
 } from "../lib/headerAvatarCache.ts";
 
-function installStorage(): void {
-  const data = new Map<string, string>();
+function installStorage(seed: Record<string, string> = {}): Map<string, string> {
+  const data = new Map<string, string>(Object.entries(seed));
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
     value: {
@@ -20,8 +22,13 @@ function installStorage(): void {
       removeItem: (key: string) => {
         data.delete(key);
       },
+      key: (index: number) => [...data.keys()][index] ?? null,
+      get length() {
+        return data.size;
+      },
     },
   });
+  return data;
 }
 
 test("header avatar cache shows immediately after refresh and clears on logout", () => {
@@ -48,6 +55,7 @@ test("header avatar cache shows immediately after refresh and clears on logout",
   resetHeaderAvatarCacheForTests();
   assert.equal(getHeaderAvatarSnapshot().userKind, "none");
   assert.equal(getHeaderAvatarSnapshot().avatarUrl, "");
+  assert.equal(getHeaderAvatarSnapshot().ready, true);
 
   const photo = runBoot(JSON.stringify({
     userKind: "influencer",
@@ -58,6 +66,7 @@ test("header avatar cache shows immediately after refresh and clears on logout",
   assert.equal(photo.classes.includes("header-avatar-hot"), true);
   assert.equal(photo.props["--header-avatar-image"], 'url("https://cdn.example/a.jpg")');
   assert.match(photo.css, /header-avatar-pending\{display:none/);
+  assert.match(photo.css, /header-login-link/);
   assert.doesNotMatch(photo.css, /header-avatar-initial/);
 
   const injected = runBoot(JSON.stringify({
@@ -75,19 +84,56 @@ test("header avatar cache shows immediately after refresh and clears on logout",
   assert.equal(empty.css, "");
 });
 
-function runBoot(raw: string | null): { classes: string[]; props: Record<string, string>; css: string } {
+test("guests are ready immediately; skeleton only when auth storage exists", () => {
+  installStorage();
+  resetHeaderAvatarCacheForTests();
+  const server = getHeaderAvatarServerSnapshot();
+  assert.equal(server.ready, true);
+  assert.equal(server.userKind, "none");
+
+  const guest = getHeaderAvatarSnapshot();
+  assert.equal(guest.ready, true);
+  assert.equal(guest.userKind, "none");
+  assert.equal(hasLikelySupabaseAuthSession(), false);
+
+  installStorage({ "sb-xyz-auth-token": JSON.stringify({ access_token: "x" }) });
+  resetHeaderAvatarCacheForTests();
+  assert.equal(hasLikelySupabaseAuthSession(), true);
+  const pending = getHeaderAvatarSnapshot();
+  assert.equal(pending.ready, false);
+  assert.equal(pending.userKind, "none");
+
+  const bootPending = runBoot(null, { "sb-xyz-auth-token": "1" });
+  assert.equal(bootPending.classes.includes("header-auth-pending"), true);
+  assert.match(bootPending.css, /header-login-link/);
+  assert.match(bootPending.css, /header-avatar-pending\{display:inline-block/);
+});
+
+function runBoot(
+  raw: string | null,
+  extra: Record<string, string> = {}
+): { classes: string[]; props: Record<string, string>; css: string } {
   const classes = new Set<string>();
   const props: Record<string, string> = {};
   let css = "";
   const previousStorage = globalThis.localStorage;
   const previousDocument = globalThis.document;
+  const data = new Map<string, string>(Object.entries(extra));
+  if (raw != null) data.set("influo:header-avatar", raw);
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
-    value: { getItem: () => raw },
+    value: {
+      getItem: (key: string) => data.get(key) ?? null,
+      key: (index: number) => [...data.keys()][index] ?? null,
+      get length() {
+        return data.size;
+      },
+    },
   });
   Object.defineProperty(globalThis, "document", {
     configurable: true,
     value: {
+      cookie: "",
       documentElement: {
         classList: {
           add: (...names: string[]) => names.forEach((name) => classes.add(name)),
