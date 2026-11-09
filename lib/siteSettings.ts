@@ -16,6 +16,7 @@ export const SITE_SETTING_KEYS = [
   "new_badge_max_days",
   "blog_posts_per_row_wide",
   "filter_ui_variant",
+  "campaign_card_style",
 ] as const;
 
 export type SiteSettingKey = (typeof SITE_SETTING_KEYS)[number];
@@ -31,6 +32,14 @@ export function filterUiVariantFromSetting(value: number): FilterUiVariant {
   if (value === 2) return "sidebar";
   if (value === 3) return "dropdown";
   return "chips";
+}
+
+export type CampaignCardStyle = "premium" | "classic";
+
+/** Map stored integer → campaign list card style. Default = premium. */
+export function campaignCardStyleFromSetting(value: number): CampaignCardStyle {
+  if (value === 2) return "classic";
+  return "premium";
 }
 
 export type SiteSettingOption = {
@@ -251,6 +260,37 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
         label: {
           el: "Συμπαγής μπάρα dropdown",
           en: "Compact dropdown bar",
+        },
+      },
+    ],
+  },
+  campaign_card_style: {
+    key: "campaign_card_style",
+    default: 1,
+    min: 1,
+    max: 2,
+    label: {
+      el: "Στυλ κάρτας καμπάνιας",
+      en: "Campaign card style",
+    },
+    help: {
+      el: "Εμφάνιση καρτών στις λίστες καμπανιών (αρχική, /campaigns). Το premium είναι η νέα προεπιλογή· classic επαναφέρει την προηγούμενη όψη.",
+      en: "Campaign list card look (homepage, /campaigns). Premium is the new default; classic restores the previous layout.",
+    },
+    public: true,
+    options: [
+      {
+        value: 1,
+        label: {
+          el: "Premium (νέα προεπιλογή)",
+          en: "Premium (new default)",
+        },
+      },
+      {
+        value: 2,
+        label: {
+          el: "Classic (προηγούμενο)",
+          en: "Classic (previous)",
         },
       },
     ],

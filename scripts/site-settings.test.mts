@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   SITE_SETTING_DEFAULTS,
+  campaignCardStyleFromSetting,
   coerceSiteSetting,
   filterUiVariantFromSetting,
   mergeSiteSettings,
@@ -22,6 +23,7 @@ test("defaults match current product behavior", () => {
   assert.equal(SITE_SETTING_DEFAULTS.campaign_reminder_days_before, 3);
   assert.equal(SITE_SETTING_DEFAULTS.blog_posts_per_row_wide, 4);
   assert.equal(SITE_SETTING_DEFAULTS.filter_ui_variant, 1);
+  assert.equal(SITE_SETTING_DEFAULTS.campaign_card_style, 1);
 });
 
 test("coerce clamps invalid values to defaults", () => {
@@ -34,6 +36,8 @@ test("coerce clamps invalid values to defaults", () => {
   assert.equal(coerceSiteSetting("blog_posts_per_row_wide", 4), 4);
   assert.equal(coerceSiteSetting("filter_ui_variant", 3), 3);
   assert.equal(coerceSiteSetting("filter_ui_variant", 9), 1);
+  assert.equal(coerceSiteSetting("campaign_card_style", 2), 2);
+  assert.equal(coerceSiteSetting("campaign_card_style", 9), 1);
 });
 
 test("merge overlays stored rows onto defaults", () => {
@@ -45,6 +49,7 @@ test("merge overlays stored rows onto defaults", () => {
   assert.equal(merged.campaign_cards_per_row_wide, 4);
   assert.equal(merged.homepage_creators_count, 10);
   assert.equal(merged.filter_ui_variant, 1);
+  assert.equal(merged.campaign_card_style, 1);
 });
 
 test("public settings omit admin-only retention key", () => {
@@ -52,6 +57,7 @@ test("public settings omit admin-only retention key", () => {
   assert.equal(pub.creator_cards_per_row_wide, 5);
   assert.equal(pub.filter_ui_variant, 1);
   assert.equal(pub.blog_posts_per_row_wide, 4);
+  assert.equal(pub.campaign_card_style, 1);
   assert.equal(pub.admin_notice_read_retention_days, undefined);
 });
 
@@ -67,4 +73,10 @@ test("filter ui variant mapping", () => {
   assert.equal(filterUiVariantFromSetting(2), "sidebar");
   assert.equal(filterUiVariantFromSetting(3), "dropdown");
   assert.equal(filterUiVariantFromSetting(0), "chips");
+});
+
+test("campaign card style mapping", () => {
+  assert.equal(campaignCardStyleFromSetting(1), "premium");
+  assert.equal(campaignCardStyleFromSetting(2), "classic");
+  assert.equal(campaignCardStyleFromSetting(0), "premium");
 });
