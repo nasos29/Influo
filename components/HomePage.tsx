@@ -440,7 +440,7 @@ export default function Home({
             <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-100/10 rounded-full blur-3xl"></div>
           </div>
           
-          <div className="relative z-10 max-w-7xl mx-auto">
+          <div className="relative z-10 max-w-page mx-auto">
             <div className="grid lg:grid-cols-[0.8fr_1.6fr_0.8fr] gap-8 lg:gap-10 items-stretch">
               
               {/* Left Image — sole desktop LCP candidate */}
@@ -518,7 +518,7 @@ export default function Home({
             <div className="absolute -top-24 right-0 w-80 h-80 bg-blue-100/30 rounded-full blur-3xl" />
             <div className="absolute -bottom-24 left-0 w-80 h-80 bg-slate-200/40 rounded-full blur-3xl" />
           </div>
-          <div className="relative max-w-7xl mx-auto">
+          <div className="relative max-w-page mx-auto">
             <div className="text-center mb-12 max-w-2xl mx-auto">
               <div className="mb-3">
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
@@ -617,7 +617,7 @@ export default function Home({
             backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
           }}
         />
-        <div className="relative max-w-7xl mx-auto">
+        <div className="relative max-w-page mx-auto">
           <div className="text-center mb-12">
             <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.dir_title}</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">{txt.dir_desc}</p>
@@ -639,7 +639,7 @@ export default function Home({
 
       {/* Brand Section */}
         <section className="relative py-20 px-6 bg-slate-50 border-y border-slate-100" id="brands">
-          <div className="max-w-6xl mx-auto relative">
+          <div className="max-w-page-md mx-auto relative">
             <div className="text-center mb-14">
               <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_section_title}</h2>
               <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">{txt.brand_section_desc}</p>
@@ -732,7 +732,7 @@ export default function Home({
 
       {/* Brands Logos Slideshow */}
       <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
+        <div className="max-w-page mx-auto px-6">
           <div className="text-center mb-12">
             <h3 className={`${SECTION_TITLE_CLASS} mb-3`}>
               {lang === "el" ? "Συνεργάζονται μαζί μας" : "Trusted by"}

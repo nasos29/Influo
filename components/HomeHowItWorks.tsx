@@ -75,7 +75,7 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
       id="how-it-works"
       aria-labelledby="how-it-works-heading"
     >
-      <div className="max-w-6xl mx-auto w-full min-w-0">
+      <div className="max-w-page-md mx-auto w-full min-w-0">
         <div className="text-center mb-10 md:mb-14 max-w-2xl mx-auto">
           <h2
             id="how-it-works-heading"

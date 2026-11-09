@@ -127,7 +127,7 @@ export default function PublicCampaignsPage({
     <div className="min-h-screen flex flex-col bg-slate-50">
       <SiteHeader lang={lang} onLangChange={setLang} />
 
-      <main className="flex-1 max-w-5xl mx-auto px-4 py-10 w-full">
+      <main className="flex-1 max-w-page mx-auto px-4 py-10 w-full">
         <h1 className="text-3xl font-bold text-slate-900">{t.title}</h1>
         <p className="text-slate-600 mt-2 max-w-2xl">{t.subtitle}</p>
         {identityReady && guestKind === "none" && (

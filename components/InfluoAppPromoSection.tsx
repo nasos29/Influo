@@ -150,7 +150,7 @@ export default function InfluoAppPromoSection({ lang }: { lang: Lang }) {
             "radial-gradient(ellipse 70% 60% at 85% 20%, rgba(99,102,241,0.28), transparent 55%), linear-gradient(to bottom right, #0f172a, #1e1b4b, #3730a3)",
         }}
       >
-        <div className="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-12 md:px-10 md:py-12 lg:gap-16">
+        <div className="relative mx-auto grid max-w-page grid-cols-1 items-center gap-8 px-6 py-10 md:grid-cols-[1fr_auto_1fr] md:gap-12 md:px-10 md:py-12 lg:gap-16">
           {/* Phone — last on mobile, first on md+ */}
           <div className="order-2 flex justify-center md:order-1 md:justify-self-end">
             <InfluoPhoneMockup

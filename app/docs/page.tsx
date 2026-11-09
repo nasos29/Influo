@@ -455,7 +455,7 @@ export default function DocsPage() {
       <SiteHeader lang={lang} onLangChange={setLang} />
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 overflow-x-hidden">
+      <div className="max-w-page mx-auto px-4 sm:px-6 py-12 overflow-x-hidden">
         {/* Title */}
         <div className="mb-8" id="top">
           <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-2 tracking-tight">{txt.title}</h1>

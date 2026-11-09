@@ -18,7 +18,7 @@ export default function MarketingSection({
     <section
       className={`border-b border-slate-100 px-4 py-16 sm:px-6 md:py-24 ${bg} ${className}`}
     >
-      <div className="mx-auto max-w-6xl">{children}</div>
+      <div className="mx-auto max-w-page-md">{children}</div>
     </section>
   );
 }

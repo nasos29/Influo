@@ -163,7 +163,7 @@ export default function NewlyApprovedInfluencersSection({
       className="relative py-16 md:py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50/20 border-t border-slate-100"
       id="newly-approved"
     >
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-page mx-auto">
         {loading || visible.length > 0 ? (
           <InfluencerCardCarousel
             lang={lang}

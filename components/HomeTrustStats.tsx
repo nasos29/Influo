@@ -52,7 +52,7 @@ export default function HomeTrustStatsRow({
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-6 mt-10 md:mt-12">
+    <div className="w-full max-w-page mx-auto px-6 mt-10 md:mt-12">
       <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 md:gap-x-14">
         {items.map((item) => (
           <li key={item.key} className="text-center min-w-0">
