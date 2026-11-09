@@ -28,6 +28,7 @@ test("defaults match current product behavior", () => {
   assert.equal(SITE_SETTING_DEFAULTS.campaign_card_style, 1);
   assert.equal(SITE_SETTING_DEFAULTS.campaign_detail_image_max_height_px, 420);
   assert.equal(SITE_SETTING_DEFAULTS.profile_page_max_width_px, 1440);
+  assert.equal(SITE_SETTING_DEFAULTS.zoho_campaigns_announcements, 0);
 });
 
 test("coerce clamps invalid values to defaults", () => {
@@ -48,6 +49,8 @@ test("coerce clamps invalid values to defaults", () => {
   assert.equal(coerceSiteSetting("profile_page_max_width_px", 1500), 1500);
   assert.equal(coerceSiteSetting("profile_page_max_width_px", 1151), 1440);
   assert.equal(coerceSiteSetting("profile_page_max_width_px", 1601), 1440);
+  assert.equal(coerceSiteSetting("zoho_campaigns_announcements", 1), 1);
+  assert.equal(coerceSiteSetting("zoho_campaigns_announcements", 9), 0);
 });
 
 test("merge overlays stored rows onto defaults", () => {
@@ -71,6 +74,7 @@ test("public settings omit admin-only retention key", () => {
   assert.equal(pub.campaign_detail_image_max_height_px, 420);
   assert.equal(pub.profile_page_max_width_px, 1440);
   assert.equal(pub.admin_notice_read_retention_days, undefined);
+  assert.equal(pub.zoho_campaigns_announcements, undefined);
 });
 
 test("css vars encode wide grid counts", () => {

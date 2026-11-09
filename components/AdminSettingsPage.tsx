@@ -56,7 +56,7 @@ const SETTING_GROUPS: Array<{
   },
   {
     id: "admin",
-    keys: ["admin_notice_read_retention_days"],
+    keys: ["admin_notice_read_retention_days", "zoho_campaigns_announcements"],
     label: { el: "Admin", en: "Admin" },
   },
 ];
@@ -78,6 +78,7 @@ const SHORT_LABEL: Record<SiteSettingKey, { el: string; en: string }> = {
   campaign_detail_image_max_height_px: { el: "Ύψος cover λεπτομερειών", en: "Detail cover height" },
   profile_page_max_width_px: { el: "Πλάτος προφίλ", en: "Profile width" },
   admin_notice_read_retention_days: { el: "Διαβασμένα notices", en: "Read notices keep" },
+  zoho_campaigns_announcements: { el: "Zoho ανακοινώσεις", en: "Zoho announcements" },
 };
 
 /** Compact select labels — full labels live on SITE_SETTING_META.options. */
@@ -92,6 +93,10 @@ const SHORT_OPTION: Partial<
   campaign_card_style: [
     { value: 1, el: "1 = Premium", en: "1 = Premium" },
     { value: 2, el: "2 = Classic", en: "2 = Classic" },
+  ],
+  zoho_campaigns_announcements: [
+    { value: 0, el: "0 = OFF", en: "0 = OFF" },
+    { value: 1, el: "1 = ON", en: "1 = ON" },
   ],
 };
 
