@@ -1,3 +1,5 @@
+import { promises as fs } from "fs";
+import path from "path";
 import { unstable_cache, revalidatePath, revalidateTag } from "next/cache";
 import { supabaseService } from "@/lib/apiAuth";
 import {
@@ -12,23 +14,53 @@ import {
 
 export const SITE_SETTINGS_CACHE_TAG = "site-settings";
 
+/** Disk fallback until `public.site_settings` exists (additive SQL in docs/SITE_SETTINGS.sql). */
+function settingsFilePath(): string {
+  return path.join(process.cwd(), "data", "site_settings.json");
+}
+
+function isMissingTableError(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const msg = `${error.code || ""} ${error.message || ""}`;
+  return /PGRST205|site_settings|schema cache|does not exist|42P01/i.test(msg);
+}
+
+async function readSettingsFile(): Promise<SiteSettings | null> {
+  try {
+    const raw = await fs.readFile(settingsFilePath(), "utf8");
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return mergeSiteSettings(parsed);
+  } catch {
+    return null;
+  }
+}
+
+async function writeSettingsFile(settings: SiteSettings): Promise<void> {
+  const dir = path.dirname(settingsFilePath());
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(settingsFilePath(), `${JSON.stringify(settings, null, 2)}\n`, "utf8");
+}
+
 async function loadSiteSettingsFromDb(): Promise<SiteSettings> {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return { ...SITE_SETTING_DEFAULTS };
+    return (await readSettingsFile()) || { ...SITE_SETTING_DEFAULTS };
   }
   try {
     const { data, error } = await supabaseService()
       .from("site_settings")
       .select("key, value");
     if (error) {
-      // Table may not exist yet before migration — keep safe defaults.
+      if (isMissingTableError(error)) {
+        return (await readSettingsFile()) || { ...SITE_SETTING_DEFAULTS };
+      }
       console.warn("[siteSettings]", error.code || "", error.message);
-      return { ...SITE_SETTING_DEFAULTS };
+      return (await readSettingsFile()) || { ...SITE_SETTING_DEFAULTS };
     }
+    // Prefer DB when the table exists, even if empty (defaults).
     return mergeSiteSettings(data || []);
   } catch (err) {
     console.warn("[siteSettings]", err);
-    return { ...SITE_SETTING_DEFAULTS };
+    return (await readSettingsFile()) || { ...SITE_SETTING_DEFAULTS };
   }
 }
 
@@ -53,8 +85,8 @@ function bustSettingsCaches() {
   for (const tag of ["home-directory", "home-campaigns", "public-campaigns", "directory"]) {
     revalidateTag(tag, { expire: 0 });
   }
-  for (const path of ["/", "/en", "/directory", "/en/directory", "/campaigns", "/en/campaigns"]) {
-    revalidatePath(path);
+  for (const pathName of ["/", "/en", "/directory", "/en/directory", "/campaigns", "/en/campaigns"]) {
+    revalidatePath(pathName);
   }
 }
 
@@ -94,9 +126,23 @@ export async function updateSiteSetting(
     },
     { onConflict: "key" }
   );
+
   if (error) {
-    console.error("[siteSettings] update", error.code, error.message);
-    return { ok: false, error: error.message || "Update failed", status: 500 };
+    if (!isMissingTableError(error)) {
+      console.error("[siteSettings] update", error.code, error.message);
+      return { ok: false, error: error.message || "Update failed", status: 500 };
+    }
+    // Table not migrated yet: persist on disk so admin saves still work.
+    const current = (await readSettingsFile()) || { ...SITE_SETTING_DEFAULTS };
+    current[key] = rounded;
+    try {
+      await writeSettingsFile(current);
+    } catch (err) {
+      console.error("[siteSettings] file fallback", err);
+      return { ok: false, error: "Update failed (no site_settings table yet)", status: 500 };
+    }
+    bustSettingsCaches();
+    return { ok: true, settings: current };
   }
 
   bustSettingsCaches();
