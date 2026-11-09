@@ -135,7 +135,7 @@ export default function SimilarInfluencers({
   if (items && !show) return null;
 
   return (
-    <section ref={rootRef} className="max-w-6xl mx-auto px-4 sm:px-6 mt-10 mb-6">
+    <section ref={rootRef} className="max-w-profile mx-auto px-4 sm:px-6 mt-10 mb-6">
       <InfluencerCardCarousel
         lang={lang}
         loading={!items}

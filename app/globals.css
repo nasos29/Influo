@@ -394,12 +394,24 @@ textarea:focus-visible {
 .max-w-page-md {
   max-width: 72rem; /* 1152px — Tailwind max-w-6xl */
 }
+/*
+ * Public creator profile shell: max-w-6xl below 1440px (mobile/tablet/laptop unchanged).
+ * On ≥1440px uses --profile-page-max-w from site settings (default 1440px).
+ */
+.max-w-profile {
+  max-width: 72rem; /* 1152px — Tailwind max-w-6xl */
+}
 @media (min-width: 1536px) {
   .max-w-page {
     max-width: 1536px;
   }
   .max-w-page-md {
     max-width: 1440px;
+  }
+}
+@media (min-width: 1440px) {
+  .max-w-profile {
+    max-width: var(--profile-page-max-w, 1440px);
   }
 }
 

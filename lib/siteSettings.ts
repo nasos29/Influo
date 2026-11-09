@@ -18,6 +18,7 @@ export const SITE_SETTING_KEYS = [
   "filter_ui_variant",
   "campaign_card_style",
   "campaign_detail_image_max_height_px",
+  "profile_page_max_width_px",
 ] as const;
 
 export type SiteSettingKey = (typeof SITE_SETTING_KEYS)[number];
@@ -315,6 +316,21 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
     },
     public: true,
   },
+  profile_page_max_width_px: {
+    key: "profile_page_max_width_px",
+    default: 1440,
+    min: 1152,
+    max: 1600,
+    label: {
+      el: "Μέγιστο πλάτος δημόσιου προφίλ (px)",
+      en: "Public profile max width (px)",
+    },
+    description: {
+      el: "Πλάτος κύριου container στο δημόσιο προφίλ creator σε μεγάλες οθόνες (≥1440px)· κινητό/laptop ως έχει.",
+      en: "Main container width on the public creator profile on large screens (≥1440px); mobile/laptop unchanged.",
+    },
+    public: true,
+  },
 };
 
 export const SITE_SETTING_DEFAULTS: SiteSettings = Object.fromEntries(
@@ -378,5 +394,6 @@ export function siteSettingsCssVars(settings: SiteSettings): string {
     `--campaign-cols-wide:${settings.campaign_cards_per_row_wide}`,
     `--blog-cols-wide:${settings.blog_posts_per_row_wide}`,
     `--campaign-detail-cover-max-h:${settings.campaign_detail_image_max_height_px}px`,
+    `--profile-page-max-w:${settings.profile_page_max_width_px}px`,
   ].join(";");
 }
