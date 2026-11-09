@@ -54,8 +54,9 @@ export function isZohoAnnouncementsFlagOn(flagValue: number | null | undefined):
 }
 
 /**
- * Use Zoho for bulk site announcements only when the admin flag is ON
- * and server credentials/list keys are present. Otherwise keep Resend.
+ * Use Zoho for all site announcements (bulk lists + selected temp lists)
+ * when the admin flag is ON and server credentials/list keys are present.
+ * Otherwise keep Resend.
  */
 export function shouldUseZohoForAnnouncements(flagValue: number | null | undefined): boolean {
   return isZohoAnnouncementsFlagOn(flagValue) && zohoCampaignsCredentialsReady();

@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   extractEmailsFromZohoListContacts,
   extractZohoCampaignKey,
+  extractZohoListKey,
   zohoResponseOk,
 } from "../lib/zohoCampaignsClient.ts";
 import {
@@ -16,6 +17,7 @@ import {
   announcementEmailHtml,
   dashboardPathForAudience,
 } from "../lib/zohoAnnouncementContent.ts";
+import { SITE_SETTING_META } from "../lib/siteSettings.ts";
 
 test("zoho announcements flag defaults off", () => {
   assert.equal(isZohoAnnouncementsFlagOn(0), false);
@@ -59,6 +61,32 @@ test("extract campaign key from create response shapes", () => {
     "abc"
   );
   assert.equal(extractZohoCampaignKey({ code: "200" }), "");
+});
+
+test("extract list key from addlistandcontacts response shapes", () => {
+  assert.equal(
+    extractZohoListKey({
+      status: "success",
+      listkey: "f70c4878c4a471691e3931dd52bedc79",
+      code: "0",
+    }),
+    "f70c4878c4a471691e3931dd52bedc79"
+  );
+  assert.equal(
+    extractZohoListKey({ response: { listKey: "nested-key", code: "0" } }),
+    "nested-key"
+  );
+  assert.equal(extractZohoListKey({ code: "0" }), "");
+});
+
+test("admin settings description covers selected recipients + Resend fallback", () => {
+  const desc = SITE_SETTING_META.zoho_campaigns_announcements.description;
+  assert.match(desc.el, /επιλεγμέν/i);
+  assert.match(desc.el, /Resend/i);
+  assert.match(desc.el, /προσωριν/i);
+  assert.match(desc.en, /selected/i);
+  assert.match(desc.en, /temp/i);
+  assert.match(desc.en, /Resend/i);
 });
 
 test("extract emails from list contacts payload", () => {
