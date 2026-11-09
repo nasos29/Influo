@@ -6264,7 +6264,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       type="button"
                       onClick={() => setAnnouncementsPage((p) => Math.max(1, p - 1))}
                       disabled={announcementsPage <= 1 || announcementsLoading}
-                      className="px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="cursor-pointer px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {lang === 'el' ? 'Προηγούμενη' : 'Previous'}
                     </button>
@@ -6276,7 +6276,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       disabled={
                         announcementsPage >= announcementsTotalPages || announcementsLoading
                       }
-                      className="px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="cursor-pointer px-3 py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {lang === 'el' ? 'Επόμενη' : 'Next'}
                     </button>

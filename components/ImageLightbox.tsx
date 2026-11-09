@@ -2,11 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+  getLightboxFallbackPhotoUrl,
+  getLightboxPhotoUrl,
+} from "@/lib/imageProxy";
 
 /**
  * Full-screen photo viewer: dark backdrop, fade + zoom in, closes on X, Esc, backdrop click or swipe down.
+ * Prefers a large CDN transform (browser-safe JPEG/WebP even when the Storage
+ * original is HEIC); falls back to the original object URL on load error.
  */
 export default function ImageLightbox({ src, alt, open, onClose, lang = "el" }: { src: string; alt: string; open: boolean; onClose: () => void; lang?: "el" | "en" }) {
+  const preferred = getLightboxPhotoUrl(src) || src;
+  const fallback = getLightboxFallbackPhotoUrl(src) || src;
+  const [usedFallback, setUsedFallback] = useState(false);
+  const [srcEpoch, setSrcEpoch] = useState(preferred);
+  // Reset fallback when the source changes (React "adjust state during render").
+  if (preferred !== srcEpoch) {
+    setSrcEpoch(preferred);
+    setUsedFallback(false);
+  }
+  const currentSrc = usedFallback ? fallback : preferred;
   const [shown, setShown] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const touchY = useRef<number | null>(null);
@@ -49,9 +65,14 @@ export default function ImageLightbox({ src, alt, open, onClose, lang = "el" }: 
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        key={currentSrc}
+        src={currentSrc}
         alt={alt}
         onClick={(e) => e.stopPropagation()}
+        onError={() => {
+          if (usedFallback) return;
+          if (fallback && fallback !== preferred) setUsedFallback(true);
+        }}
         style={{ transform: `translateY(${dragY}px) scale(${shown ? 1 : 0.92})`, opacity: dragY ? Math.max(0.4, 1 - dragY / 400) : undefined }}
         className="max-w-full max-h-[88vh] rounded-2xl object-contain shadow-2xl transition-transform duration-200 ease-out select-none"
         draggable={false}
@@ -60,7 +81,7 @@ export default function ImageLightbox({ src, alt, open, onClose, lang = "el" }: 
         ref={closeRef}
         type="button"
         onClick={(e) => { e.stopPropagation(); onClose(); }}
-        className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-slate-900 text-2xl leading-none shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+        className="absolute top-4 right-4 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-slate-900 text-2xl leading-none shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white cursor-pointer"
         aria-label={label}
       >
         ×
