@@ -74,7 +74,7 @@ export function AdminPager({
           type="button"
           disabled={disabled || page <= 1}
           onClick={() => onPage(page - 1)}
-          className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {copy.prev[lang]}
         </button>
@@ -85,7 +85,7 @@ export function AdminPager({
           type="button"
           disabled={disabled || page >= totalPages}
           onClick={() => onPage(page + 1)}
-          className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex min-h-11 cursor-pointer items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {copy.next[lang]}
         </button>

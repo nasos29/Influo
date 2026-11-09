@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
   CREATOR_CARD_PHOTO_WIDTH,
+  CREATOR_FULLSIZE_PHOTO_WIDTH,
   getCachedImageUrl,
   getCreatorCardPhotoUrl,
+  getCreatorFullSizePhotoUrl,
+  getLightboxFallbackPhotoUrl,
+  getLightboxPhotoUrl,
   getStorageCardUrl,
 } from "../lib/imageProxy.ts";
 
@@ -64,5 +68,50 @@ describe("getCreatorCardPhotoUrl", () => {
     assert.ok(out?.includes(`width=${CREATOR_CARD_PHOTO_WIDTH}`));
     assert.ok(!out?.includes("height="));
     assert.ok(out?.includes("resize=contain"));
+  });
+});
+
+describe("getCreatorFullSizePhotoUrl / lightbox helpers", () => {
+  const prev = process.env.NEXT_PUBLIC_USE_IMAGE_PROXY;
+
+  afterEach(() => {
+    if (prev === undefined) delete process.env.NEXT_PUBLIC_USE_IMAGE_PROXY;
+    else process.env.NEXT_PUBLIC_USE_IMAGE_PROXY = prev;
+  });
+
+  it("builds a large contain transform for lightbox (incl. HEIC originals)", () => {
+    const heic =
+      "https://abcd.supabase.co/storage/v1/object/public/avatars/selfie.heic";
+    const out = getCreatorFullSizePhotoUrl(heic);
+    assert.ok(out?.includes("/storage/v1/render/image/public/avatars/selfie.heic"));
+    assert.ok(out?.includes(`width=${CREATOR_FULLSIZE_PHOTO_WIDTH}`));
+    assert.ok(!out?.includes("height="));
+    assert.ok(out?.includes("resize=contain"));
+    assert.ok(out?.includes("quality=80"));
+  });
+
+  it("does not double-transform an existing render URL", () => {
+    const render =
+      "https://abcd.supabase.co/storage/v1/render/image/public/avatars/x.webp?width=640&resize=contain";
+    assert.equal(getCreatorFullSizePhotoUrl(render), render);
+  });
+
+  it("lightbox preferred URL is proxied full-size CDN", () => {
+    delete process.env.NEXT_PUBLIC_USE_IMAGE_PROXY;
+    const full = getCreatorFullSizePhotoUrl(SAMPLE)!;
+    assert.equal(
+      getLightboxPhotoUrl(SAMPLE),
+      `/api/image-proxy?url=${encodeURIComponent(full)}`
+    );
+  });
+
+  it("lightbox fallback recovers object URL from render URL", () => {
+    process.env.NEXT_PUBLIC_USE_IMAGE_PROXY = "false";
+    const render =
+      "https://abcd.supabase.co/storage/v1/render/image/public/avatars/user.webp?width=1600&resize=contain";
+    assert.equal(
+      getLightboxFallbackPhotoUrl(render),
+      "https://abcd.supabase.co/storage/v1/object/public/avatars/user.webp"
+    );
   });
 });

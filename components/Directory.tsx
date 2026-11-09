@@ -1097,7 +1097,7 @@ export default function Directory({
                 type="button"
                 disabled={safePage <= 1}
                 onClick={() => setPageAndUrl(safePage - 1)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {txt.pagePrev}
               </button>
@@ -1115,7 +1115,7 @@ export default function Directory({
                       type="button"
                       onClick={() => setPageAndUrl(p)}
                       aria-current={p === safePage ? "page" : undefined}
-                      className={`min-w-10 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
+                      className={`min-w-10 cursor-pointer rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${
                         p === safePage
                           ? "bg-slate-900 text-white"
                           : "border border-slate-200 bg-white text-slate-700 hover:border-slate-300"
@@ -1130,7 +1130,7 @@ export default function Directory({
                 type="button"
                 disabled={safePage >= totalPages}
                 onClick={() => setPageAndUrl(safePage + 1)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {txt.pageNext}
               </button>

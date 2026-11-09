@@ -89,7 +89,7 @@ export default function InstagramStaticCarousel({
         <>
           <button
             type="button"
-            className="absolute left-1 top-1/2 z-40 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute left-1 top-1/2 z-40 -translate-y-1/2 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label={COPY.prev[uiLang]}
             onClick={(e) => {
               e.preventDefault();
@@ -101,7 +101,7 @@ export default function InstagramStaticCarousel({
           </button>
           <button
             type="button"
-            className="absolute right-1 top-1/2 z-40 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            className="absolute right-1 top-1/2 z-40 -translate-y-1/2 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/45 text-lg font-semibold text-white shadow backdrop-blur-sm hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
             aria-label={COPY.next[uiLang]}
             onClick={(e) => {
               e.preventDefault();
