@@ -365,7 +365,7 @@ const BACK_TO_RECS = {
 } as const;
 
 const profileBackBtnClass =
-  "inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur hover:bg-white/20 transition";
+  "inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white backdrop-blur hover:bg-white/20 transition";
 
 const t = {
   el: {
