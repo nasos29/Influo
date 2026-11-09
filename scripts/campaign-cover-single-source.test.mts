@@ -31,9 +31,11 @@ test("no campaign cover image rendered outside CampaignCover", () => {
 test("CampaignCover shows the full cover over a blurred fill of the same image", () => {
   const src = fs.readFileSync(path.join(ROOT, "components", "CampaignCover.tsx"), "utf8");
   const main = src.match(/<FastImage[^>]*alt=\{title\}[^>]*>/s)?.[0] || "";
-  assert.match(main, /object-contain/, "main cover must be object-contain");
-  assert.doesNotMatch(main, /object-cover/, "main cover must not crop");
-  assert.match(src, /blur-2xl/, "blurred background fill expected");
+  assert.match(main, /object-contain/, "main cover must be object-contain by default");
+  // Detail pages may add lg:object-cover when desktopMaxHeightPx caps height; cards stay contain-only.
+  assert.match(src, /\[filter:blur\(18px\)\]/, "blurred background fill expected");
+  assert.match(src, /desktopMaxHeightPx/, "detail pages can opt into a desktop max-height cap");
+  assert.match(src, /lg:object-cover lg:object-center/, "desktop detail cap uses object-cover + center");
 });
 
 test("FastImage inline object-fit honours object-contain", () => {

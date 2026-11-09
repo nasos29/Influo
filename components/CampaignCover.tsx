@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import FastImage from "@/components/FastImage";
 import { getCachedImageUrl, getStorageCardUrl } from "@/lib/imageProxy";
 import { fallbackCategoryCover } from "@/lib/campaignCovers";
@@ -84,6 +84,8 @@ export default function CampaignCover({
   sizes = "(max-width: 768px) 100vw, 400px",
   priority = false,
   showBrandMark = true,
+  /** On ≥lg screens, cap frame height (px) and switch main image to object-cover. Mobile unchanged. */
+  desktopMaxHeightPx,
 }: {
   coverUrl?: string | null;
   /** Stable seed (campaign id) for the category fallback cover. */
@@ -99,11 +101,16 @@ export default function CampaignCover({
   priority?: boolean;
   /** When false, skip the bottom-left logo/initials mark (e.g. premium cards show avatar in the body). */
   showBrandMark?: boolean;
+  desktopMaxHeightPx?: number | null;
 }) {
   const [coverFailed, setCoverFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const aspectClass = aspect === "16/9" ? "aspect-video" : "aspect-[4/3]";
   const [fallbackFailed, setFallbackFailed] = useState(false);
+  const desktopCap =
+    typeof desktopMaxHeightPx === "number" && Number.isFinite(desktopMaxHeightPx) && desktopMaxHeightPx > 0
+      ? Math.round(desktopMaxHeightPx)
+      : null;
   const useFallback = !coverUrl || coverFailed;
   const effectiveCover = useFallback ? (fallbackFailed ? null : fallbackCategoryCover(category, seed || title)) : coverUrl;
   const hasCover = Boolean(effectiveCover);
@@ -155,8 +162,15 @@ export default function CampaignCover({
   return (
     <div
       className={`relative w-full ${aspectClass} overflow-hidden ${
+        desktopCap ? "lg:max-h-[var(--campaign-detail-cover-max-h,420px)]" : ""
+      } ${
         hasCover ? `bg-gradient-to-br ${gradientFor(category)}` : "bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300"
       } ${className}`}
+      style={
+        desktopCap
+          ? ({ ["--campaign-detail-cover-max-h"]: `${desktopCap}px` } as CSSProperties)
+          : undefined
+      }
     >
       {hasCover ? (
         <>
@@ -179,7 +193,7 @@ export default function CampaignCover({
             src={displayCover as string}
             alt={title}
             fill
-            className="object-contain"
+            className={desktopCap ? "object-contain lg:object-cover lg:object-center" : "object-contain"}
             sizes={sizes}
             priority={priority}
             onError={() => (useFallback ? setFallbackFailed(true) : setCoverFailed(true))}
