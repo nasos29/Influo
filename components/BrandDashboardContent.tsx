@@ -733,6 +733,14 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
 }
 
 async function fetchPendingApplicationIds(brandId: string): Promise<string[] | null> {
+  const snap = await fetchPendingApplicationsSnapshot(brandId);
+  return snap ? snap.ids : null;
+}
+
+/** Pending apps + age of oldest (for brand SLA banner). */
+async function fetchPendingApplicationsSnapshot(
+  brandId: string
+): Promise<{ ids: string[]; oldestDays: number } | null> {
   const { data: camps, error: campError } = await supabase
     .from("brand_campaigns")
     .select("id")
@@ -741,18 +749,24 @@ async function fetchPendingApplicationIds(brandId: string): Promise<string[] | n
     console.error("[Brand Dashboard] pending campaign applications", campError);
     return null;
   }
-  if (!camps?.length) return [];
+  if (!camps?.length) return { ids: [], oldestDays: 0 };
   const ids = camps.map((c) => c.id);
   const { data, error } = await supabase
     .from("campaign_applications")
-    .select("id")
+    .select("id, created_at")
     .in("campaign_id", ids)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
   if (error) {
     console.error("[Brand Dashboard] pending campaign applications", error);
     return null;
   }
-  return (data || []).map((row) => String(row.id));
+  const rows = data || [];
+  const oldest = rows[0]?.created_at ? new Date(String(rows[0].created_at)) : null;
+  const oldestDays = oldest
+    ? Math.max(0, Math.floor((Date.now() - oldest.getTime()) / (24 * 60 * 60 * 1000)))
+    : 0;
+  return { ids: rows.map((row) => String(row.id)), oldestDays };
 }
 
 type BrandTab =
@@ -971,6 +985,7 @@ export default function BrandDashboardContent() {
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [activeCampaignCount, setActiveCampaignCount] = useState(0);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
+  const [pendingApplicationsOldestDays, setPendingApplicationsOldestDays] = useState(0);
   const [pendingApplicationIds, setPendingApplicationIds] = useState<string[]>([]);
   const [applicationsLoaded, setApplicationsLoaded] = useState(false);
   const [proposalsLoaded, setProposalsLoaded] = useState(false);
@@ -1240,11 +1255,12 @@ export default function BrandDashboardContent() {
     let cancelled = false;
     (async () => {
       try {
-        const ids = await withTimeout(fetchPendingApplicationIds(String(brandData.id)), 20000);
+        const snap = await withTimeout(fetchPendingApplicationsSnapshot(String(brandData.id)), 20000);
         if (cancelled) return;
-        if (ids !== null) {
-          setPendingApplicationIds(ids);
-          setPendingCampaignApplicationsCount(ids.length);
+        if (snap !== null) {
+          setPendingApplicationIds(snap.ids);
+          setPendingCampaignApplicationsCount(snap.ids.length);
+          setPendingApplicationsOldestDays(snap.oldestDays);
         }
         const { count } = await supabase
           .from("brand_campaigns")
@@ -2488,16 +2504,18 @@ export default function BrandDashboardContent() {
               lang={lang}
               brandVerified={!!brandData.verified}
               pendingApplicationsCount={pendingCampaignApplicationsCount}
+              pendingApplicationsOldestDays={pendingApplicationsOldestDays}
               focusApplications={appsFocus}
               startNew={searchParams?.get("new") === "1"}
               onApplicationsUpdated={() => {
                 void reloadProposals();
                 if (!brandData?.id) return;
                 void (async () => {
-                  const ids = await fetchPendingApplicationIds(String(brandData.id));
-                  if (!ids) return;
-                  setPendingApplicationIds(ids);
-                  setPendingCampaignApplicationsCount(ids.length);
+                  const snap = await fetchPendingApplicationsSnapshot(String(brandData.id));
+                  if (!snap) return;
+                  setPendingApplicationIds(snap.ids);
+                  setPendingCampaignApplicationsCount(snap.ids.length);
+                  setPendingApplicationsOldestDays(snap.oldestDays);
                   setApplicationsLoaded(true);
                 })();
               }}

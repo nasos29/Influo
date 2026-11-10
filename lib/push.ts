@@ -349,33 +349,27 @@ export async function sendPushToInfluencer(
   return deliverToSubscriptions(subs, pushPayload);
 }
 
-/** Όταν ένα verified brand δημοσιεύει ανοιχτή καμπάνια — ειδοποίηση όλων των εγκεκριμένων influencers. */
-export async function sendPushNewOpenCampaignToAllApprovedInfluencers(opts: {
+/** Q4: push only to matched creators (same set as in-app), not all approved. */
+export async function sendPushNewOpenCampaignToInfluencers(opts: {
+  influencerIds: string[];
   campaignTitle: string;
   brandName: string;
   campaignId: string;
 }): Promise<{ sent: number; failed: number }> {
-  const { data: influencers, error } = await supabaseAdmin
-    .from("influencers")
-    .select("id")
-    .eq("approved", true);
-  if (error) {
-    console.error("[Push] sendPushNewOpenCampaignToAllApprovedInfluencers", error);
-    return { sent: 0, failed: 0 };
-  }
-  if (!influencers?.length) return { sent: 0, failed: 0 };
+  const ids = [...new Set((opts.influencerIds || []).map(String).filter(Boolean))];
+  if (!ids.length) return { sent: 0, failed: 0 };
 
-  const title = "📣 Νέα καμπάνια";
+  const title = "Νέα καμπάνια";
   const body = `${clipPushText(opts.brandName, 28)}: ${clipPushText(opts.campaignTitle, 90)}`;
   let sent = 0;
   let failed = 0;
 
   const chunkSize = 25;
-  for (let i = 0; i < influencers.length; i += chunkSize) {
-    const chunk = influencers.slice(i, i + chunkSize);
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    const chunk = ids.slice(i, i + chunkSize);
     const results = await Promise.all(
-      chunk.map((row) =>
-        sendPushToInfluencer(String(row.id), {
+      chunk.map((id) =>
+        sendPushToInfluencer(id, {
           title,
           body,
           url: `/campaigns/${opts.campaignId}`,
@@ -389,6 +383,28 @@ export async function sendPushNewOpenCampaignToAllApprovedInfluencers(opts: {
     }
   }
   return { sent, failed };
+}
+
+/** @deprecated Prefer sendPushNewOpenCampaignToInfluencers (matched only). Kept for admin one-offs. */
+export async function sendPushNewOpenCampaignToAllApprovedInfluencers(opts: {
+  campaignTitle: string;
+  brandName: string;
+  campaignId: string;
+}): Promise<{ sent: number; failed: number }> {
+  const { data: influencers, error } = await supabaseAdmin
+    .from("influencers")
+    .select("id")
+    .eq("approved", true);
+  if (error) {
+    console.error("[Push] sendPushNewOpenCampaignToAllApprovedInfluencers", error);
+    return { sent: 0, failed: 0 };
+  }
+  return sendPushNewOpenCampaignToInfluencers({
+    influencerIds: (influencers || []).map((row) => String(row.id)),
+    campaignTitle: opts.campaignTitle,
+    brandName: opts.brandName,
+    campaignId: opts.campaignId,
+  });
 }
 
 /** Admin push for a new campaign application (plain text, no emoji). */

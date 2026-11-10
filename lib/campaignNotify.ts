@@ -82,9 +82,10 @@ export async function loadApprovedCreators(): Promise<AlertCandidate[]> {
   const admin = supabaseService();
   const rows: AlertCandidate[] = [];
   let from = 0;
+  let lastError: string | null = null;
   for (let page = 0; page < MAX_PAGES; page += 1) {
     let pageRows: AlertCandidate[] | null = null;
-    let error: { message?: string } | null = null;
+    let error: { message?: string; code?: string } | null = null;
     {
       const first = await admin
         .from("influencers")
@@ -104,13 +105,22 @@ export async function loadApprovedCreators(): Promise<AlertCandidate[]> {
       }
     }
     if (error || !pageRows?.length) {
-      if (error) console.error("[campaignNotify] creators", error);
+      if (error) {
+        lastError = `${error.code || ""} ${error.message || ""}`.trim();
+        console.error("[campaignNotify] creators", error);
+      }
       break;
     }
     rows.push(...pageRows);
     if (pageRows.length < PAGE) break;
     from += PAGE;
   }
+  // Q7: always log load outcome so 0-notify publish can be diagnosed from logs.
+  console.log("[campaignNotify] loadApprovedCreators", {
+    count: rows.length,
+    pages: Math.ceil(rows.length / PAGE) || (lastError ? 0 : 1),
+    error: lastError,
+  });
   return rows;
 }
 
@@ -143,6 +153,18 @@ function announcementBody(brandName: string, title: string, campaignId: string):
   return `${brandName} δημοσίευσε «${title}».\n${campaignLink(campaignId)}\ncampaign-id:${campaignId}`;
 }
 
+export type MatchingOpenCampaignResult = {
+  emailed: number;
+  pushed: number;
+  inApp: number;
+  matched: number;
+  budgetSkipped: number;
+  /** Influencer ids that received (or should receive) match outreach — same set as in-app. */
+  matchedInfluencerIds: string[];
+  /** Strong matches skipped because the 45s outreach budget ran out — feed into category queue. */
+  budgetSkippedIds: string[];
+};
+
 export async function notifyMatchingOpenCampaign(opts: {
   campaignId: string;
   title: string;
@@ -152,7 +174,16 @@ export async function notifyMatchingOpenCampaign(opts: {
   minFollowers?: number | null;
   platforms?: string[] | null;
   requiresPresence?: boolean | null;
-}): Promise<{ emailed: number; pushed: number; inApp: number }> {
+}): Promise<MatchingOpenCampaignResult> {
+  const empty: MatchingOpenCampaignResult = {
+    emailed: 0,
+    pushed: 0,
+    inApp: 0,
+    matched: 0,
+    budgetSkipped: 0,
+    matchedInfluencerIds: [],
+    budgetSkippedIds: [],
+  };
   const started = Date.now();
   const creators = await loadApprovedCreators();
   const optedOut = new Set(
@@ -165,9 +196,17 @@ export async function notifyMatchingOpenCampaign(opts: {
     platforms: opts.platforms,
     requiresPresence: opts.requiresPresence,
   });
-  if (!ranked.length) return { emailed: 0, pushed: 0, inApp: 0 };
+  console.log("[campaignNotify] ranked", {
+    campaignId: opts.campaignId,
+    loaded: creators.length,
+    ranked: ranked.length,
+    strong: ranked.filter((r) => r.strong).length,
+    category: opts.category,
+  });
+  if (!ranked.length) return empty;
   const already = await alreadyNotified(opts.campaignId);
   const fresh = ranked.filter((row) => !already.has(row.authUserId));
+  const matchedInfluencerIds = fresh.map((row) => row.id);
   const inApp = await insertCampaignAnnouncements(
     fresh.map((row) => row.authUserId),
     opts.title,
@@ -175,7 +214,12 @@ export async function notifyMatchingOpenCampaign(opts: {
   );
   if (inApp < fresh.length) {
     console.warn("[campaignNotify] in-app insert incomplete", inApp, "of", fresh.length);
-    return { emailed: 0, pushed: 0, inApp };
+    return {
+      ...empty,
+      inApp,
+      matched: fresh.length,
+      matchedInfluencerIds,
+    };
   }
   // Announcement email opt-out skips Resend outreach only; in-app notices still go out.
   const outreach = await deliverStrongMatches(
@@ -183,23 +227,33 @@ export async function notifyMatchingOpenCampaign(opts: {
     opts,
     started
   );
-  return { emailed: outreach.emailed, pushed: outreach.pushed, inApp };
+  return {
+    emailed: outreach.emailed,
+    pushed: outreach.pushed,
+    inApp,
+    matched: fresh.length,
+    budgetSkipped: outreach.budgetSkippedIds.length,
+    matchedInfluencerIds,
+    budgetSkippedIds: outreach.budgetSkippedIds,
+  };
 }
 
 async function deliverStrongMatches(
   targets: RankedAlert[],
   opts: { campaignId: string; title: string; brandName: string },
   started: number
-): Promise<{ emailed: number; pushed: number }> {
-  if (!targets.length) return { emailed: 0, pushed: 0 };
+): Promise<{ emailed: number; pushed: number; budgetSkippedIds: string[] }> {
+  if (!targets.length) return { emailed: 0, pushed: 0, budgetSkippedIds: [] };
   const order = new Map(targets.map((row, index) => [row.id, index]));
   const people = await contactsFor(targets.map((row) => row.id));
   people.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   let emailed = 0;
   let pushed = 0;
+  let stopAt = people.length;
   for (let index = 0; index < people.length; index += OUTREACH_BATCH_SIZE) {
     if (!outreachBudgetLeft(started, Date.now(), OUTREACH_BUDGET_MS)) {
       console.warn("[campaignNotify] outreach budget", index, "of", people.length);
+      stopAt = index;
       break;
     }
     const slice = people.slice(index, index + OUTREACH_BATCH_SIZE);
@@ -211,9 +265,17 @@ async function deliverStrongMatches(
     const more = index + OUTREACH_BATCH_SIZE < people.length;
     if (more && outreachBudgetLeft(started, Date.now(), OUTREACH_BUDGET_MS)) {
       await sleep(OUTREACH_GAP_MS);
+    } else if (more) {
+      stopAt = index + OUTREACH_BATCH_SIZE;
+      console.warn("[campaignNotify] outreach budget after batch", stopAt, "of", people.length);
+      break;
     }
   }
-  return { emailed, pushed };
+  const budgetSkippedIds = people.slice(stopAt).map((p) => p.id);
+  if (budgetSkippedIds.length) {
+    console.warn("[campaignNotify] budget-skipped → category queue", budgetSkippedIds.length);
+  }
+  return { emailed, pushed, budgetSkippedIds };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -236,7 +298,7 @@ async function sendCampaignOutreach(
     sendTransactional(person.email, outreach.subject, outreach.html),
     SEND_TIMEOUT_MS
   );
-  // Push is sent to every approved creator by notifyCampaignPublished, not per match.
+  // Push for matched creators is sent once by notifyCampaignPublished (Q4).
   return { emailed: mail?.ok ? 1 : 0, pushed: 0 };
 }
 
