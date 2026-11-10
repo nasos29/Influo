@@ -74,6 +74,10 @@ import { budgetFloorMessage, collaborationMinimum, integerEuro, packageTitles } 
 import { badgeMinRateFromTier } from "@/lib/publicInfluencer";
 import { publicProfilePath } from "@/lib/profileSlug";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
+import {
+  consumeDirectoryReturnPath,
+  directoryPathFromReferrer,
+} from "@/lib/directoryReturn";
 
 type Params = Promise<{ id: string }>;
 
@@ -1539,22 +1543,20 @@ export default function InfluencerProfile(props: {
   }, [router]);
 
   const goBackToDirectory = useCallback(() => {
-    try {
-      const ref = typeof document !== "undefined" ? document.referrer : "";
-      if (ref) {
-        const u = new URL(ref);
-        if (
-          u.origin === window.location.origin &&
-          u.pathname.includes("/directory")
-        ) {
-          router.back();
-          return;
-        }
-      }
-    } catch {
-      /* ignore bad referrer */
+    const fallback = lang === "en" ? "/en/directory" : "/directory";
+    // Prefer explicit push (filters + scroll via session) over router.back(),
+    // which is a no-op when history is empty / same-entry / soft-nav quirks.
+    const remembered = consumeDirectoryReturnPath();
+    if (remembered) {
+      router.push(remembered);
+      return;
     }
-    router.push(lang === "en" ? "/en/directory" : "/directory");
+    const fromRef = directoryPathFromReferrer();
+    if (fromRef) {
+      router.push(fromRef);
+      return;
+    }
+    router.push(fallback);
   }, [lang, router]);
 
   const goToPlainDirectory = useCallback(() => {
@@ -2134,8 +2136,9 @@ export default function InfluencerProfile(props: {
           aria-hidden
         />
 
-        {/* Back controls — bottom-left on desktop; top-left on mobile to clear overlapping avatar */}
-        <div className="absolute z-20 left-4 sm:left-6 top-4 md:top-auto md:bottom-4 flex flex-col items-start gap-2">
+        {/* Back controls — z above sticky SiteHeader (z-40) so scroll never steals clicks.
+            Bottom-left on desktop; top-left on mobile to clear overlapping avatar. */}
+        <div className="absolute z-50 left-4 sm:left-6 top-4 md:top-auto md:bottom-4 flex flex-col items-start gap-2">
           {fromRecommendations ? (
             <button type="button" onClick={goBackToRecommendations} className={profileBackBtnClass}>
               <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />

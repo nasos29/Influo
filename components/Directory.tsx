@@ -20,6 +20,7 @@ import { sanitizeSkills, skillLabel } from "@/lib/skills";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { filterUiVariantFromSetting } from "@/lib/siteSettings";
 import DirectoryFilters from "@/components/DirectoryFilters";
+import { rememberDirectoryReturn, restoreDirectoryScroll } from "@/lib/directoryReturn";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -595,6 +596,12 @@ export default function Directory({
     setMaxPackagePrice((prev) => (prev === fromMax ? prev : fromMax));
   }, [preset, searchParams]);
 
+  // Restore scroll after «Πίσω στον κατάλογο» explicit navigation.
+  useEffect(() => {
+    if (preset || isHomePreview) return;
+    restoreDirectoryScroll();
+  }, [preset, isHomePreview]);
+
   const applyPhraseRef = useRef<(raw: string) => void>(() => {});
   applyPhraseRef.current = (raw: string) => {
     const parsed = parseDirectoryPhrase(raw);
@@ -1052,6 +1059,7 @@ export default function Directory({
                   key={inf.id}
                   className="block group min-w-0"
                   onClick={() => {
+                    if (!isHomePreview) rememberDirectoryReturn();
                     fetch("/api/analytics/track", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
