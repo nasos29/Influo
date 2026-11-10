@@ -1,3 +1,4 @@
+import { isGeneralCategory, parseStoredCategories } from "./categories.ts";
 import { toGreeklish } from "./greeklish.ts";
 import { canonicalPlatform, parseFollowerNumber, statsFromAccounts } from "./platformStats.ts";
 import { sharedCategoryKeys } from "./recommendations.ts";
@@ -10,7 +11,15 @@ export type AlertCandidate = {
   auth_user_id?: string | null;
   location?: string | null;
   accounts?: unknown;
+  /** When true, skip campaign-published / announcement emails (in-app still ok). */
+  announcements_email_opted_out?: boolean | null;
 };
+
+/** Campaign category «Γενικά» / General matches every approved creator. */
+export function campaignCategoryIsGeneral(category: string | null | undefined): boolean {
+  const cats = parseStoredCategories(category);
+  return cats.length > 0 && cats.every((cat) => isGeneralCategory(cat));
+}
 
 export type CampaignAlertBrief = {
   category?: string | null;
@@ -60,7 +69,11 @@ export function campaignAlertTarget(
 ): { id: string; authUserId: string } | null {
   if (!row.approved) return null;
   if (!available(row.availability_status)) return null;
-  if (!category || sharedCategoryKeys(category, row.category).length === 0) return null;
+  if (!category) return null;
+  // «Γενικά» campaigns notify every approved creator; otherwise require shared category keys.
+  if (!campaignCategoryIsGeneral(category) && sharedCategoryKeys(category, row.category).length === 0) {
+    return null;
+  }
   const authUserId = String(row.auth_user_id || row.id || "").trim();
   if (!UUID.test(authUserId) || !row.id) return null;
   return { id: String(row.id), authUserId };

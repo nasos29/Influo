@@ -1287,7 +1287,7 @@ export default function BrandCampaignsSection({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toastError(body.error || "Error");
+        toastError(responseText(body, lang, body.error || "Error"));
         return;
       }
       toastSuccess(status === "accepted" ? x.accepted : x.status_updated);

@@ -1,7 +1,8 @@
 /**
  * Send a site announcement as a Zoho Campaigns campaign.
  * - Bulk (all creators / all brands): sync permanent list, then send.
- * - Selected recipients: temporary private list → subscribe → send → delete list.
+ * - Selected recipients: temporary private list → subscribe → send → delayed list delete
+ *   (after Sent + emails_sent_count match, via cleanup queue/cron — not while InProgress).
  */
 
 import {
@@ -24,6 +25,10 @@ import {
   ANNOUNCEMENT_EMAIL_SUBJECT,
   announcementContentUrl,
 } from "@/lib/zohoAnnouncementContent";
+import {
+  enqueueZohoTempListCleanup,
+  processZohoTempListCleanup,
+} from "@/lib/zohoTempListCleanup";
 
 export {
   ANNOUNCEMENT_EMAIL_SUBJECT,
@@ -162,8 +167,8 @@ export async function sendAnnouncementViaZoho(opts: {
 
 /**
  * Selected influencers/brands: create a temporary private Zoho list with only
- * those contacts, send one campaign, then delete the temp list (contacts stay
- * in the org so permanent lists / free-plan caps are not disrupted).
+ * those contacts, send one campaign, then queue delayed list deletion (contacts
+ * stay in the org). Do NOT delete while send is InProgress — that aborts delivery.
  *
  * Caller must already filter opted-out / empty emails. This still de-dupes.
  */
@@ -189,9 +194,21 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
     };
   }
 
+  // Opportunistic: drain any lists that finished since the last run.
+  try {
+    await processZohoTempListCleanup({ env });
+  } catch (err) {
+    console.warn(
+      "[zoho selected] prior temp-list cleanup failed",
+      err instanceof Error ? err.message : err
+    );
+  }
+
   let listKey = "";
   let listDeleted = false;
   let subscribed = 0;
+  /** True once sendcampaign was accepted — then never delete the list in this request. */
+  let sendQueued = false;
 
   try {
     const stamp = Date.now().toString(36);
@@ -266,29 +283,29 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
       },
       env
     );
+    sendQueued = true;
 
-    try {
-      const delRaw = await zohoDeleteMailingList(listKey, { deleteContacts: false }, env);
-      listDeleted = zohoResponseOk(delRaw) || JSON.stringify(delRaw).toLowerCase().includes("deleted");
-      if (!listDeleted) {
-        syncErrors.push(`temp list delete soft-fail: ${JSON.stringify(delRaw).slice(0, 200)}`);
-      }
-    } catch (delErr) {
-      syncErrors.push(
-        `temp list delete failed: ${delErr instanceof Error ? delErr.message : String(delErr)}`
-      );
-    }
+    // Defer delete until Sent + emails_sent_count match (cron / next run).
+    enqueueZohoTempListCleanup({
+      listKey,
+      campaignKey,
+      expectedEmails: subscribed,
+      createdAt: new Date().toISOString(),
+      audience: opts.audience,
+    });
+    syncErrors.push("temp list delete deferred until campaign Sent");
 
     return {
       ok: true,
       campaignKey,
       listKey,
-      listDeleted,
+      listDeleted: false,
       subscribed,
       syncErrors: syncErrors.slice(0, 10),
     };
   } catch (err) {
-    if (listKey) {
+    // Only delete immediately when send never started (list not needed for delivery).
+    if (listKey && !sendQueued) {
       try {
         await zohoDeleteMailingList(listKey, { deleteContacts: false }, env);
         listDeleted = true;

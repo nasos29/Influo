@@ -49,6 +49,30 @@ test("a different category is not a match", () => {
   );
 });
 
+test("a Γενικά campaign matches every approved available creator", () => {
+  assert.deepEqual(
+    campaignAlertTarget(
+      { id, approved: true, availability_status: "available", category: "Food & Drink" },
+      "Γενικά"
+    ),
+    { id, authUserId: id }
+  );
+  assert.deepEqual(
+    campaignAlertTarget(
+      { id, approved: true, availability_status: "available", category: "Γενικά" },
+      "General"
+    ),
+    { id, authUserId: id }
+  );
+  assert.equal(
+    campaignAlertTarget(
+      { id, approved: true, availability_status: "unavailable", category: "Food & Drink" },
+      "Γενικά"
+    ),
+    null
+  );
+});
+
 function creator(id: string, location: string, followers: { platform: string; followers: string }[]) {
   return {
     id,

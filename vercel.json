@@ -28,6 +28,10 @@
     {
       "path": "/api/cron/prune-admin-notices",
       "schedule": "15 4 * * *"
+    },
+    {
+      "path": "/api/cron/zoho-temp-list-cleanup",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

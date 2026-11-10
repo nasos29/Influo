@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   extractEmailsFromZohoListContacts,
+  extractZohoCampaignDetails,
   extractZohoCampaignKey,
   extractZohoEmailList,
   extractZohoListKey,
@@ -62,6 +63,20 @@ test("extract campaign key from create response shapes", () => {
     "abc"
   );
   assert.equal(extractZohoCampaignKey({ code: "200" }), "");
+});
+
+test("extract campaign details status and emails_sent_count", () => {
+  const details = extractZohoCampaignDetails({
+    campaign_status: "Sent",
+    "campaign-reports": [{ emails_sent_count: "1" }],
+    code: "0",
+  });
+  assert.equal(details.status, "Sent");
+  assert.equal(details.emailsSentCount, 1);
+  assert.equal(
+    extractZohoCampaignDetails({ response: { campaign_status: "InProgress" } }).emailsSentCount,
+    null
+  );
 });
 
 test("extract list key from addlistandcontacts response shapes", () => {
