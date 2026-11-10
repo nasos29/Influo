@@ -6,6 +6,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { computeTopInfluencers, type TopInfluencerRow } from '@/lib/computeTopInfluencers';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { sendPushInfluencerTop10 } from '@/lib/push';
 
@@ -35,6 +36,7 @@ export function buildTop10CongratsHtml(name: string, profileUrl: string): string
             <div style="text-align: center; margin: 28px 0 8px;">
               <a href="${safeUrl}" style="display: inline-block; background: #071b2a; color: #ffffff !important; text-decoration: none; padding: 12px 22px; border-radius: 999px; font-size: 13px; font-weight: 600;">Δες το προφίλ σου</a>
             </div>
+            ${emailNextSteps("top10_congrats")}
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">Καλή συνέχεια,<br/>Η ομάδα του Influo</p>
             </div>

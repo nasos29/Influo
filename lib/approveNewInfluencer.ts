@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushInfluencerAccountApproved } from '@/lib/push';
 import { ensureBilingualBio } from '@/lib/bioTranslate';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
@@ -46,6 +47,7 @@ async function sendApprovedEmail(email: string, name: string) {
             <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">🎉 Το προφίλ σου είναι δημόσιο!</p>
             </div>
+            ${emailNextSteps("profile_approved")}
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">Καλή επιτυχία,<br/>Η ομάδα του Influo</p>
             </div>

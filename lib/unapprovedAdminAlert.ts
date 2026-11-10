@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { adminInboxAddress } from '@/lib/adminMessageSummary';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushToBrand, getAdminPushRecipient } from '@/lib/push';
 import { appendSocialRefreshLog } from '@/lib/socialRefreshLogs';
 
@@ -52,7 +53,8 @@ export async function alertAdminUnapproved(
         html: `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.6;color:#1f2937;max-width:560px">
 <p>Ο νέος creator <strong>${esc(name)}</strong> έμεινε χωρίς έγκριση στον αυτόματο έλεγχο (AuditPro).</p>
 <p><strong>Λόγος:</strong> ${esc(reason)}</p>
-<p><a href="${site}/admin">Άνοιγμα admin dashboard</a></p></div>`,
+<p><a href="${site}/admin">Άνοιγμα admin dashboard</a></p>
+${emailNextSteps("unapproved_admin_alert")}</div>`,
       });
       if (error) console.warn('[unapproved alert] email', error.message);
     }

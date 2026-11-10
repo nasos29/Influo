@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/apiAuth';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { escapeHtml, sendTransactional } from '@/lib/transactionalEmail';
 
 // Server-side Supabase client με service role key (Admin privileges)
@@ -55,6 +56,7 @@ export async function POST(request: NextRequest) {
           <p>Γεια σας,</p>
           <p>Η επιχείρηση <strong>${name}</strong> επαληθεύτηκε. Μπορείτε πλέον να δημοσιεύετε καμπάνιες ως ανοιχτές, ώστε να τις βλέπουν οι εγκεκριμένοι influencers.</p>
           <p><a href="https://www.influo.gr/brand/dashboard">Άνοιγμα dashboard</a></p>
+          ${emailNextSteps("brand_verified")}
         </div>`
       ).catch((err) => console.error("[brand verify email]", err));
     }

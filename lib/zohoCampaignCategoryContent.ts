@@ -1,4 +1,5 @@
 /** Public HTML body for Zoho category/related campaign bulk emails (content_url). */
+import { emailNextSteps } from "@/lib/emailNextSteps";
 
 export function campaignCategoryEmailSubject(title: string): string {
   return `Νέα καμπάνια στο Influo: ${String(title || "").trim()}`.slice(0, 150);
@@ -24,6 +25,7 @@ export function campaignCategoryEmailHtml(input: {
   <p>Άνοιξε νέα καμπάνια στο Influo που σχετίζεται με την κατηγορία σου.</p>
   <p><strong>Καμπάνια:</strong> ${esc(input.title)}<br/><strong>Επιχείρηση:</strong> ${esc(input.brandName)}</p>
   <p><a href="${esc(link)}">${esc(link)}</a></p>
+  ${emailNextSteps("campaign_category_bulk")}
   <p style="color:#6b7280;font-size:12px;">Λαμβάνεις αυτό το email επειδή έχεις εγκεκριμένο προφίλ στο Influo.</p>
   <p style="color:#6b7280;font-size:12px;">Hi — a new Influo campaign matching your category just opened. Open the link above to view it.</p>
 </div>`;

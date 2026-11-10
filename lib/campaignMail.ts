@@ -1,4 +1,5 @@
 /** Campaign emails: same shell, summary block, blue button and short tips as the proposal emails. Greek only. */
+import { emailNextSteps } from "@/lib/emailNextSteps";
 import { formatDate } from "@/lib/formatDateTime";
 import { escapeHtml } from "@/lib/proposalParty";
 import { brandLink, buttonHtml, intEuro, shell, siteUrl, tipsHtml, todayAthens } from "@/lib/proposalMail";
@@ -74,6 +75,7 @@ export function applicationToBrand(input: {
        ${quoteHtml("Μήνυμα του δημιουργού:", input.message)}
        ${quoteHtml("Δείγματα δουλειάς:", input.workLinks)}
        ${buttonHtml(brandCampaignsLink(input.brandEmail, input.brandHasAccount ?? true), "Δείτε την αίτηση")}
+       ${emailNextSteps("campaign_application_brand")}
        ${tipsHtml([
          "Απαντήστε όσο πιο γρήγορα μπορείτε· οι δημιουργοί κάνουν αιτήσεις και σε άλλες καμπάνιες.",
          "Βάλτε στη λίστα (shortlist) όσους σας ενδιαφέρουν και αποφασίστε όταν μαζευτούν οι αιτήσεις.",
@@ -104,6 +106,7 @@ export function applicationToCreator(input: {
        ])}
        <p><strong>Τι ακολουθεί:</strong> η επιχείρηση θα δει την αίτησή σου. Θα ενημερωθείς με email όταν αλλάξει η κατάστασή της.</p>
        ${buttonHtml(creatorCampaignsTab(), "Δες τις αιτήσεις σου")}
+       ${emailNextSteps("campaign_application_creator")}
        ${tipsHtml([
          "Κράτα το προφίλ σου ενημερωμένο (στατιστικά, πακέτα, δείγματα) — είναι το πρώτο που βλέπει η επιχείρηση.",
          "Για απορίες, γράψε στην επιχείρηση από τα μηνύματα του Influo.",
@@ -134,6 +137,7 @@ export function publishedToBrand(input: {
          ["Λήξη", input.closesAt ? formatDate(input.closesAt, "el") : null],
        ])}
        ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε την καμπάνια")}
+       ${emailNextSteps("campaign_published_brand")}
        ${tipsHtml([
          "Θα λάβετε email για κάθε νέα αίτηση.",
          "Μπορείτε να προσκαλέσετε και μόνοι σας δημιουργούς από τον κατάλογο.",
@@ -155,7 +159,8 @@ export function publishedToAdmin(input: { campaignTitle: string; brandName: stri
          ["Ημερομηνία", todayAthens()],
          ["Campaign ID", input.campaignId],
        ])}
-       ${buttonHtml(`${siteUrl()}/admin`, "Άνοιγμα διαχείρισης")}`
+       ${buttonHtml(`${siteUrl()}/admin`, "Άνοιγμα διαχείρισης")}
+       ${emailNextSteps("campaign_published_admin")}`
     ),
   };
 }
@@ -174,6 +179,7 @@ export function newCampaignToCreator(input: { influencerName: string; brandName:
          ["Ημερομηνία", todayAthens()],
        ])}
        ${buttonHtml(campaignUrl(input.campaignId), "Δες την καμπάνια")}
+       ${emailNextSteps("campaign_new_creator")}
        ${tipsHtml([
          "Κάνε αίτηση νωρίς· οι επιχειρήσεις συχνά επιλέγουν από τις πρώτες αιτήσεις.",
          "Γράψε στο μήνυμα γιατί ταιριάζεις και τι θα δημιουργούσες.",
@@ -207,6 +213,7 @@ export function applicationStatusToCreator(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${shortlisted ? buttonHtml(campaignUrl(input.campaignId), "Δες την καμπάνια") : buttonHtml(campaignsUrl(), "Δες ανοιχτές καμπάνιες")}
+       ${emailNextSteps(shortlisted ? "campaign_shortlisted_creator" : "campaign_rejected_creator")}
        ${tipsHtml(
          shortlisted
            ? ["Έλεγξε τα μηνύματά σου· η επιχείρηση μπορεί να σου γράψει."]
@@ -239,6 +246,7 @@ export function acceptedToCreator(input: {
        ])}
        <p><strong>Τι ακολουθεί:</strong> συμφωνήστε στα μηνύματα τις λεπτομέρειες και επιβεβαιώστε τη συμφωνία από τον πίνακά σου.</p>
        ${buttonHtml(creatorProposalsTab(), "Δες τη συνεργασία")}
+       ${emailNextSteps("campaign_accepted_creator")}
        ${tipsHtml([
          "Ζήτα από την επιχείρηση ένα σύντομο brief (στόχος, βασικό μήνυμα, hashtags/tags).",
          "Συμφωνήστε από την αρχή ημερομηνία δημοσίευσης και παραδοτέα.",
@@ -270,6 +278,7 @@ export function acceptedToBrand(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${buttonHtml(brandLink(input.brandEmail, true), "Δείτε τη συνεργασία")}
+       ${emailNextSteps("campaign_accepted_brand")}
        ${tipsHtml([
          "Στείλτε στα μηνύματα ένα σύντομο brief (στόχος, βασικό μήνυμα, hashtags/tags, do &amp; don'ts), ώστε το περιεχόμενο να βγει όπως το θέλετε.",
        ])}`
@@ -299,6 +308,7 @@ export function reviewToCreator(input: {
        ])}
        ${quoteHtml("Σχόλιο:", input.reviewText)}
        ${buttonHtml(input.profileUrl, "Δες την αξιολόγηση")}
+       ${emailNextSteps("campaign_review_creator")}
        ${tipsHtml(["Οι αξιολογήσεις εμφανίζονται στο δημόσιο προφίλ σου και βοηθούν νέες επιχειρήσεις να σε επιλέξουν."])}`
     ),
   };
@@ -316,7 +326,8 @@ export function removedToCreator(input: { influencerName: string; campaignTitle:
          ["Καμπάνια", input.campaignTitle],
          ["Ημερομηνία", todayAthens()],
        ])}
-       ${buttonHtml(campaignsUrl(), "Δες ανοιχτές καμπάνιες")}`
+       ${buttonHtml(campaignsUrl(), "Δες ανοιχτές καμπάνιες")}
+       ${emailNextSteps("campaign_removed_creator")}`
     ),
   };
 }
@@ -335,6 +346,7 @@ export function closedToBrand(input: { brandEmail: string; brandName: string; ca
          ["Ημερομηνία", todayAthens()],
        ])}
        ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε τις καμπάνιες")}
+       ${emailNextSteps("campaign_closed_brand")}
        ${tipsHtml([
          "Όσοι δεν επιλέχθηκαν ενημερώνονται αυτόματα.",
          "Μπορείτε να ανοίξετε νέα καμπάνια ή να προσκαλέσετε δημιουργούς απευθείας.",
@@ -357,6 +369,7 @@ export function notSelectedToCreator(input: { influencerName: string; campaignTi
          ["Ημερομηνία", todayAthens()],
        ])}
        ${buttonHtml(campaignsUrl(), "Δες ανοιχτές καμπάνιες")}
+       ${emailNextSteps("campaign_not_selected_creator")}
        ${tipsHtml([
          "Νέες καμπάνιες ανοίγουν συχνά — κάνε αίτηση σε όσες σου ταιριάζουν.",
          "Ένα ενημερωμένο προφίλ με πρόσφατα δείγματα αυξάνει τις πιθανότητές σου.",
@@ -386,6 +399,7 @@ export function closingSoonToBrand(input: {
          ["Αιτήσεις", String(Number.isFinite(input.applicationsCount) ? input.applicationsCount : 0)],
        ])}
        ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε τις αιτήσεις")}
+       ${emailNextSteps("campaign_closing_soon_brand")}
        ${tipsHtml(["Απαντήστε στις αιτήσεις πριν κλείσει η καμπάνια, ώστε οι δημιουργοί να ξέρουν πού βρίσκονται."])}`
     ),
   };
@@ -413,6 +427,7 @@ export function pendingAppsReminderToBrand(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε τις αιτήσεις")}
+       ${emailNextSteps("campaign_pending_apps_brand")}
        ${tipsHtml([
          "Απαντήστε σύντομα· οι δημιουργοί κάνουν αιτήσεις και σε άλλες καμπάνιες.",
          "Μπορείτε να βάλετε στη λίστα (shortlist) όσους σας ενδιαφέρουν και να αποφασίσετε μετά.",
@@ -443,6 +458,7 @@ export function deliverableSubmittedToBrand(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε την παράδοση")}
+       ${emailNextSteps("campaign_deliverable_brand")}
        ${tipsHtml(["Εγκρίνετε ή ζητήστε αλλαγές από τις Καμπάνιες του dashboard."])}`
     ),
   };
@@ -479,7 +495,8 @@ export function deliverableReviewToCreator(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${quoteHtml(approved ? "Σχόλιο:" : "Τι ζητήθηκε:", input.reviewNote)}
-       ${buttonHtml(creatorCampaignsTab(), "Δες τις καμπάνιες σου")}`
+       ${buttonHtml(creatorCampaignsTab(), "Δες τις καμπάνιες σου")}
+       ${emailNextSteps(approved ? "campaign_deliverable_approved_creator" : "campaign_deliverable_changes_creator")}`
     ),
   };
 }

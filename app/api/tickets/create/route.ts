@@ -2,6 +2,7 @@ import { addAdminNotice } from '@/lib/adminNotice';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushAdminNewSupportTicket } from '@/lib/push';
 import { helpDeskTicketUrl } from '@/lib/supportThread';
 import { insertTicketMessage } from '@/lib/supportThreadStore';
@@ -98,6 +99,7 @@ export async function POST(req: Request) {
               <div style="margin: 24px 0; text-align: center;">
                 <a href="${ticketUrl}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Προβολή ticket</a>
               </div>
+              ${emailNextSteps("ticket_user_autoreply")}
               <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br>support@influo.gr</p>
               </div>
@@ -171,6 +173,7 @@ export async function POST(req: Request) {
               <div style="margin: 24px 0; text-align: center;">
                 <a href="https://${host}/admin/support" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Προβολή στο Help Desk</a>
               </div>
+              ${emailNextSteps("ticket_admin_new")}
               
               <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br>support@influo.gr</p>

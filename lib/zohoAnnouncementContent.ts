@@ -1,3 +1,4 @@
+import { emailNextSteps } from "@/lib/emailNextSteps";
 import type { ZohoAudience } from "@/lib/zohoCampaignsConfig";
 
 export const ANNOUNCEMENT_EMAIL_SUBJECT = "Υπάρχει μια νέα ανακοίνωση στο Influo";
@@ -9,6 +10,7 @@ export function announcementEmailHtml(dashboardPath: string, siteUrl: string): s
   <p style="margin: 0 0 16px 0;">Υπάρχει μια νέα ανακοίνωση στο Influo.</p>
   <p style="margin: 0 0 20px 0;">Συνδέσου στο dashboard σου για να τη δεις.</p>
   <p style="margin: 0;"><a href="${base}${dashboardPath}" style="color: #2563eb; font-weight: 600;">Άνοιξε το Influo →</a></p>
+  ${emailNextSteps("announcement")}
 </div>`;
 }
 

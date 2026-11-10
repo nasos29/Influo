@@ -4,6 +4,7 @@ import { contactsFor, loadApprovedCreators } from "@/lib/campaignNotify";
 import { campaignCategoryIsGeneral, presenceAllows, rankCampaignAlerts } from "@/lib/campaignAlert";
 import { sharedCategoryKeys } from "@/lib/recommendations";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
+import { emailNextSteps } from "@/lib/emailNextSteps";
 import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { categoryTranslations } from "@/lib/categories";
 import { getSiteSetting } from "@/lib/siteSettingsServer";
@@ -191,6 +192,7 @@ export function buildCategoryCampaignEmail(input: { name: string; title: string;
   <p>Άνοιξε νέα καμπάνια στο Influo που σχετίζεται με την κατηγορία σου.</p>
   <p><strong>Καμπάνια:</strong> ${esc(input.title)}<br/><strong>Επιχείρηση:</strong> ${esc(input.brandName)}<br/><strong>Πλατφόρμες:</strong> ${esc(platforms)}</p>
   <p><a href="${link}">${link}</a></p>
+  ${emailNextSteps("campaign_category_bulk")}
   <p style="color:#6b7280;font-size:12px;">Λαμβάνεις αυτό το email επειδή έχεις εγκεκριμένο προφίλ στο Influo.</p>
 </div>`,
   };

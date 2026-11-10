@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushToBrand } from '@/lib/push';
 import { formatDisplayDate } from '@/lib/formatDate';
 
@@ -137,6 +138,7 @@ export function buildDigestHtml(
   <p style="margin: 0 0 20px 0; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; color: #1e3a8a;">
     <a href="${campaignsUrl}" style="color: #1d4ed8; font-weight: 700; text-decoration: none;">Ανέβασε τώρα την Καμπάνια της επιχείρησής σου εντελώς δωρεάν</a>, πάρε προτάσεις από εγκεκριμένους Influencers και δες τις πωλήσεις σου να αυξάνονται!
   </p>
+  ${emailNextSteps("brand_weekly_digest")}
   <p style="margin: 0; font-size: 12px; color: #6b7280;">Με εκτίμηση,<br/>Η ομάδα ${PLATFORM_NAME}</p>
 </div>`;
 }

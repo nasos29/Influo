@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushUserHelpDeskAdminReply } from '@/lib/push';
 import { REPLY_ON_SITE_NOTE, helpDeskTicketUrl } from '@/lib/supportThread';
 import { insertTicketMessage, loadTicketMessages } from '@/lib/supportThreadStore';
@@ -114,6 +115,7 @@ export async function POST(req: Request) {
               <div style="margin: 24px 0; text-align: center;">
                 <a href="${ticketUrl}" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Προβολή ticket</a>
               </div>
+              ${emailNextSteps("ticket_admin_reply")}
               <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                 <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br>support@influo.gr</p>
               </div>

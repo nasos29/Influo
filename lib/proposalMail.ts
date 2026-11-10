@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { logEmail } from "@/lib/deliveryLog";
+import { emailNextSteps } from "@/lib/emailNextSteps";
 import { formatAthensDateTime, formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
@@ -122,6 +123,7 @@ export async function mailAdminEvent(type: string, subject: string, title: strin
         <p><strong>${escapeHtml(title)}</strong></p>
         <p>${lines}</p>
         <p><a href="${siteUrl()}/admin">${siteUrl()}/admin</a></p>
+        ${emailNextSteps("admin_event")}
       </div>`
     );
   } catch (err) {
@@ -178,6 +180,7 @@ export async function mailNewProposal(input: DealInfo & {
        ${summaryBlockHtml(input)}
        ${quote}
        ${buttonHtml(creatorProposalsUrl(), "Δες την πρόταση")}
+       ${emailNextSteps("proposal_new_creator")}
        ${tipsHtml([
          "Απάντησε όσο πιο γρήγορα μπορείς.",
          "Αν η τιμή ή τα παραδοτέα δεν σου ταιριάζουν, στείλε αντιπρόταση αντί να απορρίψεις.",
@@ -196,6 +199,7 @@ export async function mailNewProposal(input: DealInfo & {
        ${summaryBlockHtml(input)}
        <p><strong>Τι ακολουθεί:</strong> ο/η δημιουργός μπορεί να αποδεχτεί, να απορρίψει ή να στείλει αντιπρόταση. Θα ενημερωθείτε με email.</p>
        ${buttonHtml(brandLink(input.brandEmail, input.brandHasAccount ?? true), "Δείτε την πρόταση")}
+       ${emailNextSteps("proposal_brand_confirmation")}
        ${tipsHtml([
          "Στείλτε στα μηνύματα ένα σύντομο brief (στόχος, βασικό μήνυμα, hashtags/tags, do &amp; don'ts, παραδείγματα), ώστε το περιεχόμενο να βγει όπως το θέλετε.",
        ])}`
@@ -215,7 +219,8 @@ export async function mailNewProposal(input: DealInfo & {
         <strong>Υπηρεσία:</strong> ${service}<br/>
         <strong>Budget:</strong> ${euroHtml(input.budget)}</p>
        ${note}
-       <p><a href="${siteUrl()}/admin">Admin</a></p>`
+       <p><a href="${siteUrl()}/admin">Admin</a></p>
+       ${emailNextSteps("admin_event")}`
     )
   ),
   ]);
@@ -242,12 +247,14 @@ export async function mailProposalDecision(input: DealInfo & {
        1) Αποδεχτείτε τη σύνοψη συμφωνίας για να κλείσει η συνεργασία.<br/>
        2) Στείλτε brief και υλικό (προϊόν, links, tags) από τα μηνύματα του Influo.<br/>
        3) Συμφωνήστε ημερομηνία παράδοσης/δημοσίευσης και τυχόν έγκριση πριν το post.</p>
-       ${buttonHtml(link, cta)}`
+       ${buttonHtml(link, cta)}
+       ${emailNextSteps("proposal_accepted_brand")}`
     : `<p>Γεια σας ${brandName},</p>
        <p>Ο/Η <strong>${influencerName}</strong> απέρριψε την πρότασή σας στις ${escapeHtml(todayAthens())}.</p>
        ${summaryBlockHtml(input)}
        <p>Η πρόταση έκλεισε. Δείτε παρόμοιους δημιουργούς για την καμπάνια σας.</p>
-       ${buttonHtml(`${siteUrl()}/directory`, "Βρες δημιουργούς")}`;
+       ${buttonHtml(`${siteUrl()}/directory`, "Βρες δημιουργούς")}
+       ${emailNextSteps("proposal_rejected_brand")}`;
   await send(
     input.accepted ? "proposal_accepted" : "proposal_rejected",
     input.brandEmail,
@@ -290,6 +297,7 @@ export async function mailCounter(input: DealInfo & {
        ${summaryBlockHtml({ ...input, budget: input.counterBudget, label: "Ποσό αντιπρότασης" })}
        ${comment}
        ${buttonHtml(link, input.brandHasAccount ? "Απαντήστε στην αντιπρόταση" : "Δημιουργία λογαριασμού")}
+       ${emailNextSteps("counter_new_brand")}
        ${tipsHtml([
          "Μπορείτε να την αποδεχτείτε ή να την απορρίψετε (η αρχική πρόταση μένει ανοιχτή).",
          "Για αλλαγές στα παραδοτέα συζητήστε το στα μηνύματα του Influo.",
@@ -326,7 +334,8 @@ export async function mailCounterDecision(input: DealInfo & {
       `<p>Γεια σου ${escapeHtml(input.influencerName)},</p>
        ${lead}
        ${summaryBlockHtml(input)}
-       ${buttonHtml(creatorProposalsUrl(), "Άνοιξε την πρόταση")}`
+       ${buttonHtml(creatorProposalsUrl(), "Άνοιξε την πρόταση")}
+       ${emailNextSteps(input.accepted ? "counter_accepted_creator" : "counter_rejected_creator")}`
     )
   );
   await mailAdminEvent(
@@ -380,6 +389,7 @@ export async function mailAgreement(input: {
        <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> αποδέχτηκε τη σύνοψη συμφωνίας στις ${escapeHtml(todayAthens())}. Αποδεχτείτε κι εσείς για να ξεκινήσει η συνεργασία.</p>
        ${summaryBlockHtml(input)}
        ${buttonHtml(link, input.toBrand && !input.brandHasAccount ? "Δημιουργία λογαριασμού" : "Αποδοχή συμφωνίας")}
+       ${emailNextSteps("agreement_waiting")}
        ${tipsHtml(["Όλη η επικοινωνία μέσα από τα μηνύματα του Influo κρατά ιστορικό για κάθε συμφωνία."])}`
     )
   );
@@ -404,7 +414,8 @@ export async function mailCollaborationComplete(input: {
       "Η συνεργασία ολοκληρώθηκε",
       `<p>Γεια σας ${escapeHtml(input.influencerName)},</p>
        <p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας <strong>#${id}</strong>. Η επιχείρηση <strong>${escapeHtml(input.brandName)}</strong> καταγράφεται στις συνεργασίες του προφίλ σας.</p>
-       ${agreementDetailsHtml(input)}`
+       ${agreementDetailsHtml(input)}
+       ${emailNextSteps("collaboration_complete_creator")}`
     )
   );
 }
@@ -444,7 +455,8 @@ export async function mailAdminAgreementComplete(input: {
         <strong>Προθεσμία δημοσίευσης:</strong> ${escapeHtml(deadline)}<br/>
         <strong>Αποδοχή επιχείρησης:</strong> ${escapeHtml(formatAthensDateTime(input.brandAcceptedAt))}<br/>
         <strong>Αποδοχή δημιουργού:</strong> ${escapeHtml(formatAthensDateTime(input.creatorAcceptedAt))}</p>
-       <p><a href="${siteUrl()}/admin">Άνοιγμα διαχείρισης</a></p>`
+       <p><a href="${siteUrl()}/admin">Άνοιγμα διαχείρισης</a></p>
+       ${emailNextSteps("agreement_complete_admin")}`
     )
   );
 }
@@ -486,6 +498,7 @@ export async function mailCreatorDealComplete(input: {
        ${dealSummaryHtml(input.service, input.extras, input.budget)}
        <p><strong>Αξιολόγησε την ${brand}</strong> — μια σύντομη αξιολόγηση βοηθά άλλους δημιουργούς να επιλέγουν σωστές συνεργασίες.</p>
        ${buttonHtml(input.reviewUrl, "Γράψε αξιολόγηση")}
+       ${emailNextSteps("deal_complete_creator")}
        <p><strong>Μια μικρή χάρη:</strong> Αν σου άρεσε η εμπειρία, ανάφερε το Influo σε ένα story ή video, ή βάλε τον σύνδεσμο του προφίλ σου στο bio σου: <a href="${escapeHtml(input.profileUrl)}">${escapeHtml(input.profileUrl)}</a>. Αν μας κάνεις tag (@influo.gr), θα το κοινοποιήσουμε κι εμείς!</p>
        <p>Καλή συνέχεια,</p>`
     )
@@ -518,6 +531,7 @@ export async function mailBrandDealComplete(input: {
        ${dealSummaryHtml(input.service, input.extras, input.budget)}
        <p><strong>Πώς πήγε;</strong> Η αξιολόγησή σας βοηθά άλλες επιχειρήσεις να βρουν τον κατάλληλο δημιουργό.</p>
        ${buttonHtml(input.reviewUrl, `Αξιολογήστε ${article} ${input.creatorName}`)}
+       ${emailNextSteps("deal_complete_brand")}
        <p><strong>Μοιραστείτε το:</strong> Αν το περιεχόμενο σας άρεσε, μπορείτε να αναφέρετε το Influo στην ανάρτηση ή στο video (π.χ. «Συνεργασία μέσω @influo.gr») ή να βάλετε τον σύνδεσμο influo.gr. Θα χαρούμε να το προβάλουμε κι εμείς.</p>
        <p>Για την επόμενη καμπάνια σας:</p>
        ${buttonHtml(`${siteUrl()}/directory`, "Βρες δημιουργούς")}

@@ -2,6 +2,7 @@
  * "Stats updated" email to approved creators after a successful social-refresh-batch apply.
  * Sent only when something material changed. No unsubscribe link (owner decision).
  */
+import { emailNextSteps } from "@/lib/emailNextSteps";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { escapeHtml } from "@/lib/proposalParty";
 import { buttonHtml, send, shell, siteUrl, todayAthens } from "@/lib/proposalMail";
@@ -115,6 +116,7 @@ export function buildStatsEmail(input: {
     <p style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;">${lines}</p>
     ${input.topPostsAdded ? "<p>Προστέθηκαν τα κορυφαία posts σου στην καρτέλα Στατιστικά.</p>" : ""}
     ${buttonHtml(profileUrl, "Δες το προφίλ σου")}
+    ${emailNextSteps("stats_update")}
     ${
       input.showTip
         ? `<p>💡 Τα προφίλ με πακέτα και δεξιότητες εμφανίζονται πιο ολοκληρωμένα στις επιχειρήσεις. Πρόσθεσέ τα σε 2 λεπτά από το <a href="${siteUrl()}/dashboard">dashboard σου</a>.</p>`
