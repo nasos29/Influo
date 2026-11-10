@@ -4,14 +4,17 @@ import { notifyMatchingOpenCampaign } from "@/lib/campaignNotify";
 import { publishedToBrand } from "@/lib/campaignMail";
 import { campaignClosesAt } from "@/lib/campaignLifecycle";
 import { getSiteSetting } from "@/lib/siteSettingsServer";
-import { send, siteUrl } from "@/lib/proposalMail";
+import { mailAdminEvent, send, siteUrl } from "@/lib/proposalMail";
 import { queueCategoryCampaignEmails } from "@/lib/campaignCategoryEmail";
-import { sendPushNewOpenCampaignToAllApprovedInfluencers } from "@/lib/push";
+import { sendPushNewOpenCampaignToInfluencers } from "@/lib/push";
+import { claimCampaignNotify } from "@/lib/campaignNotifyClaim";
+import { addAdminNotice } from "@/lib/adminNotice";
+import { isZeroCreatorReach } from "@/lib/campaignPendingApps";
 
 /** Brand confirmation only right after opening (unless forced for a one-off resend). */
 const BRAND_CONFIRM_WINDOW_MS = 15 * 60 * 1000;
 
-/** One send per opening per process, shared by every route bundle (save route + legacy client call). */
+/** Backup in-process guard (DB campaign_notify_log is the durable source of truth). */
 const globalStore = globalThis as unknown as { __influoCampaignOpenings?: Set<string> };
 const sentOpenings = (globalStore.__influoCampaignOpenings ??= new Set<string>());
 
@@ -23,9 +26,9 @@ export type CampaignPublishedResult =
       ok: true;
       admin: boolean;
       brand: boolean;
-      creators: { emailed: number; pushed: number; inApp: number };
+      creators: { emailed: number; pushed: number; inApp: number; matched: number; budgetSkipped: number };
       push: { sent: number; failed: number };
-      categoryEmails: { matched: number; related: number; skippedStrong: number; relatedCategories: string[] };
+      categoryEmails: { matched: number; related: number; skippedStrong: number; relatedCategories: string[]; via?: string };
     }
   | { ok: false; error: string; status: number };
 
@@ -36,7 +39,7 @@ function platformList(value: unknown): string[] {
 /**
  * Notifications for a campaign that just became open: matching creators (email/push/in-app),
  * admin email and brand confirmation. Reads with the service role; when `ownerId` is given the
- * campaign must belong to that brand. Idempotent per (campaign, opened_at) within the process.
+ * campaign must belong to that brand. Idempotent per (campaign, opened_at) via DB + process Set.
  */
 export async function notifyCampaignPublished(
   campaignId: string,
@@ -61,7 +64,16 @@ export async function notifyCampaignPublished(
 
   const openedAt = row.opened_at || row.created_at || "";
   const key = `${campaignId}:${openedAt}`;
-  if (sentOpenings.has(key)) return { ok: true, skipped: "already_sent" };
+  if (!opts.force && sentOpenings.has(key)) return { ok: true, skipped: "already_sent" };
+
+  // Durable claim first (force skips so admin resend can re-run creator outreach).
+  if (!opts.force) {
+    const claimed = await claimCampaignNotify(campaignId, openedAt || new Date(0).toISOString(), "publish");
+    if (!claimed) {
+      sentOpenings.add(key);
+      return { ok: true, skipped: "already_sent" };
+    }
+  }
   sentOpenings.add(key);
 
   const br = row.brands as BrandRow | BrandRow[] | null;
@@ -74,20 +86,36 @@ export async function notifyCampaignPublished(
   if (testMode) console.log("[campaign published] test brand: creator notifications skipped", campaignId);
 
   const creatorsJob = testMode
-    ? Promise.resolve({ emailed: 0, pushed: 0, inApp: 0 })
+    ? Promise.resolve({
+        emailed: 0,
+        pushed: 0,
+        inApp: 0,
+        matched: 0,
+        budgetSkipped: 0,
+        matchedInfluencerIds: [] as string[],
+        budgetSkippedIds: [] as string[],
+      })
     : notifyMatchingOpenCampaign({
-    campaignId,
-    title: row.title,
-    category: row.category || null,
-    brandName,
-    location: row.location || null,
-    minFollowers: row.min_followers ?? null,
-    platforms: platformList(row.platforms),
-    requiresPresence: row.requires_presence === true,
-  }).catch((err) => {
-    console.error("[campaign published] creators notify", err);
-    return { emailed: 0, pushed: 0, inApp: 0 };
-  });
+        campaignId,
+        title: row.title,
+        category: row.category || null,
+        brandName,
+        location: row.location || null,
+        minFollowers: row.min_followers ?? null,
+        platforms: platformList(row.platforms),
+        requiresPresence: row.requires_presence === true,
+      }).catch((err) => {
+        console.error("[campaign published] creators notify", err);
+        return {
+          emailed: 0,
+          pushed: 0,
+          inApp: 0,
+          matched: 0,
+          budgetSkipped: 0,
+          matchedInfluencerIds: [] as string[],
+          budgetSkippedIds: [] as string[],
+        };
+      });
 
   // Public site URL, never the internal request origin (https → http port fails).
   const cronSecret = process.env.CRON_SECRET;
@@ -135,31 +163,111 @@ export async function notifyCampaignPublished(
       });
   }
 
-  // Push goes to every approved creator with a subscription (not only matches).
-  const pushJob = testMode
-    ? Promise.resolve({ sent: 0, failed: 0 })
-    : sendPushNewOpenCampaignToAllApprovedInfluencers({ campaignTitle: row.title, brandName, campaignId }).catch((err) => {
-    console.error("[campaign published] push all", err);
-    return { sent: 0, failed: 0 };
-  });
+  const [creators, adminOk, brandOk] = await Promise.all([creatorsJob, adminJob, brandJob]);
 
-  const [creators, adminOk, brandOk, push] = await Promise.all([creatorsJob, adminJob, brandJob, pushJob]);
-  // After the strong-match outreach, so those creators are not emailed twice.
+  // Q4: push only to matched creators (same set as in-app), not all approved.
+  const push = testMode
+    ? { sent: 0, failed: 0 }
+    : await sendPushNewOpenCampaignToInfluencers({
+        influencerIds: creators.matchedInfluencerIds,
+        campaignTitle: row.title,
+        brandName,
+        campaignId,
+      }).catch((err) => {
+        console.error("[campaign published] push matched", err);
+        return { sent: 0, failed: 0 };
+      });
+
+  // After strong-match outreach; budget-skipped strong matches go into the category queue (M4).
   const categoryEmails = testMode
-    ? { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[] }
+    ? { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[], via: "skipped_test" }
     : await queueCategoryCampaignEmails({
-    campaignId,
-    title: row.title,
-    brandName,
-    category: row.category || null,
-    location: row.location || null,
-    minFollowers: row.min_followers ?? null,
-    platforms: platformList(row.platforms),
-    requiresPresence: row.requires_presence === true,
-  }).catch((err) => {
-    console.error("[campaign published] category emails", err);
-    return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[] };
+        campaignId,
+        title: row.title,
+        brandName,
+        category: row.category || null,
+        location: row.location || null,
+        minFollowers: row.min_followers ?? null,
+        platforms: platformList(row.platforms),
+        requiresPresence: row.requires_presence === true,
+        forceIncludeIds: creators.budgetSkippedIds,
+      }).catch((err) => {
+        console.error("[campaign published] category emails", err);
+        return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: [] as string[], via: "error" };
+      });
+
+  const categoryQueued = (categoryEmails.matched || 0) + (categoryEmails.related || 0);
+
+  // Q1: zero-recipient alert for real (non-test) campaigns.
+  if (
+    isZeroCreatorReach({
+      testBrand: testMode,
+      inApp: creators.inApp,
+      emailed: creators.emailed,
+      categoryQueued,
+    })
+  ) {
+    const detail = {
+      campaignId,
+      title: row.title,
+      brandName,
+      category: row.category || null,
+      creatorsLoadedHint: creators.matched,
+      inApp: creators.inApp,
+      emailed: creators.emailed,
+      categoryQueued,
+      budgetSkipped: creators.budgetSkipped,
+    };
+    console.error("[campaign published] ZERO_RECIPIENTS", detail);
+    await addAdminNotice({
+      kind: "campaign_zero_recipients",
+      title: `0 creator notify: ${brandName} — ${row.title}`.slice(0, 200),
+      body: `inApp=${creators.inApp}, emailed=${creators.emailed}, categoryQueued=${categoryQueued}, matched=${creators.matched}`,
+      url: "/admin",
+      dedupeKey: `campaign_zero_recipients:${campaignId}:${openedAt || "na"}`,
+    }).catch((err) => console.error("[campaign published] zero-recipient notice", err));
+    await mailAdminEvent(
+      "campaign_zero_recipients_admin",
+      `ALERT: 0 creator notify — ${brandName}: ${row.title}`.slice(0, 180),
+      "Καμπάνια δημοσιεύτηκε χωρίς recipients (in-app / email / category queue)",
+      [
+        ["Καμπάνια", row.title],
+        ["Επιχείρηση", brandName],
+        ["Category", row.category || "—"],
+        ["inApp", creators.inApp],
+        ["emailed", creators.emailed],
+        ["categoryQueued", categoryQueued],
+        ["matched", creators.matched],
+        ["Campaign ID", campaignId],
+      ]
+    ).catch((err) => console.error("[campaign published] zero-recipient admin mail", err));
+  }
+
+  console.log("[campaign published] sent", campaignId, {
+    admin: adminOk,
+    brand: brandOk,
+    creators: {
+      emailed: creators.emailed,
+      pushed: creators.pushed,
+      inApp: creators.inApp,
+      matched: creators.matched,
+      budgetSkipped: creators.budgetSkipped,
+    },
+    push,
+    categoryEmails,
   });
-  console.log("[campaign published] sent", campaignId, { admin: adminOk, brand: brandOk, creators, push, categoryEmails });
-  return { ok: true, admin: adminOk, brand: brandOk, creators, push, categoryEmails };
+  return {
+    ok: true,
+    admin: adminOk,
+    brand: brandOk,
+    creators: {
+      emailed: creators.emailed,
+      pushed: creators.pushed,
+      inApp: creators.inApp,
+      matched: creators.matched,
+      budgetSkipped: creators.budgetSkipped,
+    },
+    push,
+    categoryEmails,
+  };
 }

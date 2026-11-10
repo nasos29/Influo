@@ -375,42 +375,82 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Accepting must respect slots: block when accepted count already fills the campaign.
-  // Idempotent re-accept of an already-accepted application is allowed.
-  if (status === "accepted" && app.status !== "accepted") {
-    const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
-    if (slotsFull(slotInfo)) {
+  let conversationId: string | null = null;
+  let proposalId: string | number | null = null;
+  let alreadyAccepted = app.status === "accepted";
+
+  // Q2: accept is race-safe via DB function (lock + conditional slot check).
+  if (status === "accepted") {
+    const { data: rpcRaw, error: rpcError } = await admin.rpc("try_accept_campaign_application", {
+      p_application_id: applicationId,
+      p_brand_user_id: user.id,
+    });
+    if (rpcError) {
+      // Fallback if migration not yet applied on this environment.
+      if (/try_accept_campaign_application|PGRST202|42883|function/i.test(rpcError.message || "")) {
+        const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
+        if (slotsFull(slotInfo) && app.status !== "accepted") {
+          return NextResponse.json(
+            {
+              error: "slots_full",
+              message: {
+                el: "Οι θέσεις είναι πλήρεις. Αυξήστε πρώτα τις θέσεις της καμπάνιας πριν αποδεχτείτε άλλη αίτηση.",
+                en: "All spots are filled. Increase the campaign slots first before accepting another application.",
+              },
+            },
+            { status: 403 }
+          );
+        }
+        const { error: updateError } = await admin
+          .from("campaign_applications")
+          .update({ status: "accepted", reviewed_at: new Date().toISOString() })
+          .eq("id", applicationId);
+        if (updateError) {
+          return NextResponse.json({ error: updateError.message }, { status: 400 });
+        }
+      } else {
+        console.error("[campaign accept] rpc", rpcError.message);
+        return NextResponse.json({ error: rpcError.message }, { status: 400 });
+      }
+    } else {
+      const rpc = (rpcRaw || {}) as { ok?: boolean; error?: string; already?: boolean };
+      if (!rpc.ok) {
+        if (rpc.error === "slots_full") {
+          return NextResponse.json(
+            {
+              error: "slots_full",
+              message: {
+                el: "Οι θέσεις είναι πλήρεις. Αυξήστε πρώτα τις θέσεις της καμπάνιας πριν αποδεχτείτε άλλη αίτηση.",
+                en: "All spots are filled. Increase the campaign slots first before accepting another application.",
+              },
+            },
+            { status: 403 }
+          );
+        }
+        if (rpc.error === "forbidden") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        if (rpc.error === "not_found") return NextResponse.json({ error: "Application not found" }, { status: 404 });
+        return NextResponse.json({ error: rpc.error || "accept_failed" }, { status: 400 });
+      }
+      alreadyAccepted = rpc.already === true || alreadyAccepted;
+    }
+  } else {
+    const { error: updateError } = await admin
+      .from("campaign_applications")
+      .update({ status, reviewed_at: new Date().toISOString() })
+      .eq("id", applicationId);
+    if (updateError) {
+      const migration = /check constraint|status/i.test(updateError.message);
       return NextResponse.json(
         {
-          error: "slots_full",
-          message: {
-            el: "Οι θέσεις είναι πλήρεις. Αυξήστε πρώτα τις θέσεις της καμπάνιας πριν αποδεχτείτε άλλη αίτηση.",
-            en: "All spots are filled. Increase the campaign slots first before accepting another application.",
-          },
+          error: migration
+            ? "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase so applications can be accepted."
+            : updateError.message,
         },
-        { status: 403 }
+        { status: 400 }
       );
     }
   }
 
-  const { error: updateError } = await admin
-    .from("campaign_applications")
-    .update({ status, reviewed_at: new Date().toISOString() })
-    .eq("id", applicationId);
-  if (updateError) {
-    const migration = /check constraint|status/i.test(updateError.message);
-    return NextResponse.json(
-      {
-        error: migration
-          ? "Run docs/CAMPAIGN_WORKFLOW_2026.sql in Supabase so applications can be accepted."
-          : updateError.message,
-      },
-      { status: 400 }
-    );
-  }
-
-  let conversationId: string | null = null;
-  let proposalId: string | number | null = null;
   // "accepted" is announced below, together with the proposal it creates (one email per side).
   if ((status === "shortlisted" || status === "rejected") && app.status !== status) {
     await notifyApplicationStatus({
@@ -427,7 +467,6 @@ export async function POST(request: NextRequest) {
     const brandEmail = (brandRow?.contact_email || user.email || "").toLowerCase();
     const budget = Math.max(1, Number(campaign.budget) || 0);
     const serviceType = `Καμπάνια: ${campaign.title}`.slice(0, 120);
-    const alreadyAccepted = app.status === "accepted";
     // Idempotent: reuse the first active proposal for this brand + creator + campaign label.
     const existing = await findActiveCampaignProposal(admin, user.id, String(app.influencer_id), serviceType);
     if (existing) {

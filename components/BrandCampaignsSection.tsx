@@ -28,6 +28,7 @@ import { formatDate } from "@/lib/formatDateTime";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignServiceType } from "@/lib/campaignServiceLabel";
 import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
+import { pendingAppsSlaLabel } from "@/lib/campaignPendingApps";
 import { responseText } from "@/lib/bilingualError";
 import { campaignField } from "@/lib/campaignLocalized";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
@@ -133,20 +134,9 @@ type InviteMatch = {
 
 type LangPair = { el: string; en: string };
 
-function publishFollowUp(campaignId: string, token: string, onMatches: (matches: InviteMatch[]) => void): Promise<void> {
-  const notify = fetch("/api/push/campaign-published", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ campaignId }),
-    signal: AbortSignal.timeout(12000),
-  })
-    .then(() => undefined)
-    .catch((err) => {
-      console.error("[campaign publish] notify", err);
-    });
+function publishFollowUp(campaignId: string, _token: string, onMatches: (matches: InviteMatch[]) => void): Promise<void> {
+  // Publish notifications run server-side in /api/campaigns/save (durable DB dedupe).
+  // Do not call /api/push/campaign-published from the client (Q3 — was a duplicate path).
   const matches = sessionFetch(`/api/campaigns/matches?campaignId=${encodeURIComponent(campaignId)}`, {
     signal: AbortSignal.timeout(12000),
   })
@@ -158,7 +148,7 @@ function publishFollowUp(campaignId: string, token: string, onMatches: (matches:
     .catch((err) => {
       console.error("[campaign publish] matches", err);
     });
-  return Promise.all([notify, matches]).then(() => undefined);
+  return matches.then(() => undefined);
 }
 
 function langPack<K extends string>(rows: Record<K, LangPair>) {
@@ -568,6 +558,7 @@ export default function BrandCampaignsSection({
   lang,
   brandVerified,
   pendingApplicationsCount = 0,
+  pendingApplicationsOldestDays = 0,
   focusApplications = 0,
   onApplicationsUpdated,
   onOpenInfluencerMessage,
@@ -577,6 +568,8 @@ export default function BrandCampaignsSection({
   lang: "el" | "en";
   brandVerified: boolean;
   pendingApplicationsCount?: number;
+  /** Age in days of the oldest pending application (SLA banner). */
+  pendingApplicationsOldestDays?: number;
   focusApplications?: number;
   onApplicationsUpdated?: () => void;
   onOpenInfluencerMessage?: (p: { influencerId: string; displayName: string; conversationId?: string | null }) => void;
@@ -1306,20 +1299,29 @@ export default function BrandCampaignsSection({
   };
 
   const reviewDeliverable = async (appId: string, next: "approved" | "changes_requested", note?: string) => {
-    const { error } = await supabase
-      .from("campaign_applications")
-      .update({
-        deliverable_status: next,
-        deliverable_review_note: note?.trim() || null,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", appId);
-    if (error) {
-      toastError(error.message);
-      return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) return;
+    try {
+      const res = await fetch("/api/campaigns/deliverable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          applicationId: appId,
+          action: next === "approved" ? "approve" : "request_changes",
+          note: note?.trim() || "",
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError(typeof body.error === "string" ? body.error : "Error");
+        return;
+      }
+      toastSuccess(x.status_updated);
+      if (expandedId) await loadApplications(expandedId);
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error");
     }
-    toastSuccess(x.status_updated);
-    if (expandedId) await loadApplications(expandedId);
   };
 
   const invite = async (match: InviteMatch) => {
@@ -1954,6 +1956,11 @@ export default function BrandCampaignsSection({
         ) : panel === "applications" ? (
           <div>
             <h3 className="text-lg font-medium text-slate-900 mb-3">{t.applications_heading}</h3>
+            {pendingAppsSlaLabel(lang, pendingApplicationsCount, pendingApplicationsOldestDays) && (
+              <p className="mb-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                {pendingAppsSlaLabel(lang, pendingApplicationsCount, pendingApplicationsOldestDays)}
+              </p>
+            )}
             {loading || appsPanelLoading ? (
               <div className="h-24 rounded-xl bg-slate-100 animate-pulse" />
             ) : appsPanelError ? (

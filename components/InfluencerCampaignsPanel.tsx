@@ -379,23 +379,19 @@ export default function InfluencerCampaignsPanel({
     }
     setDeliverSaving(appId);
     try {
-      const { error } = await supabase
-        .from("campaign_applications")
-        .update({
-          deliverable_url: url,
-          deliverable_note: draft.note.trim() || null,
-          deliverable_status: "submitted",
-          delivered_at: new Date().toISOString(),
-        })
-        .eq("id", appId)
-        .eq("influencer_id", influencerId);
-      if (error) {
+      const res = await sessionFetch("/api/campaigns/deliverable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: appId, action: "submit", url, note: draft.note.trim() || "" }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
         notify(
-          /column|deliverable/i.test(error.message)
-            ? uiLang === "el"
+          typeof body.error === "string" && body.error
+            ? body.error
+            : uiLang === "el"
               ? "Η παράδοση δεν αποθηκεύτηκε. Δοκίμασε ξανά."
-              : "The deliverable was not saved. Try again."
-            : error.message,
+              : "The deliverable was not saved. Try again.",
           "error"
         );
         return;

@@ -6,6 +6,9 @@ import { sharedCategoryKeys } from "@/lib/recommendations";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
 import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { categoryTranslations } from "@/lib/categories";
+import { getSiteSetting } from "@/lib/siteSettingsServer";
+import { shouldUseZohoForAnnouncements } from "@/lib/zohoCampaignsConfig";
+import { sendCampaignCategoryViaZoho } from "@/lib/zohoCampaignCategorySend";
 
 /**
  * Adjacent categories: a campaign in the key also interests creators in these.
@@ -209,16 +212,19 @@ export async function queueCategoryCampaignEmails(c: {
   requiresPresence?: boolean | null;
   /** Also queue strong matches (used when re-deriving a lost queue). */
   includeStrong?: boolean;
+  /** Strong matches that hit the 45s outreach budget — include in category queue (M4). */
+  forceIncludeIds?: string[];
   /** Re-derive only: the first N recipients (same order as the lost run) were already emailed. */
   skipFirst?: number;
-}): Promise<{ matched: number; related: number; skippedStrong: number; relatedCategories: string[] }> {
+}): Promise<{ matched: number; related: number; skippedStrong: number; relatedCategories: string[]; via?: string }> {
   const category = (c.category || "").split(",").map((s) => s.trim()).filter(Boolean);
   const relatedCats = [...new Set(category.flatMap((k) => RELATED_CATEGORIES[k] || []))].filter((k) => !category.includes(k));
   const relatedLabel = relatedCats.map((k) => categoryTranslations[k]?.el || k);
-  if (!category.length) return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: relatedLabel };
+  if (!category.length) return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: relatedLabel, via: "no_category" };
 
   const creators = await loadApprovedCreators();
   const generalCampaign = campaignCategoryIsGeneral(c.category);
+  const forceInclude = new Set((c.forceIncludeIds || []).map(String).filter(Boolean));
   const strong = new Set(
     rankCampaignAlerts(creators, { category: c.category, location: c.location, minFollowers: c.minFollowers, platforms: c.platforms, requiresPresence: c.requiresPresence })
       .filter((r) => r.strong)
@@ -234,7 +240,8 @@ export async function queueCategoryCampaignEmails(c: {
     const id = String(row.id);
     // «Γενικά» = every approved creator is a category match (same as campaign alerts).
     if (generalCampaign || sharedCategoryKeys(c.category, row.category).length) {
-      if (strong.has(id) && !c.includeStrong) skippedStrong += 1;
+      // M4: budget-skipped strong matches are not "covered" — put them in the category queue.
+      if (strong.has(id) && !c.includeStrong && !forceInclude.has(id)) skippedStrong += 1;
       else tier.set(id, "matched");
     } else if (relatedCats.length && sharedCategoryKeys(relatedCats.join(","), row.category).length) {
       tier.set(id, "related");
@@ -246,6 +253,7 @@ export async function queueCategoryCampaignEmails(c: {
   let related = 0;
   let toSkip = Math.max(0, Math.floor(c.skipFirst || 0));
   const people = await contactsFor([...tier.keys()]);
+  const jobs: Array<{ key: string; emailKey: string; to: string; subject: string; html: string; name: string; tier: "matched" | "related" }> = [];
   for (const person of people) {
     const email = (person.email || "").trim();
     if (!email.includes("@")) continue;
@@ -253,19 +261,74 @@ export async function queueCategoryCampaignEmails(c: {
     const key = `${c.campaignId}:${person.id}`;
     const emailKey = `${c.campaignId}:${email.toLowerCase()}`;
     if (state.sent.has(key) || state.sent.has(emailKey)) continue;
-    state.sent.add(key);
-    state.sent.add(emailKey);
     if (toSkip > 0) {
+      // Still mark as sent so a retry does not double-email the already-covered prefix.
+      state.sent.add(key);
+      state.sent.add(emailKey);
       toSkip -= 1;
       continue;
     }
     const mail = buildCategoryCampaignEmail({ name: person.name, title: c.title, brandName: c.brandName, platforms: c.platforms, campaignId: c.campaignId });
-    state.queue.push({ key, emailKey, to: email, ...mail });
-    if (tier.get(person.id) === "matched") matched += 1;
+    const which = tier.get(person.id) === "matched" ? "matched" : "related";
+    jobs.push({ key, emailKey, to: email, ...mail, name: person.name, tier: which });
+    if (which === "matched") matched += 1;
     else related += 1;
   }
-  console.log("[campaign category email] queued", c.campaignId, { matched, related, skippedStrong, relatedCategories: relatedCats });
+
+  if (!jobs.length) {
+    console.log("[campaign category email] queued", c.campaignId, { matched, related, skippedStrong, relatedCategories: relatedCats, via: "empty" });
+    save();
+    return { matched, related, skippedStrong, relatedCategories: relatedLabel, via: "empty" };
+  }
+
+  // M3: Zoho temp-list bulk when admin flag ON; otherwise (or on failure) Resend disk queue.
+  let via = "resend_queue";
+  let useZoho = false;
+  try {
+    const flag = await getSiteSetting("zoho_campaigns_announcements");
+    useZoho = shouldUseZohoForAnnouncements(flag);
+  } catch (err) {
+    console.warn("[campaign category email] zoho flag read failed; using Resend", err instanceof Error ? err.message : err);
+  }
+
+  if (useZoho) {
+    const zoho = await sendCampaignCategoryViaZoho({
+      campaignId: c.campaignId,
+      title: c.title,
+      brandName: c.brandName,
+      contacts: jobs.map((j) => ({ email: j.to, displayName: j.name })),
+      siteUrl: siteUrl(),
+    }).catch((err) => ({
+      ok: false as const,
+      syncErrors: [] as string[],
+      error: err instanceof Error ? err.message : String(err),
+    }));
+    if (zoho.ok) {
+      for (const j of jobs) {
+        state.sent.add(j.key);
+        state.sent.add(j.emailKey);
+      }
+      save();
+      via = "zoho";
+      console.log("[campaign category email] zoho sent", c.campaignId, {
+        matched,
+        related,
+        skippedStrong,
+        subscribed: zoho.subscribed,
+        relatedCategories: relatedCats,
+      });
+      return { matched, related, skippedStrong, relatedCategories: relatedLabel, via };
+    }
+    console.warn("[campaign category email] zoho failed → Resend queue", zoho.error, zoho.syncErrors?.slice(0, 3));
+  }
+
+  for (const j of jobs) {
+    state.sent.add(j.key);
+    state.sent.add(j.emailKey);
+    state.queue.push({ key: j.key, emailKey: j.emailKey, to: j.to, subject: j.subject, html: j.html });
+  }
+  console.log("[campaign category email] queued", c.campaignId, { matched, related, skippedStrong, relatedCategories: relatedCats, via });
   save();
   pump();
-  return { matched, related, skippedStrong, relatedCategories: relatedLabel };
+  return { matched, related, skippedStrong, relatedCategories: relatedLabel, via };
 }

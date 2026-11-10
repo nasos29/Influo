@@ -390,3 +390,96 @@ export function closingSoonToBrand(input: {
     ),
   };
 }
+
+/** Brand: unanswered applications older than 3 days. */
+export function pendingAppsReminderToBrand(input: {
+  brandEmail: string;
+  brandName: string;
+  campaignTitle: string;
+  pendingCount: number;
+  oldestDays: number;
+}): Mail {
+  return {
+    subject: `Αναπάντητες αιτήσεις: ${clip(input.campaignTitle, 45)}`,
+    html: shell(
+      "Αναπάντητες αιτήσεις στην καμπάνια σας",
+      `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
+       <p>Έχετε <strong>${input.pendingCount}</strong> αναπάντητες αιτήσεις στην καμπάνια σας. Η παλαιότερη περιμένει περίπου <strong>${input.oldestDays}</strong> ημέρες.</p>
+       <p style="color:#64748b;font-size:13px;">You have <strong>${input.pendingCount}</strong> unanswered application(s); the oldest is about <strong>${input.oldestDays}</strong> day(s) old.</p>
+       ${campaignSummaryHtml([
+         ["Καμπάνια", input.campaignTitle],
+         ["Αναπάντητες", String(input.pendingCount)],
+         ["Παλαιότερη (ημέρες)", String(input.oldestDays)],
+         ["Ημερομηνία", todayAthens()],
+       ])}
+       ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε τις αιτήσεις")}
+       ${tipsHtml([
+         "Απαντήστε σύντομα· οι δημιουργοί κάνουν αιτήσεις και σε άλλες καμπάνιες.",
+         "Μπορείτε να βάλετε στη λίστα (shortlist) όσους σας ενδιαφέρουν και να αποφασίσετε μετά.",
+       ])}`
+    ),
+  };
+}
+
+/** Brand: creator submitted a deliverable. */
+export function deliverableSubmittedToBrand(input: {
+  brandEmail: string;
+  brandName: string;
+  campaignTitle: string;
+  influencerName: string;
+  deliverableUrl?: string | null;
+}): Mail {
+  return {
+    subject: `Νέα παράδοση: ${input.influencerName} — ${clip(input.campaignTitle, 40)}`,
+    html: shell(
+      "Υποβλήθηκε παράδοση",
+      `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
+       <p>Ο/Η <strong>${escapeHtml(input.influencerName)}</strong> υπέβαλε παράδοση για την καμπάνια σας.</p>
+       <p style="color:#64748b;font-size:13px;">A creator submitted a deliverable for your campaign.</p>
+       ${campaignSummaryHtml([
+         ["Καμπάνια", input.campaignTitle],
+         ["Δημιουργός", input.influencerName],
+         ["Link", input.deliverableUrl || null],
+         ["Ημερομηνία", todayAthens()],
+       ])}
+       ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε την παράδοση")}
+       ${tipsHtml(["Εγκρίνετε ή ζητήστε αλλαγές από τις Καμπάνιες του dashboard."])}`
+    ),
+  };
+}
+
+/** Creator: brand approved deliverable or requested changes. */
+export function deliverableReviewToCreator(input: {
+  influencerName: string;
+  brandName: string;
+  campaignTitle: string;
+  status: "approved" | "changes_requested";
+  reviewNote?: string | null;
+}): Mail {
+  const approved = input.status === "approved";
+  return {
+    subject: approved
+      ? `Η παράδοσή σου εγκρίθηκε: ${clip(input.campaignTitle, 45)}`
+      : `Ζητήθηκαν αλλαγές: ${clip(input.campaignTitle, 50)}`,
+    html: shell(
+      approved ? "Η παράδοσή σου εγκρίθηκε" : "Ζητήθηκαν αλλαγές στην παράδοση",
+      `<p>Γεια σου ${escapeHtml(input.influencerName)},</p>
+       <p>${
+         approved
+           ? `Η <strong>${escapeHtml(input.brandName)}</strong> ενέκρινε την παράδοσή σου.`
+           : `Η <strong>${escapeHtml(input.brandName)}</strong> ζήτησε αλλαγές στην παράδοσή σου.`
+       }</p>
+       <p style="color:#64748b;font-size:13px;">${
+         approved ? "Your deliverable was approved." : "The brand requested changes to your deliverable."
+       }</p>
+       ${campaignSummaryHtml([
+         ["Καμπάνια", input.campaignTitle],
+         ["Επιχείρηση", input.brandName],
+         ["Κατάσταση", approved ? "Εγκρίθηκε / Approved" : "Αλλαγές / Changes requested"],
+         ["Ημερομηνία", todayAthens()],
+       ])}
+       ${quoteHtml(approved ? "Σχόλιο:" : "Τι ζητήθηκε:", input.reviewNote)}
+       ${buttonHtml(creatorCampaignsTab(), "Δες τις καμπάνιες σου")}`
+    ),
+  };
+}
