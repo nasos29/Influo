@@ -83,17 +83,32 @@ export async function loadApprovedCreators(): Promise<AlertCandidate[]> {
   const rows: AlertCandidate[] = [];
   let from = 0;
   for (let page = 0; page < MAX_PAGES; page += 1) {
-    const { data, error } = await admin
-      .from("influencers")
-      .select("id, category, approved, availability_status, auth_user_id, location, accounts")
-      .eq("approved", true)
-      .range(from, from + PAGE - 1);
-    if (error || !data?.length) {
+    let pageRows: AlertCandidate[] | null = null;
+    let error: { message?: string } | null = null;
+    {
+      const first = await admin
+        .from("influencers")
+        .select("id, category, approved, availability_status, auth_user_id, location, accounts, announcements_email_opted_out")
+        .eq("approved", true)
+        .range(from, from + PAGE - 1);
+      error = first.error;
+      pageRows = (first.data as AlertCandidate[] | null) || null;
+      if (error && /announcements_email_opted_out|PGRST204|42703/i.test(error.message || "")) {
+        const retry = await admin
+          .from("influencers")
+          .select("id, category, approved, availability_status, auth_user_id, location, accounts")
+          .eq("approved", true)
+          .range(from, from + PAGE - 1);
+        error = retry.error;
+        pageRows = (retry.data as AlertCandidate[] | null) || null;
+      }
+    }
+    if (error || !pageRows?.length) {
       if (error) console.error("[campaignNotify] creators", error);
       break;
     }
-    rows.push(...(data as AlertCandidate[]));
-    if (data.length < PAGE) break;
+    rows.push(...pageRows);
+    if (pageRows.length < PAGE) break;
     from += PAGE;
   }
   return rows;
@@ -139,7 +154,11 @@ export async function notifyMatchingOpenCampaign(opts: {
   requiresPresence?: boolean | null;
 }): Promise<{ emailed: number; pushed: number; inApp: number }> {
   const started = Date.now();
-  const ranked = rankCampaignAlerts(await loadApprovedCreators(), {
+  const creators = await loadApprovedCreators();
+  const optedOut = new Set(
+    creators.filter((row) => row.announcements_email_opted_out === true).map((row) => String(row.id))
+  );
+  const ranked = rankCampaignAlerts(creators, {
     category: opts.category,
     location: opts.location,
     minFollowers: opts.minFollowers,
@@ -158,7 +177,12 @@ export async function notifyMatchingOpenCampaign(opts: {
     console.warn("[campaignNotify] in-app insert incomplete", inApp, "of", fresh.length);
     return { emailed: 0, pushed: 0, inApp };
   }
-  const outreach = await deliverStrongMatches(fresh.filter((row) => row.strong), opts, started);
+  // Announcement email opt-out skips Resend outreach only; in-app notices still go out.
+  const outreach = await deliverStrongMatches(
+    fresh.filter((row) => row.strong && !optedOut.has(row.id)),
+    opts,
+    started
+  );
   return { emailed: outreach.emailed, pushed: outreach.pushed, inApp };
 }
 

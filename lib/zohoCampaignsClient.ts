@@ -360,6 +360,54 @@ export async function zohoSendCampaign(
   return zohoFormPost("/sendcampaign", { campaignkey: campaignKey }, env);
 }
 
+export type ZohoCampaignDetails = {
+  raw: unknown;
+  status: string;
+  emailsSentCount: number | null;
+};
+
+/** Parse getcampaigndetails / campaign-reports for status + emails_sent_count. */
+export function extractZohoCampaignDetails(payload: unknown): ZohoCampaignDetails {
+  const root = asRecord(payload);
+  const nested = asRecord(root.response);
+  const status = pickString(root.campaign_status, nested.campaign_status, root.status, nested.status);
+
+  let emailsSentCount: number | null = null;
+  const reports =
+    root["campaign-reports"] ??
+    nested["campaign-reports"] ??
+    root.campaign_reports ??
+    nested.campaign_reports;
+  const reportRows = Array.isArray(reports) ? reports : reports ? [reports] : [];
+  for (const row of reportRows) {
+    const rec = asRecord(row);
+    const raw = pickString(
+      rec.emails_sent_count,
+      rec["emails_sent_count"],
+      rec.emailssentcount
+    );
+    if (raw && Number.isFinite(Number(raw))) {
+      emailsSentCount = Number(raw);
+      break;
+    }
+  }
+  // Some payloads flatten reports as { emails_sent_count: "1" } on the root.
+  if (emailsSentCount == null) {
+    const flat = pickString(root.emails_sent_count, nested.emails_sent_count);
+    if (flat && Number.isFinite(Number(flat))) emailsSentCount = Number(flat);
+  }
+
+  return { raw: payload, status, emailsSentCount };
+}
+
+export async function zohoGetCampaignDetails(
+  campaignKey: string,
+  env?: ZohoCampaignsEnv
+): Promise<ZohoCampaignDetails> {
+  const raw = await zohoFormGet("/getcampaigndetails", { campaignkey: campaignKey }, env);
+  return extractZohoCampaignDetails(raw);
+}
+
 /** Collect emails from getlistcontacts-style payloads (active or unsub). */
 export function extractEmailsFromZohoListContacts(payload: unknown): string[] {
   const root = asRecord(payload);

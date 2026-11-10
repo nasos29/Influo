@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { contactsFor, loadApprovedCreators } from "@/lib/campaignNotify";
-import { presenceAllows, rankCampaignAlerts } from "@/lib/campaignAlert";
+import { campaignCategoryIsGeneral, presenceAllows, rankCampaignAlerts } from "@/lib/campaignAlert";
 import { sharedCategoryKeys } from "@/lib/recommendations";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
 import { sendChecked, siteUrl } from "@/lib/proposalMail";
@@ -218,6 +218,7 @@ export async function queueCategoryCampaignEmails(c: {
   if (!category.length) return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: relatedLabel };
 
   const creators = await loadApprovedCreators();
+  const generalCampaign = campaignCategoryIsGeneral(c.category);
   const strong = new Set(
     rankCampaignAlerts(creators, { category: c.category, location: c.location, minFollowers: c.minFollowers, platforms: c.platforms, requiresPresence: c.requiresPresence })
       .filter((r) => r.strong)
@@ -229,8 +230,10 @@ export async function queueCategoryCampaignEmails(c: {
     const status = (row as { availability_status?: string | null }).availability_status;
     if (status && status !== "available") continue;
     if (!presenceAllows(c, (row as { location?: string | null }).location)) continue;
+    if (row.announcements_email_opted_out === true) continue;
     const id = String(row.id);
-    if (sharedCategoryKeys(c.category, row.category).length) {
+    // «Γενικά» = every approved creator is a category match (same as campaign alerts).
+    if (generalCampaign || sharedCategoryKeys(c.category, row.category).length) {
       if (strong.has(id) && !c.includeStrong) skippedStrong += 1;
       else tier.set(id, "matched");
     } else if (relatedCats.length && sharedCategoryKeys(relatedCats.join(","), row.category).length) {

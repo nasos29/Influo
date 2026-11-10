@@ -375,6 +375,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  // Accepting must respect slots: block when accepted count already fills the campaign.
+  // Idempotent re-accept of an already-accepted application is allowed.
+  if (status === "accepted" && app.status !== "accepted") {
+    const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
+    if (slotsFull(slotInfo)) {
+      return NextResponse.json(
+        {
+          error: "slots_full",
+          message: {
+            el: "Οι θέσεις είναι πλήρεις. Αυξήστε πρώτα τις θέσεις της καμπάνιας πριν αποδεχτείτε άλλη αίτηση.",
+            en: "All spots are filled. Increase the campaign slots first before accepting another application.",
+          },
+        },
+        { status: 403 }
+      );
+    }
+  }
+
   const { error: updateError } = await admin
     .from("campaign_applications")
     .update({ status, reviewed_at: new Date().toISOString() })
