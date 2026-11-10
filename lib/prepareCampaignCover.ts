@@ -1,7 +1,15 @@
 /**
  * Prepare a campaign cover image before upload: center-crop to 16:9, max side 1600px,
  * WebP with iteratively lowered quality until under ~300KB (best effort).
+ *
+ * HEIC/HEIF is converted server-side first (sharp) because canvas cannot decode it
+ * outside Safari.
  */
+
+import {
+  clientLooksLikeHeicOrHeif,
+  convertImageViaServer,
+} from "@/lib/clientServerImageConvert";
 
 export const CAMPAIGN_COVER_MAX_BYTES = 300 * 1024;
 const MAX_SIDE = 1600;
@@ -35,10 +43,32 @@ async function decode(file: File): Promise<{ source: CanvasImageSource; width: n
  * @throws Error("not-an-image") for non-raster files, Error("decode-failed") if the image can't be read.
  */
 export async function prepareCampaignCover(file: File): Promise<File> {
-  if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
-    throw new Error("not-an-image");
+  const mime = (file.type || "").toLowerCase();
+  const heic = clientLooksLikeHeicOrHeif(file);
+  if (!heic && (!mime.startsWith("image/") || mime === "image/svg+xml")) {
+    // Empty/odd mime with a raster extension still allowed
+    if (!(mime === "" && /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || ""))) {
+      throw new Error("not-an-image");
+    }
   }
-  const decoded = await decode(file);
+
+  let working = file;
+  if (heic) {
+    working = await convertImageViaServer(file, { maxSide: MAX_SIDE, webpQuality: 0.85 });
+  }
+
+  let decoded: Awaited<ReturnType<typeof decode>>;
+  try {
+    decoded = await decode(working);
+  } catch {
+    // Mislabelled HEIC / empty mime: try server convert once more
+    if (!heic) {
+      working = await convertImageViaServer(file, { maxSide: MAX_SIDE, webpQuality: 0.85 });
+      decoded = await decode(working);
+    } else {
+      throw new Error("decode-failed");
+    }
+  }
   const { width, height } = decoded;
   if (width < 1 || height < 1) {
     decoded.close();

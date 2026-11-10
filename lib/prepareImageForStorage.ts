@@ -5,7 +5,15 @@
  * Bakes EXIF/orientation into pixels (`imageOrientation: 'from-image'`) so card
  * CSS never depends on client EXIF handling. Does not mutate the user's local
  * original file — only the uploaded Storage object is the derivative.
+ *
+ * HEIC/HEIF (and empty/odd mime from iPhone) cannot be canvas-decoded outside
+ * Safari — those go through `/api/images/convert` (sharp) to WebP first.
  */
+
+import {
+  clientLooksLikeHeicOrHeif,
+  convertImageViaServer,
+} from "@/lib/clientServerImageConvert";
 
 export type PrepareImageOptions = {
   /** Max width/height in px; longer side scaled down. Default 1024. */
@@ -17,7 +25,7 @@ export type PrepareImageOptions = {
 };
 
 function stripExtension(name: string): string {
-  return name.replace(/\.[^/.]+$/, '') || 'image';
+  return name.replace(/\.[^/.]+$/, "") || "image";
 }
 
 function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
@@ -36,10 +44,21 @@ async function loadImageElement(file: File): Promise<HTMLImageElement> {
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('decode-failed'));
+      reject(new Error("decode-failed"));
     };
     img.src = url;
   });
+}
+
+function isSvgOrNonRaster(file: File): boolean {
+  const mime = (file.type || "").toLowerCase();
+  if (mime === "image/svg+xml") return true;
+  if (clientLooksLikeHeicOrHeif(file)) return false;
+  if (!mime) {
+    // Empty mime: allow known raster extensions through; reject unknown.
+    return !/\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif)$/i.test(file.name || "");
+  }
+  return !mime.startsWith("image/");
 }
 
 /**
@@ -54,8 +73,18 @@ export async function prepareImageForStorage(
   const webpQ = options.webpQuality ?? 0.82;
   const jpegQ = options.jpegQuality ?? 0.85;
 
-  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') {
+  if (isSvgOrNonRaster(file)) {
     return file;
+  }
+
+  // Non-Safari cannot decode HEIC in canvas — convert server-side first.
+  if (clientLooksLikeHeicOrHeif(file)) {
+    try {
+      return await convertImageViaServer(file, { maxSide, webpQuality: webpQ });
+    } catch (err) {
+      console.error("[prepareImageForStorage] HEIC server convert failed", err);
+      throw err;
+    }
   }
 
   let width: number;
@@ -66,7 +95,7 @@ export async function prepareImageForStorage(
   let orientedDecode = false;
 
   try {
-    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
     width = bitmap.width;
     height = bitmap.height;
     orientedDecode = true;
@@ -82,7 +111,12 @@ export async function prepareImageForStorage(
         width = imgEl.naturalWidth;
         height = imgEl.naturalHeight;
       } catch {
-        return file;
+        // Last resort: maybe mislabeled HEIC with empty/odd mime and no extension
+        try {
+          return await convertImageViaServer(file, { maxSide, webpQuality: webpQ });
+        } catch {
+          return file;
+        }
       }
     }
   }
@@ -100,10 +134,10 @@ export async function prepareImageForStorage(
     outH = Math.max(1, Math.round(outH * scale));
   }
 
-  const canvas = document.createElement('canvas');
+  const canvas = document.createElement("canvas");
   canvas.width = outW;
   canvas.height = outH;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext("2d");
   if (!ctx) {
     bitmap?.close();
     return file;
@@ -116,29 +150,29 @@ export async function prepareImageForStorage(
     ctx.drawImage(imgEl, 0, 0, outW, outH);
   }
 
-  const baseName = stripExtension(file.name).replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 80) || 'image';
+  const baseName = stripExtension(file.name).replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 80) || "image";
   const downscaled = outW < width || outH < height;
   const mustBake = orientedDecode || downscaled;
 
-  const webpBlob = await canvasToBlob(canvas, 'image/webp', webpQ);
-  const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', jpegQ);
+  const webpBlob = await canvasToBlob(canvas, "image/webp", webpQ);
+  const jpegBlob = await canvasToBlob(canvas, "image/jpeg", jpegQ);
 
   // Prefer smaller WebP when it beats the original.
   if (webpBlob && webpBlob.size > 0 && webpBlob.size < file.size) {
-    return new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
+    return new File([webpBlob], `${baseName}.webp`, { type: "image/webp" });
   }
 
   // Prefer smaller JPEG when it beats the original.
   if (jpegBlob && jpegBlob.size > 0 && jpegBlob.size < file.size) {
-    return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+    return new File([jpegBlob], `${baseName}.jpg`, { type: "image/jpeg" });
   }
 
   // Bake oriented / downscaled pixels even when encode is not smaller than the source.
   if (mustBake && jpegBlob && jpegBlob.size > 0) {
-    return new File([jpegBlob], `${baseName}.jpg`, { type: 'image/jpeg' });
+    return new File([jpegBlob], `${baseName}.jpg`, { type: "image/jpeg" });
   }
   if (mustBake && webpBlob && webpBlob.size > 0) {
-    return new File([webpBlob], `${baseName}.webp`, { type: 'image/webp' });
+    return new File([webpBlob], `${baseName}.webp`, { type: "image/webp" });
   }
 
   return file;

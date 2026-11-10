@@ -10,6 +10,8 @@ const supabaseHostname = (() => {
 })();
 
 const nextConfig: NextConfig = {
+  // heic-convert pulls libheif WASM; keep it external so webpack doesn't break it.
+  serverExternalPackages: ["heic-convert", "sharp"],
   // Put <title>, description and canonical in <head> for Googlebot.
   // Next's default list matches Google-* bots but not the plain Googlebot token.
   htmlLimitedBots:

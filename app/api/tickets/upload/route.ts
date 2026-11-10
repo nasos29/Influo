@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import sharp from 'sharp';
 import { isAdminUser, userFromBearer } from '@/lib/apiAuth';
 import { sessionMayUploadAs, sessionOwnsTicket, ticketAuthResponse } from '@/lib/ticketAccess';
+import {
+  convertImageBufferToWebp,
+  isConvertibleRasterInput,
+} from '@/lib/serverImageConvert';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -11,27 +14,29 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 async function optimizeTicketImage(
   file: File
 ): Promise<{ buffer: Buffer; contentType: string; extension: string; optimized: boolean }> {
-  const isRasterImage =
-    file.type.startsWith('image/') &&
-    file.type !== 'image/svg+xml' &&
-    file.type !== 'image/gif';
-
-  if (!isRasterImage) {
-    const raw = Buffer.from(await file.arrayBuffer());
-    return { buffer: raw, contentType: file.type, extension: file.name.split('.').pop() || 'bin', optimized: false };
-  }
-
   const input = Buffer.from(await file.arrayBuffer());
-  const image = sharp(input, { failOn: 'none' }).rotate().resize({
-    width: 1600,
-    height: 1600,
-    fit: 'inside',
-    withoutEnlargement: true,
+  const isRasterImage = isConvertibleRasterInput({
+    mime: file.type,
+    fileName: file.name,
+    bytes: input,
   });
 
-  // Prefer WebP for best size/cost reduction.
-  const output = await image.webp({ quality: 78 }).toBuffer();
-  return { buffer: output, contentType: 'image/webp', extension: 'webp', optimized: true };
+  if (!isRasterImage) {
+    return {
+      buffer: input,
+      contentType: file.type || 'application/octet-stream',
+      extension: file.name.split('.').pop() || 'bin',
+      optimized: false,
+    };
+  }
+
+  const output = await convertImageBufferToWebp(input, { maxSide: 1600, webpQuality: 0.78 });
+  return {
+    buffer: output.buffer,
+    contentType: output.contentType,
+    extension: output.extension,
+    optimized: true,
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -65,20 +70,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate file type
-    const allowedTypes = [
+    // Validate file type (allow HEIC/HEIF + empty/odd mime with .heic/.heif name)
+    const allowedTypes = new Set([
       'image/jpeg',
       'image/png',
       'image/gif',
+      'image/webp',
+      'image/heic',
+      'image/heif',
+      'image/heic-sequence',
+      'image/heif-sequence',
+      'application/octet-stream',
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       'text/plain',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ];
+    ]);
 
-    if (!allowedTypes.includes(file.type)) {
+    const mime = (file.type || '').toLowerCase();
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const okExt = new Set([
+      'jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif',
+      'pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx',
+    ]);
+    const typeOk = mime ? allowedTypes.has(mime) || mime.startsWith('image/') : okExt.has(ext);
+    if (!typeOk) {
       return NextResponse.json(
         { success: false, error: 'File type not allowed' },
         { status: 400 }

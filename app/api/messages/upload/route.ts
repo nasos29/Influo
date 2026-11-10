@@ -1,30 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import sharp from 'sharp';
 import { userFromBearer } from '@/lib/apiAuth';
 import { isChatParticipant, loadChatActor } from '@/lib/chatActor';
+import {
+  convertImageBufferToWebp,
+  isConvertibleRasterInput,
+} from '@/lib/serverImageConvert';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 async function optimizeImage(file: File): Promise<{ buffer: Buffer; contentType: string; extension: string }> {
-  const isRaster =
-    file.type.startsWith('image/') && file.type !== 'image/svg+xml' && file.type !== 'image/gif';
+  const input = Buffer.from(await file.arrayBuffer());
+  const isRaster = isConvertibleRasterInput({
+    mime: file.type,
+    fileName: file.name,
+    bytes: input,
+  });
   if (!isRaster) {
     return {
-      buffer: Buffer.from(await file.arrayBuffer()),
+      buffer: input,
       contentType: file.type || 'application/octet-stream',
       extension: file.name.split('.').pop() || 'bin',
     };
   }
-  const input = Buffer.from(await file.arrayBuffer());
-  const output = await sharp(input, { failOn: 'none' })
-    .rotate()
-    .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: 78 })
-    .toBuffer();
-  return { buffer: output, contentType: 'image/webp', extension: 'webp' };
+  const output = await convertImageBufferToWebp(input, { maxSide: 1600, webpQuality: 0.78 });
+  return { buffer: output.buffer, contentType: output.contentType, extension: output.extension };
 }
 
 export async function POST(req: NextRequest) {
@@ -65,10 +67,17 @@ export async function POST(req: NextRequest) {
       'image/png',
       'image/gif',
       'image/webp',
+      'image/heic',
+      'image/heif',
+      'image/heic-sequence',
+      'image/heif-sequence',
+      'application/octet-stream',
       'application/pdf',
       'text/plain',
     ];
-    if (file.type && !allowed.includes(file.type) && !file.type.startsWith('image/')) {
+    const mime = (file.type || '').toLowerCase();
+    const heicExt = /\.(heic|heif)$/i.test(file.name || '');
+    if (mime && !allowed.includes(mime) && !mime.startsWith('image/') && !heicExt) {
       return NextResponse.json({ success: false, error: 'File type not allowed' }, { status: 400 });
     }
 
