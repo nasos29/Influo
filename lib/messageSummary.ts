@@ -1,4 +1,5 @@
 /** One summary email per quiet conversation, only for messages still unread in the app. */
+import { emailNextSteps } from "@/lib/emailNextSteps";
 
 export const DEFAULT_QUIET_MINUTES = 20;
 
@@ -125,6 +126,7 @@ export function buildSummaryEmail(input: {
         <div style="margin: 24px 0; text-align: center;">
           <a href="${escapeHtml(input.link)}" style="display: inline-block; padding: 12px 32px; background: #0284c7; color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Άνοιγμα συνομιλίας</a>
         </div>
+        ${emailNextSteps("message_summary")}
         <p style="margin: 0; font-size: 12px; color: #6b7280;">Δεν θα ξαναστείλουμε email για τα ίδια μηνύματα. Αν τα έχετε ήδη διαβάσει στην εφαρμογή, δεν χρειάζεται να κάνετε κάτι.</p>
       </div>
     </div>

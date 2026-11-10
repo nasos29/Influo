@@ -1,5 +1,6 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import {
   sendPushAdminInfluencerAccountDeleted,
   sendPushInfluencerAccountDeleted,
@@ -72,6 +73,7 @@ async function notifyInfluencerDeleted(opts: {
             Αν πιστεύετε ότι πρόκειται για λάθος, επικοινωνήστε μαζί μας στο
             <a href="mailto:support@influo.gr" style="color: #2563eb;">support@influo.gr</a>.
           </p>
+          ${emailNextSteps("account_deleted")}
           <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e5e7eb; text-align: center;">
             <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo<br/>${SITE_URL}</p>
           </div>
@@ -120,6 +122,7 @@ async function notifyAdminInfluencerDeleted(opts: {
           <p style="margin: 0 0 12px 0;">Ο influencer <strong>${safeName}</strong> διαγράφηκε οριστικά ${how}.</p>
           <p style="margin: 0 0 8px 0; color: #4b5563;"><strong>Email:</strong> ${safeEmail}</p>
           <p style="margin: 0 0 8px 0; color: #4b5563;"><strong>ID:</strong> ${escapeHtml(opts.influencerId)}</p>
+          ${emailNextSteps("account_deleted_admin")}
           <p style="margin: 16px 0 0 0; font-size: 12px; color: #9ca3af;">Influo Admin · ${SITE_URL}/admin</p>
         </div>
       </div>

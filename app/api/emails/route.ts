@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { applicationToBrand, closedToBrand, closingSoonToBrand, notSelectedToCreator, publishedToAdmin } from "@/lib/campaignMail";
 import { NextResponse } from 'next/server';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
 import { rejectUnlessAdmin, supabaseService, userFromBearer } from '@/lib/apiAuth';
 import { formatEuroAmount } from '@/lib/formatEuro';
@@ -195,6 +196,7 @@ export async function POST(req: Request) {
             <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Ευχαριστούμε για την εγγραφή σου! Λάβαμε το προφίλ σου και η αίτησή σου βρίσκεται υπό έλεγχο.</p>
             <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Θα ελέγξουμε τα Insights σου και θα σε εγκρίνουμε εντός 24 ωρών.</p>
             <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Θα λάβεις ένα νέο email <strong>μόλις</strong> το προφίλ σου γίνει δημόσιο στο Directory.</p>
+            ${emailNextSteps("signup_influencer")}
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">Με εκτίμηση,<br/>Η ομάδα του Influo</p>
             </div>
@@ -219,6 +221,7 @@ export async function POST(req: Request) {
             <div style="margin: 24px 0; text-align: center;">
               <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
             </div>
+            ${emailNextSteps("signup_admin")}
           </div>
         </div>
       `;
@@ -242,6 +245,7 @@ export async function POST(req: Request) {
             <div style="margin: 24px 0; text-align: center;">
               <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
             </div>
+            ${emailNextSteps("signup_brand_admin")}
           </div>
         </div>
       `;
@@ -260,6 +264,7 @@ export async function POST(req: Request) {
             <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">🎉 Το προφίλ σου είναι δημόσιο!</p>
             </div>
+            ${emailNextSteps("profile_approved")}
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
               <p style="margin: 0; font-size: 12px; color: #9ca3af;">Καλή επιτυχία,<br/>Η ομάδα του Influo</p>
             </div>
@@ -276,6 +281,7 @@ export async function POST(req: Request) {
                 <h1 style="color: #6366f1;">Επιβεβαίωση Πρότασης για τον/την ${influencerName}</h1>
                 <p>Λάβαμε επιτυχώς την πρόταση συνεργασίας από την ${brandName} για την υπηρεσία: <strong>${proposalType}</strong>.</p>
                 <p>Ο/Η ${influencerName} θα λάβει την πρότασή σου και θα σου απαντήσει άμεσα.</p>
+                ${emailNextSteps("proposal_brand_confirmation")}
                 <br/>
                 <p>Μείνετε συντονισμένοι,<br/>Η ομάδα του Influo</p>
             </div>
@@ -298,6 +304,7 @@ export async function POST(req: Request) {
                 <div style="margin: 24px 0; text-align: center;">
                   <a href="https://${host}/admin" style="display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">📊 Πήγαινε στο Admin Dashboard</a>
                 </div>
+                ${emailNextSteps("profile_edit_admin")}
               </div>
             </div>
         `;
@@ -871,6 +878,29 @@ export async function POST(req: Request) {
         }
         subject = subj;
         html = bodyHtml;
+    }
+
+    // Append shared next-steps box for legacy inline templates that do not already include it.
+    // Campaign/password builders already embed emailNextSteps; custom_email keeps admin HTML as-is.
+    const legacyNextByType: Record<string, Parameters<typeof emailNextSteps>[0]> = {
+      message_admin_notification: "admin_message_summary",
+      message_offline: "message_summary",
+      message_influencer_to_brand: "message_summary",
+      message_brand_to_influencer: "message_summary",
+      conversation_digest: "message_summary",
+      conversation_end: "message_summary",
+      proposal_influencer_notification: "proposal_new_creator",
+      proposal_admin_notification: "admin_event",
+      proposal_accepted_brand: "proposal_accepted_brand",
+      counter_proposal_notification: "counter_new_brand",
+      collaboration_complete: "collaboration_complete_creator",
+    };
+    if (
+      type !== "custom_email" &&
+      legacyNextByType[type] &&
+      !html.includes("Τι κάνω τώρα;")
+    ) {
+      html += emailNextSteps(legacyNextByType[type]);
     }
 
     // Validation: Check if subject and html are set

@@ -1,4 +1,5 @@
 /** Shared HTML for branded password reset (Resend). Used by /api/emails and /api/auth/forgot-password. */
+import { emailNextSteps } from "@/lib/emailNextSteps";
 
 export type PasswordResetLang = 'el' | 'en';
 
@@ -6,6 +7,7 @@ export function buildPasswordResetEmail(
   resetLink: string,
   lang: PasswordResetLang
 ): { subject: string; html: string } {
+  const next = emailNextSteps("password_reset");
   if (lang === 'el') {
     return {
       subject: 'Επαναφορά Κωδικού Πρόσβασης - Influo.gr',
@@ -21,6 +23,7 @@ export function buildPasswordResetEmail(
                 <div style="margin: 24px 0; text-align: center;">
                   <a href="${resetLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Επαναφορά Κωδικού</a>
                 </div>
+                ${next}
                 <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280;">Αν δεν ζητήσατε αυτή την επαναφορά, μπορείτε να αγνοήσετε αυτό το email.</p>
                 <p style="margin: 12px 0 0 0; font-size: 12px; color: #9ca3af;">Αυτός ο σύνδεσμος είναι έγκυρος για 1 ώρα.</p>
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
@@ -45,6 +48,7 @@ export function buildPasswordResetEmail(
                 <div style="margin: 24px 0; text-align: center;">
                   <a href="${resetLink}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">Reset Password</a>
                 </div>
+                ${next}
                 <p style="margin: 20px 0 0 0; font-size: 12px; color: #6b7280;">If you did not request this reset, you can safely ignore this email.</p>
                 <p style="margin: 12px 0 0 0; font-size: 12px; color: #9ca3af;">This link is valid for 1 hour.</p>
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">

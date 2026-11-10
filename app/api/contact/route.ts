@@ -1,6 +1,7 @@
 // app/api/contact/route.ts
 import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { formatDisplayDateTime } from '@/lib/formatDate';
 import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
 
@@ -99,6 +100,7 @@ export async function POST(req: Request) {
                 <span class="field-label">Μήνυμα:</span>
                 <div class="message-box">${safeMessage}</div>
               </div>
+              ${emailNextSteps("contact_admin")}
               <div class="footer">
                 <p>Αυτό το email στάλθηκε από τη φόρμα επικοινωνίας στο Influo.gr</p>
                 <p>Ημερομηνία: ${formatDisplayDateTime(new Date())}</p>

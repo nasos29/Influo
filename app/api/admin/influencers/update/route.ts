@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { insertFollowerSnapshot } from '@/lib/parseFollowers';
 import { requireAdmin } from '@/lib/apiAuth';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
+import { emailNextSteps } from '@/lib/emailNextSteps';
 import { escapeHtml, sendTransactional } from '@/lib/transactionalEmail';
 import {
   birthDateErrorText,
@@ -226,6 +227,7 @@ export async function POST(request: NextRequest) {
             <p>Γεια σου ${name},</p>
             <p>Το προφίλ σου εγκρίθηκε και είναι πλέον ορατό στις επιχειρήσεις. Μπορείς να βλέπεις ανοιχτές καμπάνιες και να κάνεις αίτηση.</p>
             <p><a href="https://www.influo.gr/dashboard">Άνοιγμα dashboard</a></p>
+            ${emailNextSteps("profile_approved")}
           </div>`
         ).catch((err) => console.error("[influencer approved email]", err));
       }
