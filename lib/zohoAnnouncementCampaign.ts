@@ -11,6 +11,7 @@ import {
   type ZohoCampaignsEnv,
 } from "@/lib/zohoCampaignsConfig";
 import {
+  resolveZohoTopicId,
   zohoCreateCampaign,
   zohoCreateListWithContacts,
   zohoDeleteMailingList,
@@ -204,7 +205,6 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
       env
     );
     listKey = created.listKey;
-    subscribed = created.acceptedEmails.length;
     if (created.ignoredEmails.length > 0) {
       syncErrors.push(
         `ignored_contacts: ${created.ignoredEmails.slice(0, 5).join(",")}${
@@ -213,40 +213,42 @@ export async function sendAnnouncementViaZohoToSelected(opts: {
       );
     }
 
-    const handled = new Set(created.requestedEmails);
-    const remaining = contacts.filter((c) => !handled.has(c.email));
-    if (remaining.length > 0) {
-      const subResults = await mapPool(remaining, 4, async (c) => {
-        try {
-          const raw = await zohoListSubscribe(
-            listKey,
-            c.email,
-            {
-              firstName: c.displayName?.slice(0, 80),
-              source: "influo-selected-announcement",
-            },
-            env
-          );
-          const msg = JSON.stringify(raw).toLowerCase();
-          // Zoho 2005 = group/role address (e.g. support@) — treat as hard skip.
-          if (msg.includes('"code":"2005"') || msg.includes("group email")) {
-            return { ok: false as const, error: `ignored group/role email: ${c.email}` };
-          }
-          if (zohoResponseOk(raw) || msg.includes("already") || msg.includes("subscribed")) {
-            return { ok: true as const };
-          }
-          return { ok: false as const, error: msg.slice(0, 200) };
-        } catch (err) {
-          return {
-            ok: false as const,
-            error: err instanceof Error ? err.message : String(err),
-          };
+    // Always listsubscribe with topic_id: addlistandcontacts may leave
+    // existing_contacts without topic consent (sendcampaign then returns 6606).
+    const topicId = await resolveZohoTopicId(env);
+    const toSubscribe = contacts.filter((c) => !created.ignoredEmails.includes(c.email));
+    subscribed = 0;
+    const subResults = await mapPool(toSubscribe, 4, async (c) => {
+      try {
+        const raw = await zohoListSubscribe(
+          listKey,
+          c.email,
+          {
+            firstName: c.displayName?.slice(0, 80),
+            source: "influo-selected-announcement",
+            topicId,
+          },
+          env
+        );
+        const msg = JSON.stringify(raw).toLowerCase();
+        // Zoho 2005 = group/role address (e.g. support@) — treat as hard skip.
+        if (msg.includes('"code":"2005"') || msg.includes("group email")) {
+          return { ok: false as const, error: `ignored group/role email: ${c.email}` };
         }
-      });
-      for (const r of subResults) {
-        if (r.ok) subscribed += 1;
-        else if (r.error) syncErrors.push(`subscribe: ${r.error}`);
+        if (zohoResponseOk(raw) || msg.includes("already") || msg.includes("subscribed")) {
+          return { ok: true as const };
+        }
+        return { ok: false as const, error: msg.slice(0, 200) };
+      } catch (err) {
+        return {
+          ok: false as const,
+          error: err instanceof Error ? err.message : String(err),
+        };
       }
+    });
+    for (const r of subResults) {
+      if (r.ok) subscribed += 1;
+      else if (r.error) syncErrors.push(`subscribe: ${r.error}`);
     }
 
     if (subscribed === 0) {

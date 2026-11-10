@@ -103,6 +103,18 @@ test("admin settings description covers selected recipients + Resend fallback", 
   assert.match(desc.en, /Resend/i);
 });
 
+test("topic details payload exposes topicId for resolveZohoTopicId fallback", () => {
+  const payload = {
+    topicDetails: [{ topicId: "301088000000031009", topicName: "Marketing" }],
+    code: "200",
+  };
+  assert.equal(
+    extractZohoEmailList(payload, "ignored_contacts").length,
+    0
+  );
+  assert.equal(String(payload.topicDetails[0].topicId), "301088000000031009");
+});
+
 test("extract emails from list contacts payload", () => {
   const emails = extractEmailsFromZohoListContacts({
     list_of_details: [
