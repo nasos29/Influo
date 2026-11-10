@@ -15,9 +15,11 @@ import {
 } from "../lib/zohoCampaignsConfig.ts";
 import {
   clearZohoAccessTokenCache,
+  resolveZohoTopicId,
   zohoCreateCampaign,
   zohoCreateListWithContacts,
   zohoDeleteMailingList,
+  zohoListSubscribe,
   zohoResponseOk,
   zohoSendCampaign,
 } from "../lib/zohoCampaignsClient.ts";
@@ -78,12 +80,22 @@ async function main() {
         "Zoho ignored the only test contact (role/group addresses like support@ are often rejected as list contacts). No campaign sent; nobody else emailed.";
       console.warn("[zoho-test]", blockedReason);
     } else {
+      const topicId = await resolveZohoTopicId(env);
+      const subRaw = await zohoListSubscribe(
+        created.listKey,
+        testEmail,
+        { source: "influo-zoho-test", topicId },
+        env
+      );
+      console.log("[zoho-test] subscribe+topic=", JSON.stringify(subRaw).slice(0, 300));
+
       const createdCampaign = await zohoCreateCampaign(
         {
           name: `Influo Zoho test ${stamp}`.slice(0, 180),
           subject: ANNOUNCEMENT_EMAIL_SUBJECT,
           listKey: created.listKey,
           contentUrl: announcementContentUrl("creators", siteUrl),
+          topicId,
         },
         env
       );

@@ -10,6 +10,7 @@ import {
 
 type TokenCache = { accessToken: string; expiresAtMs: number };
 let tokenCache: TokenCache | null = null;
+let topicIdCache: { topicId: string; expiresAtMs: number } | null = null;
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -102,9 +103,10 @@ export async function refreshZohoAccessToken(
   return accessToken;
 }
 
-/** Test helper — clear cached token between cases. */
+/** Test helper — clear cached token / topic between cases. */
 export function clearZohoAccessTokenCache(): void {
   tokenCache = null;
+  topicIdCache = null;
 }
 
 export async function zohoFormPost(
@@ -154,7 +156,7 @@ export async function zohoFormGet(
 export async function zohoListSubscribe(
   listKey: string,
   email: string,
-  extra?: { firstName?: string; source?: string },
+  extra?: { firstName?: string; source?: string; topicId?: string },
   env?: ZohoCampaignsEnv
 ): Promise<unknown> {
   const contactinfo = JSON.stringify({
@@ -166,6 +168,9 @@ export async function zohoListSubscribe(
     contactinfo,
   };
   if (extra?.source) params.source = extra.source;
+  const topicId = (extra?.topicId || "").trim();
+  // Topic-managed Zoho orgs need topic consent on the contact or sendcampaign returns 6606.
+  if (topicId) params.topic_id = topicId;
   return zohoFormPost("/json/listsubscribe", params, env);
 }
 
@@ -281,6 +286,41 @@ export async function zohoDeleteMailingList(
   );
 }
 
+/**
+ * Topic-managed Zoho accounts require topicId on createCampaign (else code 903).
+ * Prefer ZOHO_CAMPAIGNS_TOPIC_ID; otherwise fetch the first topic from /topics.
+ */
+export async function resolveZohoTopicId(
+  env: ZohoCampaignsEnv = getZohoCampaignsEnv()
+): Promise<string> {
+  const fromEnv = (env.topicId || "").trim();
+  if (fromEnv) return fromEnv;
+
+  const now = Date.now();
+  if (topicIdCache && topicIdCache.expiresAtMs > now) return topicIdCache.topicId;
+
+  const raw = await zohoFormGet(
+    "/topics",
+    { details: JSON.stringify({ from_index: 0, range: 50 }) },
+    env
+  );
+  const root = asRecord(raw);
+  const nested = asRecord(root.response);
+  const details =
+    (Array.isArray(root.topicDetails) && root.topicDetails) ||
+    (Array.isArray(nested.topicDetails) && nested.topicDetails) ||
+    [];
+  const first = asRecord(details[0]);
+  const topicId = pickString(first.topicId, first.topicid);
+  if (!topicId) {
+    throw new Error(
+      `Zoho topicId missing: set ZOHO_CAMPAIGNS_TOPIC_ID or create a topic (raw=${JSON.stringify(raw).slice(0, 300)})`
+    );
+  }
+  topicIdCache = { topicId, expiresAtMs: now + 30 * 60_000 };
+  return topicId;
+}
+
 export async function zohoCreateCampaign(
   opts: {
     name: string;
@@ -294,6 +334,7 @@ export async function zohoCreateCampaign(
   env: ZohoCampaignsEnv = getZohoCampaignsEnv()
 ): Promise<{ campaignKey: string; raw: unknown }> {
   const list_details = JSON.stringify({ [opts.listKey]: [] });
+  const topicId = (opts.topicId || (await resolveZohoTopicId(env))).trim();
   const params: Record<string, string> = {
     campaignname: opts.name.slice(0, 180),
     subject: opts.subject.slice(0, 180),
@@ -301,9 +342,8 @@ export async function zohoCreateCampaign(
     from_name: opts.fromName || env.fromName,
     list_details,
     content_url: opts.contentUrl,
+    topicId,
   };
-  const topicId = opts.topicId || env.topicId;
-  if (topicId) params.topicId = topicId;
 
   const raw = await zohoFormPost("/createCampaign", params, env);
   const campaignKey = extractZohoCampaignKey(raw);
