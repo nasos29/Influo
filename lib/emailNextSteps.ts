@@ -33,6 +33,7 @@ export type EmailNextStepsKey =
   | "counter_accepted_creator"
   | "counter_rejected_creator"
   | "agreement_waiting"
+  | "agreement_reminder"
   | "collaboration_complete_creator"
   | "deal_complete_creator"
   | "deal_complete_brand"
@@ -188,6 +189,11 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
   agreement_waiting: [
     { el: "Άνοιξε την πρόταση και αποδέξου τη σύνοψη συμφωνίας.", en: "Open the proposal and accept the agreement summary." },
     { el: "Μόλις αποδεχτούν και οι δύο, ξεκινά η συνεργασία.", en: "Once both accept, the collaboration starts." },
+  ],
+  agreement_reminder: [
+    { el: "Άνοιξε την πρόταση και διάβασε τη σύνοψη συμφωνίας (πακέτο, αμοιβή, προθεσμία).", en: "Open the proposal and read the agreement summary (package, fee, deadline)." },
+    { el: "Αν συμφωνείς, πάτα «Αποδοχή συμφωνίας» για να ξεκινήσει η συνεργασία.", en: "If you agree, tap Accept agreement so the collaboration can start." },
+    { el: "Αν θέλεις αλλαγές, γράψε στην άλλη πλευρά από τα Μηνύματα του Influo.", en: "If you want changes, message the other side in Influo Chat." },
   ],
   collaboration_complete_creator: [
     { el: "Δες τη συνεργασία στο προφίλ/dashboard σου.", en: "View the collaboration on your profile/dashboard." },

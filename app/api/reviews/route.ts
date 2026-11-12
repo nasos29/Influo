@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { BRAND_REVIEW_MARKER, CREATOR_TARGET_REVIEW_FILTER } from "@/lib/brandReview";
 import { creatorContact } from "@/lib/campaignNotify";
 import { reviewToCreator } from "@/lib/campaignMail";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -38,6 +39,7 @@ export async function GET(req: Request) {
       .select("id, influencer_id, brand_name, rating, review_text, project_type, created_at, verified")
       .eq("influencer_id", influencerId)
       .eq("verified", true)
+      .or(CREATOR_TARGET_REVIEW_FILTER)
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -85,7 +87,9 @@ export async function POST(req: Request) {
     // Ignore brandEmail / brandName from the client — always from brands row.
     const influencerId = asString(body.influencerId).trim();
     const lang = asString(body.lang).trim() || "el";
-    const projectType = asString(body.projectType).trim() || null;
+    const projectTypeRaw = asString(body.projectType).trim() || null;
+    // The brand-target marker is reserved for creator→brand reviews (/api/reviews/brand).
+    const projectType = projectTypeRaw === BRAND_REVIEW_MARKER ? null : projectTypeRaw;
     const reviewTextRaw = asString(body.reviewText).trim();
     const ratingRaw = body.rating;
     const ratingNum =
@@ -166,6 +170,8 @@ export async function POST(req: Request) {
       .select("id")
       .eq("influencer_id", influencerId)
       .ilike("brand_email", brandEmail)
+      .or(CREATOR_TARGET_REVIEW_FILTER)
+      .limit(1)
       .maybeSingle();
 
     if (existingReview) {
@@ -199,7 +205,8 @@ export async function POST(req: Request) {
     const { data: allReviews } = await admin
       .from("influencer_reviews")
       .select("rating")
-      .eq("influencer_id", influencerId);
+      .eq("influencer_id", influencerId)
+      .or(CREATOR_TARGET_REVIEW_FILTER);
 
     if (allReviews && allReviews.length > 0) {
       const avgRating = allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length;

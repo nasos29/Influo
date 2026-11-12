@@ -437,6 +437,46 @@ export async function mailAgreement(input: {
   );
 }
 
+/**
+ * Reminder (sent once, 48–96h after the first acceptance) to the side that has
+ * NOT yet accepted the agreement summary. Returns the send outcome so the cron
+ * can release its claim on failure.
+ */
+export async function mailAgreementReminder(input: {
+  to: string | null;
+  recipientName: string;
+  otherName: string;
+  service: string;
+  budget: string;
+  proposalId: string | number;
+  extras?: unknown;
+  publishDeadline?: string | null;
+  toBrand: boolean;
+  brandHasAccount: boolean;
+}): Promise<"ok" | "quota" | "error"> {
+  const link = input.toBrand
+    ? brandLink(input.to || "", input.brandHasAccount)
+    : creatorProposalsUrl();
+  const safety = input.toBrand ? "" : creatorPaymentSafetyHtml();
+  const id = escapeHtml(String(input.proposalId));
+  const ctaLabel = input.toBrand && !input.brandHasAccount ? "Δημιουργία λογαριασμού & αποδοχή" : "Αποδοχή συμφωνίας";
+  return sendChecked(
+    "agreement_reminder",
+    input.to,
+    `Υπενθύμιση: η συμφωνία #${input.proposalId} περιμένει την αποδοχή σας`,
+    shell(
+      "Η συμφωνία περιμένει την αποδοχή σας",
+      `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>
+       <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> έχει ήδη αποδεχτεί τη σύνοψη συμφωνίας <strong>#${id}</strong>. Η συνεργασία ξεκινά μόλις την αποδεχτείτε κι εσείς.</p>
+       ${summaryBlockHtml(input)}
+       ${safety}
+       ${buttonHtml(link, ctaLabel)}
+       ${emailNextSteps("agreement_reminder")}
+       ${tipsHtml(["Αν δεν θέλετε πλέον τη συνεργασία, ενημερώστε την άλλη πλευρά από τα μηνύματα του Influo."])}`
+    )
+  );
+}
+
 export async function mailCollaborationComplete(input: {
   influencerEmail: string | null;
   influencerName: string;

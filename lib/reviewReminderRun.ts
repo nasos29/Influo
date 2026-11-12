@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditGenderBucket } from "@/lib/auditGemini";
+import { CREATOR_TARGET_REVIEW_FILTER } from "@/lib/brandReview";
 import { influencerContact } from "@/lib/proposalAccess";
 import { mailBrandReviewReminder, mailCreatorReviewReminder, siteUrl } from "@/lib/proposalMail";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -73,6 +74,7 @@ async function brandAlreadyReviewed(
     .select("id")
     .eq("influencer_id", influencerId)
     .ilike("brand_email", email)
+    .or(CREATOR_TARGET_REVIEW_FILTER)
     .limit(1)
     .maybeSingle();
   if (error) {
