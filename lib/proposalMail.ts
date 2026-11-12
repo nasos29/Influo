@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { AGREEMENT_TERMS } from "@/lib/agreementTermsCopy";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { logEmail } from "@/lib/deliveryLog";
 import { emailNextSteps } from "@/lib/emailNextSteps";
@@ -364,6 +365,45 @@ function agreementDetailsHtml(input: {
 <strong>Συνολική αμοιβή:</strong> ${euroHtml(input.budget)}${deadlineRow}</p>`;
 }
 
+/** Full legal terms block (Greek), for the mutual-acceptance confirmation email. */
+export function agreementTermsHtml(): string {
+  const items = AGREEMENT_TERMS.el
+    .map((term) => {
+      const split = term.indexOf(". ");
+      const heading = split === -1 ? term : term.slice(0, split);
+      const body = split === -1 ? "" : term.slice(split + 2);
+      return `<li style="margin: 0 0 10px 0;"><strong>${escapeHtml(heading)}.</strong> ${escapeHtml(body)}</li>`;
+    })
+    .join("");
+  return `<div style="margin: 16px 0; padding: 14px 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+    <p style="margin: 0 0 10px 0; font-weight: 700;">Όροι συμφωνίας</p>
+    <ol style="margin: 0; padding-left: 20px;">${items}</ol>
+  </div>`;
+}
+
+/**
+ * Safety note for creators: Influo does not escrow/pay, so ask for a deposit.
+ * Shown on agreement emails that go to creators.
+ */
+export function creatorPaymentSafetyHtml(): string {
+  return `<div style="margin: 16px 0; padding: 14px 16px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px;">
+    <p style="margin: 0 0 8px 0; font-weight: 700; color: #92400e;">Θέματα ασφαλείας &amp; πληρωμής</p>
+    <p style="margin: 0; color: #78350f;">Το Influo φέρνει σε επαφή τις δύο πλευρές και καταγράφει τη συμφωνία, αλλά <strong>δεν μπαίνει στη μέση</strong> της συνεργασίας: δεν κρατά χρήματα, δεν πληρώνει για λογαριασμό κανενός και δεν εγγυάται την εκτέλεση. Συμφώνησε καθαρά με την επιχείρηση τον τρόπο πληρωμής και <strong>ζήτησε μέρος της αμοιβής σου ως προκαταβολή</strong> πριν ξεκινήσεις τη δουλειά — το υπόλοιπο μπορεί να καταβληθεί μετά τη δημοσίευση του εγκεκριμένου περιεχομένου.</p>
+  </div>`;
+}
+
+/** Soft ask to tag/mention Influo after a finished collaboration. */
+export function influoMentionHtml(opts?: { profileUrl?: string | null; forCreator?: boolean }): string {
+  if (opts?.forCreator) {
+    const profile = (opts.profileUrl || "").trim();
+    const profileLine = profile
+      ? ` ή βάλε τον σύνδεσμο του προφίλ σου στο bio σου: <a href="${escapeHtml(profile)}">${escapeHtml(profile)}</a>.`
+      : ".";
+    return `<p style="margin-top: 16px;"><strong>Μια μικρή χάρη:</strong> Αν σου άρεσε η εμπειρία μέσω Influo, ανάφερέ μας σε ένα story ή video (tag <strong>@influo.gr</strong>)${profileLine} Αν μας κάνεις tag, θα χαρούμε να το κοινοποιήσουμε κι εμείς.</p>`;
+  }
+  return `<p style="margin-top: 16px;"><strong>Μοιραστείτε το:</strong> Αν το περιεχόμενο σας άρεσε, μπορείτε να αναφέρετε το Influo στην ανάρτηση ή στο video (π.χ. «Συνεργασία μέσω <strong>@influo.gr</strong>») ή να βάλετε τον σύνδεσμο influo.gr. Θα χαρούμε να το προβάλουμε κι εμείς.</p>`;
+}
+
 export async function mailAgreement(input: {
   to: string | null;
   recipientName: string;
@@ -379,6 +419,7 @@ export async function mailAgreement(input: {
   const link = input.toBrand
     ? brandLink(input.to || "", input.brandHasAccount)
     : creatorProposalsUrl();
+  const safety = input.toBrand ? "" : creatorPaymentSafetyHtml();
   await send(
     "agreement_accepted",
     input.to,
@@ -388,6 +429,7 @@ export async function mailAgreement(input: {
       `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>
        <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> αποδέχτηκε τη σύνοψη συμφωνίας στις ${escapeHtml(todayAthens())}. Αποδεχτείτε κι εσείς για να ξεκινήσει η συνεργασία.</p>
        ${summaryBlockHtml(input)}
+       ${safety}
        ${buttonHtml(link, input.toBrand && !input.brandHasAccount ? "Δημιουργία λογαριασμού" : "Αποδοχή συμφωνίας")}
        ${emailNextSteps("agreement_waiting")}
        ${tipsHtml(["Όλη η επικοινωνία μέσα από τα μηνύματα του Influo κρατά ιστορικό για κάθε συμφωνία."])}`
@@ -405,19 +447,18 @@ export async function mailCollaborationComplete(input: {
   extras?: unknown;
   publishDeadline?: string | null;
 }): Promise<void> {
-  const id = escapeHtml(String(input.proposalId));
-  await send(
-    "collaboration_complete",
-    input.influencerEmail,
-    `Η συμφωνία συνεργασίας #${input.proposalId} ολοκληρώθηκε`,
-    shell(
-      "Η συνεργασία ολοκληρώθηκε",
-      `<p>Γεια σας ${escapeHtml(input.influencerName)},</p>
-       <p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας <strong>#${id}</strong>. Η επιχείρηση <strong>${escapeHtml(input.brandName)}</strong> καταγράφεται στις συνεργασίες του προφίλ σας.</p>
-       ${agreementDetailsHtml(input)}
-       ${emailNextSteps("collaboration_complete_creator")}`
-    )
-  );
+  await mailCreatorDealComplete({
+    to: input.influencerEmail,
+    creatorName: input.influencerName,
+    brandName: input.brandName,
+    completedAt: new Date().toISOString(),
+    proposalId: input.proposalId,
+    service: input.service,
+    budget: input.budget,
+    extras: input.extras,
+    publishDeadline: input.publishDeadline,
+    dashboardUrl: creatorProposalsUrl(),
+  });
 }
 
 /** Admin inbox only, after both sides have accepted. */
@@ -465,77 +506,228 @@ export function buttonHtml(href: string, label: string): string {
   return `<p style="margin: 20px 0;"><a href="${escapeHtml(href)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; padding: 10px 18px; border-radius: 8px;">${escapeHtml(label)}</a></p>`;
 }
 
-function dealSummaryHtml(service: string, extras: unknown, budget: unknown): string {
-  const extrasLine = formatProposalExtrasLine(extras, "el");
-  const extrasText = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
-  const pkg = [displayServiceType(service, "el"), extrasText].filter(Boolean).join(" + ") || "—";
-  const amount = formatEuroAmount(budget, "el", 0) || euroHtml(budget);
-  return `<p><strong>Σύνοψη:</strong> ${escapeHtml(pkg)} · <strong>Ποσό:</strong> ${escapeHtml(amount)}</p>`;
+type DealMailBits = {
+  proposalId: string | number;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  publishDeadline?: string | null;
+};
+
+function ignoreIfStillOngoing(forCreator: boolean): string {
+  return forCreator
+    ? `<p>Αν η συνεργασία δεν έχει τελειώσει ακόμη, μπορείς να αγνοήσεις αυτό το μήνυμα προς το παρόν.</p>`
+    : `<p>Αν η συνεργασία δεν έχει τελειώσει ακόμη, αγνοήστε αυτό το μήνυμα προς το παρόν.</p>`;
 }
 
-/** Creator email once a deal is completed (both sides accepted). */
+/** Shared locked-agreement body: details + terms (+ optional creator safety) + CTA. */
+function lockedAgreementBody(opts: {
+  greetingHtml: string;
+  leadHtml: string;
+  deal: DealMailBits;
+  safety: boolean;
+  nextStepsHtml: string;
+  ctaUrl: string;
+  nextStepsKey: "deal_complete_creator" | "deal_complete_brand";
+  closing: string;
+}): string {
+  return `${opts.greetingHtml}
+       ${opts.leadHtml}
+       ${agreementDetailsHtml(opts.deal)}
+       ${agreementTermsHtml()}
+       ${opts.safety ? creatorPaymentSafetyHtml() : ""}
+       ${opts.nextStepsHtml}
+       ${buttonHtml(opts.ctaUrl, "Άνοιξε το dashboard")}
+       ${emailNextSteps(opts.nextStepsKey)}
+       <p>${opts.closing}</p>`;
+}
+
+/** Shared post-project wrap-up: details + CTA + mention (+ optional review button). */
+function projectWrapUpBody(opts: {
+  greetingHtml: string;
+  leadHtml: string;
+  deal: DealMailBits;
+  ctaUrl: string;
+  ctaLabel: string;
+  nextStepsKey: "review_reminder_brand" | "review_reminder_creator";
+  mention: { forCreator: boolean; profileUrl?: string };
+  closing: string;
+}): string {
+  return `${opts.greetingHtml}
+       ${opts.leadHtml}
+       ${agreementDetailsHtml(opts.deal)}
+       ${buttonHtml(opts.ctaUrl, opts.ctaLabel)}
+       ${emailNextSteps(opts.nextStepsKey)}
+       ${influoMentionHtml(opts.mention)}
+       ${ignoreIfStillOngoing(opts.mention.forCreator)}
+       <p>${opts.closing}</p>`;
+}
+
+/** Creator email once both sides accepted the agreement (start of work — not a review ask). */
 export async function mailCreatorDealComplete(input: {
   to: string | null;
   creatorName: string;
   brandName: string;
   completedAt: string;
+  proposalId: string | number;
   service: string;
   budget: string;
   extras?: unknown;
-  reviewUrl: string;
-  profileUrl: string;
+  publishDeadline?: string | null;
+  dashboardUrl: string;
 }): Promise<void> {
   const brand = escapeHtml(input.brandName);
   const date = escapeHtml(formatDate(input.completedAt, "el"));
+  const deal: DealMailBits = {
+    proposalId: input.proposalId,
+    service: input.service,
+    budget: input.budget,
+    extras: input.extras,
+    publishDeadline: input.publishDeadline,
+  };
   await send(
     "deal_complete_creator",
     input.to,
-    `Η συνεργασία σου με ${input.brandName} ολοκληρώθηκε 🎉`,
+    `Η συμφωνία με ${input.brandName} κλειδώθηκε – #${input.proposalId}`,
     shell(
-      "Η συνεργασία ολοκληρώθηκε 🎉",
-      `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>
-       <p>Η συνεργασία σου με την <strong>${brand}</strong> ολοκληρώθηκε στις ${date}. Ευχαριστούμε που τη διάλεξες μέσω του Influo!</p>
-       ${dealSummaryHtml(input.service, input.extras, input.budget)}
-       <p><strong>Αξιολόγησε την ${brand}</strong> — μια σύντομη αξιολόγηση βοηθά άλλους δημιουργούς να επιλέγουν σωστές συνεργασίες.</p>
-       ${buttonHtml(input.reviewUrl, "Γράψε αξιολόγηση")}
-       ${emailNextSteps("deal_complete_creator")}
-       <p><strong>Μια μικρή χάρη:</strong> Αν σου άρεσε η εμπειρία, ανάφερε το Influo σε ένα story ή video, ή βάλε τον σύνδεσμο του προφίλ σου στο bio σου: <a href="${escapeHtml(input.profileUrl)}">${escapeHtml(input.profileUrl)}</a>. Αν μας κάνεις tag (@influo.gr), θα το κοινοποιήσουμε κι εμείς!</p>
-       <p>Καλή συνέχεια,</p>`
+      "Η συμφωνία κλειδώθηκε",
+      lockedAgreementBody({
+        greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
+        leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας στις ${date}. Η <strong>${brand}</strong> καταγράφεται πλέον στις συνεργασίες σου.</p>`,
+        deal,
+        safety: true,
+        nextStepsHtml:
+          "<p><strong>Επόμενα βήματα:</strong> συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στα μηνύματα του Influo. Κράτα αυτό το email ως αντίγραφο της συμφωνίας.</p>",
+        ctaUrl: input.dashboardUrl,
+        nextStepsKey: "deal_complete_creator",
+        closing: "Καλή συνεργασία,",
+      })
     )
   );
 }
 
-/** Brand email once a deal is completed (both sides accepted). */
+/** Brand email once both sides accepted the agreement (start of work — not a review ask). */
 export async function mailBrandDealComplete(input: {
   to: string | null;
   brandName: string;
   creatorName: string;
-  creatorFemale: boolean | null;
   completedAt: string;
+  proposalId: string | number;
   service: string;
   budget: string;
   extras?: unknown;
-  reviewUrl: string;
+  publishDeadline?: string | null;
+  dashboardUrl: string;
 }): Promise<void> {
   const creator = escapeHtml(input.creatorName);
   const date = escapeHtml(formatDate(input.completedAt, "el"));
-  const article = input.creatorFemale == null ? "τον/την" : input.creatorFemale ? "την" : "τον";
+  const deal: DealMailBits = {
+    proposalId: input.proposalId,
+    service: input.service,
+    budget: input.budget,
+    extras: input.extras,
+    publishDeadline: input.publishDeadline,
+  };
   await send(
     "deal_complete_brand",
     input.to,
-    `Η συνεργασία με ${input.creatorName} ολοκληρώθηκε`,
+    `Η συμφωνία με ${input.creatorName} κλειδώθηκε – #${input.proposalId}`,
     shell(
-      "Η συνεργασία ολοκληρώθηκε",
-      `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
-       <p>Η συνεργασία σας με <strong>${creator}</strong> ολοκληρώθηκε στις ${date}.</p>
-       ${dealSummaryHtml(input.service, input.extras, input.budget)}
-       <p><strong>Πώς πήγε;</strong> Η αξιολόγησή σας βοηθά άλλες επιχειρήσεις να βρουν τον κατάλληλο δημιουργό.</p>
-       ${buttonHtml(input.reviewUrl, `Αξιολογήστε ${article} ${input.creatorName}`)}
-       ${emailNextSteps("deal_complete_brand")}
-       <p><strong>Μοιραστείτε το:</strong> Αν το περιεχόμενο σας άρεσε, μπορείτε να αναφέρετε το Influo στην ανάρτηση ή στο video (π.χ. «Συνεργασία μέσω @influo.gr») ή να βάλετε τον σύνδεσμο influo.gr. Θα χαρούμε να το προβάλουμε κι εμείς.</p>
-       <p>Για την επόμενη καμπάνια σας:</p>
-       ${buttonHtml(`${siteUrl()}/directory`, "Βρες δημιουργούς")}
-       <p>Με εκτίμηση,</p>`
+      "Η συμφωνία κλειδώθηκε",
+      lockedAgreementBody({
+        greetingHtml: `<p>Γεια σας ${escapeHtml(input.brandName)},</p>`,
+        leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας με τον/την <strong>${creator}</strong> στις ${date}. Μπορείτε να προχωρήσετε στην εκτέλεση.</p>`,
+        deal,
+        safety: false,
+        nextStepsHtml:
+          "<p><strong>Επόμενα βήματα:</strong> στείλτε brief και υλικό (προϊόν, links, tags, do &amp; don'ts) από τα μηνύματα του Influo και συμφωνήστε ημερομηνία παράδοσης/δημοσίευσης.</p>",
+        ctaUrl: input.dashboardUrl,
+        nextStepsKey: "deal_complete_brand",
+        closing: "Με εκτίμηση,",
+      })
+    )
+  );
+}
+
+/** Delayed review ask for the brand after the project window (publish deadline or fallback days). */
+export async function mailBrandReviewReminder(input: {
+  to: string | null;
+  brandName: string;
+  creatorName: string;
+  creatorFemale: boolean | null;
+  proposalId: string | number;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  publishDeadline?: string | null;
+  reviewUrl: string;
+}): Promise<void> {
+  const creator = escapeHtml(input.creatorName);
+  const article = input.creatorFemale == null ? "τον/την" : input.creatorFemale ? "την" : "τον";
+  const id = escapeHtml(String(input.proposalId));
+  await send(
+    "review_reminder_brand",
+    input.to,
+    `Πώς πήγε η συνεργασία με ${input.creatorName};`,
+    shell(
+      "Ώρα για μια σύντομη αξιολόγηση",
+      projectWrapUpBody({
+        greetingHtml: `<p>Γεια σας ${escapeHtml(input.brandName)},</p>`,
+        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία με τον/την <strong>${creator}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν το έργο ολοκληρώθηκε, μια σύντομη αξιολόγηση βοηθά άλλες επιχειρήσεις να βρουν τον κατάλληλο δημιουργό.</p>`,
+        deal: {
+          proposalId: input.proposalId,
+          service: input.service,
+          budget: input.budget,
+          extras: input.extras,
+          publishDeadline: input.publishDeadline,
+        },
+        ctaUrl: input.reviewUrl,
+        ctaLabel: `Αξιολογήστε ${article} ${input.creatorName}`,
+        nextStepsKey: "review_reminder_brand",
+        mention: { forCreator: false },
+        closing: "Με εκτίμηση,",
+      })
+    )
+  );
+}
+
+/** Delayed wrap-up for the creator: thank-you + optional Influo mention (no fake brand-review CTA). */
+export async function mailCreatorReviewReminder(input: {
+  to: string | null;
+  creatorName: string;
+  brandName: string;
+  proposalId: string | number;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  publishDeadline?: string | null;
+  profileUrl: string;
+  dashboardUrl: string;
+}): Promise<void> {
+  const brand = escapeHtml(input.brandName);
+  const id = escapeHtml(String(input.proposalId));
+  await send(
+    "review_reminder_creator",
+    input.to,
+    `Πώς πήγε η συνεργασία με ${input.brandName};`,
+    shell(
+      "Η περίοδος της συνεργασίας ολοκληρώθηκε",
+      projectWrapUpBody({
+        greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
+        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Ελπίζουμε όλα να πήγαν καλά.</p>`,
+        deal: {
+          proposalId: input.proposalId,
+          service: input.service,
+          budget: input.budget,
+          extras: input.extras,
+          publishDeadline: input.publishDeadline,
+        },
+        ctaUrl: input.dashboardUrl,
+        ctaLabel: "Άνοιξε το dashboard",
+        nextStepsKey: "review_reminder_creator",
+        mention: { forCreator: true, profileUrl: input.profileUrl },
+        closing: "Καλή συνέχεια,",
+      })
     )
   );
 }
