@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { resolveTikTokAdminSession } from "@/lib/social/tiktokAdminConfig";
+import { tiktokSessionErrorResponse } from "@/lib/social/tiktokAdminRoute";
 import {
   isMissingSchemaError,
   redactSecrets,
@@ -19,17 +20,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   const session = await resolveTikTokAdminSession(request);
-  if (!session.ok) {
-    if (session.status === 401) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (session.status === 403) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    if (session.status === 503) {
-      return NextResponse.json({ error: "TIKTOK_TEST_INFLUENCER_ID is not configured" }, { status: 503 });
-    }
-    if (session.status === 404) {
-      return NextResponse.json({ error: "Test influencer not found" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "disconnect_failed" }, { status: 500 });
-  }
+  if (!session.ok) return tiktokSessionErrorResponse(session, "disconnect_failed");
 
   const { data: row, error } = await supabaseService()
     .from("social_connections")

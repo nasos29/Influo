@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { resolveTikTokAdminSession } from "@/lib/social/tiktokAdminConfig";
+import { loadActiveTikTokConnection, tiktokSessionErrorResponse } from "@/lib/social/tiktokAdminRoute";
 import {
   accessTokenNeedsRefresh,
   formatGrantedScopes,
@@ -150,35 +151,18 @@ async function ensureAccessToken(row: ConnectionRow): Promise<
  */
 export async function GET(request: Request) {
   const session = await resolveTikTokAdminSession(request);
-  if (!session.ok) {
-    if (session.status === 401) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (session.status === 403) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    if (session.status === 503) {
-      return NextResponse.json({ error: "TIKTOK_TEST_INFLUENCER_ID is not configured" }, { status: 503 });
-    }
-    if (session.status === 404) {
-      return NextResponse.json({ error: "Test influencer not found" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "spike_failed" }, { status: 500 });
-  }
+  if (!session.ok) return tiktokSessionErrorResponse(session, "spike_failed");
 
-  const { data: row, error } = await supabaseService()
-    .from("social_connections")
-    .select(
-      "id, influencer_id, platform_user_id, username, encrypted_access_token, encrypted_refresh_token, token_expires_at, refresh_token_expires_at, granted_scopes, is_active"
-    )
-    .eq("influencer_id", session.testInfluencerId)
-    .eq("platform", "tiktok")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingSchemaError(error)) {
-      return NextResponse.json(schemaMissingResponseBody("spike"), { status: 503 });
-    }
-    console.error("[tt-oauth] spike load error", redactSecrets(error.message || ""));
-    return NextResponse.json({ error: "spike_load_failed" }, { status: 500 });
-  }
+  const loaded = await loadActiveTikTokConnection<ConnectionRow>({
+    influencerId: session.testInfluencerId,
+    columns:
+      "id, influencer_id, platform_user_id, username, encrypted_access_token, encrypted_refresh_token, token_expires_at, refresh_token_expires_at, granted_scopes, is_active",
+    context: "spike",
+    logLabel: "spike load error",
+    errorCode: "spike_load_failed",
+  });
+  if (!loaded.ok) return loaded.response;
+  const row = loaded.row;
   if (!row || !row.encrypted_access_token) {
     return NextResponse.json({ error: "No active TikTok connection" }, { status: 404 });
   }

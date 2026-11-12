@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService } from "@/lib/apiAuth";
 import { resolveTikTokAdminSession } from "@/lib/social/tiktokAdminConfig";
+import { loadActiveTikTokConnection, tiktokSessionErrorResponse } from "@/lib/social/tiktokAdminRoute";
 import {
   accessTokenNeedsRefresh,
   isCompleteTikTokTokenSet,
@@ -8,10 +9,22 @@ import {
   mergeGrantedScopes,
   redactSecrets,
   refreshTikTokAccessToken,
-  schemaMissingResponseBody,
   tokenExpiryIsoFromSeconds,
 } from "@/lib/social/tiktokUnified";
 import { decryptSecret, encryptSecret } from "@/lib/social/tokenCrypto";
+
+type ConnectionRow = {
+  id: string | null;
+  influencer_id: string | null;
+  platform: string | null;
+  platform_user_id: string | null;
+  encrypted_access_token: string | null;
+  encrypted_refresh_token: string | null;
+  token_expires_at: string | null;
+  refresh_token_expires_at: string | null;
+  granted_scopes: string[] | null;
+  is_active: boolean | null;
+};
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,17 +36,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   const session = await resolveTikTokAdminSession(request);
-  if (!session.ok) {
-    if (session.status === 401) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (session.status === 403) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    if (session.status === 503) {
-      return NextResponse.json({ error: "TIKTOK_TEST_INFLUENCER_ID is not configured" }, { status: 503 });
-    }
-    if (session.status === 404) {
-      return NextResponse.json({ error: "Test influencer not found" }, { status: 404 });
-    }
-    return NextResponse.json({ error: "refresh_failed" }, { status: 500 });
-  }
+  if (!session.ok) return tiktokSessionErrorResponse(session, "refresh_failed");
 
   let force = false;
   try {
@@ -43,23 +46,16 @@ export async function POST(request: Request) {
     force = false;
   }
 
-  const { data: row, error } = await supabaseService()
-    .from("social_connections")
-    .select(
-      "id, influencer_id, platform, platform_user_id, encrypted_access_token, encrypted_refresh_token, token_expires_at, refresh_token_expires_at, granted_scopes, is_active"
-    )
-    .eq("influencer_id", session.testInfluencerId)
-    .eq("platform", "tiktok")
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (error) {
-    if (isMissingSchemaError(error)) {
-      return NextResponse.json(schemaMissingResponseBody("refresh"), { status: 503 });
-    }
-    console.error("[tt-oauth] refresh load error", redactSecrets(error.message || ""));
-    return NextResponse.json({ error: "refresh_load_failed" }, { status: 500 });
-  }
+  const loaded = await loadActiveTikTokConnection<ConnectionRow>({
+    influencerId: session.testInfluencerId,
+    columns:
+      "id, influencer_id, platform, platform_user_id, encrypted_access_token, encrypted_refresh_token, token_expires_at, refresh_token_expires_at, granted_scopes, is_active",
+    context: "refresh",
+    logLabel: "refresh load error",
+    errorCode: "refresh_load_failed",
+  });
+  if (!loaded.ok) return loaded.response;
+  const row = loaded.row;
   if (!row) {
     return NextResponse.json({ error: "No active TikTok connection" }, { status: 404 });
   }

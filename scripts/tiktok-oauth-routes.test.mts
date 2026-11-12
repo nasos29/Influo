@@ -57,39 +57,16 @@ test.afterEach(() => {
 });
 
 test("admin-only connect gate on every status class", () => {
-  assert.equal(
-    evaluateAdminTtConnectAccess({
-      hasUser: false,
-      isAdmin: false,
-      testInfluencerId: "tt-test-influencer-uuid",
-    }).status,
-    401
-  );
-  assert.equal(
-    evaluateAdminTtConnectAccess({
-      hasUser: true,
-      isAdmin: false,
-      testInfluencerId: "tt-test-influencer-uuid",
-    }).status,
-    403
-  );
-  assert.equal(
-    evaluateAdminTtConnectAccess({
-      hasUser: true,
-      isAdmin: true,
-      queryInfluencerId: "browser-uuid",
-      testInfluencerId: "tt-test-influencer-uuid",
-    }).status,
-    403
-  );
-  assert.equal(
-    evaluateAdminTtConnectAccess({
-      hasUser: true,
-      isAdmin: true,
-      testInfluencerId: "",
-    }).status,
-    503
-  );
+  const TT = "tt-test-influencer-uuid";
+  const cases: Array<[Parameters<typeof evaluateAdminTtConnectAccess>[0], number]> = [
+    [{ hasUser: false, isAdmin: false, testInfluencerId: TT }, 401],
+    [{ hasUser: true, isAdmin: false, testInfluencerId: TT }, 403],
+    [{ hasUser: true, isAdmin: true, queryInfluencerId: "browser-uuid", testInfluencerId: TT }, 403],
+    [{ hasUser: true, isAdmin: true, testInfluencerId: "" }, 503],
+  ];
+  for (const [input, status] of cases) {
+    assert.equal(evaluateAdminTtConnectAccess(input).status, status, JSON.stringify(input));
+  }
 });
 
 test("unauthorized callback: wrong purpose / non-admin / mismatched influencer", () => {
