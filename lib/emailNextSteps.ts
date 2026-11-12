@@ -36,6 +36,8 @@ export type EmailNextStepsKey =
   | "collaboration_complete_creator"
   | "deal_complete_creator"
   | "deal_complete_brand"
+  | "review_reminder_brand"
+  | "review_reminder_creator"
   | "agreement_complete_admin"
   | "admin_event"
   | "message_summary"
@@ -192,12 +194,21 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
     { el: "Συντόνισε παράδοση και ημερομηνίες στο chat.", en: "Coordinate delivery and dates in chat." },
   ],
   deal_complete_creator: [
-    { el: "Άφησε μια σύντομη αξιολόγηση για την επιχείρηση.", en: "Leave a short review for the brand." },
-    { el: "Δες το δημόσιο προφίλ σου και ενημέρωσε δείγματα αν θέλεις.", en: "Check your public profile and refresh samples if you like." },
+    { el: "Συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στο chat.", en: "Align brief, assets, and publish date in chat." },
+    { el: "Ζήτησε προκαταβολή πριν ξεκινήσεις — το Influo δεν μεσολαβεί στην πληρωμή.", en: "Ask for a deposit before you start — Influo does not handle payment." },
+    { el: "Κράτα αυτό το email ως αντίγραφο της συμφωνίας.", en: "Keep this email as a copy of the agreement." },
   ],
   deal_complete_brand: [
-    { el: "Αξιολόγησε τον δημιουργό — βοηθά άλλες επιχειρήσεις.", en: "Review the creator — it helps other brands." },
-    { el: "Για την επόμενη καμπάνια, βρες δημιουργούς στον κατάλογο.", en: "For the next campaign, find creators in the directory." },
+    { el: "Στείλε brief και υλικό από τα Μηνύματα του Influo.", en: "Send the brief and assets via Influo Messages." },
+    { el: "Συμφωνήστε ημερομηνία παράδοσης/δημοσίευσης με τον δημιουργό.", en: "Agree a delivery/publish date with the creator." },
+  ],
+  review_reminder_brand: [
+    { el: "Άνοιξε το προφίλ του δημιουργού → Reviews και άφησε βαθμολογία.", en: "Open the creator’s profile → Reviews and leave a rating." },
+    { el: "Αν σας άρεσε, αναφέρετε το Influo (@influo.gr) στην ανάρτηση.", en: "If you liked it, mention Influo (@influo.gr) in the post." },
+  ],
+  review_reminder_creator: [
+    { el: "Αν σου άρεσε η εμπειρία, tag @influo.gr σε story ή video.", en: "If you enjoyed it, tag @influo.gr in a story or video." },
+    { el: "Μπορείς να βάλεις τον σύνδεσμο του προφίλ σου στο bio σου.", en: "You can add your profile link to your bio." },
   ],
   agreement_complete_admin: [
     { el: "Άνοιξε τη διαχείριση και έλεγξε τη συμφωνία.", en: "Open admin and review the agreement." },

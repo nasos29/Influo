@@ -11,8 +11,7 @@ import {
   partyOf,
   requireActor,
 } from "@/lib/proposalAccess";
-import { mailAdminAgreementComplete, mailAgreement, mailBrandDealComplete, mailCreatorDealComplete } from "@/lib/proposalMail";
-import { auditGenderBucket } from "@/lib/auditGemini";
+import { brandLink, mailAdminAgreementComplete, mailAgreement, mailBrandDealComplete, mailCreatorDealComplete } from "@/lib/proposalMail";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { sendPushAdminAgreementComplete } from "@/lib/push";
@@ -176,19 +175,13 @@ export async function POST(request: Request) {
             // true on the transition (brand_added_to_past_brands guard).
             try {
               const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://influo.gr").replace(/\/$/, "");
-              const row = await supabaseService()
-                .from("influencers")
-                .select("profile_slug, gender")
-                .eq("id", proposal.influencer_id)
-                .maybeSingle();
-              const slug = !row.error && typeof row.data?.profile_slug === "string" ? row.data.profile_slug : null;
-              const profileUrl = `${site}${publicProfilePath(slug, proposal.influencer_id)}`;
-              const gender = auditGenderBucket(typeof row.data?.gender === "string" ? row.data.gender : null);
               const completedAt = String(updateData.agreement_accepted_at || acceptedAt);
               const common = {
+                proposalId: proposal.id,
                 service: proposal.service_type || "",
                 budget: amount,
                 extras: proposal.selected_extras,
+                publishDeadline: proposal.publish_deadline,
                 completedAt,
               };
               await Promise.all([
@@ -197,16 +190,14 @@ export async function POST(request: Request) {
                   to: influencer.email,
                   creatorName: influencer.name,
                   brandName,
-                  reviewUrl: `${site}/dashboard`,
-                  profileUrl,
+                  dashboardUrl: `${site}/dashboard?tab=proposals`,
                 }).catch((e) => console.error("[deal complete creator mail]", e instanceof Error ? e.message : e)),
                 mailBrandDealComplete({
                   ...common,
                   to: email,
                   brandName,
                   creatorName: influencer.name,
-                  creatorFemale: gender === "neutral" ? null : gender === "female",
-                  reviewUrl: `${profileUrl}?tab=reviews`,
+                  dashboardUrl: brandLink(email || "", email ? await brandHasAccount(email) : false),
                 }).catch((e) => console.error("[deal complete brand mail]", e instanceof Error ? e.message : e)),
               ]);
             } catch (error) {
