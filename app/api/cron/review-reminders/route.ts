@@ -4,41 +4,18 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { assertCronAuth, cronSupabaseAdmin } from "@/lib/cronRoute";
 import { runReviewReminders } from "@/lib/reviewReminderRun";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false, autoRefreshToken: false } }
-);
-
-function assertCronAuth(request: NextRequest): NextResponse | null {
-  const cronSecret = process.env.CRON_SECRET;
-  const auth = request.headers.get("authorization");
-  const isVercelCron =
-    request.headers.get("x-vercel-cron") === "1" ||
-    request.headers.get("user-agent")?.includes("vercel-cron");
-
-  if (cronSecret) {
-    if (auth !== `Bearer ${cronSecret}` && !isVercelCron) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  } else if (!isVercelCron) {
-    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 401 });
-  }
-  return null;
-}
 
 export async function GET(request: NextRequest) {
   const denied = assertCronAuth(request);
   if (denied) return denied;
 
   try {
-    const result = await runReviewReminders(supabaseAdmin);
+    const result = await runReviewReminders(cronSupabaseAdmin());
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal error";
