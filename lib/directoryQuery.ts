@@ -3,7 +3,7 @@
  * used to apply in the browser after downloading every approved influencer.
  */
 
-import { getBadges, type BadgeType } from "@/lib/badges";
+import { BADGE_FILTER_TYPES, getBadges, type BadgeType } from "@/lib/badges";
 import { categoriesMatchFilter, parseStoredCategories } from "@/lib/categories";
 import { locationFilterMatches } from "@/lib/displayLocation";
 import { normalizeGender, type GenderValue } from "@/lib/gender";
@@ -273,7 +273,12 @@ function languageMatches(languages: string[] | undefined, raw: string): boolean 
   return codes.some((code) => languageMatchesOne(languages, code));
 }
 
-function badgeTypes(candidate: DirectoryCandidate, now = Date.now()): BadgeType[] {
+/** Same badge list the directory cards show (achievement + behaviour). */
+export function directoryBadgeTypes(
+  candidate: DirectoryCandidate,
+  now = Date.now(),
+  newBadgeMaxDays?: number
+): BadgeType[] {
   const accountAgeDays = candidate.created_at
     ? Math.floor((now - new Date(candidate.created_at).getTime()) / (1000 * 60 * 60 * 24))
     : 999;
@@ -289,7 +294,8 @@ function badgeTypes(candidate: DirectoryCandidate, now = Date.now()): BadgeType[
       min_rate: badgeMinRateFromTier(candidate.price_tier),
       extra_badges: candidate.extra_badges,
     },
-    "el"
+    "el",
+    newBadgeMaxDays != null ? { newBadgeMaxDays } : undefined
   ).map((badge) => badge.type);
 }
 
@@ -395,7 +401,7 @@ export function matchesDirectoryFilters(
     else if (candidate.age < min || candidate.age > max) ageMatch = false;
   }
 
-  const badgeMatch = filters.badge === "All" || badgeTypes(candidate, now).includes(filters.badge);
+  const badgeMatch = filters.badge === "All" || directoryBadgeTypes(candidate, now).includes(filters.badge);
 
   let availabilityMatch = true;
   if (filters.availability === "available") availabilityMatch = isAvailableStatus(candidate.availability_status);
@@ -440,21 +446,24 @@ export function directoryFiltersAreSqlOnly(filters: DirectoryFilters): boolean {
   );
 }
 
-/** Search, category, place, language, and age need text columns, not account JSON. */
+/**
+ * Platform / reach / budget / engagement read account JSON. Badge matching
+ * also uses accounts, but the light index already includes them (+ total_reviews),
+ * so badge alone stays on the lighter scan.
+ */
 export function directoryFiltersNeedAccounts(filters: DirectoryFilters): boolean {
   return (
     filters.platform !== "All" ||
     filters.followers !== "All" ||
     filters.budget !== "All" ||
-    filters.engagement !== "All" ||
-    filters.badge !== "All"
+    filters.engagement !== "All"
   );
 }
 
 export function parseDirectoryFilters(params: URLSearchParams): DirectoryFilters {
   const availability = params.get("availability");
   const badge = params.get("badge");
-  const badges: Array<BadgeType | "All"> = ["All", "new", "rising", "verified", "top_performer", "pro", "elite", "vip", "top_rated", "fast_responder", "active", "complete_profile"];
+  const badges: Array<BadgeType | "All"> = ["All", ...BADGE_FILTER_TYPES, "verified"];
   return {
     q: (params.get("q") || "").trim(),
     location: (params.get("location") || "").trim(),
