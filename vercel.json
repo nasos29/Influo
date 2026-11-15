@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/cron/weekly-brand-influencer-digest",
-      "schedule": "0 6 * * 1"
+      "schedule": "15 8 * * 1"
     },
     {
       "path": "/api/cron/top10-congrats",

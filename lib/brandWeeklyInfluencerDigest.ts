@@ -1,8 +1,14 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import { emailNextSteps } from '@/lib/emailNextSteps';
-import { sendPushToBrand } from '@/lib/push';
 import { formatDisplayDate } from '@/lib/formatDate';
+import {
+  athensHour,
+  isWithinQuietSendWindow,
+  QUIET_END_HOUR_ATHENS,
+  QUIET_START_HOUR_ATHENS,
+} from '@/lib/brandCampaignReminders';
+import { zohoCampaignsCredentialsReady } from '@/lib/zohoCampaignsConfig';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
 const FROM_EMAIL = 'noreply@influo.gr';
@@ -18,14 +24,29 @@ export interface WeeklyDigestWindow {
 export interface WeeklyDigestResult {
   skipped: boolean;
   reason?: string;
+  channel?: 'zoho' | 'resend';
+  quietHours?: boolean;
   influencerCount: number;
   brandsTotal: number;
+  brandsEligible: number;
+  brandsOptedOut: number;
   emailsSent: number;
   pushSent: number;
+  dryRun?: boolean;
+  zoho?: {
+    ok: boolean;
+    campaignKey?: string;
+    listKey?: string;
+    subscribed?: number;
+    localOptOutMarked?: number;
+    testOnly?: boolean;
+    syncErrors?: string[];
+    error?: string;
+  };
   errors?: string[];
 }
 
-type InfluencerRow = {
+export type InfluencerRow = {
   id: string | number;
   display_name: string | null;
   category: string | string[] | null;
@@ -34,6 +55,47 @@ type InfluencerRow = {
   profile_slug?: string | null;
   avatar_url?: string | null;
 };
+
+type BrandRow = {
+  id: string;
+  brand_name: string | null;
+  contact_email: string | null;
+  announcements_email_opted_out?: boolean | null;
+};
+
+export type DigestSendOptions = {
+  dryRun?: boolean;
+  forceQuietBypass?: boolean;
+  nowMs?: number;
+  env?: NodeJS.ProcessEnv;
+};
+
+/** Zoho path when ON; otherwise Resend fallback. Default OFF. */
+export function isBrandWeeklyDigestZohoEnabled(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return /^(1|true|yes)$/i.test(String(env.BRAND_WEEKLY_DIGEST_ZOHO_ENABLED || '').trim());
+}
+
+/** Live Zoho digest (real brand emails). Default OFF → test recipient only. */
+export function isBrandWeeklyDigestZohoLive(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return /^(1|true|yes)$/i.test(String(env.BRAND_WEEKLY_DIGEST_ZOHO_LIVE || '').trim());
+}
+
+export function brandWeeklyDigestTestRecipient(
+  env: NodeJS.ProcessEnv = process.env
+): string {
+  return (
+    env.BRAND_WEEKLY_DIGEST_TEST_RECIPIENT ||
+    env.BRAND_CAMPAIGN_REMINDERS_TEST_RECIPIENT ||
+    env.ADMIN_EMAIL ||
+    'nd.6@hotmail.com'
+  )
+    .trim()
+    .toLowerCase();
+}
 
 export function getWeeklyDigestWindow(now = new Date()): WeeklyDigestWindow {
   const endDate = new Date(now);
@@ -93,13 +155,23 @@ function formatWeekRange(window: WeeklyDigestWindow): string {
   return `${start} – ${end}`;
 }
 
+export function digestSubject(influencerCount: number): string {
+  return influencerCount === 1
+    ? 'Νέος influencer αυτή την εβδομάδα – Influo'
+    : `${influencerCount} νέοι influencers αυτή την εβδομάδα – Influo`;
+}
+
 export function buildDigestHtml(
   brandName: string,
   influencers: InfluencerRow[],
-  window: WeeklyDigestWindow
+  window: WeeklyDigestWindow,
+  opts?: { zohoBulk?: boolean }
 ): string {
   const weekRange = formatWeekRange(window);
   const campaignsUrl = `${SITE_URL}/brand/dashboard?tab=campaigns`;
+  const greeting = opts?.zohoBulk
+    ? 'Γεια σας,'
+    : `Γεια σας ${escapeHtml(brandName || 'Επιχείρηση')},`;
   const listItems = influencers
     .map((influencer) => {
       const name = escapeHtml(influencer.display_name || 'Influencer');
@@ -129,9 +201,16 @@ export function buildDigestHtml(
     })
     .join('');
 
+  const zohoUnsubNote = opts?.zohoBulk
+    ? `<p style="margin: 20px 0 0 0; font-size: 11px; color: #94a3b8; line-height: 1.5;">
+       Αν δεν επιθυμείτε πλέον emails καταλόγου από το Influo, χρησιμοποιήστε τον σύνδεσμο διαγραφής (unsubscribe) στο κάτω μέρος.
+       Η διαγραφή μέσω Zoho ενημερώνει και το Influo.
+     </p>`
+    : '';
+
   return `
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 560px; margin: 0 auto;">
-  <p style="margin: 0 0 16px 0;">Γεια σας ${escapeHtml(brandName)},</p>
+  <p style="margin: 0 0 16px 0;">${greeting}</p>
   <p style="margin: 0 0 16px 0;">Αυτή την εβδομάδα (${weekRange}) εγκρίθηκαν <strong>${influencers.length}</strong> νέα προφίλ influencers στον κατάλογο της Influo:</p>
   <ul style="margin: 0 0 20px 0; padding: 0;">${listItems}</ul>
   <p style="margin: 0 0 12px 0;">Μπορείτε να δείτε όλους τους influencers στο directory: <a href="${SITE_URL}/directory" style="color: #2563eb; font-weight: 600;">${SITE_URL}/directory</a></p>
@@ -140,14 +219,16 @@ export function buildDigestHtml(
   </p>
   ${emailNextSteps("brand_weekly_digest")}
   <p style="margin: 0; font-size: 12px; color: #6b7280;">Με εκτίμηση,<br/>Η ομάδα ${PLATFORM_NAME}</p>
+  ${zohoUnsubNote}
 </div>`;
 }
 
-export async function sendWeeklyBrandInfluencerDigest(
+/** Influencers due for the digest (approved in window, not yet brands_notified). */
+export async function fetchDigestInfluencers(
   supabaseAdmin: SupabaseClient,
-  window: WeeklyDigestWindow = getWeeklyDigestWindow()
-): Promise<WeeklyDigestResult> {
-  const { data: influencers, error: infError } = await supabaseAdmin
+  window: WeeklyDigestWindow
+): Promise<InfluencerRow[]> {
+  const { data, error } = await supabaseAdmin
     .from('influencers')
     .select('id, display_name, category, accounts, approved_at, profile_slug, avatar_url')
     .eq('approved', true)
@@ -156,99 +237,132 @@ export async function sendWeeklyBrandInfluencerDigest(
     .gte('approved_at', window.start)
     .lt('approved_at', window.end)
     .order('approved_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []) as InfluencerRow[];
+}
 
-  if (infError) {
-    throw new Error(infError.message);
-  }
+/**
+ * Influencers for Zoho content_url: approved in window (ignore brands_notified_at
+ * so Zoho can re-fetch after we mark notified).
+ */
+export async function fetchDigestInfluencersForWindow(
+  supabaseAdmin: SupabaseClient,
+  window: Pick<WeeklyDigestWindow, 'start' | 'end'>
+): Promise<InfluencerRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from('influencers')
+    .select('id, display_name, category, accounts, approved_at, profile_slug, avatar_url')
+    .eq('approved', true)
+    .not('approved_at', 'is', null)
+    .gte('approved_at', window.start)
+    .lt('approved_at', window.end)
+    .order('approved_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []) as InfluencerRow[];
+}
 
-  const rows = (influencers || []) as InfluencerRow[];
-  if (rows.length === 0) {
-    return {
-      skipped: true,
-      reason: 'No newly approved influencers this week',
-      influencerCount: 0,
-      brandsTotal: 0,
-      emailsSent: 0,
-      pushSent: 0,
-    };
-  }
-
-  const { data: brands, error: brandsError } = await supabaseAdmin
+export async function fetchDigestBrandRecipients(supabaseAdmin: SupabaseClient): Promise<{
+  eligible: Array<{ id: string; brand_name: string | null; email: string }>;
+  optedOut: number;
+  totalWithEmail: number;
+}> {
+  let { data: brands, error } = await supabaseAdmin
     .from('brands')
-    .select('id, brand_name, contact_email');
+    .select('id, brand_name, contact_email, announcements_email_opted_out');
 
-  if (brandsError) {
-    throw new Error(brandsError.message);
+  if (error && /announcements_email_opted_out|PGRST204|42703/i.test(error.message || '')) {
+    const retry = await supabaseAdmin.from('brands').select('id, brand_name, contact_email');
+    if (retry.error) throw new Error(retry.error.message);
+    brands = (retry.data || []).map((b) => ({ ...b, announcements_email_opted_out: false }));
+    error = null;
+  }
+  if (error) throw new Error(error.message);
+
+  const rows = (brands || []) as BrandRow[];
+  let optedOut = 0;
+  let totalWithEmail = 0;
+  const eligible: Array<{ id: string; brand_name: string | null; email: string }> = [];
+
+  for (const b of rows) {
+    const email = (b.contact_email || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) continue;
+    totalWithEmail += 1;
+    if (b.announcements_email_opted_out === true) {
+      optedOut += 1;
+      continue;
+    }
+    eligible.push({ id: b.id, brand_name: b.brand_name, email });
   }
 
-  const toSend = (brands || [])
-    .filter((b: { contact_email?: string | null }) => (b.contact_email || '').trim().length > 0)
-    .map((b: { id: string; brand_name: string | null; contact_email: string }) => ({
-      ...b,
-      _email: b.contact_email.trim(),
-    }));
+  return { eligible, optedOut, totalWithEmail };
+}
 
-  if (toSend.length === 0) {
-    return {
-      skipped: true,
-      reason: 'No brands with contact_email',
-      influencerCount: rows.length,
-      brandsTotal: 0,
-      emailsSent: 0,
-      pushSent: 0,
-    };
+async function markInfluencersNotified(
+  supabaseAdmin: SupabaseClient,
+  rows: InfluencerRow[]
+): Promise<void> {
+  if (rows.length === 0) return;
+  const now = new Date().toISOString();
+  const ids = rows.map((r) => r.id);
+  const { error: updateErr } = await supabaseAdmin
+    .from('influencers')
+    .update({ brands_notified_at: now })
+    .in('id', ids);
+  if (updateErr) {
+    console.warn('[weekly-brand-influencer-digest] brands_notified_at update:', updateErr.message);
   }
+}
 
+async function sendDigestViaResend(
+  supabaseAdmin: SupabaseClient,
+  rows: InfluencerRow[],
+  recipients: Array<{ id: string; brand_name: string | null; email: string }>,
+  window: WeeklyDigestWindow
+): Promise<Pick<WeeklyDigestResult, 'emailsSent' | 'pushSent' | 'errors'>> {
   if (!process.env.RESEND_API_KEY) {
     return {
-      skipped: true,
-      reason: 'RESEND_API_KEY not configured',
-      influencerCount: rows.length,
-      brandsTotal: toSend.length,
       emailsSent: 0,
       pushSent: 0,
+      errors: ['RESEND_API_KEY not configured'],
     };
   }
 
+  const { sendPushToBrand } = await import('@/lib/push');
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const count = rows.length;
-  const subject =
-    count === 1
-      ? 'Νέος influencer αυτή την εβδομάδα – Influo'
-      : `${count} νέοι influencers αυτή την εβδομάδα – Influo`;
-
+  const subject = digestSubject(rows.length);
   let emailsSent = 0;
   let pushSent = 0;
   const errors: string[] = [];
 
-  for (let i = 0; i < toSend.length; i++) {
-    const brand = toSend[i];
+  for (let i = 0; i < recipients.length; i++) {
+    const brand = recipients[i];
     const brandName = brand.brand_name || 'Επιχείρηση';
     const html = buildDigestHtml(brandName, rows, window);
 
     try {
       const { error } = await resend.emails.send({
         from: `${PLATFORM_NAME} <${FROM_EMAIL}>`,
-        to: [brand._email],
+        to: [brand.email],
         subject,
         html,
       });
       if (error) {
-        errors.push(`${brand._email}: ${error.message}`);
+        errors.push(`${brand.email}: ${error.message}`);
       } else {
         emailsSent++;
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      errors.push(`${brand._email}: ${msg}`);
+      errors.push(`${brand.email}: ${msg}`);
     }
 
     try {
+      const count = rows.length;
       const pushBody =
         count === 1
           ? `${rows[0].display_name || 'Influencer'} · ${formatCategory(rows[0].category)}`
           : `${count} νέα προφίλ στον κατάλογο`;
-      const pushResult = await sendPushToBrand(brand._email, {
+      const pushResult = await sendPushToBrand(brand.email, {
         title: count === 1 ? 'Νέος influencer αυτή την εβδομάδα' : `${count} νέοι influencers αυτή την εβδομάδα`,
         body: pushBody,
         url: `${SITE_URL}/directory`,
@@ -256,32 +370,221 @@ export async function sendWeeklyBrandInfluencerDigest(
       });
       pushSent += pushResult.sent;
     } catch (pushErr) {
-      console.warn('[weekly-brand-influencer-digest] push for', brand._email, pushErr);
+      console.warn('[weekly-brand-influencer-digest] push for', brand.email, pushErr);
     }
 
-    if (i < toSend.length - 1) {
+    if (i < recipients.length - 1) {
       await new Promise((r) => setTimeout(r, 2000));
     }
   }
 
   if (emailsSent > 0) {
-    const now = new Date().toISOString();
-    const ids = rows.map((r) => r.id);
-    const { error: updateErr } = await supabaseAdmin
-      .from('influencers')
-      .update({ brands_notified_at: now })
-      .in('id', ids);
-    if (updateErr) {
-      console.warn('[weekly-brand-influencer-digest] brands_notified_at update:', updateErr.message);
-    }
+    await markInfluencersNotified(supabaseAdmin, rows);
   }
 
   return {
-    skipped: false,
-    influencerCount: rows.length,
-    brandsTotal: toSend.length,
     emailsSent,
     pushSent,
     errors: errors.length > 0 ? errors : undefined,
   };
 }
+
+export async function sendWeeklyBrandInfluencerDigest(
+  supabaseAdmin: SupabaseClient,
+  window: WeeklyDigestWindow = getWeeklyDigestWindow(),
+  opts: DigestSendOptions = {}
+): Promise<WeeklyDigestResult> {
+  const env = opts.env || process.env;
+  const nowMs = opts.nowMs ?? Date.now();
+  const dryRun = Boolean(opts.dryRun);
+  const zohoEnabled = isBrandWeeklyDigestZohoEnabled(env);
+  const quietOk = isWithinQuietSendWindow(nowMs);
+  const quietHours = !quietOk;
+
+  const empty = (partial: Partial<WeeklyDigestResult>): WeeklyDigestResult => ({
+    skipped: true,
+    channel: zohoEnabled ? 'zoho' : 'resend',
+    quietHours,
+    influencerCount: 0,
+    brandsTotal: 0,
+    brandsEligible: 0,
+    brandsOptedOut: 0,
+    emailsSent: 0,
+    pushSent: 0,
+    dryRun: dryRun || undefined,
+    ...partial,
+  });
+
+  const rows = await fetchDigestInfluencers(supabaseAdmin, window);
+  if (rows.length === 0) {
+    return empty({ reason: 'No newly approved influencers this week' });
+  }
+
+  const { eligible, optedOut, totalWithEmail } = await fetchDigestBrandRecipients(supabaseAdmin);
+  if (eligible.length === 0) {
+    return empty({
+      skipped: true,
+      reason: totalWithEmail === 0 ? 'No brands with contact_email' : 'All brands opted out',
+      influencerCount: rows.length,
+      brandsTotal: totalWithEmail,
+      brandsEligible: 0,
+      brandsOptedOut: optedOut,
+    });
+  }
+
+  // Dry-run: counts only (works outside quiet window).
+  if (dryRun) {
+    return {
+      skipped: false,
+      reason: 'dry_run',
+      channel: zohoEnabled ? 'zoho' : 'resend',
+      quietHours,
+      influencerCount: rows.length,
+      brandsTotal: totalWithEmail,
+      brandsEligible: eligible.length,
+      brandsOptedOut: optedOut,
+      emailsSent: 0,
+      pushSent: 0,
+      dryRun: true,
+      zoho: zohoEnabled
+        ? {
+            ok: true,
+            testOnly: !isBrandWeeklyDigestZohoLive(env),
+            subscribed: isBrandWeeklyDigestZohoLive(env) ? eligible.length : 1,
+            syncErrors: [],
+          }
+        : undefined,
+    };
+  }
+
+  if (quietHours && !opts.forceQuietBypass) {
+    return empty({
+      reason: `quiet_hours_athens_${QUIET_START_HOUR_ATHENS}_${QUIET_END_HOUR_ATHENS}`,
+      influencerCount: rows.length,
+      brandsTotal: totalWithEmail,
+      brandsEligible: eligible.length,
+      brandsOptedOut: optedOut,
+    });
+  }
+
+  // --- Zoho path ---
+  if (zohoEnabled) {
+    if (!zohoCampaignsCredentialsReady()) {
+      return empty({
+        reason: 'zoho_credentials_missing',
+        influencerCount: rows.length,
+        brandsTotal: totalWithEmail,
+        brandsEligible: eligible.length,
+        brandsOptedOut: optedOut,
+        errors: [
+          'Need ZOHO_CAMPAIGNS_CLIENT_ID/SECRET/REFRESH_TOKEN + LIST_KEY_CREATORS/BRANDS (+ TOPIC_ID recommended)',
+        ],
+      });
+    }
+
+    const live = isBrandWeeklyDigestZohoLive(env);
+    const testTo = brandWeeklyDigestTestRecipient(env);
+    const contacts = live
+      ? eligible.map((b) => ({
+          email: b.email,
+          displayName: b.brand_name || undefined,
+          brandId: b.id,
+        }))
+      : [{ email: testTo, displayName: 'Influo test' }];
+
+    const { sendBrandWeeklyDigestViaZoho } = await import('@/lib/zohoBrandWeeklyDigest');
+    const zoho = await sendBrandWeeklyDigestViaZoho({
+      contacts,
+      window,
+      influencerCount: rows.length,
+      admin: supabaseAdmin,
+      siteUrl: SITE_URL.replace(/\/$/, ''),
+    });
+
+    const result: WeeklyDigestResult = {
+      skipped: !zoho.ok,
+      reason: zoho.ok ? undefined : zoho.error || 'zoho_send_failed',
+      channel: 'zoho',
+      quietHours,
+      influencerCount: rows.length,
+      brandsTotal: totalWithEmail,
+      brandsEligible: eligible.length,
+      brandsOptedOut: optedOut,
+      emailsSent: zoho.ok ? (zoho.subscribed ?? 0) : 0,
+      pushSent: 0,
+      zoho: {
+        ok: zoho.ok,
+        campaignKey: zoho.campaignKey,
+        listKey: zoho.listKey ? `${zoho.listKey.slice(0, 8)}…` : undefined,
+        subscribed: zoho.subscribed,
+        localOptOutMarked: zoho.localOptOutMarked,
+        testOnly: !live,
+        syncErrors: zoho.syncErrors,
+        error: zoho.error,
+      },
+      errors: zoho.ok ? undefined : [zoho.error || 'zoho_send_failed'],
+    };
+
+    // Mark notified only on LIVE success (test must not consume the week).
+    if (zoho.ok && live) {
+      await markInfluencersNotified(supabaseAdmin, rows);
+
+      // Push stays local (Zoho is email-only).
+      const { sendPushToBrand } = await import('@/lib/push');
+      let pushSent = 0;
+      for (const brand of eligible) {
+        try {
+          const count = rows.length;
+          const pushBody =
+            count === 1
+              ? `${rows[0].display_name || 'Influencer'} · ${formatCategory(rows[0].category)}`
+              : `${count} νέα προφίλ στον κατάλογο`;
+          const pushResult = await sendPushToBrand(brand.email, {
+            title:
+              count === 1
+                ? 'Νέος influencer αυτή την εβδομάδα'
+                : `${count} νέοι influencers αυτή την εβδομάδα`,
+            body: pushBody,
+            url: `${SITE_URL}/directory`,
+            tag: `weekly-new-influencers-${window.end.slice(0, 10)}`,
+          });
+          pushSent += pushResult.sent;
+        } catch (pushErr) {
+          console.warn('[weekly-brand-influencer-digest] push for', brand.email, pushErr);
+        }
+      }
+      result.pushSent = pushSent;
+    }
+
+    return result;
+  }
+
+  // --- Resend fallback ---
+  if (!process.env.RESEND_API_KEY) {
+    return empty({
+      channel: 'resend',
+      reason: 'RESEND_API_KEY not configured',
+      influencerCount: rows.length,
+      brandsTotal: totalWithEmail,
+      brandsEligible: eligible.length,
+      brandsOptedOut: optedOut,
+    });
+  }
+
+  const resendResult = await sendDigestViaResend(supabaseAdmin, rows, eligible, window);
+  return {
+    skipped: false,
+    channel: 'resend',
+    quietHours,
+    influencerCount: rows.length,
+    brandsTotal: totalWithEmail,
+    brandsEligible: eligible.length,
+    brandsOptedOut: optedOut,
+    emailsSent: resendResult.emailsSent,
+    pushSent: resendResult.pushSent,
+    errors: resendResult.errors,
+  };
+}
+
+/** Exported for tests / ops diagnostics. */
+export { athensHour, isWithinQuietSendWindow };
