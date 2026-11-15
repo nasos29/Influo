@@ -194,10 +194,12 @@ export default function PublicCampaignsPage({
           </ul>
         )}
 
-        <div className="mt-16 border-t border-slate-200 pt-4">
-          <SocialProofStatsRow stats={socialProofStats} lang={lang} />
-          <RecentCollaborationsSection items={recentCollaborations} lang={lang} className="!px-0" />
-        </div>
+        {recentCollaborations.length > 0 ? (
+          <div className="mt-16 border-t border-slate-200 pt-4">
+            <SocialProofStatsRow stats={socialProofStats} lang={lang} />
+            <RecentCollaborationsSection items={recentCollaborations} lang={lang} className="!px-0" />
+          </div>
+        ) : null}
       </main>
       <Footer lang={lang} showAppPromo={false} />
     </div>

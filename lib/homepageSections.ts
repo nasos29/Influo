@@ -76,10 +76,11 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     id: "recent_collaborations",
     title: { el: "Πρόσφατες συνεργασίες", en: "Recent collaborations" },
     description: {
-      el: "Social proof: ολοκληρωμένες συνεργασίες με διπλή συναίνεση (και αριθμοί).",
-      en: "Social proof: dual-consent completed collaborations (and stats).",
+      el: "Social proof: ολοκληρωμένες συνεργασίες με διπλή συναίνεση (και αριθμοί). Κρύβεται αν δεν υπάρχουν δημόσιες.",
+      en: "Social proof: dual-consent completed collaborations (and stats). Hidden when none are public.",
     },
     defaultIndex: 3,
+    optional: true,
   },
   {
     id: "open_campaigns",
