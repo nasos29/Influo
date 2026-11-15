@@ -53,12 +53,12 @@ function SendMessageButton({
       aria-label={label}
       title={label}
       aria-busy={sending}
-      className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent md:h-11 md:w-11"
     >
       {sending ? (
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600" aria-hidden />
+        <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-200 border-t-blue-600 md:h-4 md:w-4" aria-hidden />
       ) : (
-        <Send className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+        <Send className="h-4 w-4 md:h-5 md:w-5" strokeWidth={1.75} aria-hidden />
       )}
     </button>
   );
@@ -2608,15 +2608,15 @@ export default function Messaging({
                     ))}
                   </div>
                 )}
-                <div className="flex gap-2 items-end">
+                <div className="flex items-end gap-1 md:gap-2">
                   <button
                     type="button"
                     title={txt.attachHint}
                     aria-label={txt.attach}
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shrink-0 transition-colors"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-300 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 md:h-11 md:w-11"
                   >
-                    <FaPaperclip className="w-4 h-4" aria-hidden />
+                    <FaPaperclip className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
                   </button>
                   <div className="relative shrink-0">
                     <button
@@ -2626,7 +2626,7 @@ export default function Messaging({
                       aria-label="Emoji"
                       title="Emoji"
                       aria-expanded={emojiOpen}
-                      className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-xl transition-colors ${emojiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
+                      className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-base transition-colors md:h-11 md:w-11 md:text-xl ${emojiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
                     >
                       <span aria-hidden>😊</span>
                     </button>
@@ -2642,7 +2642,7 @@ export default function Messaging({
                     }}
                     onKeyDown={onComposerKeyDown}
                     placeholder={txt.placeholder}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900 bg-white text-sm"
+                    className="min-w-0 flex-1 resize-none rounded-xl border border-slate-300 bg-white px-2.5 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10 md:px-3"
                     rows={2}
                   />
                   {speechSupported ? (
@@ -2652,13 +2652,13 @@ export default function Messaging({
                       aria-label={txt.dictate}
                       title={txt.dictate}
                       aria-pressed={listening}
-                      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors md:h-11 md:w-11 ${
                         listening
                           ? "animate-pulse bg-red-50 text-red-600 ring-2 ring-red-200"
                           : "text-slate-500 hover:bg-slate-100"
                       }`}
                     >
-                      <Mic className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                      <Mic className="h-4 w-4 md:h-5 md:w-5" strokeWidth={1.75} aria-hidden />
                     </button>
                   ) : null}
                   <SendMessageButton
@@ -2743,15 +2743,15 @@ export default function Messaging({
                       ))}
                     </div>
                   )}
-                  <div className="flex gap-2 items-end">
+                  <div className="flex items-end gap-1 md:gap-2">
                     <button
                       type="button"
                       title={txt.attachHint}
                       aria-label={txt.attach}
                       onClick={() => fileInputRef.current?.click()}
-                      className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-900 shrink-0 transition-colors"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-300 text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 md:h-11 md:w-11"
                     >
-                      <FaPaperclip className="w-4 h-4" aria-hidden />
+                      <FaPaperclip className="h-3.5 w-3.5 md:h-4 md:w-4" aria-hidden />
                     </button>
                     <div className="relative shrink-0">
                       <button
@@ -2761,7 +2761,7 @@ export default function Messaging({
                         aria-label="Emoji"
                         title="Emoji"
                         aria-expanded={emojiOpen}
-                        className={`inline-flex h-11 w-11 items-center justify-center rounded-full text-xl transition-colors ${emojiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
+                        className={`inline-flex h-9 w-9 items-center justify-center rounded-full text-base transition-colors md:h-11 md:w-11 md:text-xl ${emojiOpen ? 'bg-slate-100' : 'hover:bg-slate-100'}`}
                       >
                         <span aria-hidden>😊</span>
                       </button>
@@ -2777,7 +2777,7 @@ export default function Messaging({
                       }}
                       onKeyDown={onComposerKeyDown}
                       placeholder={txt.placeholder}
-                      className="flex-1 px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900 text-sm"
+                      className="min-w-0 flex-1 resize-none rounded-xl border border-slate-300 px-2.5 py-2 text-sm text-slate-900 focus:border-slate-500 focus:ring-2 focus:ring-slate-900/10 md:px-3"
                       rows={2}
                     />
                     {speechSupported ? (
@@ -2787,13 +2787,13 @@ export default function Messaging({
                         aria-label={txt.dictate}
                         title={txt.dictate}
                         aria-pressed={listening}
-                        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${
+                        className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors md:h-11 md:w-11 ${
                           listening
                             ? "animate-pulse bg-red-50 text-red-600 ring-2 ring-red-200"
                             : "text-slate-500 hover:bg-slate-100"
                         }`}
                       >
-                        <Mic className="h-5 w-5" strokeWidth={1.75} aria-hidden />
+                        <Mic className="h-4 w-4 md:h-5 md:w-5" strokeWidth={1.75} aria-hidden />
                       </button>
                     ) : null}
                     <SendMessageButton
