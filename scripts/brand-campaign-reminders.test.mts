@@ -12,6 +12,8 @@ import {
   hasRecentReminderRateLimit,
   isBrandRemindersEnabled,
   isBrandRemindersLive,
+  isBrandWeeklyNudgeZohoEnabled,
+  isBrandWeeklyNudgeZohoLive,
   isWithinQuietSendWindow,
   noCampaignNudgeDue,
   resolveSendTo,
@@ -23,6 +25,11 @@ import {
   draftReminderMail,
   noCampaignNudgeMail,
 } from "../lib/brandCampaignReminderMail.ts";
+import {
+  BRAND_WEEKLY_NUDGE_SUBJECT,
+  brandWeeklyNudgeContentUrl,
+  brandWeeklyNudgeEmailHtml,
+} from "../lib/zohoBrandNudgeContent.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-11-15T12:00:00.000Z"); // ~14:00 Athens (EET)
@@ -32,6 +39,40 @@ test("feature flag and live default OFF", () => {
   assert.equal(isBrandRemindersLive({}), false);
   assert.equal(isBrandRemindersEnabled({ BRAND_CAMPAIGN_REMINDERS_ENABLED: "1" }), true);
   assert.equal(isBrandRemindersLive({ BRAND_CAMPAIGN_REMINDERS_LIVE: "true" }), true);
+});
+
+test("Zoho weekly nudge flags default OFF; LIVE falls back to reminders LIVE", () => {
+  assert.equal(isBrandWeeklyNudgeZohoEnabled({}), false);
+  assert.equal(isBrandWeeklyNudgeZohoLive({}), false);
+  assert.equal(isBrandWeeklyNudgeZohoEnabled({ BRAND_WEEKLY_NUDGE_ZOHO_ENABLED: "1" }), true);
+  assert.equal(
+    isBrandWeeklyNudgeZohoLive({ BRAND_CAMPAIGN_REMINDERS_LIVE: "1" }),
+    true,
+    "fallback to reminders LIVE"
+  );
+  assert.equal(
+    isBrandWeeklyNudgeZohoLive({
+      BRAND_CAMPAIGN_REMINDERS_LIVE: "1",
+      BRAND_WEEKLY_NUDGE_ZOHO_LIVE: "0",
+    }),
+    false,
+    "explicit ZOHO LIVE off wins"
+  );
+  assert.equal(
+    isBrandWeeklyNudgeZohoLive({ BRAND_WEEKLY_NUDGE_ZOHO_LIVE: "yes" }),
+    true
+  );
+});
+
+test("Zoho weekly nudge content is Greek and public URL stable", () => {
+  assert.match(BRAND_WEEKLY_NUDGE_SUBJECT, /καμπάνια/i);
+  const html = brandWeeklyNudgeEmailHtml({ siteUrl: "https://influo.gr" });
+  assert.match(html, /Δημιουργία καμπάνιας/);
+  assert.match(html, /unsubscribe/i);
+  assert.equal(
+    brandWeeklyNudgeContentUrl("https://influo.gr"),
+    "https://influo.gr/api/public/zoho-brand-nudge-content"
+  );
 });
 
 test("non-live resolveSendTo always redirects to test inbox", () => {

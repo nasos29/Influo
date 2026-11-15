@@ -1,15 +1,20 @@
 /**
- * Brand campaign reminders (draft / no-campaign nudge / target & closed events).
- * Quiet window enforced in runner: 10:00–19:00 Europe/Athens.
+ * Brand campaign reminders:
+ * - Resend (low volume): draft_day3/day10, target_reached, campaign_closed
+ * - Zoho Campaigns (bulk): no_campaign_nudge when BRAND_WEEKLY_NUDGE_ZOHO_ENABLED=1
+ *
+ * Quiet window: 10:00–19:00 Europe/Athens.
  * Auth: Authorization: Bearer CRON_SECRET (or Vercel cron headers).
  *
  * Query: ?dry_run=1 — list who would get what (no send / no log writes).
- * Env: BRAND_CAMPAIGN_REMINDERS_ENABLED (default OFF), BRAND_CAMPAIGN_REMINDERS_LIVE
- * (default OFF → all mail redirected to test recipient).
+ *
+ * Env:
+ *   BRAND_CAMPAIGN_REMINDERS_ENABLED / LIVE — Resend path (default OFF)
+ *   BRAND_WEEKLY_NUDGE_ZOHO_ENABLED / LIVE — Zoho weekly nudge (default OFF;
+ *     LIVE falls back to BRAND_CAMPAIGN_REMINDERS_LIVE)
  *
  * Suggested server crontab (UTC; 08:15 ≈ 10:15 Athens in winter):
  *   15 8 * * * /opt/influo/cron-run.sh /api/cron/brand-campaign-reminders
- * Do NOT install on the server from this PR alone — document only.
  */
 
 import { NextRequest, NextResponse } from "next/server";

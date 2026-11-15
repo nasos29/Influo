@@ -9,11 +9,14 @@ import {
   BRAND_REMINDER_KINDS,
   brandOptedOutOfAnnouncementMail,
   brandOptedOutOfReminders,
+  brandRemindersTestRecipient,
   CLOSED_EVENT_LOOKBACK_DAYS,
   draftReminderDue,
   EVENT_KINDS,
   hasRecentReminderRateLimit,
   isBrandRemindersEnabled,
+  isBrandWeeklyNudgeZohoEnabled,
+  isBrandWeeklyNudgeZohoLive,
   isWithinQuietSendWindow,
   noCampaignNudgeDue,
   REMINDER_RATE_LIMIT_KINDS,
@@ -23,6 +26,8 @@ import {
 import { mailForKind, sendBrandReminderEmail } from "@/lib/brandCampaignReminderMail";
 import { campaignSlotInfo } from "@/lib/campaignSlots";
 import { sendPushToBrand } from "@/lib/push";
+import { zohoCampaignsCredentialsReady } from "@/lib/zohoCampaignsConfig";
+import { sendBrandWeeklyNudgeViaZoho } from "@/lib/zohoBrandWeeklyNudge";
 
 export type ReminderCandidate = {
   kind: BrandReminderKind;
@@ -43,6 +48,10 @@ export type BrandRemindersRunResult = {
   live: boolean;
   dryRun: boolean;
   quietHours: boolean;
+  /** Weekly no-campaign nudge via Zoho Campaigns (separate flag). */
+  zohoWeeklyEnabled: boolean;
+  zohoWeeklyLive: boolean;
+  zohoCredentialsReady: boolean;
   checked: {
     drafts: number;
     brands: number;
@@ -50,7 +59,27 @@ export type BrandRemindersRunResult = {
     closed: number;
   };
   due: ReminderCandidate[];
-  sent: Array<{ kind: string; brandId: string; campaignId?: string | null; to: string; redirected: boolean }>;
+  /** Eligible no_campaign_nudge count (same rules; sent via Zoho when zohoWeeklyEnabled). */
+  zohoNudgeDueCount: number;
+  zohoNudge?: {
+    ok: boolean;
+    campaignKey?: string;
+    listKey?: string;
+    subscribed?: number;
+    localOptOutMarked?: number;
+    testOnly?: boolean;
+    syncErrors?: string[];
+    error?: string;
+    loggedBrands?: number;
+  };
+  sent: Array<{
+    kind: string;
+    brandId: string;
+    campaignId?: string | null;
+    to: string;
+    redirected: boolean;
+    channel?: string;
+  }>;
   skipped: string[];
   errors: string[];
 };
@@ -154,20 +183,29 @@ export async function runBrandCampaignReminders(
   const limit = Math.min(Math.max(opts?.limit ?? 40, 1), 100);
   const enabled = isBrandRemindersEnabled(env);
   const live = /^(1|true|yes)$/i.test(String(env.BRAND_CAMPAIGN_REMINDERS_LIVE || "").trim());
+  const zohoWeeklyEnabled = isBrandWeeklyNudgeZohoEnabled(env);
+  const zohoWeeklyLive = isBrandWeeklyNudgeZohoLive(env);
+  const zohoReady = zohoCampaignsCredentialsReady();
   const quietHours = !isWithinQuietSendWindow(nowMs);
   const result: BrandRemindersRunResult = {
     enabled,
     live,
     dryRun,
     quietHours,
+    zohoWeeklyEnabled,
+    zohoWeeklyLive,
+    zohoCredentialsReady: zohoReady,
     checked: { drafts: 0, brands: 0, openForSlots: 0, closed: 0 },
     due: [],
+    zohoNudgeDueCount: 0,
     sent: [],
     skipped: [],
     errors: [],
   };
 
-  if (!enabled && !dryRun) {
+  // Resend path (drafts/events) needs ENABLED; Zoho weekly needs its own flag.
+  // Dry-run lists everything even when both are off.
+  if (!enabled && !zohoWeeklyEnabled && !dryRun) {
     result.skipped.push("feature_flag_off");
     return result;
   }
@@ -417,7 +455,13 @@ export async function runBrandCampaignReminders(
   }
 
   // Apply global reminder rate limit (events exempt). Prefer draft over nudge per brand.
-  const reminderDue = due.filter((d) => REMINDER_RATE_LIMIT_KINDS.has(d.kind));
+  // When Zoho weekly is enabled, no_campaign_nudge is handled as one Zoho campaign (not Resend).
+  const reminderDue = due.filter((d) => {
+    if (!REMINDER_RATE_LIMIT_KINDS.has(d.kind)) return false;
+    if (zohoWeeklyEnabled && d.kind === BRAND_REMINDER_KINDS.noCampaignNudge) return false;
+    return true;
+  });
+  const nudgeDue = due.filter((d) => d.kind === BRAND_REMINDER_KINDS.noCampaignNudge);
   const eventDue = due.filter((d) => EVENT_KINDS.has(d.kind));
   const reminderPriority = (k: string) =>
     k === BRAND_REMINDER_KINDS.draftDay10 ? 0 : k === BRAND_REMINDER_KINDS.draftDay3 ? 1 : 2;
@@ -432,16 +476,150 @@ export async function runBrandCampaignReminders(
       result.skipped.push(`rate_limit_7d:${cand.brandId}`);
       continue;
     }
-    // Also respect in-run picks (one reminder per brand this run).
     selectedReminders.push(cand);
     brandReminderPicked.add(cand.brandId);
   }
 
-  const queueList = [...eventDue, ...selectedReminders].slice(0, limit);
-  result.due = dryRun ? [...eventDue, ...selectedReminders] : queueList;
+  // Zoho nudge list: same rate-limit / one-per-brand rules; exclude brands already picked for draft.
+  const selectedNudges: ReminderCandidate[] = [];
+  for (const cand of nudgeDue) {
+    if (brandReminderPicked.has(cand.brandId)) continue;
+    const brandLogs = logsByBrand.get(cand.brandId) || [];
+    if (hasRecentReminderRateLimit(brandLogs, nowMs)) {
+      result.skipped.push(`rate_limit_7d:${cand.brandId}`);
+      continue;
+    }
+    selectedNudges.push(cand);
+    brandReminderPicked.add(cand.brandId);
+  }
+  result.zohoNudgeDueCount = selectedNudges.length;
+
+  const resendQueue = [...eventDue, ...selectedReminders].slice(0, limit);
+  // When Zoho weekly is off, nudges still go through Resend (legacy path).
+  const legacyNudgeQueue =
+    !zohoWeeklyEnabled
+      ? selectedNudges.slice(0, Math.max(0, limit - resendQueue.length))
+      : [];
+  const queueList = [...resendQueue, ...legacyNudgeQueue].slice(0, limit);
+
+  result.due = dryRun
+    ? [...eventDue, ...selectedReminders, ...selectedNudges]
+    : [...queueList, ...(zohoWeeklyEnabled ? selectedNudges : [])];
 
   if (dryRun) {
-    // List only — no send / no log writes (works even when feature flag is OFF).
+    // List only — no send / no log writes (works even when feature flags are OFF).
+    return result;
+  }
+
+  // --- Zoho weekly no-campaign nudge (one campaign for the eligible list) ---
+  if (zohoWeeklyEnabled && selectedNudges.length > 0) {
+    if (!zohoReady) {
+      result.errors.push("zoho_credentials_missing");
+      result.zohoNudge = {
+        ok: false,
+        error: "zoho_credentials_missing",
+        syncErrors: [
+          "Need ZOHO_CAMPAIGNS_CLIENT_ID/SECRET/REFRESH_TOKEN + LIST_KEY_CREATORS/BRANDS (+ TOPIC_ID recommended)",
+        ],
+      };
+    } else {
+      const testTo = brandRemindersTestRecipient(env);
+      const contacts = zohoWeeklyLive
+        ? selectedNudges.map((c) => ({
+            email: c.brandEmail,
+            displayName: c.brandName,
+            brandId: c.brandId,
+          }))
+        : [{ email: testTo, displayName: "Influo test", brandId: undefined }];
+
+      const zoho = await sendBrandWeeklyNudgeViaZoho({
+        contacts,
+        admin,
+        siteUrl: (env.NEXT_PUBLIC_SITE_URL || "https://influo.gr").replace(/\/$/, ""),
+      });
+
+      result.zohoNudge = {
+        ok: zoho.ok,
+        campaignKey: zoho.campaignKey,
+        listKey: zoho.listKey ? `${zoho.listKey.slice(0, 8)}…` : undefined,
+        subscribed: zoho.subscribed,
+        localOptOutMarked: zoho.localOptOutMarked,
+        testOnly: !zohoWeeklyLive,
+        syncErrors: zoho.syncErrors,
+        error: zoho.error,
+        loggedBrands: 0,
+      };
+
+      if (!zoho.ok) {
+        result.errors.push(`zoho_nudge:${zoho.error || "send_failed"}`);
+      } else if (zohoWeeklyLive) {
+        // Log each eligible brand only when live (avoid rate-limiting without delivery).
+        let logged = 0;
+        for (const cand of selectedNudges) {
+          const claimed = await claimLog(admin, {
+            brand_id: cand.brandId,
+            campaign_id: null,
+            kind: cand.kind,
+            channel: "zoho",
+            meta: {
+              reason: cand.reason,
+              zohoCampaignKey: zoho.campaignKey || null,
+              subscribed: zoho.subscribed ?? null,
+            },
+          });
+          if (!claimed) {
+            result.skipped.push(`claim_failed:zoho:${cand.brandId}`);
+            continue;
+          }
+          logged += 1;
+          result.sent.push({
+            kind: cand.kind,
+            brandId: cand.brandId,
+            campaignId: null,
+            to: cand.brandEmail,
+            redirected: false,
+            channel: "zoho",
+          });
+          const brandLogs = logsByBrand.get(cand.brandId) || [];
+          brandLogs.unshift({
+            brand_id: cand.brandId,
+            campaign_id: null,
+            kind: cand.kind,
+            created_at: new Date(nowMs).toISOString(),
+          });
+          logsByBrand.set(cand.brandId, brandLogs);
+        }
+        result.zohoNudge.loggedBrands = logged;
+
+        if (live) {
+          for (const cand of selectedNudges) {
+            const push = pushCopy(cand.kind, cand.brandName);
+            await sendPushToBrand(cand.brandEmail, {
+              title: push.title,
+              body: push.body.slice(0, 120),
+              url: "/brand/dashboard?tab=campaigns",
+              tag: `brand-reminder-${cand.kind}-${cand.brandId}`,
+            }).catch((err) => console.error("[brand-reminders] push", err));
+          }
+        }
+      } else {
+        result.sent.push({
+          kind: BRAND_REMINDER_KINDS.noCampaignNudge,
+          brandId: "test",
+          campaignId: null,
+          to: testTo,
+          redirected: true,
+          channel: "zoho",
+        });
+      }
+    }
+  }
+
+  // --- Resend path: drafts + events (+ legacy nudge when Zoho off) ---
+  if (!enabled) {
+    if (eventDue.length > 0 || selectedReminders.length > 0 || legacyNudgeQueue.length > 0) {
+      result.skipped.push("resend_flag_off");
+    }
     return result;
   }
 
@@ -450,6 +628,7 @@ export async function runBrandCampaignReminders(
       brand_id: cand.brandId,
       campaign_id: cand.campaignId || null,
       kind: cand.kind,
+      channel: "email",
       meta: { reason: cand.reason },
     });
     if (!claimed) {
@@ -496,7 +675,6 @@ export async function runBrandCampaignReminders(
       }).catch((err) => console.error("[brand-reminders] push", err));
     }
 
-    // Mark rate-limit locally so later reminder candidates in same run skip this brand
     const brandLogs = logsByBrand.get(cand.brandId) || [];
     brandLogs.unshift({
       brand_id: cand.brandId,
@@ -513,6 +691,7 @@ export async function runBrandCampaignReminders(
       campaignId: cand.campaignId,
       to,
       redirected,
+      channel: "email",
     });
   }
 
