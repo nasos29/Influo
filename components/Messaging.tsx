@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { appendDictation, transcriptFromResults, type SpeechResultLike } from "@/lib/dictation";
-import { Mic, Send } from 'lucide-react';
+import { AlertTriangle, Mic, Send } from 'lucide-react';
 import { FaPaperclip } from 'react-icons/fa';
 import { supabase } from '@/lib/supabaseClient';
 import { displayNameForLang } from '@/lib/greeklish';
@@ -34,6 +34,7 @@ import { firstLink, splitLinks } from '@/lib/linkify';
 import MessageActions from '@/components/MessageActions';
 import { byMessage, groupReactions, quoteText, type ReactionRow } from '@/lib/reactions';
 import { insertAtCursor } from '@/lib/emojiData';
+import { isOffPlatformTipMessage, offPlatformTipBody } from '@/lib/offPlatformContact';
 
 const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
 
@@ -1738,10 +1739,14 @@ export default function Messaging({
       }
 
       if (saved && convAtSend) {
+        const tip = result.safetyTip as Message | undefined;
         setMessages((prev) => {
-          if (prev.some((m) => m.id === saved.id)) return prev.filter((m) => m.id !== tmpId);
-          if (!prev.some((m) => m.id === tmpId)) return [...prev, { ...saved, localStatus: undefined }];
-          return prev.map((m) => (m.id === tmpId ? { ...saved, localStatus: undefined } : m));
+          let next = prev;
+          if (prev.some((m) => m.id === saved.id)) next = prev.filter((m) => m.id !== tmpId);
+          else if (!prev.some((m) => m.id === tmpId)) next = [...prev, { ...saved, localStatus: undefined }];
+          else next = prev.map((m) => (m.id === tmpId ? { ...saved, localStatus: undefined } : m));
+          if (tip && !next.some((m) => m.id === tip.id)) next = [...next, tip];
+          return next;
         });
       }
       if (convId && convId !== convAtSend) {
@@ -2409,6 +2414,7 @@ export default function Messaging({
                   const next = messages[index + 1];
                   const lastOfGroup = !next || next.sender_type !== msg.sender_type || !sameChatDay(msg.created_at, next.created_at);
                   const showDay = !prev || !sameChatDay(prev.created_at, msg.created_at);
+                  const isSafetyTip = isOffPlatformTipMessage(msg.content);
 
                   return (
                     <div key={msg.id}>
@@ -2419,6 +2425,19 @@ export default function Messaging({
                           </span>
                         </div>
                       )}
+                      {isSafetyTip ? (
+                        <div className="flex items-end gap-1.5 justify-start mb-1.5">
+                          <span className="w-7 shrink-0" aria-hidden />
+                          <div className="max-w-[85%] sm:max-w-sm lg:max-w-md rounded-2xl rounded-bl-md border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-amber-950 shadow-sm">
+                            <div className="flex gap-2 items-start">
+                              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden strokeWidth={2} />
+                              <p className="text-xs leading-snug text-amber-900">
+                                {offPlatformTipBody(lang === 'en' ? 'en' : 'el')}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
                       <div className={`flex items-end gap-1.5 ${isOwn ? 'justify-end' : 'justify-start'} mb-1.5`}>
                         {!isOwn && (
                           <span className="w-7 shrink-0">
@@ -2549,6 +2568,7 @@ export default function Messaging({
                         ) : null}
                         </div>
                       </div>
+                      )}
                     </div>
                   );
                 })}

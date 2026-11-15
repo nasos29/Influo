@@ -1,10 +1,48 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { isChatParticipant, loadChatActor, senderIdFor } from "@/lib/chatActor";
+import {
+  looksLikeOffPlatformContact,
+  offPlatformTipContent,
+  OFF_PLATFORM_TIP_MARKER,
+} from "@/lib/offPlatformContact";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 
 type Attachment = { url: string; filename?: string; size?: number; content_type?: string };
 type SenderType = "influencer" | "brand";
+
+/** Soft in-thread notice after an off-platform contact prompt. At most one per 12h. */
+async function maybeInsertOffPlatformTip(args: {
+  conversationId: string;
+  senderId: string;
+  senderType: SenderType;
+  userText: string;
+}): Promise<Record<string, unknown> | null> {
+  if (!looksLikeOffPlatformContact(args.userText)) return null;
+  const admin = supabaseService();
+  const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  const { data: recent } = await admin
+    .from("messages")
+    .select("id, content")
+    .eq("conversation_id", args.conversationId)
+    .gte("created_at", since)
+    .like("content", `${OFF_PLATFORM_TIP_MARKER}%`)
+    .limit(1);
+  if (recent && recent.length > 0) return null;
+
+  const tip = await insertMessage({
+    conversation_id: args.conversationId,
+    sender_id: args.senderId,
+    sender_type: args.senderType,
+    content: offPlatformTipContent(),
+    read: false,
+    sent_via_email: false,
+    email_sent: false,
+    admin_notified: false,
+  });
+  if (tip.error || !tip.data) return null;
+  return tip.data as Record<string, unknown>;
+}
 
 function cleanAttachments(raw: unknown): Attachment[] {
   if (!Array.isArray(raw)) return [];
@@ -263,7 +301,20 @@ export async function POST(req: Request) {
         source: "messages_api",
         sender_type: senderType,
       });
-      return NextResponse.json({ success: true, message: inserted.data, conversationId: convId });
+      const safetyTip = senderId
+        ? await maybeInsertOffPlatformTip({
+            conversationId: convId!,
+            senderId,
+            senderType,
+            userText: messageContent,
+          })
+        : null;
+      return NextResponse.json({
+        success: true,
+        message: inserted.data,
+        conversationId: convId,
+        ...(safetyTip ? { safetyTip } : {}),
+      });
     }
 
     const admin = supabaseService();
@@ -322,7 +373,19 @@ export async function POST(req: Request) {
       sender_type: senderType,
     });
 
-    return NextResponse.json({ success: true, message: inserted.data });
+    const safetyTip = senderId
+      ? await maybeInsertOffPlatformTip({
+          conversationId,
+          senderId,
+          senderType,
+          userText: messageContent,
+        })
+      : null;
+    return NextResponse.json({
+      success: true,
+      message: inserted.data,
+      ...(safetyTip ? { safetyTip } : {}),
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Message API error";
     console.error("Message API error:", message);
