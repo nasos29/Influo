@@ -573,6 +573,7 @@ export default function Home({
               );
 
             case "recent_collaborations":
+              if (!recentCollaborations.length) return null;
               return (
                 <div key={sectionId} data-homepage-section="recent_collaborations" className="home-section-cv">
                   <SocialProofStatsRow stats={socialProofStats} lang={lang} />

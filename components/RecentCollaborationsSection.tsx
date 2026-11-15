@@ -21,19 +21,17 @@ type Lang = "el" | "en";
 const COPY = {
   el: {
     title: "Πρόσφατες συνεργασίες",
-    subtitle: "Ολοκληρωμένες συνεργασίες brands και creators — μόνο με συναίνεση και των δύο.",
+    subtitle: "Ολοκληρωμένες συνεργασίες brands και creators.",
     reported: "δηλωμένα",
     views: "προβολές",
     reach: "reach",
-    empty: "Σύντομα θα εμφανίζονται εδώ οι πρώτες δημόσιες συνεργασίες.",
   },
   en: {
     title: "Recent collaborations",
-    subtitle: "Completed brand–creator partnerships — shown only with both parties’ consent.",
+    subtitle: "Completed brand–creator partnerships.",
     reported: "self-reported",
     views: "views",
     reach: "reach",
-    empty: "Public collaborations will appear here soon.",
   },
 } as const;
 
@@ -89,15 +87,7 @@ export default function RecentCollaborationsSection({
   className?: string;
 }) {
   const txt = COPY[lang];
-  if (!items.length) {
-    return (
-      <section className={`w-full max-w-page mx-auto px-6 py-12 md:py-16 ${className}`}>
-        <h2 className={SECTION_TITLE_CLASS}>{txt.title}</h2>
-        <p className="mt-2 max-w-2xl text-slate-600">{txt.subtitle}</p>
-        <p className="mt-8 text-sm text-slate-500">{txt.empty}</p>
-      </section>
-    );
-  }
+  if (!items.length) return null;
 
   return (
     <section className={`w-full max-w-page mx-auto px-6 py-12 md:py-16 ${className}`}>
