@@ -1,5 +1,6 @@
 /**
- * Daily: after publish_deadline (or 14 days from agreement) ask brands to review.
+ * Daily: 3 days after publish_deadline EOD (or 3 days after agreement) —
+ * remind each side to leave a review (one stamp / deal; skip side if already reviewed).
  * Auth: Authorization: Bearer CRON_SECRET (or Vercel cron headers).
  */
 

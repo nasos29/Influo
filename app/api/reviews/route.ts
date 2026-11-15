@@ -117,6 +117,17 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (!reviewTextRaw) {
+      return NextResponse.json(
+        {
+          error:
+            lang === "el"
+              ? "Το κείμενο αξιολόγησης είναι υποχρεωτικό."
+              : "Review text is required.",
+        },
+        { status: 400 }
+      );
+    }
     if (reviewTextRaw.length > 1000) {
       return NextResponse.json(
         {
@@ -190,7 +201,7 @@ export async function POST(req: Request) {
           brand_email: brandEmail,
           brand_name: brandName || brandEmail,
           rating: ratingNum,
-          review_text: reviewTextRaw || null,
+          review_text: reviewTextRaw,
           project_type: projectType,
           verified: true,
         },

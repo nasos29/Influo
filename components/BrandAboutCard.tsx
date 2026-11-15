@@ -1,16 +1,20 @@
 "use client";
 
 import FastImage from "@/components/FastImage";
+import BrandReviewsList from "@/components/BrandReviewsList";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 
 export type BrandAboutData = {
+  id?: string | null;
   brand_name?: string | null;
   logo_url?: string | null;
   bio?: string | null;
   city?: string | null;
   website?: string | null;
   instagram?: string | null;
+  avg_rating?: number | null;
+  total_reviews?: number | null;
 } | null;
 
 function displayHost(url: string): string {
@@ -23,17 +27,22 @@ function displayHost(url: string): string {
 }
 
 /**
- * Public “About the brand” card. Hidden when bio is empty.
+ * Public “About the brand” card. Hidden when bio is empty and there are no reviews.
  */
 export default function BrandAboutCard({
   brand,
+  brandId,
   lang = "el",
 }: {
   brand: BrandAboutData;
+  brandId?: string | null;
   lang?: "el" | "en";
 }) {
   const bio = (brand?.bio || "").trim();
-  if (!bio) return null;
+  const resolvedId = brandId || brand?.id || null;
+  const knownReviewCount = Number(brand?.total_reviews || 0);
+  // Keep previous hide-when-empty-bio behavior unless denormalized reviews exist.
+  if (!bio && knownReviewCount <= 0) return null;
 
   const el = lang !== "en";
   const name = (brand?.brand_name || "").trim() || (el ? "Brand" : "Brand");
@@ -62,7 +71,7 @@ export default function BrandAboutCard({
           {city ? <p className="text-sm text-slate-500 truncate">{city}</p> : null}
         </div>
       </div>
-      <p className="mt-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{bio}</p>
+      {bio ? <p className="mt-4 text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{bio}</p> : null}
       {(website || instagram) && (
         <ul className="mt-4 space-y-2 text-sm">
           {website && toPublicHttpsHref(website) ? (
@@ -91,6 +100,14 @@ export default function BrandAboutCard({
           ) : null}
         </ul>
       )}
+      {resolvedId ? (
+        <BrandReviewsList
+          brandId={resolvedId}
+          avgRating={brand?.avg_rating}
+          totalReviews={brand?.total_reviews}
+          lang={lang}
+        />
+      ) : null}
     </div>
   );
 }

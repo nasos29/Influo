@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import FastImage from "@/components/FastImage";
 import BrandBadges from "@/components/BrandBadges";
+import BrandReviewsList from "@/components/BrandReviewsList";
 import { formatCategoryLabels } from "@/lib/categories";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 
@@ -18,6 +18,8 @@ interface BrandCardProps {
   bio?: string | null;
   city?: string | null;
   instagram?: string | null;
+  avg_rating?: number | null;
+  total_reviews?: number | null;
   lang?: 'el' | 'en';
 }
 
@@ -32,6 +34,8 @@ export default function BrandCard({
   bio,
   city,
   instagram,
+  avg_rating,
+  total_reviews,
   lang = 'el',
 }: BrandCardProps) {
   const bioText = (bio || "").trim();
@@ -156,6 +160,16 @@ export default function BrandCard({
           )}
         </div>
         )}
+
+        <div className="mb-3">
+          <BrandReviewsList
+            brandId={id}
+            avgRating={avg_rating}
+            totalReviews={total_reviews}
+            lang={lang}
+            compact
+          />
+        </div>
 
         {/* Footer: Verified Badge */}
         <div className="mt-auto pt-3 border-t border-slate-200">

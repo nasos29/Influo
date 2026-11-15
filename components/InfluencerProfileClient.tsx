@@ -714,6 +714,13 @@ export default function InfluencerProfile(props: {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [hasSession, setHasSession] = useState(false);
+  // ?review=1 from reminder emails opens the brand→creator modal after session check.
+  useEffect(() => {
+    if (!sessionChecked || !isBrand) return;
+    if (searchParams?.get("review") !== "1") return;
+    setActiveTab("reviews");
+    setShowReviewModal(true);
+  }, [searchParams, sessionChecked, isBrand]);
   /** Commercial row (raw min_rate) still loads only for brand, admin, or the owner. */
   const revealPrices = isBrand || isAdmin || isOwnProfile;
   const commercialRef = useRef<{
@@ -1414,6 +1421,14 @@ export default function InfluencerProfile(props: {
       alert(lang === "el" ? "Παρακαλώ επιλέξτε βαθμολογία (1-5)" : "Please choose a rating (1-5)");
       return;
     }
+    if (!reviewText.trim()) {
+      alert(
+        lang === "el"
+          ? "Παρακαλώ γράψτε τον λόγο της αξιολόγησης."
+          : "Please write the reason for your review."
+      );
+      return;
+    }
     if (reviewText.trim().length > 1000) {
       alert(
         lang === "el"
@@ -1926,12 +1941,16 @@ export default function InfluencerProfile(props: {
                 </div>
                 
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{txt.reviews_comment}</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                    {txt.reviews_comment}{" "}
+                    <span className="text-red-500 normal-case">*</span>
+                  </label>
                   <textarea 
                     rows={4} 
                     maxLength={1000}
+                    required
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 resize-none" 
-                    placeholder={lang === 'el' ? 'Γράψτε την άποψή σας...' : 'Write your review...'}
+                    placeholder={lang === 'el' ? 'Γράψτε τον λόγο της αξιολόγησης...' : 'Write the reason for your review...'}
                     value={reviewText}
                     onChange={e => setReviewText(e.target.value)}
                   />
@@ -1940,7 +1959,7 @@ export default function InfluencerProfile(props: {
 
                 <button 
                   type="submit"
-                  disabled={reviewSubmitting}
+                  disabled={reviewSubmitting || !reviewText.trim()}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
                 >
                   {reviewSubmitting ? "…" : txt.reviews_submit}

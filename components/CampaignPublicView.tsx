@@ -628,7 +628,11 @@ export default function CampaignPublicView({
                   <div data-apply-anchor className="mt-5 hidden md:block scroll-mt-24">{applyBlock}</div>
                 </div>
 
-                <BrandAboutCard brand={brand} lang={lang === "en" ? "en" : "el"} />
+                <BrandAboutCard
+                  brand={brand}
+                  brandId={campaign.brand_id}
+                  lang={lang === "en" ? "en" : "el"}
+                />
               </aside>
             </div>
           </div>

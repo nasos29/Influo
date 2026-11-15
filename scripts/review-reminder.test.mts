@@ -9,6 +9,10 @@ import {
   shouldSendReviewReminder,
 } from "../lib/reviewReminder.ts";
 
+test("fallback days is 3 after project end or agreement", () => {
+  assert.equal(REVIEW_REMINDER_FALLBACK_DAYS, 3);
+});
+
 test("publish_deadline due is end of that UTC day", () => {
   const due = publishDeadlineDueMs("2026-11-20");
   assert.equal(due, Date.UTC(2026, 10, 20, 23, 59, 59, 999));
@@ -16,19 +20,22 @@ test("publish_deadline due is end of that UTC day", () => {
   assert.equal(publishDeadlineDueMs(null), null);
 });
 
-test("fallback uses agreement_accepted_at + default days when no deadline", () => {
+test("fallback uses agreement_accepted_at + 3 days when no deadline", () => {
   const accepted = "2026-11-01T10:00:00.000Z";
   const due = reviewReminderDueMs({ agreementAcceptedAt: accepted, publishDeadline: null });
   assert.equal(due, Date.parse(accepted) + REVIEW_REMINDER_FALLBACK_DAYS * 24 * 60 * 60 * 1000);
 });
 
-test("publish_deadline wins over fallback days", () => {
+test("publish_deadline wins: end of day + 3 days", () => {
   const accepted = "2026-11-01T10:00:00.000Z";
   const due = reviewReminderDueMs({
     agreementAcceptedAt: accepted,
     publishDeadline: "2026-11-05",
   });
-  assert.equal(due, publishDeadlineDueMs("2026-11-05"));
+  assert.equal(
+    due,
+    publishDeadlineDueMs("2026-11-05")! + REVIEW_REMINDER_FALLBACK_DAYS * 24 * 60 * 60 * 1000
+  );
 });
 
 test("shouldSendReviewReminder gates on completed + due + not yet sent", () => {
@@ -66,16 +73,17 @@ test("shouldSendReviewReminder gates on completed + due + not yet sent", () => {
       agreementAcceptedAt: "2026-11-10T10:00:00.000Z",
       publishDeadline: null,
       nowMs,
-      fallbackDays: 14,
+      fallbackDays: 3,
     }),
     false
   );
+  // Deadline day itself is not due yet (wait +3 days after EOD).
   assert.equal(
     shouldSendReviewReminder({
       status: "completed",
       agreementAcceptedAt: accepted,
-      publishDeadline: "2026-11-20",
-      nowMs,
+      publishDeadline: "2026-11-12",
+      nowMs: Date.parse("2026-11-12T23:59:59.999Z"),
     }),
     false
   );
@@ -84,7 +92,7 @@ test("shouldSendReviewReminder gates on completed + due + not yet sent", () => {
       status: "completed",
       agreementAcceptedAt: accepted,
       publishDeadline: "2026-11-12",
-      nowMs: Date.parse("2026-11-12T23:59:59.999Z"),
+      nowMs: Date.parse("2026-11-16T00:00:00.000Z"),
     }),
     true
   );
@@ -100,7 +108,8 @@ test("deal-complete next steps are work steps, review reminder is separate", () 
     assert.doesNotMatch(step.el, /αξιολόγ/i);
   }
   assert.match(EMAIL_NEXT_STEPS.deal_complete_creator.map((s) => s.el).join(" "), /προκαταβολή|πληρωμή/);
-  assert.match(EMAIL_NEXT_STEPS.review_reminder_brand[0]!.el, /Reviews/);
+  assert.match(EMAIL_NEXT_STEPS.review_reminder_brand[0]!.el, /modal|αστέρια/i);
   assert.match(EMAIL_NEXT_STEPS.review_reminder_brand.map((s) => s.el).join(" "), /@influo\.gr|Influo/);
+  assert.match(EMAIL_NEXT_STEPS.review_reminder_creator[0]!.el, /modal|αξιολόγ/i);
   assert.match(EMAIL_NEXT_STEPS.review_reminder_creator.map((s) => s.el).join(" "), /@influo\.gr/);
 });

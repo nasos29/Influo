@@ -209,12 +209,12 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
     { el: "Συμφωνήστε ημερομηνία παράδοσης/δημοσίευσης με τον δημιουργό.", en: "Agree a delivery/publish date with the creator." },
   ],
   review_reminder_brand: [
-    { el: "Άνοιξε το προφίλ του δημιουργού → Reviews και άφησε βαθμολογία.", en: "Open the creator’s profile → Reviews and leave a rating." },
+    { el: "Πάτα το κουμπί → ανοίγει το modal αξιολόγησης (αστέρια + κείμενο).", en: "Tap the button → the review modal opens (stars + text)." },
     { el: "Αν σας άρεσε, αναφέρετε το Influo (@influo.gr) στην ανάρτηση.", en: "If you liked it, mention Influo (@influo.gr) in the post." },
   ],
   review_reminder_creator: [
+    { el: "Πάτα το κουμπί → ανοίγει το modal αξιολόγησης για την επιχείρηση.", en: "Tap the button → the brand review modal opens." },
     { el: "Αν σου άρεσε η εμπειρία, tag @influo.gr σε story ή video.", en: "If you enjoyed it, tag @influo.gr in a story or video." },
-    { el: "Μπορείς να βάλεις τον σύνδεσμο του προφίλ σου στο bio σου.", en: "You can add your profile link to your bio." },
   ],
   agreement_complete_admin: [
     { el: "Άνοιξε τη διαχείριση και έλεγξε τη συμφωνία.", en: "Open admin and review the agreement." },

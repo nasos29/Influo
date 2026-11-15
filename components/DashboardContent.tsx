@@ -1535,10 +1535,32 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [counterBudget, setCounterBudget] = useState('');
     const [counterMessage, setCounterMessage] = useState('');
     const [savingCounterProposal, setSavingCounterProposal] = useState(false);
+    const [showBrandReviewModal, setShowBrandReviewModal] = useState(false);
+    const [brandReviewTarget, setBrandReviewTarget] = useState<Proposal | null>(null);
+    const [brandReviewRating, setBrandReviewRating] = useState(5);
+    const [brandReviewText, setBrandReviewText] = useState('');
+    const [brandReviewSubmitting, setBrandReviewSubmitting] = useState(false);
+    const [reviewedBrandEmails, setReviewedBrandEmails] = useState<Set<string>>(new Set());
     const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
     const [proposalsLoaded, setProposalsLoaded] = useState(false);
     const [proposalsLoading, setProposalsLoading] = useState(true);
     const [proposalsError, setProposalsError] = useState<null | 'timeout' | 'error'>(null);
+
+    // Deep link from review-reminder emails: ?tab=proposals&reviewBrand=1&proposalId=
+    useEffect(() => {
+        if (!proposalsLoaded) return;
+        if (searchParams?.get('reviewBrand') !== '1') return;
+        const proposalId = searchParams?.get('proposalId');
+        if (!proposalId) return;
+        const prop = proposals.find((p) => String(p.id) === String(proposalId));
+        if (!prop) return;
+        if (!(prop.influencer_agreement_accepted && prop.brand_agreement_accepted)) return;
+        setActiveTab('proposals');
+        setBrandReviewTarget(prop);
+        setBrandReviewRating(5);
+        setBrandReviewText('');
+        setShowBrandReviewModal(true);
+    }, [proposalsLoaded, proposals, searchParams]);
     const [unseenProposalCount, setUnseenProposalCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);
@@ -2415,8 +2437,28 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 </>
                                                             )}
                                                             {hasAgreement && (
-                                                                <div className="px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg text-xs whitespace-nowrap text-center">
-                                                                    ✅ {T("Συμφωνία", "Agreement")}
+                                                                <div className="flex flex-col gap-2">
+                                                                    <div className="px-4 py-2 bg-green-100 text-green-700 font-medium rounded-lg text-xs whitespace-nowrap text-center">
+                                                                        ✅ {T("Συμφωνία", "Agreement")}
+                                                                    </div>
+                                                                    {reviewedBrandEmails.has((prop.brand_email || '').trim().toLowerCase()) ? (
+                                                                        <div className="px-3 py-2 bg-slate-100 text-slate-600 font-medium rounded-lg text-xs whitespace-nowrap text-center">
+                                                                            {T("Αξιολογήθηκε", "Reviewed")}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setBrandReviewTarget(prop);
+                                                                                setBrandReviewRating(5);
+                                                                                setBrandReviewText('');
+                                                                                setShowBrandReviewModal(true);
+                                                                            }}
+                                                                            className="inline-flex min-h-11 items-center justify-center px-4 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition-all text-sm whitespace-nowrap"
+                                                                        >
+                                                                            ★ {T("Αξιολόγηση", "Review brand")}
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -2771,6 +2813,127 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             >
                                 {deletingAccount ? ui.deleting : ui.deleteConfirm}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Creator → brand review modal (deep-linked from review reminder emails) */}
+            {showBrandReviewModal && brandReviewTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowBrandReviewModal(false);
+                                setBrandReviewTarget(null);
+                                setBrandReviewText('');
+                                setBrandReviewRating(5);
+                            }}
+                            className="absolute top-3 right-3 inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-slate-400 hover:text-slate-600 font-bold text-xl z-10"
+                            aria-label={T('Κλείσιμο', 'Close')}
+                        >
+                            ✕
+                        </button>
+                        <div className="p-5 sm:p-8">
+                            <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 pr-10">
+                                {T('Αξιολόγηση επιχείρησης', 'Rate this brand')}
+                            </h2>
+                            <p className="text-slate-500 mb-6 text-sm">
+                                {T(
+                                    `Πώς πήγε η συνεργασία με την ${brandReviewTarget.brand_name};`,
+                                    `How was working with ${brandReviewTarget.brand_name}?`
+                                )}
+                            </p>
+                            <form
+                                className="space-y-4"
+                                onSubmit={async (e) => {
+                                    e.preventDefault();
+                                    if (!brandReviewRating || brandReviewRating < 1 || brandReviewRating > 5) {
+                                        notify(T('Επίλεξε βαθμολογία (1-5)', 'Choose a rating (1-5)'), 'error');
+                                        return;
+                                    }
+                                    if (!brandReviewText.trim()) {
+                                        notify(T('Το κείμενο αξιολόγησης είναι υποχρεωτικό.', 'Review text is required.'), 'error');
+                                        return;
+                                    }
+                                    setBrandReviewSubmitting(true);
+                                    try {
+                                        const response = await sessionFetch('/api/reviews/brand', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                brandEmail: brandReviewTarget.brand_email,
+                                                brandName: brandReviewTarget.brand_name,
+                                                rating: brandReviewRating,
+                                                reviewText: brandReviewText.trim(),
+                                                lang,
+                                            }),
+                                        });
+                                        const result = await response.json().catch(() => ({}));
+                                        if (!response.ok || !result.success) {
+                                            throw new Error(result.error || T('Αποτυχία υποβολής', 'Submit failed'));
+                                        }
+                                        const emailKey = (brandReviewTarget.brand_email || '').trim().toLowerCase();
+                                        if (emailKey) {
+                                            setReviewedBrandEmails((prev) => new Set([...prev, emailKey]));
+                                        }
+                                        notify(T('Η αξιολόγηση υποβλήθηκε!', 'Review submitted!'), 'success');
+                                        setShowBrandReviewModal(false);
+                                        setBrandReviewTarget(null);
+                                        setBrandReviewText('');
+                                        setBrandReviewRating(5);
+                                    } catch (err: unknown) {
+                                        const message = err instanceof Error ? err.message : 'Error';
+                                        notify(T('Σφάλμα: ', 'Error: ') + message, 'error');
+                                    } finally {
+                                        setBrandReviewSubmitting(false);
+                                    }
+                                }}
+                            >
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                                        {T('Βαθμολογία', 'Rating')}
+                                    </label>
+                                    <div className="flex flex-wrap gap-1 sm:gap-2">
+                                        {[1, 2, 3, 4, 5].map((star) => (
+                                            <button
+                                                key={star}
+                                                type="button"
+                                                onClick={() => setBrandReviewRating(star)}
+                                                className={`inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-3xl transition-transform hover:scale-110 ${
+                                                    star <= brandReviewRating ? 'text-amber-400' : 'text-slate-300'
+                                                }`}
+                                            >
+                                                ★
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                                        {T('Λόγος αξιολόγησης', 'Review reason')}{' '}
+                                        <span className="text-red-500 normal-case">*</span>
+                                    </label>
+                                    <textarea
+                                        rows={4}
+                                        maxLength={1000}
+                                        required
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-900 resize-none"
+                                        placeholder={T('Γράψε τον λόγο της αξιολόγησης...', 'Write the reason for your review...')}
+                                        value={brandReviewText}
+                                        onChange={(e) => setBrandReviewText(e.target.value)}
+                                    />
+                                    <p className="mt-1 text-xs text-slate-400">{brandReviewText.trim().length}/1000</p>
+                                </div>
+                                <button
+                                    type="submit"
+                                    disabled={brandReviewSubmitting || !brandReviewText.trim()}
+                                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg disabled:opacity-50"
+                                >
+                                    {brandReviewSubmitting ? '…' : T('Υποβολή', 'Submit')}
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
