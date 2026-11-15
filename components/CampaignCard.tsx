@@ -419,7 +419,11 @@ export default function CampaignCard({
             ) : null}
           </div>
 
-          <p className={`mt-3 text-slate-600 line-clamp-2 whitespace-pre-wrap ${compact ? "text-xs leading-relaxed" : "text-sm"}`}>
+          <p
+            className={`mt-3 text-slate-600 whitespace-pre-wrap leading-relaxed ${
+              compact ? "line-clamp-4 text-sm campaign-card-desc" : "line-clamp-5 text-sm campaign-card-desc"
+            }`}
+          >
             <CampaignDescriptionText text={localized.description} />
           </p>
 
@@ -628,8 +632,8 @@ export default function CampaignCard({
         ) : null}
 
         <p
-          className={`mt-3 leading-relaxed text-slate-600 line-clamp-2 whitespace-pre-wrap ${
-            compact ? "text-xs" : "text-sm"
+          className={`mt-3 leading-relaxed text-slate-600 whitespace-pre-wrap ${
+            compact ? "line-clamp-4 text-sm campaign-card-desc" : "line-clamp-5 text-sm campaign-card-desc"
           }`}
         >
           <CampaignDescriptionText text={localized.description} />
