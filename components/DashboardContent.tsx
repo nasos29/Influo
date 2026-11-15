@@ -1533,7 +1533,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
     const [showAgreementModal, setShowAgreementModal] = useState(false);
     const [agreementAccepted, setAgreementAccepted] = useState(false);
-    const [showcaseConsent, setShowcaseConsent] = useState(false);
+    const [showcaseConsent, setShowcaseConsent] = useState(true);
     const [savingAgreement, setSavingAgreement] = useState(false);
     const [showCounterProposalModal, setShowCounterProposalModal] = useState(false);
     const [counterBudget, setCounterBudget] = useState('');
@@ -1944,7 +1944,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 setShowAgreementModal(false);
                 setSelectedProposal(null);
                 setAgreementAccepted(false);
-                setShowcaseConsent(false);
+                setShowcaseConsent(true);
                 notify(T('Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
             } else {
                 throw new Error(result.error || T('Σφάλμα αποδοχής συμφωνίας', 'Could not accept the agreement'));
@@ -2366,6 +2366,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                   id={String(prop.id)}
                                                                   initialConsent={!!prop.influencer_showcase_consent}
                                                                   lang={lang}
+                                                                  party="influencer"
                                                                 />
                                                               </div>
                                                             ) : null}
@@ -2972,12 +2973,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     onAcceptedChange={setAgreementAccepted}
                     showcaseConsent={showcaseConsent}
                     onShowcaseConsentChange={setShowcaseConsent}
+                    showcaseParty="influencer"
                     saving={savingAgreement}
                     onCancel={() => {
                         setShowAgreementModal(false);
                         setSelectedProposal(null);
                         setAgreementAccepted(false);
-                        setShowcaseConsent(false);
+                        setShowcaseConsent(true);
                     }}
                     onAccept={handleAcceptAgreement}
                 />

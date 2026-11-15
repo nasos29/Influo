@@ -812,7 +812,7 @@ export default function BrandDashboardContent() {
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
-  const [showcaseConsent, setShowcaseConsent] = useState(false);
+  const [showcaseConsent, setShowcaseConsent] = useState(true);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [recommendationSource, setRecommendationSource] = useState<{
@@ -1551,7 +1551,7 @@ export default function BrandDashboardContent() {
         setShowAgreementModal(false);
         setSelectedProposal(null);
         setAgreementAccepted(false);
-        setShowcaseConsent(false);
+        setShowcaseConsent(true);
         notify(lang === 'el'
           ? 'Η συμφωνία έγινε αποδεκτή.'
           : 'Agreement accepted.', 'success');
@@ -3165,6 +3165,7 @@ export default function BrandDashboardContent() {
                                 id={String(proposal.id)}
                                 initialConsent={!!proposal.brand_showcase_consent}
                                 lang={lang}
+                                party="brand"
                               />
                             </div>
                           ) : null}
@@ -3228,6 +3229,7 @@ export default function BrandDashboardContent() {
           onShowcaseConsentChange={
             selectedProposal.brand_agreement_accepted ? undefined : setShowcaseConsent
           }
+          showcaseParty="brand"
           saving={savingAgreement}
           readOnly={!!selectedProposal.brand_agreement_accepted}
           status={
@@ -3239,7 +3241,7 @@ export default function BrandDashboardContent() {
             setShowAgreementModal(false);
             setSelectedProposal(null);
             setAgreementAccepted(false);
-            setShowcaseConsent(false);
+            setShowcaseConsent(true);
           }}
           onAccept={handleAcceptAgreement}
         />
