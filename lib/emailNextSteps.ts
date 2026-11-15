@@ -62,7 +62,12 @@ export type EmailNextStepsKey =
   | "ticket_user_reply"
   | "contact_admin"
   | "data_quality_creator"
-  | "profile_edit_admin";
+  | "profile_edit_admin"
+  | "brand_reminder_draft_day3"
+  | "brand_reminder_draft_day10"
+  | "brand_reminder_no_campaign"
+  | "brand_reminder_target_reached"
+  | "brand_reminder_campaign_closed";
 
 /** Catalog of short practical next steps per email case + recipient. */
 export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
@@ -302,6 +307,28 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
   ],
   profile_edit_admin: [
     { el: "Άνοιξε τη διαχείριση και έλεγξε τις αλλαγές προφίλ.", en: "Open admin and review the profile changes." },
+  ],
+  brand_reminder_draft_day3: [
+    { el: "Άνοιξε Καμπάνιες στο brand dashboard.", en: "Open Campaigns in your brand dashboard." },
+    { el: "Έλεγξε τίτλο/περιγραφή και πάτα Δημοσίευση.", en: "Check title/description and tap Publish." },
+    { el: "Μόλις ανοίξει, οι creators μπορούν να κάνουν αίτηση.", en: "Once open, creators can apply." },
+  ],
+  brand_reminder_draft_day10: [
+    { el: "Αυτή είναι η τελευταία υπενθύμιση για το πρόχειρο.", en: "This is the last reminder for this draft." },
+    { el: "Δημοσίευσε την καμπάνια ή διέγραψέ την αν δεν τη χρειάζεσαι.", en: "Publish the campaign or delete it if you no longer need it." },
+  ],
+  brand_reminder_no_campaign: [
+    { el: "Άνοιξε Καμπάνιες → νέα καμπάνια.", en: "Open Campaigns → new campaign." },
+    { el: "Συμπλήρωσε τα βασικά (τίτλος, θέσεις, προθεσμία) και δημοσίευσε.", en: "Fill the basics (title, slots, deadline) and publish." },
+    { el: "Θα λαμβάνεις αιτήσεις από creators στο dashboard.", en: "You’ll receive creator applications in the dashboard." },
+  ],
+  brand_reminder_target_reached: [
+    { el: "Δες τις αποδεκτές συνεργασίες στην καμπάνια.", en: "Review accepted collaborations on the campaign." },
+    { el: "Προχώρα σε συμφωνίες / παραδόσεις μέσα στο Influo.", en: "Continue with agreements / deliverables in Influo." },
+  ],
+  brand_reminder_campaign_closed: [
+    { el: "Δες τη σύνοψη αιτήσεων/αποδοχών.", en: "Review the applications/acceptances summary." },
+    { el: "Άνοιξε νέα καμπάνια όταν είσαι έτοιμος/η.", en: "Open a new campaign when you’re ready." },
   ],
 };
 
