@@ -7,6 +7,8 @@ export type ProposalBrandRow = {
 };
 
 const PAGE_SIZE = 1000;
+/** PostgREST `.in()` lists blow past URL limits around a few hundred UUIDs. */
+const IN_CHUNK = 80;
 
 /**
  * Pure aggregation: distinct non-empty brand names per influencer.
@@ -46,21 +48,49 @@ async function fetchCompletedBrandRows(
   ids: string[]
 ): Promise<ProposalBrandRow[]> {
   const all: ProposalBrandRow[] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
+    const chunk = ids.slice(i, i + IN_CHUNK);
+    let from = 0;
+    for (;;) {
+      const { data, error } = await admin
+        .from("proposals")
+        .select("influencer_id, brand_name")
+        .eq("status", "completed")
+        .in("influencer_id", chunk)
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      const batch = (data || []) as ProposalBrandRow[];
+      all.push(...batch);
+      if (batch.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+  }
+  return all;
+}
+
+/**
+ * Every completed collaboration → brand names by influencer.
+ * Prefer this over `.in(every approved id)` when the directory badge filter
+ * needs past_brands for the whole catalog (far fewer proposal rows than creators).
+ */
+export async function getAllPastBrands(client?: SupabaseClient): Promise<Map<string, string[]>> {
+  const admin = await resolveClient(client);
+  const rows: ProposalBrandRow[] = [];
   let from = 0;
   for (;;) {
     const { data, error } = await admin
       .from("proposals")
       .select("influencer_id, brand_name")
       .eq("status", "completed")
-      .in("influencer_id", ids)
+      .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
     if (error) throw new Error(error.message);
     const batch = (data || []) as ProposalBrandRow[];
-    all.push(...batch);
+    rows.push(...batch);
     if (batch.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
-  return all;
+  return aggregatePastBrands(rows);
 }
 
 async function resolveClient(client?: SupabaseClient): Promise<SupabaseClient> {

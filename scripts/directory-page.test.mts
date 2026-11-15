@@ -4,9 +4,11 @@ import { normalizeGender } from "../lib/gender.ts";
 import { isAvailableStatus } from "../lib/trustSignals.ts";
 import {
   compareDirectoryOrder,
+  directoryBadgeTypes,
   directoryFiltersAreSqlOnly,
   directoryFiltersNeedAccounts,
   matchesDirectoryFilters,
+  parseDirectoryFilters,
   type DirectoryCandidate,
   type DirectoryFilters,
 } from "../lib/directoryQuery.ts";
@@ -83,8 +85,54 @@ test("sql-only filters are availability, gender, and rating", () => {
   assert.equal(directoryFiltersAreSqlOnly({ ...DEFAULT_DIRECTORY_FILTERS, q: "a" }), false);
   assert.equal(directoryFiltersAreSqlOnly({ ...DEFAULT_DIRECTORY_FILTERS, category: "Travel" }), false);
   assert.equal(directoryFiltersAreSqlOnly({ ...DEFAULT_DIRECTORY_FILTERS, platform: "TikTok" }), false);
+  assert.equal(directoryFiltersAreSqlOnly({ ...DEFAULT_DIRECTORY_FILTERS, badge: "new" }), false);
   assert.equal(directoryFiltersNeedAccounts({ ...DEFAULT_DIRECTORY_FILTERS, platform: "TikTok" }), true);
   assert.equal(directoryFiltersNeedAccounts({ ...DEFAULT_DIRECTORY_FILTERS, q: "a" }), false);
+  // Badge matching uses the light index (accounts already there); do not force the heavy scan.
+  assert.equal(directoryFiltersNeedAccounts({ ...DEFAULT_DIRECTORY_FILTERS, badge: "new" }), false);
+  assert.equal(directoryFiltersNeedAccounts({ ...DEFAULT_DIRECTORY_FILTERS, badge: "complete_profile" }), false);
+});
+
+test("badge filter matches the badges shown on the card", () => {
+  const now = Date.parse("2026-11-15T12:00:00.000Z");
+  const base = { ...DEFAULT_DIRECTORY_FILTERS, availability: "all" as const };
+  const newbie = candidate({
+    created_at: "2026-11-10T00:00:00.000Z",
+    followers: { instagram: 2000 },
+    engagement_rate: { instagram: "2%" },
+    past_brands: [],
+    total_reviews: 0,
+    extra_badges: ["active", "complete_profile"],
+  });
+  assert.deepEqual(directoryBadgeTypes(newbie, now), ["new", "active", "complete_profile"]);
+  assert.equal(matchesDirectoryFilters(newbie, { ...base, badge: "new" }, now), true);
+  assert.equal(matchesDirectoryFilters(newbie, { ...base, badge: "complete_profile" }, now), true);
+  assert.equal(matchesDirectoryFilters(newbie, { ...base, badge: "active" }, now), true);
+  assert.equal(matchesDirectoryFilters(newbie, { ...base, badge: "pro" }, now), false);
+
+  const top = candidate({
+    created_at: "2025-01-01T00:00:00.000Z",
+    followers: { instagram: 15000 },
+    engagement_rate: { instagram: "6%" },
+    past_brands: [],
+    extra_badges: ["complete_profile"],
+  });
+  assert.deepEqual(directoryBadgeTypes(top, now), ["top_performer", "complete_profile"]);
+  assert.equal(matchesDirectoryFilters(top, { ...base, badge: "top_performer" }, now), true);
+  assert.equal(matchesDirectoryFilters(top, { ...base, badge: "new" }, now), false);
+  assert.equal(matchesDirectoryFilters(top, { ...base, badge: "complete_profile" }, now), true);
+
+  const pro = candidate({
+    created_at: "2025-01-01T00:00:00.000Z",
+    followers: { instagram: 5000 },
+    engagement_rate: { instagram: "2%" },
+    past_brands: ["A", "B", "C", "D", "E"],
+  });
+  assert.ok(directoryBadgeTypes(pro, now).includes("pro"));
+  assert.equal(matchesDirectoryFilters(pro, { ...base, badge: "pro" }, now), true);
+
+  assert.equal(parseDirectoryFilters(new URLSearchParams("badge=complete_profile")).badge, "complete_profile");
+  assert.equal(parseDirectoryFilters(new URLSearchParams("badge=nope")).badge, "All");
 });
 
 test("gender and availability rules match the old directory normalizers", () => {

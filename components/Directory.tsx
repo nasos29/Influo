@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import InfluencerCard from "./InfluencerCard";
-import { getBadges, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
+import { BADGE_FILTER_TYPES, getBadges, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
 import { normalizeGender, type GenderValue } from "../lib/gender";
 import { trustChipsFromAccounts } from "@/lib/trustSignals";
@@ -55,6 +55,11 @@ function pageFromSearchParam(raw: string | null): number {
   const n = parseInt(raw || "1", 10);
   if (!Number.isFinite(n) || n < 1) return 1;
   return n;
+}
+
+function badgeFromSearchParam(raw: string | null): BadgeType | "All" {
+  if (!raw || raw === "All") return "All";
+  return (BADGE_FILTER_TYPES as readonly string[]).includes(raw) ? (raw as BadgeType) : "All";
 }
 
 export interface Influencer {
@@ -335,7 +340,9 @@ export default function Directory({
   const [minRating, setMinRating] = useState("All");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
-  const [badgeFilter, setBadgeFilter] = useState<BadgeType | "All">("All");
+  const [badgeFilter, setBadgeFilter] = useState<BadgeType | "All">(() =>
+    preset ? "All" : badgeFromSearchParam(searchParams.get("badge"))
+  );
   const [availabilityFilter, setAvailabilityFilter] = useState<"All" | "available" | "unavailable">(
     "available"
   );
@@ -556,6 +563,19 @@ export default function Directory({
     [replaceUrlParams]
   );
 
+  const setBadgeFilterAndUrl = useCallback(
+    (value: BadgeType | "All") => {
+      setBadgeFilter(value);
+      setPage(1);
+      replaceUrlParams((params) => {
+        if (!value || value === "All") params.delete("badge");
+        else params.set("badge", value);
+        params.delete("page");
+      });
+    },
+    [replaceUrlParams]
+  );
+
   const setPageAndUrl = useCallback(
     (nextPage: number) => {
       const safe = Math.max(1, nextPage);
@@ -594,6 +614,8 @@ export default function Directory({
     setPackageType((prev) => (prev === fromPkg ? prev : fromPkg));
     const fromMax = (searchParams.get("maxPrice") || "").trim();
     setMaxPackagePrice((prev) => (prev === fromMax ? prev : fromMax));
+    const fromBadge = badgeFromSearchParam(searchParams.get("badge"));
+    setBadgeFilter((prev) => (prev === fromBadge ? prev : fromBadge));
   }, [preset, searchParams]);
 
   // Restore scroll after «Πίσω στον κατάλογο» explicit navigation.
@@ -676,6 +698,7 @@ export default function Directory({
       params.delete("skills");
       params.delete("pkg");
       params.delete("maxPrice");
+      params.delete("badge");
       params.delete("page");
     });
   };
@@ -855,7 +878,7 @@ export default function Directory({
       chips.push({
         id: "badge",
         label: getBadgeFilterLabel(badgeFilter, lang),
-        clear: () => setBadgeFilter("All"),
+        clear: () => setBadgeFilterAndUrl("All"),
       });
     }
 
@@ -881,11 +904,13 @@ export default function Directory({
     lang,
     txt,
     setCategoryFilterAndUrl,
+    setBadgeFilterAndUrl,
     replaceUrlParams,
   ]);
 
   // Reset to page 1 when filters change (skip first mount so ?page= is kept).
   // Do not depend on replaceUrlParams — its identity changes when ?page= updates.
+  // Badge / category already reset page via their URL setters.
   useEffect(() => {
     if (skipPageResetRef.current) {
       skipPageResetRef.current = false;
@@ -1020,7 +1045,7 @@ export default function Directory({
       availabilityFilter={availabilityFilter}
       setAvailabilityFilter={setAvailabilityFilter}
       badgeFilter={badgeFilter}
-      setBadgeFilter={setBadgeFilter}
+      setBadgeFilter={setBadgeFilterAndUrl}
     />
   );
 

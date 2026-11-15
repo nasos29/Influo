@@ -8,7 +8,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseService } from "@/lib/apiAuth";
-import { getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
+import { getAllPastBrands, getPastBrandsByInfluencerIds } from "@/lib/pastBrands";
 import { selectApprovedInfluencers } from "@/lib/loadPublicInfluencers";
 import { getExtraBadgeMap } from "@/lib/extraBadges";
 import { DIRECTORY_PAGE_COLUMNS, toPublicDirectoryCard } from "@/lib/publicInfluencer";
@@ -25,6 +25,7 @@ import {
   type DirectoryCandidate,
   type DirectoryFilters,
 } from "@/lib/directoryQuery";
+import { EXTRA_BADGE_TYPES } from "@/lib/badges";
 
 const CACHE_TTL_MS = 60_000;
 const PAGE_CACHE_MAX = 80;
@@ -39,6 +40,7 @@ const LIGHT_INDEX_COLUMNS = [
   "gender",
   "location",
   "avg_rating",
+  "total_reviews",
   "created_at",
   "availability_status",
   "birth_date",
@@ -50,7 +52,14 @@ const LIGHT_INDEX_COLUMNS = [
   "min_rate",
 ] as const;
 
-const HEAVY_INDEX_COLUMNS = [...DIRECTORY_PAGE_COLUMNS, "bio", "birth_date"] as const;
+/** Achievement badges need past_brands for Pro/Elite/VIP and to suppress New. Behaviour badges do not. */
+function badgeFilterNeedsPastBrands(badge: DirectoryFilters["badge"]): boolean {
+  if (badge === "All") return false;
+  return !(EXTRA_BADGE_TYPES as readonly string[]).includes(badge);
+}
+
+/** Heavy path still needs skills so badge + skills (etc.) combine correctly. */
+const HEAVY_INDEX_COLUMNS = [...DIRECTORY_PAGE_COLUMNS, "bio", "birth_date", "skills"] as const;
 
 export type DirectoryPageResult = {
   data: Record<string, unknown>[];
@@ -158,28 +167,16 @@ async function allPastBrands(): Promise<Map<string, string[]>> {
   const cached = fresh(pastBrandCache);
   if (cached) return cached;
   if (pastBrandInflight) return pastBrandInflight;
-  pastBrandInflight = (async () => {
-    const admin = await client();
-    const ids: string[] = [];
-    const batch = 1000;
-    for (let from = 0; ; from += batch) {
-      const { rows } = await selectApprovedInfluencers(["id"], (columnList) =>
-        admin
-          .from("influencers")
-          .select(columnList)
-          .eq("approved", true)
-          .order("id", { ascending: true })
-          .range(from, from + batch - 1)
-      );
-      ids.push(...rows.map((row) => String(row.id ?? "")).filter(Boolean));
-      if (rows.length < batch) break;
-    }
-    const map = await pastBrandsFor(ids);
-    pastBrandCache = { at: Date.now(), value: map };
-    return map;
-  })().finally(() => {
-    pastBrandInflight = null;
-  });
+  // Scan completed proposals only (tiny vs approved creators). The old path
+  // loaded every influencer id then `.in()`'d them all — PostgREST 500'd.
+  pastBrandInflight = getAllPastBrands()
+    .then((map) => {
+      pastBrandCache = { at: Date.now(), value: map };
+      return map;
+    })
+    .finally(() => {
+      pastBrandInflight = null;
+    });
   return pastBrandInflight;
 }
 
@@ -240,9 +237,12 @@ async function loadSqlPage(filters: DirectoryFilters, page: number, pageSize: nu
 
 async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSize: number): Promise<DirectoryPageResult> {
   const heavy = directoryFiltersNeedAccounts(filters);
-  const rows = await loadIndex(heavy ? HEAVY_INDEX_COLUMNS : LIGHT_INDEX_COLUMNS, heavy);
-  const past = filters.badge !== "All" ? await allPastBrands() : new Map<string, string[]>();
-  const extra = await getExtraBadgeMap();
+  const needPastForBadge = badgeFilterNeedsPastBrands(filters.badge);
+  const [rows, past, extra] = await Promise.all([
+    loadIndex(heavy ? HEAVY_INDEX_COLUMNS : LIGHT_INDEX_COLUMNS, heavy),
+    needPastForBadge ? allPastBrands() : Promise.resolve(new Map<string, string[]>()),
+    getExtraBadgeMap(),
+  ]);
   const now = Date.now();
   const indexed = rows.map((row) => {
     const badges = extra.get(String(row.id ?? ""));
@@ -288,7 +288,7 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
       admin.from("influencers").select(columnList).eq("approved", true).in("id", ids)
     );
     const byId = new Map(hydrated.map((row) => [String(row.id ?? ""), row]));
-    const pagePast = await pastBrandsFor(ids);
+    const pagePast = needPastForBadge ? past : await pastBrandsFor(ids);
     const ordered = ids
       .map((id) => byId.get(id))
       .filter((row): row is Record<string, unknown> => !!row)
@@ -296,9 +296,9 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
     return { data: ordered, total, page: safePage, pageSize, relaxedMax };
   }
 
-  const pagePast = filters.badge === "All"
-    ? await pastBrandsFor(slice.map((item) => String(item.row.id ?? "")))
-    : past;
+  const pagePast = needPastForBadge
+    ? past
+    : await pastBrandsFor(slice.map((item) => String(item.row.id ?? "")));
   return {
     data: slice.map((item) => toCard(item.row, pagePast.get(String(item.row.id ?? "")) || [], extra)),
     total,
@@ -309,11 +309,21 @@ async function loadFilteredPage(filters: DirectoryFilters, page: number, pageSiz
 }
 
 export async function countDirectoryMatches(filters: DirectoryFilters): Promise<number> {
-  const [rows, extra] = await Promise.all([loadIndex(LIGHT_INDEX_COLUMNS, false), getExtraBadgeMap()]);
+  const needPast = badgeFilterNeedsPastBrands(filters.badge);
+  const [rows, extra, past] = await Promise.all([
+    loadIndex(LIGHT_INDEX_COLUMNS, false),
+    getExtraBadgeMap(),
+    needPast ? allPastBrands() : Promise.resolve(new Map<string, string[]>()),
+  ]);
   const now = Date.now();
   return rows.filter((row) => {
-    const badges = extra.get(String(row.id ?? ""));
-    return matchesDirectoryFilters(directoryCandidateFromRow(badges ? { ...row, extra_badges: badges } : row, 0), filters, now);
+    const id = String(row.id ?? "");
+    const badges = extra.get(id);
+    return matchesDirectoryFilters(
+      directoryCandidateFromRow(badges ? { ...row, extra_badges: badges } : row, past.get(id) || []),
+      filters,
+      now
+    );
   }).length;
 }
 
