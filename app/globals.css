@@ -105,6 +105,18 @@ small, .text-sm {
   line-height: 1.4;
 }
 
+/* Campaign card body copy: unlayered so it wins over base `p { 16px }` (Tailwind
+   arbitrary / responsive text-* live in @layer and lose that fight). */
+p.campaign-card-desc {
+  font-size: 14px;
+  line-height: 1.55;
+}
+@media (min-width: 1280px) {
+  p.campaign-card-desc {
+    font-size: 15px;
+  }
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
