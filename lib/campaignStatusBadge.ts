@@ -23,7 +23,8 @@ export function campaignStatusBadge(
   const outlined = "border-[1.5px] border-black";
   if (c.status === "draft") return { text: el ? "Πρόχειρο" : "Draft", className: "bg-amber-500 text-white" };
   if (c.status !== "open") return c.status ? { text: el ? "Κλειστή" : "Closed", className: `${red} ${outlined}` } : null;
-  if (c.slots != null && c.slots > 0 && (c.slots_filled ?? 0) >= c.slots) return { text: el ? "Πλήρης" : "Full", className: red };
+  if (c.slots != null && c.slots > 0 && (c.slots_filled ?? 0) >= c.slots)
+    return { text: el ? "Συμπληρώθηκαν οι θέσεις" : "All spots filled", className: red };
   try {
     if (c.deadline || c.opened_at || c.created_at) {
       const closes = campaignClosesAt(

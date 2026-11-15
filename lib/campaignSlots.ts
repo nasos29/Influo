@@ -44,11 +44,11 @@ export function slotsFull(info: SlotInfo | undefined): boolean {
   return !!info && info.slots != null && info.filled >= info.slots;
 }
 
-/** Card label: «2/5 θέσεις», «Οι θέσεις συμπληρώθηκαν», or «N creators συμμετέχουν». */
+/** Card label: «2/5 θέσεις», «Συμπληρώθηκαν οι θέσεις», or «N creators συμμετέχουν». */
 export function slotLabel(info: SlotInfo | undefined, lang: "el" | "en" = "el"): string | null {
   if (!info) return null;
   if (info.slots != null) {
-    if (info.filled >= info.slots) return lang === "el" ? "Οι θέσεις συμπληρώθηκαν" : "All spots are filled";
+    if (info.filled >= info.slots) return lang === "el" ? "Συμπληρώθηκαν οι θέσεις" : "All spots filled";
     return lang === "el" ? `${info.filled}/${info.slots} θέσεις` : `${info.filled}/${info.slots} spots`;
   }
   if (info.participants > 0) return lang === "el" ? `${info.participants} creators συμμετέχουν` : `${info.participants} creators taking part`;

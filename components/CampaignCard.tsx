@@ -253,7 +253,12 @@ export default function CampaignCard({
   const brand = brandOf(campaign.brands);
   const link = href ?? `/campaigns/${campaign.id}`;
   const published = publishedAgoLabel(campaign.created_at, lang);
-  const closes = closesInLabel(campaign, lang, defaultDays);
+  const slotsAreFull =
+    typeof campaign.slots === "number" &&
+    campaign.slots > 0 &&
+    (campaign.slots_filled ?? 0) >= campaign.slots;
+  // Countdown only while the campaign still accepts applications.
+  const closes = slotsAreFull ? null : closesInLabel(campaign, lang, defaultDays);
   const comp = compensationLabel(campaign.compensation_type, lang);
   const statusBadge = campaignStatusBadge(campaign, lang, { defaultDays });
   const cat = campaign.category ? categoryLabel(campaign.category, lang) || campaign.category : "";
@@ -301,8 +306,8 @@ export default function CampaignCard({
         >
           {(campaign.slots_filled ?? 0) >= campaign.slots
             ? lang === "el"
-              ? "Οι θέσεις συμπληρώθηκαν"
-              : "All spots are filled"
+              ? "Συμπληρώθηκαν οι θέσεις"
+              : "All spots filled"
             : lang === "el"
               ? `${campaign.slots_filled ?? 0}/${campaign.slots} θέσεις`
               : `${campaign.slots_filled ?? 0}/${campaign.slots} spots`}
