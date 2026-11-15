@@ -230,6 +230,7 @@ export default function CampaignCard({
   className = "",
   viewCta = false,
   onOpen,
+  density = "default",
 }: {
   campaign: CampaignCardData;
   lang: "el" | "en";
@@ -241,9 +242,12 @@ export default function CampaignCard({
   viewCta?: boolean;
   /** Owner views: card click runs this (e.g. open management) instead of navigating to the public page. */
   onOpen?: () => void;
+  /** Compact density for dense public grids (e.g. /campaigns at 4 columns). */
+  density?: "default" | "compact";
 }) {
   const settings = useSiteSettings();
   const cardStyle = campaignCardStyleFromSetting(settings.campaign_card_style);
+  const compact = density === "compact";
   const defaultDays = settings.campaign_default_days;
   const localized = localizeCampaignCopy(campaign, lang);
   const brand = brandOf(campaign.brands);
@@ -321,7 +325,7 @@ export default function CampaignCard({
             logoUrl={brand?.logo_url}
             category={campaign.category}
             platforms={platforms}
-            aspect="4/3"
+            aspect={compact ? "16/9" : "4/3"}
           />
           {statusBadge && (
             <span
@@ -343,38 +347,50 @@ export default function CampaignCard({
           )}
         </div>
 
-        <div className="flex flex-1 flex-col p-5">
-          <div className="flex items-center gap-1.5 min-h-[1.25rem]">
+        <div className={`flex flex-1 flex-col ${compact ? "p-3.5 sm:p-4" : "p-5"}`}>
+          <div className="flex items-center gap-1.5 min-h-[1.25rem] min-w-0">
             {!hideBrand && (
               <>
-                <p className="text-sm font-medium text-slate-800 truncate">{brand?.brand_name || "Brand"}</p>
-                {brand?.verified ? <VerifiedTick /> : null}
-                {published && <span className="text-xs text-slate-500 shrink-0">· {published}</span>}
+                <p className={`font-medium text-slate-800 truncate ${compact ? "text-xs" : "text-sm"}`}>
+                  {brand?.brand_name || "Brand"}
+                </p>
+                {brand?.verified ? <VerifiedTick className={compact ? "w-3.5 h-3.5 text-blue-600 shrink-0" : undefined} /> : null}
+                {published && (
+                  <span className={`text-slate-500 shrink-0 truncate ${compact ? "text-[10px]" : "text-xs"}`}>
+                    · {published}
+                  </span>
+                )}
               </>
             )}
-            {hideBrand && published && <p className="text-xs text-slate-500">{published}</p>}
+            {hideBrand && published && <p className={`text-slate-500 ${compact ? "text-[10px]" : "text-xs"}`}>{published}</p>}
           </div>
           {!hideBrand && campaign.brand_id ? <BrandBadges brandId={campaign.brand_id} lang={lang} className="mt-1" /> : null}
 
-          <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-            <h3 className="min-w-0 flex-1 text-lg font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-blue-700">
+          <div className={`mt-2 flex flex-wrap items-start justify-between ${compact ? "gap-2" : "gap-3"}`}>
+            <h3
+              className={`min-w-0 flex-1 font-bold text-slate-900 leading-snug line-clamp-2 group-hover:text-blue-700 ${
+                compact ? "text-base" : "text-lg"
+              }`}
+            >
               {titleNode}
             </h3>
             {publicBadge ? (
               <span
-                className={`relative z-10 pointer-events-none inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
+                className={`relative z-10 pointer-events-none inline-flex shrink-0 items-center gap-1.5 rounded-full font-semibold ${
+                  compact ? "px-2 py-1 text-[11px]" : "px-3 py-1.5 text-sm"
+                } ${
                   isApplicationsBadge
                     ? "bg-blue-600 text-white"
                     : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                 }`}
               >
-                <PeopleIcon className="h-4 w-4 shrink-0" />
+                <PeopleIcon className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0`} />
                 {publicBadge}
               </span>
             ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <div className={`mt-3 flex flex-wrap items-center gap-2 ${compact ? "text-[11px]" : "text-xs"}`}>
             {showBudget && (
               <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-900 text-white font-semibold">
                 {formatEuro(Number(campaign.budget), lang === "en" ? "en" : "el")}
@@ -391,7 +407,7 @@ export default function CampaignCard({
               </span>
             )}
             {campaign.location ? (
-              <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
+              <span className="inline-flex max-w-full items-center truncate px-2.5 py-1 rounded-full bg-slate-100 text-slate-700">
                 {displayLocation(campaign.location, lang)}
               </span>
             ) : null}
@@ -403,28 +419,28 @@ export default function CampaignCard({
             ) : null}
           </div>
 
-          <p className="mt-3 text-sm text-slate-600 line-clamp-2 whitespace-pre-wrap">
+          <p className={`mt-3 text-slate-600 line-clamp-2 whitespace-pre-wrap ${compact ? "text-xs leading-relaxed" : "text-sm"}`}>
             <CampaignDescriptionText text={localized.description} />
           </p>
 
           {(cat || deliverableChips.length > 0) && (
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-1.5 overflow-hidden">
               {cat ? (
-                <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
+                <span className="inline-flex max-w-full items-center truncate px-2.5 py-1 rounded-full border border-slate-200 bg-white text-xs font-medium text-slate-800">
                   {cat}
                 </span>
               ) : null}
-              {deliverableChips.slice(0, 4).map((d) => (
+              {deliverableChips.slice(0, compact ? 3 : 4).map((d) => (
                 <span
                   key={d}
-                  className="inline-flex items-center px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-xs text-slate-700"
+                  className="inline-flex max-w-[9rem] items-center truncate px-2.5 py-1 rounded-full border border-slate-200 bg-slate-50 text-xs text-slate-700"
                 >
                   {d}
                 </span>
               ))}
-              {deliverableChips.length > 4 ? (
+              {deliverableChips.length > (compact ? 3 : 4) ? (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-50 text-xs text-slate-500">
-                  +{deliverableChips.length - 4}
+                  +{deliverableChips.length - (compact ? 3 : 4)}
                 </span>
               ) : null}
             </div>
@@ -447,10 +463,12 @@ export default function CampaignCard({
 
           {footer ? <div className="relative z-10 mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
           {viewCta ? (
-            <div className="mt-auto pt-4">
+            <div className={`mt-auto ${compact ? "pt-3" : "pt-4"}`}>
               <span
                 aria-hidden
-                className="pointer-events-none flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-slate-800"
+                className={`pointer-events-none flex w-full items-center justify-center rounded-xl bg-slate-900 font-semibold text-white shadow-sm transition-colors group-hover:bg-slate-800 ${
+                  compact ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm"
+                }`}
               >
                 {lang === "el" ? "Δες την καμπάνια →" : "View campaign →"}
               </span>
@@ -464,7 +482,7 @@ export default function CampaignCard({
   const chipItems: string[] = [];
   if (cat) chipItems.push(cat);
   chipItems.push(...deliverableChips);
-  const visibleChipLimit = 3;
+  const visibleChipLimit = compact ? 2 : 3;
   const visibleChips = chipItems.slice(0, visibleChipLimit);
   const hiddenChipCount = Math.max(0, chipItems.length - visibleChips.length);
   // Count long deliverables skipped from chips so "+N" still reflects extras.
@@ -538,48 +556,68 @@ export default function CampaignCard({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col px-5 pb-5 pt-4">
+      <div className={`flex min-w-0 flex-1 flex-col ${compact ? "px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4" : "px-5 pb-5 pt-4"}`}>
         {!hideBrand ? (
-          <div className="flex items-center gap-2.5 min-w-0">
-            <BrandAvatar name={brand?.brand_name} logoUrl={brand?.logo_url} />
+          <div className={`flex min-w-0 items-center ${compact ? "gap-2" : "gap-2.5"}`}>
+            <BrandAvatar
+              name={brand?.brand_name}
+              logoUrl={brand?.logo_url}
+              sizeClass={compact ? "h-8 w-8" : "h-9 w-9"}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1 min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-900">{brand?.brand_name || "Brand"}</p>
+                <p className={`truncate font-semibold text-slate-900 ${compact ? "text-xs" : "text-sm"}`}>
+                  {brand?.brand_name || "Brand"}
+                </p>
                 {brand?.verified ? <VerifiedTick className="h-3.5 w-3.5 text-blue-600 shrink-0" /> : null}
               </div>
-              {published ? <p className="truncate text-[11px] text-slate-500">{published}</p> : null}
+              {published ? (
+                <p className={`truncate text-slate-500 ${compact ? "text-[10px]" : "text-[11px]"}`}>{published}</p>
+              ) : null}
             </div>
           </div>
         ) : published ? (
-          <p className="text-[11px] text-slate-500">{published}</p>
+          <p className={`text-slate-500 ${compact ? "text-[10px]" : "text-[11px]"}`}>{published}</p>
         ) : null}
         {!hideBrand && campaign.brand_id ? (
           <BrandBadges brandId={campaign.brand_id} lang={lang} className="mt-1.5" />
         ) : null}
 
-        <h3 className="mt-3 min-w-0 text-[1.05rem] font-semibold leading-snug tracking-tight text-slate-950 line-clamp-2 group-hover:text-slate-700">
+        <h3
+          className={`mt-3 min-w-0 font-semibold leading-snug tracking-tight text-slate-950 line-clamp-2 group-hover:text-slate-700 ${
+            compact ? "text-[0.95rem]" : "text-[1.05rem]"
+          }`}
+        >
           {titleNode}
         </h3>
 
-        <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
+        <div className="mt-3 flex min-w-0 flex-wrap items-end justify-between gap-2">
+          <div className="min-w-0 overflow-hidden">
             {showBudget ? (
-              <p className="text-2xl font-semibold tracking-tight text-slate-950 tabular-nums">
+              <p
+                className={`font-semibold tracking-tight text-slate-950 tabular-nums truncate ${
+                  compact ? "text-xl" : "text-2xl"
+                }`}
+              >
                 {formatEuro(Number(campaign.budget), lang === "en" ? "en" : "el")}
               </p>
             ) : comp ? (
-              <p className="text-base font-semibold text-indigo-800">{comp}</p>
+              <p className={`font-semibold text-indigo-800 ${compact ? "text-sm" : "text-base"}`}>{comp}</p>
             ) : null}
             {showBudget && comp && campaign.compensation_type !== "money" ? (
-              <p className="mt-0.5 text-xs font-medium text-indigo-700">{comp}</p>
+              <p className="mt-0.5 text-xs font-medium text-indigo-700 truncate">{comp}</p>
             ) : null}
           </div>
         </div>
 
         {metaBits.length > 0 ? (
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+          <div
+            className={`mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-slate-500 ${
+              compact ? "text-[11px]" : "text-xs"
+            }`}
+          >
             {metaBits.map((bit, i) => (
-              <span key={bit.key} className="inline-flex items-center gap-2 min-w-0">
+              <span key={bit.key} className="inline-flex items-center gap-2 min-w-0 max-w-full">
                 {i > 0 ? <span className="text-slate-300" aria-hidden>
                   ·
                 </span> : null}
@@ -589,23 +627,35 @@ export default function CampaignCard({
           </div>
         ) : null}
 
-        <p className="mt-3 text-sm leading-relaxed text-slate-600 line-clamp-2 whitespace-pre-wrap">
+        <p
+          className={`mt-3 leading-relaxed text-slate-600 line-clamp-2 whitespace-pre-wrap ${
+            compact ? "text-xs" : "text-sm"
+          }`}
+        >
           <CampaignDescriptionText text={localized.description} />
         </p>
 
         {(visibleChips.length > 0 || plusCount > 0) && (
-          <div className="mt-3 flex flex-nowrap items-center gap-1.5 overflow-hidden">
+          <div className="mt-3 flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden">
             {visibleChips.map((d) => (
               <span
                 key={d}
                 title={d}
-                className="inline-flex max-w-[9.5rem] shrink-0 items-center truncate rounded-full border border-slate-200/90 bg-slate-50/80 px-2.5 py-1 text-[11px] font-medium text-slate-700"
+                className={`inline-flex shrink-0 items-center truncate rounded-full border border-slate-200/90 bg-slate-50/80 font-medium text-slate-700 ${
+                  compact
+                    ? "max-w-[7.5rem] px-2 py-0.5 text-[10px]"
+                    : "max-w-[9.5rem] px-2.5 py-1 text-[11px]"
+                }`}
               >
-                {truncateChip(d)}
+                {truncateChip(d, compact ? 22 : 28)}
               </span>
             ))}
             {plusCount > 0 ? (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-500">
+              <span
+                className={`inline-flex shrink-0 items-center rounded-full bg-slate-100 font-medium text-slate-500 ${
+                  compact ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-1 text-[11px]"
+                }`}
+              >
                 +{plusCount}
               </span>
             ) : null}
@@ -616,10 +666,12 @@ export default function CampaignCard({
 
         {footer ? <div className="relative z-10 mt-4 pt-3 border-t border-slate-100">{footer}</div> : null}
         {viewCta ? (
-          <div className="mt-auto pt-4">
+          <div className={`mt-auto ${compact ? "pt-3" : "pt-4"}`}>
             <span
               aria-hidden
-              className="pointer-events-none flex w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-2.5 text-sm font-medium text-slate-800 transition-colors group-hover:border-slate-300 group-hover:bg-white group-hover:text-slate-950"
+              className={`pointer-events-none flex w-full items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 font-medium text-slate-800 transition-colors group-hover:border-slate-300 group-hover:bg-white group-hover:text-slate-950 ${
+                compact ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm"
+              }`}
             >
               {lang === "el" ? "Δες την καμπάνια →" : "View campaign →"}
             </span>

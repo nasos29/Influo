@@ -457,6 +457,59 @@ textarea:focus-visible {
 }
 
 /*
+ * Public /campaigns listing only: 1 → md:2 → lg:3 → xl(≥1280):4.
+ * Wider shell than max-w-page so four columns stay comfortable on desktop.
+ * Do not reuse on homepage (keeps .grid-campaigns-responsive / max-w-page).
+ */
+.max-w-campaigns-page {
+  max-width: 80rem; /* 1280px */
+}
+@media (min-width: 1280px) {
+  .max-w-campaigns-page {
+    max-width: 90rem; /* 1440px */
+  }
+}
+@media (min-width: 1536px) {
+  .max-w-campaigns-page {
+    max-width: 96rem; /* 1536px */
+  }
+}
+.grid-public-campaigns {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: 1fr;
+  justify-content: start;
+  align-items: stretch;
+}
+.grid-public-campaigns > * {
+  min-width: 0;
+  width: 100%;
+  max-width: 28rem;
+  justify-self: stretch;
+  height: 100%;
+}
+@media (min-width: 768px) {
+  .grid-public-campaigns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .grid-public-campaigns > * {
+    max-width: none;
+  }
+}
+@media (min-width: 1024px) {
+  .grid-public-campaigns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .grid-public-campaigns {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.875rem;
+  }
+}
+
+/*
  * Wide card density (≥1536px). Counts come from --creator-cols-wide /
  * --campaign-cols-wide / --blog-cols-wide (site settings; defaults 5 / 4 / 4).
  * Prefer .grid-campaigns-responsive for public campaign lists (avoids Tailwind
