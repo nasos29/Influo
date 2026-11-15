@@ -5,6 +5,11 @@ import { deliverableReviewToCreator, deliverableSubmittedToBrand } from "@/lib/c
 import { send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
+import {
+  parseSelfReportedCount,
+  parseSocialPostUrl,
+  socialPostUrlErrorMessage,
+} from "@/lib/socialPostUrl";
 
 type Action = "submit" | "approve" | "request_changes";
 
@@ -66,18 +71,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "not_accepted" }, { status: 400 });
     }
 
-    const url = String(body.url || "").trim();
+    const parsedUrl = parseSocialPostUrl(body.url);
+    if (!parsedUrl.ok) {
+      return NextResponse.json(
+        { error: parsedUrl.error === "empty" ? "missing_url" : socialPostUrlErrorMessage(parsedUrl.error) },
+        { status: 400 }
+      );
+    }
+    const url = parsedUrl.url;
     const note = String(body.note || "").trim();
-    if (!url) return NextResponse.json({ error: "missing_url" }, { status: 400 });
+    const selfReportedViews = "selfReportedViews" in body
+      ? parseSelfReportedCount(body.selfReportedViews)
+      : undefined;
+    const selfReportedReach = "selfReportedReach" in body
+      ? parseSelfReportedCount(body.selfReportedReach)
+      : undefined;
+    const showcaseConsent =
+      typeof body.showcaseConsent === "boolean" ? body.showcaseConsent : undefined;
+
+    const updatePayload: Record<string, unknown> = {
+      deliverable_url: url,
+      deliverable_note: note || null,
+      deliverable_status: "submitted",
+      delivered_at: new Date().toISOString(),
+    };
+    if (selfReportedViews !== undefined) updatePayload.self_reported_views = selfReportedViews;
+    if (selfReportedReach !== undefined) updatePayload.self_reported_reach = selfReportedReach;
+    if (showcaseConsent !== undefined) updatePayload.influencer_showcase_consent = showcaseConsent;
 
     const { error } = await admin
       .from("campaign_applications")
-      .update({
-        deliverable_url: url,
-        deliverable_note: note || null,
-        deliverable_status: "submitted",
-        delivered_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", applicationId)
       .eq("influencer_id", influencer.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -118,14 +142,23 @@ export async function POST(request: NextRequest) {
   }
   const nextStatus = action === "approve" ? "approved" : "changes_requested";
   const reviewNote = String(body.note || "").trim();
+  const brandShowcaseConsent =
+    action === "approve" && typeof body.showcaseConsent === "boolean"
+      ? body.showcaseConsent
+      : undefined;
+
+  const reviewUpdate: Record<string, unknown> = {
+    deliverable_status: nextStatus,
+    deliverable_review_note: reviewNote || null,
+    reviewed_at: new Date().toISOString(),
+  };
+  if (brandShowcaseConsent !== undefined) {
+    reviewUpdate.brand_showcase_consent = brandShowcaseConsent;
+  }
 
   const { error } = await admin
     .from("campaign_applications")
-    .update({
-      deliverable_status: nextStatus,
-      deliverable_review_note: reviewNote || null,
-      reviewed_at: new Date().toISOString(),
-    })
+    .update(reviewUpdate)
     .eq("id", applicationId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

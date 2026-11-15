@@ -15,6 +15,8 @@ import ToastViewport, { useToasts } from "@/components/ui/Toast";
 import { formatDate, formatTime } from "@/lib/formatDateTime";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignField } from "@/lib/campaignLocalized";
+import ShowcaseConsentToggle from "@/components/ShowcaseConsentToggle";
+import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -54,6 +56,7 @@ type MyApplication = {
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
   initiated_by?: string | null;
+  influencer_showcase_consent?: boolean | null;
   brand_campaigns: {
     title: string;
     title_en?: string | null;
@@ -173,7 +176,9 @@ export default function InfluencerCampaignsPanel({
       alive = false;
     };
   }, [influencerId]);
-  const [deliverDraft, setDeliverDraft] = useState<Record<string, { url: string; note: string }>>({});
+  const [deliverDraft, setDeliverDraft] = useState<
+    Record<string, { url: string; note: string; showcaseConsent?: boolean }>
+  >({});
   const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
 
   useEffect(() => {
@@ -236,6 +241,7 @@ export default function InfluencerCampaignsPanel({
         deliverable_note,
         deliverable_status,
         deliverable_review_note,
+        influencer_showcase_consent,
         brand_campaigns (
           title,
           title_en,
@@ -371,10 +377,10 @@ export default function InfluencerCampaignsPanel({
   };
 
   const submitDeliverable = async (appId: string) => {
-    const draft = deliverDraft[appId] || { url: "", note: "" };
-    const url = draft.url.trim();
-    if (!url) {
-      notify(uiLang === "el" ? "Βάλε link παράδοσης (URL)." : "Add a deliverable URL.", "error");
+    const draft = deliverDraft[appId] || { url: "", note: "", showcaseConsent: false };
+    const parsed = parseSocialPostUrl(draft.url);
+    if (!parsed.ok) {
+      notify(socialPostUrlErrorMessage(parsed.error, uiLang), "error");
       return;
     }
     setDeliverSaving(appId);
@@ -382,7 +388,13 @@ export default function InfluencerCampaignsPanel({
       const res = await sessionFetch("/api/campaigns/deliverable", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ applicationId: appId, action: "submit", url, note: draft.note.trim() || "" }),
+        body: JSON.stringify({
+          applicationId: appId,
+          action: "submit",
+          url: parsed.url,
+          note: draft.note.trim() || "",
+          showcaseConsent: !!draft.showcaseConsent,
+        }),
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -724,9 +736,14 @@ export default function InfluencerCampaignsPanel({
                           [m.id]: { ...draft, url: e.target.value },
                         }))
                       }
-                      placeholder="https://…"
+                      placeholder="https://instagram.com/… ή TikTok / YouTube"
                       className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
                     />
+                    <p className="text-[11px] text-slate-500">
+                      {uiLang === "el"
+                        ? "Μόνο Instagram, TikTok ή YouTube (https). Δεν ανεβάζουμε αρχεία βίντεο."
+                        : "Instagram, TikTok, or YouTube only (https). We never store video files."}
+                    </p>
                     <textarea
                       value={draft.note}
                       onChange={(e) =>
@@ -739,6 +756,24 @@ export default function InfluencerCampaignsPanel({
                       rows={2}
                       className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 resize-none"
                     />
+                    <label className="flex items-start gap-2 text-xs text-slate-700">
+                      <input
+                        type="checkbox"
+                        checked={!!draft.showcaseConsent}
+                        onChange={(e) =>
+                          setDeliverDraft((prev) => ({
+                            ...prev,
+                            [m.id]: { ...draft, showcaseConsent: e.target.checked },
+                          }))
+                        }
+                        className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                      />
+                      <span>
+                        {uiLang === "el"
+                          ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες» (μόνο αν συναινέσει και το brand)"
+                          : "Show publicly in “Recent collaborations” (only if the brand also consents)"}
+                      </span>
+                    </label>
                     <button
                       type="button"
                       disabled={deliverSaving === m.id}
@@ -757,15 +792,25 @@ export default function InfluencerCampaignsPanel({
                     </button>
                   </div>
                 )}
-                {dStatus === "approved" && m.deliverable_url && (
-                  <a
-                    href={m.deliverable_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-emerald-700 underline"
-                  >
-                    {m.deliverable_url}
-                  </a>
+                {dStatus === "approved" && (
+                  <div className="space-y-2">
+                    {m.deliverable_url ? (
+                      <a
+                        href={m.deliverable_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-emerald-700 underline break-all"
+                      >
+                        {m.deliverable_url}
+                      </a>
+                    ) : null}
+                    <ShowcaseConsentToggle
+                      source="campaign"
+                      id={m.id}
+                      initialConsent={!!m.influencer_showcase_consent}
+                      lang={uiLang}
+                    />
+                  </div>
                 )}
               </li>
             );

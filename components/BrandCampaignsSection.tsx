@@ -1298,7 +1298,12 @@ export default function BrandCampaignsSection({
     }
   };
 
-  const reviewDeliverable = async (appId: string, next: "approved" | "changes_requested", note?: string) => {
+  const reviewDeliverable = async (
+    appId: string,
+    next: "approved" | "changes_requested",
+    note?: string,
+    showcaseConsent?: boolean
+  ) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
     if (!token) return;
@@ -1310,6 +1315,9 @@ export default function BrandCampaignsSection({
           applicationId: appId,
           action: next === "approved" ? "approve" : "request_changes",
           note: note?.trim() || "",
+          ...(next === "approved" && typeof showcaseConsent === "boolean"
+            ? { showcaseConsent }
+            : {}),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -1416,7 +1424,20 @@ export default function BrandCampaignsSection({
                                   {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
                                   {app.deliverable_status === "submitted" && (
                                     <>
-                                      <button type="button" onClick={() => reviewDeliverable(app.id, "approved")} className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white">{t.approve_deliverable}</button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const publicOk = window.confirm(
+                                            lang === "el"
+                                              ? "Έγκριση παράδοσης. Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες» αν συναινεί και ο creator; (OK = ναι, Cancel = όχι)"
+                                              : "Approve deliverable. Show publicly in “Recent collaborations” if the creator also consents? (OK = yes, Cancel = no)"
+                                          );
+                                          void reviewDeliverable(app.id, "approved", undefined, publicOk);
+                                        }}
+                                        className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"
+                                      >
+                                        {t.approve_deliverable}
+                                      </button>
                                       <button type="button" onClick={() => { const note = window.prompt(t.review_note_ph) || ""; void reviewDeliverable(app.id, "changes_requested", note); }} className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50">{t.request_changes}</button>
                                     </>
                                   )}

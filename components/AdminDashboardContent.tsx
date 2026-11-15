@@ -21,10 +21,12 @@ import {
   Moon,
   Newspaper,
   Settings,
+  Star,
   Sun,
   Users,
   X,
 } from "lucide-react";
+import AdminRecentCollaborationsPanel from "@/components/AdminRecentCollaborationsPanel";
 import { supabase } from "@/lib/supabaseClient"; 
 import Image from "next/image";
 import AdminNoticesPanel from "@/components/AdminNoticesPanel";
@@ -4597,6 +4599,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 { id: "blog", label: txt.tab_blog, icon: Newspaper, count: 0 },
                 { id: "announcements", label: txt.tab_announcements, icon: Bell, count: 0 },
                 { id: "social_cron", label: txt.tab_social_cron, icon: Activity, count: 0 },
+                { id: "recent_collabs", label: { el: "Συνεργασίες", en: "Collabs" }[lang], icon: Star, count: 0 },
               ] as const
             ).map((tab) => {
               const selected = activeTab === tab.id;
@@ -6287,6 +6290,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           )}
 
           {activeTab === "social_cron" && <SocialRefreshLogsPanel lang={lang} />}
+
+          {activeTab === "recent_collabs" && (
+            <div className="p-4 sm:p-6">
+              <AdminRecentCollaborationsPanel lang={lang} />
+            </div>
+          )}
 
           {activeTab === "conversations" && (
             <div>

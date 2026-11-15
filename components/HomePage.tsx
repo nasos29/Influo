@@ -14,12 +14,16 @@ import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
 import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
 import PublishCampaignPromoCard from "@/components/PublishCampaignPromoCard";
+import RecentCollaborationsSection from "@/components/RecentCollaborationsSection";
+import SocialProofStatsRow from "@/components/SocialProofStatsRow";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
+import type { RecentCollaborationCard } from "@/lib/loadRecentCollaborations";
+import type { SocialProofStats } from "@/lib/loadSocialProofStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
@@ -193,6 +197,15 @@ export default function Home({
   initialDirectoryTotal = 0,
   openCampaigns = [],
   trustStats = { approvedInfluencers: null, openCampaigns: null },
+  recentCollaborations = [],
+  socialProofStats = {
+    completedCollaborations: null,
+    activeCreators: null,
+    brandsCount: null,
+    averageRating: null,
+    computedAt: null,
+    fromCache: false,
+  },
   homeCreatorsLimit = 8,
   homeNewlyApprovedLimit = 8,
   homeTopInfluencersLimit = 10,
@@ -203,6 +216,8 @@ export default function Home({
   initialDirectoryTotal?: number;
   openCampaigns?: CampaignCardData[];
   trustStats?: HomeTrustStats;
+  recentCollaborations?: RecentCollaborationCard[];
+  socialProofStats?: SocialProofStats;
   homeCreatorsLimit?: number;
   homeNewlyApprovedLimit?: number;
   homeTopInfluencersLimit?: number;
@@ -554,6 +569,14 @@ export default function Home({
               return (
                 <div key={sectionId} data-homepage-section="top_influencers" className="home-section-cv">
                   <TopInfluencersSection lang={lang} limit={homeTopInfluencersLimit} />
+                </div>
+              );
+
+            case "recent_collaborations":
+              return (
+                <div key={sectionId} data-homepage-section="recent_collaborations" className="home-section-cv">
+                  <SocialProofStatsRow stats={socialProofStats} lang={lang} />
+                  <RecentCollaborationsSection items={recentCollaborations} lang={lang} />
                 </div>
               );
 

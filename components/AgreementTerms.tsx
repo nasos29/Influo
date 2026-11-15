@@ -41,6 +41,8 @@ const COPY = {
     close: "Κλείσιμο",
     statusWaiting: "Αναμονή του δημιουργού",
     statusCompleted: "Ολοκληρώθηκε",
+    showcase: "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»",
+    showcaseHint: "Εμφανίζεται μόνο αν συναινέσουν και οι δύο. Προεπιλογή: απενεργοποιημένο.",
   },
   en: {
     title: (id: string) => `Collaboration Agreement #${id}`,
@@ -60,6 +62,8 @@ const COPY = {
     close: "Close",
     statusWaiting: "Waiting for the creator",
     statusCompleted: "Completed",
+    showcase: "Show publicly in “Recent collaborations”",
+    showcaseHint: "Shown only when both parties consent. Default: off.",
   },
 } as const;
 
@@ -88,6 +92,9 @@ type AgreementTermsProps = {
   readOnly?: boolean;
   /** Shown only in read-only mode. */
   status?: "waiting" | "completed";
+  /** Opt-in to public recent-collaborations (default off). */
+  showcaseConsent?: boolean;
+  onShowcaseConsentChange?: (consent: boolean) => void;
 };
 
 export default function AgreementTerms({
@@ -108,6 +115,8 @@ export default function AgreementTerms({
   saving = false,
   readOnly = false,
   status,
+  showcaseConsent = false,
+  onShowcaseConsentChange,
 }: AgreementTermsProps) {
   const copy = COPY[lang];
   const id = String(proposalId);
@@ -204,6 +213,21 @@ export default function AgreementTerms({
               <span className="text-sm text-slate-700">{copy.checkbox(id)}</span>
             </label>
           )}
+
+          {onShowcaseConsentChange ? (
+            <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+              <input
+                type="checkbox"
+                checked={showcaseConsent}
+                onChange={(event) => onShowcaseConsentChange(event.target.checked)}
+                className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-slate-900/10"
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-slate-800">{copy.showcase}</span>
+                <span className="mt-0.5 block text-xs text-slate-500">{copy.showcaseHint}</span>
+              </span>
+            </label>
+          ) : null}
         </div>
 
         <div className="flex gap-3 border-t border-slate-200 px-6 py-4">
