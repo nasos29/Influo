@@ -290,16 +290,18 @@ export default function CampaignPublicView({
   const localized = campaign ? localizeCampaignCopy(campaign, lang === "en" ? "en" : "el") : null;
   const deliverables = localized ? splitDeliverables(localized.deliverables) : [];
   const platforms = campaign && Array.isArray(campaign.platforms) ? campaign.platforms : [];
-  const closes = campaign
-    ? campaignClosesMeta(
-        {
-          deadline: campaign.deadline,
-          opened_at: campaign.opened_at,
-          created_at: campaign.created_at,
-        },
-        lang === "en" ? "en" : "el"
-      )
-    : null;
+  // Auto-close countdown only while still accepting; filled campaigns show status instead.
+  const closes =
+    campaign && !slotsClosed
+      ? campaignClosesMeta(
+          {
+            deadline: campaign.deadline,
+            opened_at: campaign.opened_at,
+            created_at: campaign.created_at,
+          },
+          lang === "en" ? "en" : "el"
+        )
+      : null;
   const appsCount = campaign?.applications_count ?? applicationsCount;
   const publicBadge = campaign
     ? campaignPublicBadgeLabel(appsCount, campaign.opened_at, lang === "en" ? "en" : "el")
@@ -325,7 +327,7 @@ export default function CampaignPublicView({
   const slotText =
     slots != null
       ? slotsClosed
-        ? el ? "Οι θέσεις συμπληρώθηκαν" : "All spots are filled"
+        ? el ? "Συμπληρώθηκαν οι θέσεις" : "All spots filled"
         : el ? `${slotsFilled}/${slots} θέσεις` : `${slotsFilled}/${slots} spots`
       : null;
   const applyBlock = (
@@ -340,10 +342,15 @@ export default function CampaignPublicView({
           {slotText}
         </p>
       )}
-      {audience.kind === "anonymous" && (
+      {audience.kind === "anonymous" && !slotsClosed && (
         <Link href={`/login?redirect=${encodeURIComponent(`/campaigns/${id}`)}`} className="inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium">
           {el ? "Σύνδεση για αίτηση" : "Sign in to apply"}
         </Link>
+      )}
+      {audience.kind === "anonymous" && slotsClosed && (
+        <p className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          {el ? "Οι θέσεις συμπληρώθηκαν και η καμπάνια δεν δέχεται νέες αιτήσεις." : "All spots are filled; the campaign is not taking new applications."}
+        </p>
       )}
       {audience.kind === "brand" && audience.owns && (
         <Link href="/brand/dashboard?tab=campaigns" className="inline-flex w-full justify-center px-4 py-2.5 rounded-xl bg-slate-900 text-white text-sm font-medium">
@@ -643,18 +650,32 @@ export default function CampaignPublicView({
           <div className="max-w-page mx-auto flex items-center gap-3">
             <div className="min-w-0 flex-1 hidden sm:block">
               <p className="text-sm font-semibold text-slate-900 truncate">{localized?.title || campaign.title}</p>
-              {closes && <p className={`text-xs ${closes.urgent ? "text-red-700" : "text-slate-500"}`}>{closes.text}</p>}
+              {slotsClosed ? (
+                <p className="text-xs text-slate-500">{el ? "Συμπληρώθηκαν οι θέσεις" : "All spots filled"}</p>
+              ) : closes ? (
+                <p className={`text-xs ${closes.urgent ? "text-red-700" : "text-slate-500"}`}>{closes.text}</p>
+              ) : null}
             </div>
-            <button
-              type="button"
-              onClick={scrollToApply}
-              disabled={audience.kind === "influencer" && approved && applied}
-              className="w-full sm:w-auto sm:min-w-[200px] px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:bg-emerald-600 disabled:opacity-90"
-            >
-              {audience.kind === "influencer" && approved && applied
-                ? el ? "Έχετε κάνει αίτηση" : "Applied"
-                : el ? "Κάνε αίτηση" : "Apply"}
-            </button>
+            {slotsClosed && !(audience.kind === "influencer" && approved && applied) ? (
+              <button
+                type="button"
+                disabled
+                className="w-full sm:w-auto sm:min-w-[200px] px-6 py-3 rounded-xl bg-slate-200 text-slate-600 text-sm font-semibold cursor-not-allowed"
+              >
+                {el ? "Συμπληρώθηκαν οι θέσεις" : "All spots filled"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={scrollToApply}
+                disabled={audience.kind === "influencer" && approved && applied}
+                className="w-full sm:w-auto sm:min-w-[200px] px-6 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:bg-emerald-600 disabled:opacity-90"
+              >
+                {audience.kind === "influencer" && approved && applied
+                  ? el ? "Έχετε κάνει αίτηση" : "Applied"
+                  : el ? "Κάνε αίτηση" : "Apply"}
+              </button>
+            )}
           </div>
         </div>
       )}
