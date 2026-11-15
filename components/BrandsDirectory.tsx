@@ -68,19 +68,27 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
       setLoading(true);
       console.log("[BrandsDirectory] Fetching verified brands...");
       let rows: Brand[] | null = null;
+      // Missing review-stat columns/grants must never hide brands (42501 /
+      // "permission denied" does not always say "column").
+      const shouldFallback = (err: { message?: string; code?: string } | null) =>
+        Boolean(
+          err &&
+            (/column|schema cache|permission denied|42501/i.test(err.message || "") ||
+              err.code === "42501")
+        );
       const full = await supabase
         .from("brands")
         .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram, avg_rating, total_reviews")
         .eq("verified", true)
         .order("created_at", { ascending: false });
 
-      if (full.error && /column|schema cache/i.test(full.error.message || "")) {
+      if (shouldFallback(full.error)) {
         const mid = await supabase
           .from("brands")
           .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram")
           .eq("verified", true)
           .order("created_at", { ascending: false });
-        if (mid.error && /column|schema cache/i.test(mid.error.message || "")) {
+        if (shouldFallback(mid.error)) {
           const fallback = await supabase
             .from("brands")
             .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
