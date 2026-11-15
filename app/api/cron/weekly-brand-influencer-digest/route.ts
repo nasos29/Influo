@@ -1,40 +1,48 @@
-import { createClient } from '@supabase/supabase-js';
+/**
+ * Weekly brand digest: newly approved influencers → brands.
+ *
+ * Delivery:
+ *   BRAND_WEEKLY_DIGEST_ZOHO_ENABLED=1 → Zoho Campaigns (temp list → one campaign)
+ *   else → Resend one-by-one (fallback)
+ *
+ * LIVE: BRAND_WEEKLY_DIGEST_ZOHO_LIVE=1 for real brand emails; otherwise test recipient only.
+ * Quiet window: 10:00–19:00 Europe/Athens (skip unless dry_run / force_quiet_bypass).
+ *
+ * Query:
+ *   ?dry_run=1 — eligible counts only (no send / no brands_notified_at)
+ *   ?preview=1 — Resend HTML preview to ADMIN_EMAIL (legacy)
+ *   ?force_quiet_bypass=1 — ops/test outside quiet window (still requires CRON_SECRET)
+ *
+ * Suggested server crontab (UTC; 08:15 ≈ 10:15 Athens in winter):
+ *   15 8 * * 1 /opt/influo/cron-run.sh /api/cron/weekly-brand-influencer-digest
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { assertCronAuth, cronSupabaseAdmin } from '@/lib/cronRoute';
 import {
   buildDigestHtml,
   getWeeklyDigestWindow,
   sendWeeklyBrandInfluencerDigest,
 } from '@/lib/brandWeeklyInfluencerDigest';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
-
-function isAuthorizedCron(req: NextRequest): boolean {
-  const cronSecret = process.env.CRON_SECRET;
-  const isVercelCron = Boolean(
-    req.headers.get('x-vercel-cron') === '1' ||
-      req.headers.get('user-agent')?.includes('vercel-cron')
-  );
-
-  if (!cronSecret) {
-    return isVercelCron;
-  }
-
-  const authHeader = req.headers.get('authorization');
-  return authHeader === `Bearer ${cronSecret}` || isVercelCron;
-}
+export const runtime = 'nodejs';
+export const maxDuration = 120;
 
 export async function GET(req: NextRequest) {
-  if (!isAuthorizedCron(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  const denied = assertCronAuth(req);
+  if (denied) return denied;
+
+  const supabaseAdmin = cronSupabaseAdmin();
 
   try {
     const preview = req.nextUrl.searchParams.get('preview') === '1';
+    const dryRun =
+      req.nextUrl.searchParams.get('dry_run') === '1' ||
+      req.nextUrl.searchParams.get('dryRun') === '1';
+    const forceQuietBypass =
+      req.nextUrl.searchParams.get('force_quiet_bypass') === '1' ||
+      req.nextUrl.searchParams.get('forceQuietBypass') === '1';
     const window = getWeeklyDigestWindow();
 
     if (preview) {
@@ -86,14 +94,20 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const result = await sendWeeklyBrandInfluencerDigest(supabaseAdmin, window);
+    const result = await sendWeeklyBrandInfluencerDigest(supabaseAdmin, window, {
+      dryRun,
+      forceQuietBypass,
+    });
 
     console.log('[weekly-brand-influencer-digest]', {
       skipped: result.skipped,
       reason: result.reason,
+      channel: result.channel,
       influencerCount: result.influencerCount,
+      brandsEligible: result.brandsEligible,
       emailsSent: result.emailsSent,
-      brandsTotal: result.brandsTotal,
+      dryRun: result.dryRun,
+      zohoOk: result.zoho?.ok,
       window,
     });
 
