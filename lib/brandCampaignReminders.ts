@@ -51,6 +51,23 @@ export function isBrandRemindersLive(env: NodeJS.ProcessEnv = process.env): bool
   return /^(1|true|yes)$/i.test(String(env.BRAND_CAMPAIGN_REMINDERS_LIVE || "").trim());
 }
 
+/**
+ * Weekly no-campaign nudge via Zoho Campaigns (bulk). Default OFF.
+ * When ON, Resend path skips `no_campaign_nudge` (events/drafts stay on Resend).
+ */
+export function isBrandWeeklyNudgeZohoEnabled(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return /^(1|true|yes)$/i.test(String(env.BRAND_WEEKLY_NUDGE_ZOHO_ENABLED || "").trim());
+}
+
+/** Live Zoho weekly nudge (real brand emails). Falls back to BRAND_CAMPAIGN_REMINDERS_LIVE. */
+export function isBrandWeeklyNudgeZohoLive(env: NodeJS.ProcessEnv = process.env): boolean {
+  const raw = String(env.BRAND_WEEKLY_NUDGE_ZOHO_LIVE || "").trim();
+  if (raw) return /^(1|true|yes)$/i.test(raw);
+  return isBrandRemindersLive(env);
+}
+
 export function brandRemindersTestRecipient(env: NodeJS.ProcessEnv = process.env): string {
   return (
     env.BRAND_CAMPAIGN_REMINDERS_TEST_RECIPIENT ||
