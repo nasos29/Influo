@@ -1,10 +1,10 @@
 /**
  * When to email a post-deal review reminder for completed proposals.
- * Prefer publish_deadline (end of that calendar day UTC); otherwise
- * agreement_accepted_at + REVIEW_REMINDER_FALLBACK_DAYS.
+ * Prefer publish_deadline (end of that calendar day UTC) + REVIEW_REMINDER_FALLBACK_DAYS;
+ * otherwise agreement_accepted_at + REVIEW_REMINDER_FALLBACK_DAYS.
  */
 
-export const REVIEW_REMINDER_FALLBACK_DAYS = 14;
+export const REVIEW_REMINDER_FALLBACK_DAYS = 3;
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})/;
 
@@ -31,13 +31,15 @@ export function reviewReminderDueMs(opts: {
   agreementAcceptedAt?: string | null;
   fallbackDays?: number;
 }): number | null {
+  const days = opts.fallbackDays ?? REVIEW_REMINDER_FALLBACK_DAYS;
+  const dayMs = days * 24 * 60 * 60 * 1000;
+
   const fromDeadline = publishDeadlineDueMs(opts.publishDeadline);
-  if (fromDeadline != null) return fromDeadline;
+  if (fromDeadline != null) return fromDeadline + dayMs;
 
   const accepted = opts.agreementAcceptedAt ? new Date(opts.agreementAcceptedAt).getTime() : NaN;
   if (!Number.isFinite(accepted)) return null;
-  const days = opts.fallbackDays ?? REVIEW_REMINDER_FALLBACK_DAYS;
-  return accepted + days * 24 * 60 * 60 * 1000;
+  return accepted + dayMs;
 }
 
 /** True when a completed deal is due for a one-shot review reminder. */

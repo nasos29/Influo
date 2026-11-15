@@ -731,7 +731,7 @@ export async function mailBrandReviewReminder(input: {
   );
 }
 
-/** Delayed wrap-up for the creator: thank-you + optional Influo mention (no fake brand-review CTA). */
+/** Delayed wrap-up for the creator: thank-you + CTA to rate the brand (deep-links the review modal). */
 export async function mailCreatorReviewReminder(input: {
   to: string | null;
   creatorName: string;
@@ -751,10 +751,10 @@ export async function mailCreatorReviewReminder(input: {
     input.to,
     `Πώς πήγε η συνεργασία με ${input.brandName};`,
     shell(
-      "Η περίοδος της συνεργασίας ολοκληρώθηκε",
+      "Ώρα για μια σύντομη αξιολόγηση",
       projectWrapUpBody({
         greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
-        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Ελπίζουμε όλα να πήγαν καλά.</p>`,
+        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν όλα πήγαν καλά, μια σύντομη αξιολόγηση βοηθά άλλους creators.</p>`,
         deal: {
           proposalId: input.proposalId,
           service: input.service,
@@ -763,7 +763,7 @@ export async function mailCreatorReviewReminder(input: {
           publishDeadline: input.publishDeadline,
         },
         ctaUrl: input.dashboardUrl,
-        ctaLabel: "Άνοιξε το dashboard",
+        ctaLabel: `Αξιολόγησε την ${input.brandName}`,
         nextStepsKey: "review_reminder_creator",
         mention: { forCreator: true, profileUrl: input.profileUrl },
         closing: "Καλή συνέχεια,",

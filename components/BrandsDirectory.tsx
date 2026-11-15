@@ -17,6 +17,8 @@ interface Brand {
   bio?: string | null;
   city?: string | null;
   instagram?: string | null;
+  avg_rating?: number | null;
+  total_reviews?: number | null;
 }
 
 const t = {
@@ -68,21 +70,33 @@ export default function BrandsDirectory({ lang = "el" }: { lang?: "el" | "en" })
       let rows: Brand[] | null = null;
       const full = await supabase
         .from("brands")
-        .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram")
+        .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram, avg_rating, total_reviews")
         .eq("verified", true)
         .order("created_at", { ascending: false });
 
       if (full.error && /column|schema cache/i.test(full.error.message || "")) {
-        const fallback = await supabase
+        const mid = await supabase
           .from("brands")
-          .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
+          .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at, bio, city, instagram")
           .eq("verified", true)
           .order("created_at", { ascending: false });
-        if (fallback.error) {
-          console.error("[BrandsDirectory] Error fetching brands:", fallback.error);
-          throw fallback.error;
+        if (mid.error && /column|schema cache/i.test(mid.error.message || "")) {
+          const fallback = await supabase
+            .from("brands")
+            .select("id, brand_name, contact_person, website, industry, logo_url, verified, created_at")
+            .eq("verified", true)
+            .order("created_at", { ascending: false });
+          if (fallback.error) {
+            console.error("[BrandsDirectory] Error fetching brands:", fallback.error);
+            throw fallback.error;
+          }
+          rows = (fallback.data || []) as Brand[];
+        } else if (mid.error) {
+          console.error("[BrandsDirectory] Error fetching brands:", mid.error);
+          throw mid.error;
+        } else {
+          rows = (mid.data || []) as Brand[];
         }
-        rows = (fallback.data || []) as Brand[];
       } else if (full.error) {
         console.error("[BrandsDirectory] Error fetching brands:", full.error);
         throw full.error;

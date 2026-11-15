@@ -100,8 +100,8 @@ export const faqs: FAQItem[] = [
       en: "How do I leave a review for an influencer?"
     },
     answer: {
-      el: "Αξιολογεί μόνο brand που συνεργάστηκε μέσα από το Influo: είτε με αποδεκτή συμφωνία συνεργασίας σε προσφορά, είτε με εγκεκριμένη παράδοση σε καμπάνια. Συνδεθείτε ως brand, ανοίξτε το προφίλ του influencer → tab Αξιολογήσεις και υποβάλετε βαθμολογία (1-5) και κείμενο.",
-      en: "Only a brand that collaborated through Influo can review: either via an accepted collaboration agreement on a proposal, or an approved campaign deliverable. Sign in as a brand, open the influencer’s profile → Reviews tab, and submit a rating (1–5) and text."
+      el: "Αξιολογεί μόνο brand που συνεργάστηκε μέσα από το Influo: είτε με αποδεκτή συμφωνία συνεργασίας σε προσφορά, είτε με εγκεκριμένη παράδοση σε καμπάνια. Συνδεθείτε ως brand, ανοίξτε το προφίλ του influencer → tab Αξιολογήσεις (ή τον σύνδεσμο από το reminder email) και υποβάλετε βαθμολογία (1-5) και υποχρεωτικό κείμενο. Οι creators αξιολογούν επιχειρήσεις από το dashboard → Προσφορές.",
+      en: "Only a brand that collaborated through Influo can review: either via an accepted collaboration agreement on a proposal, or an approved campaign deliverable. Sign in as a brand, open the influencer’s profile → Reviews tab (or the reminder email link) and submit a rating (1–5) and required text. Creators rate brands from dashboard → Proposals."
     }
   },
   {

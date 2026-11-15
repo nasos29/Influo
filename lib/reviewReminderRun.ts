@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditGenderBucket } from "@/lib/auditGemini";
-import { CREATOR_TARGET_REVIEW_FILTER } from "@/lib/brandReview";
+import { BRAND_REVIEW_MARKER, CREATOR_TARGET_REVIEW_FILTER } from "@/lib/brandReview";
 import { influencerContact } from "@/lib/proposalAccess";
 import { mailBrandReviewReminder, mailCreatorReviewReminder, siteUrl } from "@/lib/proposalMail";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -84,6 +84,28 @@ async function brandAlreadyReviewed(
   return !!data?.id;
 }
 
+async function creatorAlreadyReviewedBrand(
+  admin: SupabaseClient,
+  influencerId: string,
+  brandEmail: string
+): Promise<boolean> {
+  const email = brandEmail.trim();
+  if (!email) return false;
+  const { data, error } = await admin
+    .from("influencer_reviews")
+    .select("id")
+    .eq("influencer_id", influencerId)
+    .ilike("brand_email", email)
+    .eq("project_type", BRAND_REVIEW_MARKER)
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    console.error("[review-reminder] brand-review lookup", error.message);
+    return false;
+  }
+  return !!data?.id;
+}
+
 async function creatorProfileBits(
   admin: SupabaseClient,
   influencerId: string
@@ -99,8 +121,9 @@ async function creatorProfileBits(
 }
 
 /**
- * Find due completed proposals and send one brand review reminder each.
- * Skips when the brand already left a review; still stamps so we don't retry forever.
+ * Find due completed proposals and send one review reminder per side (brand→creator,
+ * creator→brand). Skips a side when that party already left a review; still stamps
+ * so we don't retry forever.
  */
 export async function runReviewReminders(
   admin: SupabaseClient,
@@ -160,17 +183,30 @@ export async function runReviewReminders(
         extras: row.selected_extras,
         publishDeadline: row.publish_deadline,
       };
-      const jobs: Promise<void>[] = [
-        mailCreatorReviewReminder({
-          ...common,
-          to: influencer.email,
-          creatorName: influencer.name,
-          brandName: row.brand_name || "Επιχείρηση",
-          profileUrl: bits.profileUrl,
-          dashboardUrl: `${siteUrl()}/dashboard?tab=proposals`,
-        }),
-      ];
-      if (brandEmail && !(await brandAlreadyReviewed(admin, row.influencer_id, brandEmail))) {
+      const jobs: Promise<void>[] = [];
+      const creatorDone = brandEmail
+        ? await creatorAlreadyReviewedBrand(admin, row.influencer_id, brandEmail)
+        : false;
+      const brandDone = brandEmail
+        ? await brandAlreadyReviewed(admin, row.influencer_id, brandEmail)
+        : true;
+
+      if (!creatorDone) {
+        jobs.push(
+          mailCreatorReviewReminder({
+            ...common,
+            to: influencer.email,
+            creatorName: influencer.name,
+            brandName: row.brand_name || "Επιχείρηση",
+            profileUrl: bits.profileUrl,
+            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&reviewBrand=1&proposalId=${encodeURIComponent(String(row.id))}`,
+          })
+        );
+      } else {
+        skipped += 1;
+      }
+
+      if (brandEmail && !brandDone) {
         jobs.push(
           mailBrandReviewReminder({
             ...common,
@@ -178,11 +214,16 @@ export async function runReviewReminders(
             brandName: row.brand_name || "Επιχείρηση",
             creatorName: influencer.name,
             creatorFemale: bits.creatorFemale,
-            reviewUrl: `${bits.profileUrl}?tab=reviews`,
+            reviewUrl: `${bits.profileUrl}?tab=reviews&review=1&proposalId=${encodeURIComponent(String(row.id))}`,
           })
         );
       } else {
         skipped += 1;
+      }
+
+      if (jobs.length === 0) {
+        sent += 1;
+        continue;
       }
       await Promise.all(jobs);
       sent += 1;

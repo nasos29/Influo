@@ -14,18 +14,70 @@ function normEmail(value: unknown): string {
   return asString(value).trim().toLowerCase();
 }
 
-/** GET ?brandEmail=… — public verified reviews of a brand (from creators). */
+async function resolveBrandEmail(
+  admin: ReturnType<typeof supabaseService>,
+  opts: { brandEmail?: string; brandId?: string }
+): Promise<{ email: string; brandName: string | null; brandId: string | null } | null> {
+  if (opts.brandId) {
+    const { data } = await admin
+      .from("brands")
+      .select("id, brand_name, contact_email")
+      .eq("id", opts.brandId)
+      .maybeSingle();
+    const email = normEmail(data?.contact_email);
+    if (!email) return null;
+    return { email, brandName: data?.brand_name || null, brandId: data?.id ? String(data.id) : null };
+  }
+  const email = normEmail(opts.brandEmail);
+  if (!email || !email.includes("@")) return null;
+  const { data } = await admin
+    .from("brands")
+    .select("id, brand_name, contact_email")
+    .ilike("contact_email", email)
+    .maybeSingle();
+  return {
+    email,
+    brandName: data?.brand_name || null,
+    brandId: data?.id ? String(data.id) : null,
+  };
+}
+
+async function refreshBrandReviewStats(
+  admin: ReturnType<typeof supabaseService>,
+  brandEmail: string
+): Promise<void> {
+  const email = normEmail(brandEmail);
+  if (!email) return;
+  const { data: rows } = await admin
+    .from("influencer_reviews")
+    .select("rating")
+    .ilike("brand_email", email)
+    .eq("project_type", BRAND_REVIEW_MARKER)
+    .eq("verified", true);
+  const list = rows || [];
+  const total = list.length;
+  const avg =
+    total > 0 ? Math.round((list.reduce((sum, r) => sum + Number(r.rating || 0), 0) / total) * 100) / 100 : 0;
+  await admin.from("brands").update({ avg_rating: avg, total_reviews: total }).ilike("contact_email", email);
+}
+
+/** GET ?brandEmail=… or ?brandId=… — public verified reviews of a brand (from creators). */
 export async function GET(req: Request) {
   try {
-    const brandEmail = normEmail(new URL(req.url).searchParams.get("brandEmail"));
-    if (!brandEmail || !brandEmail.includes("@")) {
-      return NextResponse.json({ error: "brandEmail required" }, { status: 400 });
-    }
+    const params = new URL(req.url).searchParams;
     const admin = supabaseService();
+    const resolved = await resolveBrandEmail(admin, {
+      brandEmail: params.get("brandEmail") || undefined,
+      brandId: params.get("brandId") || undefined,
+    });
+    if (!resolved) {
+      return NextResponse.json({ error: "brandEmail or brandId required" }, { status: 400 });
+    }
+
     const { data, error } = await admin
       .from("influencer_reviews")
       .select("id, influencer_id, brand_name, brand_email, rating, review_text, created_at, verified, project_type")
-      .ilike("brand_email", brandEmail)
+      .ilike("brand_email", resolved.email)
       .eq("project_type", BRAND_REVIEW_MARKER)
       .eq("verified", true)
       .order("created_at", { ascending: false });
@@ -48,7 +100,18 @@ export async function GET(req: Request) {
       influencer_id: r.influencer_id,
       influencer_name: names.get(String(r.influencer_id)) || "Creator",
     }));
-    return NextResponse.json({ reviews });
+    const total = reviews.length;
+    const avg_rating =
+      total > 0
+        ? Math.round((reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / total) * 100) / 100
+        : 0;
+    return NextResponse.json({
+      reviews,
+      avg_rating,
+      total_reviews: total,
+      brand_id: resolved.brandId,
+      brand_name: resolved.brandName,
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -89,6 +152,17 @@ export async function POST(req: Request) {
             lang === "el"
               ? "Η βαθμολογία πρέπει να είναι ακέραιος από 1 έως 5."
               : "Rating must be an integer from 1 to 5.",
+        },
+        { status: 400 }
+      );
+    }
+    if (!reviewTextRaw) {
+      return NextResponse.json(
+        {
+          error:
+            lang === "el"
+              ? "Το κείμενο αξιολόγησης είναι υποχρεωτικό."
+              : "Review text is required.",
         },
         { status: 400 }
       );
@@ -156,7 +230,7 @@ export async function POST(req: Request) {
           brand_email: brandEmail,
           brand_name: brandName || brandEmail,
           rating: ratingNum,
-          review_text: reviewTextRaw || null,
+          review_text: reviewTextRaw,
           project_type: BRAND_REVIEW_MARKER,
           verified: true,
         },
@@ -167,6 +241,8 @@ export async function POST(req: Request) {
     if (insertError) {
       return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
+
+    await refreshBrandReviewStats(admin, brandEmail);
 
     deferAfterResponse(async () => {
       try {
