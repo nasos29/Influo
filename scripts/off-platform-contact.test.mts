@@ -12,7 +12,10 @@ test("flags Instagram contact prompts", () => {
   assert.equal(looksLikeOffPlatformContact("dm me on ig"), true);
   assert.equal(looksLikeOffPlatformContact("https://instagram.com/somebrand"), true);
   assert.equal(looksLikeOffPlatformContact("μιλαμε στο instagram"), true);
+  assert.equal(looksLikeOffPlatformContact("μιλάμε στο ινσταγκραμ"), true);
+  assert.equal(looksLikeOffPlatformContact("ΜΙΛΑΜΕ ΣΤΟ ΙΝΣΤΑ"), true);
   assert.equal(looksLikeOffPlatformContact("ta leme sto insta"), true);
+  assert.equal(looksLikeOffPlatformContact("mila mou sto insta"), true);
   assert.equal(looksLikeOffPlatformContact("θα τα πούμε στο ινστα"), true);
   assert.equal(looksLikeOffPlatformContact("γραψε μου στο instagrm"), true);
 });
@@ -25,11 +28,18 @@ test("flags TikTok contact prompts", () => {
   assert.equal(looksLikeOffPlatformContact("https://www.tiktok.com/@someuser"), true);
 });
 
+test("flags phone numbers and emails", () => {
+  assert.equal(looksLikeOffPlatformContact("κάλεσε με στο 6912345678"), true);
+  assert.equal(looksLikeOffPlatformContact("το email μου είναι brand@example.com"), true);
+  assert.equal(looksLikeOffPlatformContact("+30 691 234 5678"), true);
+});
+
 test("allows deliverable talk about Instagram / TikTok", () => {
   assert.equal(looksLikeOffPlatformContact("θα ανεβάσω story στο Instagram αύριο"), false);
   assert.equal(looksLikeOffPlatformContact("το reel θα δημοσιευτεί στο Instagram"), false);
   assert.equal(looksLikeOffPlatformContact("θα ανεβάσω το video στο TikTok"), false);
   assert.equal(looksLikeOffPlatformContact("καλημέρα, τι ώρα σας βολεύει;"), false);
+  assert.equal(looksLikeOffPlatformContact("ο προϋπολογισμός είναι 1500 ευρώ"), false);
 });
 
 test("tip message is recognized and not re-flagged", () => {

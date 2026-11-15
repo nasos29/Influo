@@ -1,7 +1,9 @@
 /**
  * Detects messages that push the other party off Influo chat
- * (Instagram / TikTok DM / WhatsApp / etc.) rather than discussing deliverables.
+ * (Instagram / TikTok DM / WhatsApp / phone / email / etc.) rather than discussing deliverables.
  */
+
+import { findContactInfo } from "@/lib/contactFilter";
 
 /** Stored message prefix; rendered as an in-flow safety notice in chat. */
 export const OFF_PLATFORM_TIP_MARKER = "⟦influo:keep-in-app⟧";
@@ -12,9 +14,9 @@ export const OFF_PLATFORM_TIP_EL =
 export const OFF_PLATFORM_TIP_EN =
   "For your safety, please keep this conversation inside Influo rather than off-platform. That preserves the agreement history.";
 
-/** Instagram + common typos (instagrm, instgram, …). */
+/** Instagram + common typos (instagrm, instgram, …) + Greeklish. */
 const IG =
-  "(?:instagram|instagrm|instgram|instgaram|insta\\s*gram|\\binsta\\b|\\big\\b|ινστα(?:γκραμ)?|ινσταγραμ)";
+  "(?:instagram|instagrm|instgram|instgaram|insta\\s*gram|\\binsta\\b|\\big\\b|ινστα(?:γκραμ)?|ινσταγραμ|instagr?am)";
 
 /** TikTok + short forms / Greek spellings. */
 const TT = "(?:tik\\s*tok|tiktok|\\btt\\b|τικ\\s*τοκ|τικτοκ|τιικτοκ)";
@@ -43,6 +45,10 @@ export function looksLikeOffPlatformContact(text: string): boolean {
     .normalize("NFD")
     .replace(/\p{M}/gu, "");
 
+  // Direct contact details (phone / email) — same soft tip, never blocks send.
+  const contactKind = findContactInfo(raw);
+  if (contactKind === "email" || contactKind === "phone") return true;
+
   // Profile / chat deep links (not post / reel / TV / video URLs)
   if (/instagram\.com\/(?!(?:p|reel|tv|stories)\/)[a-z0-9._]+/i.test(raw)) return true;
   if (/tiktok\.com\/@[\w.-]+/i.test(raw)) return true;
@@ -52,7 +58,7 @@ export function looksLikeOffPlatformContact(text: string): boolean {
     /(αναρτησ|δημοσιευ|παραδοτ|content|story|stories|reel|reels|\bpost\b|\bposts\b|video|βιντεο)/i.test(t);
 
   const contactVerb =
-    /(γραψ(?:ε|τε|ω)|στειλ(?:ε|τε|ω)|μιλ(?:α|αμε|ηστε|ατε)|λεμε|πουμε|leme|poyme|talk(?:\s+on|\s+in)?|chat(?:\s+on|\s+in)?|επικοινων|συνομιλ|inbox|\bdm\b|message me|text me|hit me up)/i.test(
+    /(γραψ(?:ε|τε|ω)|στειλ(?:ε|τε|ω)|μιλ(?:α|αμε|ηστε|ατε)|λεμε|πουμε|leme|poyme|mila(?:me)?|grapse|steile|talk(?:\s+on|\s+in)?|chat(?:\s+on|\s+in)?|επικοινων|συνομιλ|inbox|\bdm\b|message me|text me|hit me up)/i.test(
       t
     );
   const channel = new RegExp(CHANNEL, "i").test(t);
@@ -62,7 +68,7 @@ export function looksLikeOffPlatformContact(text: string): boolean {
   if (
     new RegExp(`\\bστο\\s+(?:${CHANNEL})\\b`, "i").test(t) &&
     !aboutDeliverable &&
-    /(γραψ|στειλ|μιλ|λεμ|πουμ|leme|poyme|talk|chat|επικοινων|dm|inbox|μηνυμ)/i.test(t)
+    /(γραψ|στειλ|μιλ|λεμ|πουμ|leme|poyme|mila|grapse|steile|talk|chat|επικοινων|dm|inbox|μηνυμ)/i.test(t)
   ) {
     return true;
   }
