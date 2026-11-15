@@ -604,6 +604,8 @@ export default function BrandCampaignsSection({
   const [invitingId, setInvitingId] = useState<string | null>(null);
   /** Application id while accept/reject/shortlist is in flight (blocks double submit). */
   const [decidingAppId, setDecidingAppId] = useState<string | null>(null);
+  /** Brand showcase consent at deliverable approval (UI default on). */
+  const [approveShowcaseByApp, setApproveShowcaseByApp] = useState<Record<string, boolean>>({});
   const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -1423,23 +1425,59 @@ export default function BrandCampaignsSection({
                                 <>
                                   {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
                                   {app.deliverable_status === "submitted" && (
-                                    <>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const publicOk = window.confirm(
-                                            lang === "el"
-                                              ? "Έγκριση παράδοσης. Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες» αν συναινεί και ο creator; (OK = ναι, Cancel = όχι)"
-                                              : "Approve deliverable. Show publicly in “Recent collaborations” if the creator also consents? (OK = yes, Cancel = no)"
-                                          );
-                                          void reviewDeliverable(app.id, "approved", undefined, publicOk);
-                                        }}
-                                        className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"
-                                      >
-                                        {t.approve_deliverable}
-                                      </button>
-                                      <button type="button" onClick={() => { const note = window.prompt(t.review_note_ph) || ""; void reviewDeliverable(app.id, "changes_requested", note); }} className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50">{t.request_changes}</button>
-                                    </>
+                                    <div className="flex w-full flex-col gap-2">
+                                      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700">
+                                        <input
+                                          type="checkbox"
+                                          checked={approveShowcaseByApp[app.id] !== false}
+                                          onChange={(e) =>
+                                            setApproveShowcaseByApp((prev) => ({
+                                              ...prev,
+                                              [app.id]: e.target.checked,
+                                            }))
+                                          }
+                                          className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                                        />
+                                        <span className="min-w-0">
+                                          <span className="block font-medium text-slate-800">
+                                            {lang === "el"
+                                              ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
+                                              : "Show publicly in “Recent collaborations”"}
+                                          </span>
+                                          <span className="mt-0.5 block text-slate-500">
+                                            {lang === "el"
+                                              ? "✨ Οι δημόσιες συνεργασίες δείχνουν ότι η επιχείρησή σας ολοκληρώνει τις συμφωνίες της, και έτσι οι καλοί creators δέχονται πιο εύκολα τις προτάσεις σας. Φαίνεται μόνο αν συμφωνήσει και ο influencer."
+                                              : "✨ Public collaborations show that your business completes its deals, so good creators accept your proposals more readily. Shown only if the influencer also agrees."}
+                                          </span>
+                                        </span>
+                                      </label>
+                                      <div className="flex flex-wrap gap-2">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            void reviewDeliverable(
+                                              app.id,
+                                              "approved",
+                                              undefined,
+                                              approveShowcaseByApp[app.id] !== false
+                                            );
+                                          }}
+                                          className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"
+                                        >
+                                          {t.approve_deliverable}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const note = window.prompt(t.review_note_ph) || "";
+                                            void reviewDeliverable(app.id, "changes_requested", note);
+                                          }}
+                                          className="text-[11px] px-2 py-1 rounded border border-amber-300 text-amber-800 bg-amber-50"
+                                        >
+                                          {t.request_changes}
+                                        </button>
+                                      </div>
+                                    </div>
                                   )}
                                 </>
                               }

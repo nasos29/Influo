@@ -42,7 +42,10 @@ const COPY = {
     statusWaiting: "Αναμονή του δημιουργού",
     statusCompleted: "Ολοκληρώθηκε",
     showcase: "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»",
-    showcaseHint: "Εμφανίζεται μόνο αν συναινέσουν και οι δύο. Προεπιλογή: απενεργοποιημένο.",
+    showcaseHintInfluencer:
+      "✨ Οι συνεργασίες που φαίνονται στο προφίλ σου σε βοηθούν να κερδίσεις περισσότερες προτάσεις από brands. Φαίνεται μόνο αν συμφωνήσει και το brand.",
+    showcaseHintBrand:
+      "✨ Οι δημόσιες συνεργασίες δείχνουν ότι η επιχείρησή σας ολοκληρώνει τις συμφωνίες της, και έτσι οι καλοί creators δέχονται πιο εύκολα τις προτάσεις σας. Φαίνεται μόνο αν συμφωνήσει και ο influencer.",
   },
   en: {
     title: (id: string) => `Collaboration Agreement #${id}`,
@@ -63,7 +66,10 @@ const COPY = {
     statusWaiting: "Waiting for the creator",
     statusCompleted: "Completed",
     showcase: "Show publicly in “Recent collaborations”",
-    showcaseHint: "Shown only when both parties consent. Default: off.",
+    showcaseHintInfluencer:
+      "✨ Collaborations shown on your profile help you get more proposals from brands. Shown only if the brand also agrees.",
+    showcaseHintBrand:
+      "✨ Public collaborations show that your business completes its deals, so good creators accept your proposals more readily. Shown only if the influencer also agrees.",
   },
 } as const;
 
@@ -92,9 +98,11 @@ type AgreementTermsProps = {
   readOnly?: boolean;
   /** Shown only in read-only mode. */
   status?: "waiting" | "completed";
-  /** Opt-in to public recent-collaborations (default off). */
+  /** Opt-in to public recent-collaborations (UI default on; public only if both consent). */
   showcaseConsent?: boolean;
   onShowcaseConsentChange?: (consent: boolean) => void;
+  /** Which party is accepting — drives helper copy. */
+  showcaseParty?: "brand" | "influencer";
 };
 
 export default function AgreementTerms({
@@ -115,10 +123,13 @@ export default function AgreementTerms({
   saving = false,
   readOnly = false,
   status,
-  showcaseConsent = false,
+  showcaseConsent = true,
   onShowcaseConsentChange,
+  showcaseParty = "influencer",
 }: AgreementTermsProps) {
   const copy = COPY[lang];
+  const showcaseHint =
+    showcaseParty === "brand" ? copy.showcaseHintBrand : copy.showcaseHintInfluencer;
   const id = String(proposalId);
   const extrasLine = formatProposalExtrasLine(selectedExtras, lang);
   const extras = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
@@ -224,7 +235,7 @@ export default function AgreementTerms({
               />
               <span className="min-w-0">
                 <span className="block text-sm font-medium text-slate-800">{copy.showcase}</span>
-                <span className="mt-0.5 block text-xs text-slate-500">{copy.showcaseHint}</span>
+                <span className="mt-0.5 block text-xs text-slate-500">{showcaseHint}</span>
               </span>
             </label>
           ) : null}
