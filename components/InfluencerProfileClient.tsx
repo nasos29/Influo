@@ -663,14 +663,18 @@ export default function InfluencerProfile(props: {
     setLang(getStoredLanguage());
   }, []);
 
-  // Mobile tabs: keep the active tab visible in the horizontal scroller.
+  // Mobile tabs: keep the active tab visible in the horizontal scroller only.
+  // Scrolling the tab button into view also moves the page (tabs sit below the
+  // fold on mobile) and lands on «Σχετικά» / About — use nav.scrollTo instead.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(min-width: 640px)").matches) return;
     const nav = profileTabsNavRef.current;
-    if (!nav) return;
+    if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
     const btn = nav.querySelector<HTMLElement>(`[data-profile-tab="${activeTab}"]`);
-    btn?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+    if (!btn) return;
+    const target = btn.offsetLeft - Math.max(0, (nav.clientWidth - btn.offsetWidth) / 2);
+    nav.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
   }, [activeTab]);
   
   // Counter proposal state
