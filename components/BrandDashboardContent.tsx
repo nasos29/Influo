@@ -31,6 +31,7 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
+import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -104,6 +105,7 @@ interface Proposal {
   counter_proposal_status?: string;
   selected_extras?: unknown;
   publish_deadline?: string | null;
+  brand_showcase_consent?: boolean | null;
 }
 
 interface Influencer {
@@ -810,6 +812,7 @@ export default function BrandDashboardContent() {
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [showcaseConsent, setShowcaseConsent] = useState(false);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [recommendationSource, setRecommendationSource] = useState<{
@@ -1525,7 +1528,8 @@ export default function BrandDashboardContent() {
         body: JSON.stringify({
           proposalId: selectedProposal.id,
           userType: 'brand',
-          accepted: true
+          accepted: true,
+          showcaseConsent,
         })
       });
 
@@ -1547,6 +1551,7 @@ export default function BrandDashboardContent() {
         setShowAgreementModal(false);
         setSelectedProposal(null);
         setAgreementAccepted(false);
+        setShowcaseConsent(false);
         notify(lang === 'el'
           ? 'Η συμφωνία έγινε αποδεκτή.'
           : 'Agreement accepted.', 'success');
@@ -3153,6 +3158,16 @@ export default function BrandDashboardContent() {
                                 ? "Αναμονή του δημιουργού"
                                 : "Waiting for the creator"}
                           </p>
+                          {proposal.status === "completed" ? (
+                            <div className="mt-3 max-w-md">
+                              <ShowcaseConsentToggle
+                                source="proposal"
+                                id={String(proposal.id)}
+                                initialConsent={!!proposal.brand_showcase_consent}
+                                lang={lang}
+                              />
+                            </div>
+                          ) : null}
                         </div>
                         <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
                       </div>
@@ -3209,6 +3224,10 @@ export default function BrandDashboardContent() {
           publishDeadline={selectedProposal.publish_deadline}
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
+          showcaseConsent={showcaseConsent}
+          onShowcaseConsentChange={
+            selectedProposal.brand_agreement_accepted ? undefined : setShowcaseConsent
+          }
           saving={savingAgreement}
           readOnly={!!selectedProposal.brand_agreement_accepted}
           status={
@@ -3220,6 +3239,7 @@ export default function BrandDashboardContent() {
             setShowAgreementModal(false);
             setSelectedProposal(null);
             setAgreementAccepted(false);
+            setShowcaseConsent(false);
           }}
           onAccept={handleAcceptAgreement}
         />

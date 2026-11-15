@@ -70,11 +70,17 @@ export async function POST(request: Request) {
       if (!proposal.influencer_agreement_accepted_at) {
         updateData.influencer_agreement_accepted_at = acceptedAt;
       }
+      if (typeof body.showcaseConsent === "boolean") {
+        updateData.influencer_showcase_consent = body.showcaseConsent;
+      }
     }
     if (party === "brand") {
       updateData.brand_agreement_accepted = true;
       if (!proposal.brand_agreement_accepted_at) {
         updateData.brand_agreement_accepted_at = acceptedAt;
+      }
+      if (typeof body.showcaseConsent === "boolean") {
+        updateData.brand_showcase_consent = body.showcaseConsent;
       }
     }
 

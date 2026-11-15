@@ -37,17 +37,33 @@ export type ProposalRow = {
 };
 
 const LIST_COLUMNS =
-  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline";
+  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline, brand_showcase_consent, influencer_showcase_consent, published_post_url, self_reported_views, self_reported_reach";
+
+const SHOWCASE_COLUMNS =
+  ", brand_showcase_consent, influencer_showcase_consent, published_post_url, self_reported_views, self_reported_reach";
 
 async function selectProposals(
   build: (columns: string) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>
 ): Promise<Record<string, unknown>[]> {
-  const first = await build(LIST_COLUMNS);
-  if (!first.error) return (first.data || []) as Record<string, unknown>[];
-  if (!/brand_id/i.test(first.error.message)) throw new Error(first.error.message);
-  const second = await build(LIST_COLUMNS.replace(", brand_id", ""));
-  if (second.error) throw new Error(second.error.message);
-  return (second.data || []) as Record<string, unknown>[];
+  let columns = LIST_COLUMNS;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const result = await build(columns);
+    if (!result.error) return (result.data || []) as Record<string, unknown>[];
+    const msg = result.error.message || "";
+    if (/brand_id/i.test(msg) && columns.includes("brand_id")) {
+      columns = columns.replace(", brand_id", "");
+      continue;
+    }
+    if (
+      /showcase_consent|published_post_url|self_reported_/i.test(msg) &&
+      columns.includes("brand_showcase_consent")
+    ) {
+      columns = columns.replace(SHOWCASE_COLUMNS, "");
+      continue;
+    }
+    throw new Error(msg);
+  }
+  throw new Error("Could not load proposals");
 }
 
 export async function requireActor(request: Request): Promise<{ user: User; actor: ChatActor } | null> {

@@ -2,6 +2,8 @@ import HomePage from "@/components/HomePage";
 import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
+import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
+import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
 import { getHomepageSectionOrderSetting, getSiteSettings } from "@/lib/siteSettingsServer";
 import { unstable_cache } from "next/cache";
 
@@ -13,6 +15,19 @@ const cachedHomeTrust = unstable_cache(
   { revalidate: 3600, tags: ["home-trust"] }
 );
 
+const cachedRecentCollaborations = unstable_cache(
+  () => loadRecentCollaborations(12),
+  ["home-recent-collaborations"],
+  { revalidate: 3600, tags: ["recent-collaborations"] }
+);
+
+/** Daily social-proof numbers (DB cache inside loader + ISR). */
+const cachedSocialProofStats = unstable_cache(
+  () => loadSocialProofStats(),
+  ["home-social-proof-stats"],
+  { revalidate: 86400, tags: ["social-proof-stats"] }
+);
+
 export default async function Page() {
   const [settings, sectionOrderSetting] = await Promise.all([
     getSiteSettings(),
@@ -21,25 +36,30 @@ export default async function Page() {
   const creatorsLimit = settings.homepage_creators_count;
   const campaignsLimit = settings.homepage_campaigns_count;
 
-  const [directoryPage, openCampaigns, trustStats] = await Promise.all([
-    unstable_cache(
-      () => loadPublicDirectoryCards(creatorsLimit),
-      ["home-directory-cards-page", String(creatorsLimit)],
-      { revalidate: 3600, tags: ["home-directory"] }
-    )(),
-    unstable_cache(
-      () => loadHomeOpenCampaigns(campaignsLimit),
-      ["home-open-campaigns", String(campaignsLimit)],
-      { revalidate: 3600, tags: ["home-campaigns"] }
-    )(),
-    cachedHomeTrust(),
-  ]);
+  const [directoryPage, openCampaigns, trustStats, recentCollaborations, socialProofStats] =
+    await Promise.all([
+      unstable_cache(
+        () => loadPublicDirectoryCards(creatorsLimit),
+        ["home-directory-cards-page", String(creatorsLimit)],
+        { revalidate: 3600, tags: ["home-directory"] }
+      )(),
+      unstable_cache(
+        () => loadHomeOpenCampaigns(campaignsLimit),
+        ["home-open-campaigns", String(campaignsLimit)],
+        { revalidate: 3600, tags: ["home-campaigns"] }
+      )(),
+      cachedHomeTrust(),
+      cachedRecentCollaborations(),
+      cachedSocialProofStats(),
+    ]);
   return (
     <HomePage
       initialInfluencers={directoryPage.influencers}
       initialDirectoryTotal={directoryPage.total}
       openCampaigns={openCampaigns}
       trustStats={trustStats}
+      recentCollaborations={recentCollaborations}
+      socialProofStats={socialProofStats}
       homeCreatorsLimit={creatorsLimit}
       homeNewlyApprovedLimit={settings.homepage_newly_approved_count}
       homeTopInfluencersLimit={settings.homepage_top_influencers_count}

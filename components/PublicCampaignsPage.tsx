@@ -6,11 +6,15 @@ import { usePathname } from "next/navigation";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
 import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
+import RecentCollaborationsSection from "@/components/RecentCollaborationsSection";
+import SocialProofStatsRow from "@/components/SocialProofStatsRow";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
 import { lookupAuthUser } from "@/lib/authSession";
 import { getStoredLanguage } from "@/lib/language";
 import { usePublicAccountNav, type PublicUserKind } from "@/lib/publicAccountNav";
+import type { RecentCollaborationCard } from "@/lib/loadRecentCollaborations";
+import type { SocialProofStats } from "@/lib/loadSocialProofStats";
 
 const ADMIN_EMAIL_FALLBACK = "nd.6@hotmail.com";
 
@@ -20,8 +24,19 @@ type Row = CampaignCardData & {
 
 export default function PublicCampaignsPage({
   initialCampaigns = [],
+  recentCollaborations = [],
+  socialProofStats = {
+    completedCollaborations: null,
+    activeCreators: null,
+    brandsCount: null,
+    averageRating: null,
+    computedAt: null,
+    fromCache: false,
+  },
 }: {
   initialCampaigns?: CampaignCardData[];
+  recentCollaborations?: RecentCollaborationCard[];
+  socialProofStats?: SocialProofStats;
 }) {
   const pathname = usePathname();
   const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : "el");
@@ -178,6 +193,11 @@ export default function PublicCampaignsPage({
             ))}
           </ul>
         )}
+
+        <div className="mt-16 border-t border-slate-200 pt-4">
+          <SocialProofStatsRow stats={socialProofStats} lang={lang} />
+          <RecentCollaborationsSection items={recentCollaborations} lang={lang} className="!px-0" />
+        </div>
       </main>
       <Footer lang={lang} showAppPromo={false} />
     </div>

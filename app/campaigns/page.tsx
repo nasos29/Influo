@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import PublicCampaignsPage from "@/components/PublicCampaignsPage";
 import { loadOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
+import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
+import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
 import { absoluteUrl, languageAlternates } from "@/lib/site";
 import { unstable_cache } from "next/cache";
 
@@ -10,6 +12,18 @@ const cachedOpenCampaigns = unstable_cache(
   () => loadOpenCampaigns(),
   ["public-open-campaigns"],
   { revalidate: 3600, tags: ["public-campaigns"] }
+);
+
+const cachedRecentCollaborations = unstable_cache(
+  () => loadRecentCollaborations(12),
+  ["campaigns-recent-collaborations"],
+  { revalidate: 3600, tags: ["recent-collaborations"] }
+);
+
+const cachedSocialProofStats = unstable_cache(
+  () => loadSocialProofStats(),
+  ["campaigns-social-proof-stats"],
+  { revalidate: 86400, tags: ["social-proof-stats"] }
 );
 
 const copy = {
@@ -40,6 +54,16 @@ export const metadata: Metadata = {
 };
 
 export default async function PublicCampaignsRoute() {
-  const initialCampaigns = await cachedOpenCampaigns();
-  return <PublicCampaignsPage initialCampaigns={initialCampaigns} />;
+  const [initialCampaigns, recentCollaborations, socialProofStats] = await Promise.all([
+    cachedOpenCampaigns(),
+    cachedRecentCollaborations(),
+    cachedSocialProofStats(),
+  ]);
+  return (
+    <PublicCampaignsPage
+      initialCampaigns={initialCampaigns}
+      recentCollaborations={recentCollaborations}
+      socialProofStats={socialProofStats}
+    />
+  );
 }

@@ -19,6 +19,7 @@ export type HomepageSectionId =
   | "hero"
   | "how_it_works"
   | "top_influencers"
+  | "recent_collaborations"
   | "open_campaigns"
   | "directory"
   | "brand_cta"
@@ -39,7 +40,7 @@ export type HomepageSectionDef = {
 
 /**
  * Default homepage order (post brand_cta ↔ newly_approved swap):
- * hero → how_it_works → top_influencers → open_campaigns → directory →
+ * hero → how_it_works → top_influencers → recent_collaborations → open_campaigns → directory →
  * brand_cta («Έχετε Επιχείρηση;») → newly_approved («Νεοί Εγκεκριμένοι Creators») →
  * brand_logos.
  */
@@ -72,13 +73,22 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     defaultIndex: 2,
   },
   {
+    id: "recent_collaborations",
+    title: { el: "Πρόσφατες συνεργασίες", en: "Recent collaborations" },
+    description: {
+      el: "Social proof: ολοκληρωμένες συνεργασίες με διπλή συναίνεση (και αριθμοί).",
+      en: "Social proof: dual-consent completed collaborations (and stats).",
+    },
+    defaultIndex: 3,
+  },
+  {
     id: "open_campaigns",
     title: { el: "Ανοιχτές καμπάνιες από brands", en: "Open campaigns from brands" },
     description: {
       el: "Προεπισκόπηση ανοιχτών καμπανιών (κρύβεται αν δεν υπάρχουν).",
       en: "Open campaigns preview (hidden when empty).",
     },
-    defaultIndex: 3,
+    defaultIndex: 4,
     optional: true,
   },
   {
@@ -88,7 +98,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
       el: "Προεπισκόπηση καταλόγου creators στην αρχική.",
       en: "Directory preview of creators on the homepage.",
     },
-    defaultIndex: 4,
+    defaultIndex: 5,
   },
   {
     id: "brand_cta",
@@ -97,7 +107,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
       el: "CTA εγγραφής επιχείρησης και features για brands.",
       en: "Brand signup CTA and feature highlights.",
     },
-    defaultIndex: 5,
+    defaultIndex: 6,
   },
   {
     id: "newly_approved",
@@ -106,7 +116,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
       el: "Carousel νεοεγκεκριμένων creators.",
       en: "Carousel of newly approved creators.",
     },
-    defaultIndex: 6,
+    defaultIndex: 7,
   },
   {
     id: "brand_logos",
@@ -115,7 +125,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
       el: "Marquee λογότυπων brands.",
       en: "Brand logo marquee.",
     },
-    defaultIndex: 7,
+    defaultIndex: 8,
   },
 ] as const;
 
