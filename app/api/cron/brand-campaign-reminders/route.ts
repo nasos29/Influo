@@ -31,9 +31,16 @@ export async function GET(request: NextRequest) {
   const dryRun =
     request.nextUrl.searchParams.get("dry_run") === "1" ||
     request.nextUrl.searchParams.get("dryRun") === "1";
+  // Ops/test only (still requires CRON_SECRET): bypass Athens quiet window.
+  const forceQuietBypass =
+    request.nextUrl.searchParams.get("force_quiet_bypass") === "1" ||
+    request.nextUrl.searchParams.get("forceQuietBypass") === "1";
 
   try {
-    const result = await runBrandCampaignReminders(cronSupabaseAdmin(), { dryRun });
+    const result = await runBrandCampaignReminders(cronSupabaseAdmin(), {
+      dryRun,
+      forceQuietBypass,
+    });
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Internal error";
