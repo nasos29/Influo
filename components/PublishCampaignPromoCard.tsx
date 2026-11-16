@@ -126,7 +126,7 @@ export default function PublishCampaignPromoCard({
           className="relative mt-5 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm"
           aria-hidden="true"
         >
-          <span className="absolute right-2 top-2 z-10 rounded-full bg-slate-900/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+          <span className="absolute right-2 top-2 z-10 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm ring-1 ring-white/25">
             {txt.example}
           </span>
           <div className="h-16 bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-600 sm:h-[4.5rem]" />

@@ -33,6 +33,12 @@ import { responseText } from "@/lib/bilingualError";
 import { campaignField } from "@/lib/campaignLocalized";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { CAMPAIGN_DEFAULT_DAYS } from "@/lib/campaignLifecycle";
+import {
+  SLOT_PRESETS,
+  applySlotsSelectChange,
+  slotsCustomFromStored,
+  slotsSelectValue,
+} from "@/lib/campaignSlotsSelect";
 
 const CONTACT_BLOCKED: { el: string; en: string } = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -604,6 +610,8 @@ export default function BrandCampaignsSection({
   const [appsByCampaign, setAppsByCampaign] = useState<Record<string, ApplicationRow[]>>({});
   const [loadingApps, setLoadingApps] = useState<string | null>(null);
   const [editing, setEditing] = useState<BrandCampaignRow | "new" | null>(null);
+  /** Explicit custom slots mode so typing a preset number (e.g. 5) does not collapse the input. */
+  const [slotsCustom, setSlotsCustom] = useState(false);
   const [saving, setSaving] = useState(false);
   const saveLock = useRef(false);
   const [form, setForm] = useState(emptyForm);
@@ -868,7 +876,9 @@ export default function BrandCampaignsSection({
     // Don't resume a previous AI preview when starting a new campaign.
     clearSessionKeys("influo:ai-wizard:");
     const draft = restoreDraftFull();
-    setForm(draft?.form || emptyForm());
+    const nextForm = draft?.form || emptyForm();
+    setForm(nextForm);
+    setSlotsCustom(slotsCustomFromStored(nextForm.slots));
     setDraftRestored(!!draft);
     setStep(draft?.step || 1);
     setContactFieldErrors({});
@@ -890,7 +900,9 @@ export default function BrandCampaignsSection({
     // Clear prior AI wizard result so "Create with AI" never flashes the last draft.
     clearSessionKeys("influo:ai-wizard:");
     const draft = restoreDraftFull();
-    setForm(draft?.form || emptyForm());
+    const nextForm = draft?.form || emptyForm();
+    setForm(nextForm);
+    setSlotsCustom(slotsCustomFromStored(nextForm.slots));
     setDraftRestored(!!draft);
     setStep(draft?.step || 1);
     setFieldErrors({});
@@ -901,7 +913,12 @@ export default function BrandCampaignsSection({
   const [customPick, setCustomPick] = useState(false);
   const [pickedTpl, setPickedTpl] = useState<string | null>(null);
   const applyPrefill = (fill: Partial<CampaignForm>, toStep = 1) => {
-    setForm((prev) => ({ ...emptyForm(), starts_on: prev.starts_on, category: prev.category, ...fill }));
+    setForm((prev) => {
+      const next = { ...emptyForm(), starts_on: prev.starts_on, category: prev.category, ...fill };
+      return next;
+    });
+    // Prefill slots are almost always presets; derive mode from the fill value (falls back to empty → not custom).
+    setSlotsCustom(slotsCustomFromStored(fill.slots ?? ""));
     setFieldErrors({});
     setContactFieldErrors({});
     setDraftRestored(false);
@@ -964,6 +981,7 @@ export default function BrandCampaignsSection({
     const parsed = parseDeliverables(row.deliverables);
     const rowPlatforms = Array.isArray(row.platforms) ? row.platforms : [];
     const chipPlatforms = DELIVERABLE_CHIPS.filter((chip) => (parsed.chips[chip.id] || 0) > 0).map((chip) => chip.platform as string);
+    const nextSlots = slotsById[row.id] != null ? String(slotsById[row.id]) : "";
     setStep(1);
     setForm({
       title: row.title,
@@ -981,8 +999,9 @@ export default function BrandCampaignsSection({
       compensation_type: row.compensation_type || "",
       status: row.status,
       requires_presence: row.requires_presence === true,
-      slots: slotsById[row.id] != null ? String(slotsById[row.id]) : "",
+      slots: nextSlots,
     });
+    setSlotsCustom(slotsCustomFromStored(nextSlots));
     setFieldErrors({});
     setDraftRestored(false);
     setContactFieldErrors({});
@@ -1658,6 +1677,7 @@ export default function BrandCampaignsSection({
                   clearDraft();
                   clearSessionKeys("influo:ai-wizard:");
                   setForm(emptyForm());
+                  setSlotsCustom(false);
                   setDraftRestored(false);
                   setFieldErrors({});
                   setStep(1);
@@ -1896,17 +1916,22 @@ export default function BrandCampaignsSection({
                   <div className="flex gap-2">
                     <select
                       id="cf-slots"
-                      value={form.slots && !["1", "2", "3", "5", "10", "20"].includes(form.slots) ? "custom" : form.slots}
-                      onChange={(e) => { setForm({ ...form, slots: e.target.value === "custom" ? form.slots || "4" : e.target.value }); clearFieldError("slots"); }}
+                      value={slotsSelectValue(form.slots, slotsCustom)}
+                      onChange={(e) => {
+                        const next = applySlotsSelectChange(e.target.value, form.slots);
+                        setForm({ ...form, slots: next.slots });
+                        setSlotsCustom(next.isCustom);
+                        clearFieldError("slots");
+                      }}
                       className={`${inputCls(fieldErrors.slots)} bg-white`}
                     >
                       <option value="">{lang === "el" ? "Χωρίς όριο" : "No limit"}</option>
-                      {["1", "2", "3", "5", "10", "20"].map((n) => (
+                      {SLOT_PRESETS.map((n) => (
                         <option key={n} value={n}>{n}</option>
                       ))}
                       <option value="custom">{lang === "el" ? "Άλλο…" : "Other…"}</option>
                     </select>
-                    {form.slots && !["1", "2", "3", "5", "10", "20"].includes(form.slots) && (
+                    {slotsCustom && (
                       <input type="number" min={1} max={500} inputMode="numeric" value={form.slots} onChange={(e) => { setForm({ ...form, slots: e.target.value }); clearFieldError("slots"); }} className={`${inputCls(fieldErrors.slots)} w-24`} aria-label={lang === "el" ? "Αριθμός θέσεων" : "Number of spots"} />
                     )}
                   </div>

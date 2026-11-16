@@ -2805,10 +2805,10 @@ export default function BrandDashboardContent() {
                         name={shownName}
                         className="creator-card-media__img"
                       />
-                      <span className={`absolute left-3 top-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${
-                        match.score >= 80 ? "bg-emerald-600 text-white" :
-                        match.score >= 65 ? "bg-blue-600 text-white" :
-                        "bg-white/95 text-slate-900"
+                      <span className={`absolute left-3 top-3 inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold shadow-sm backdrop-blur-sm ring-1 ring-white/25 ${
+                        match.score >= 80 ? "bg-emerald-600/60 text-white" :
+                        match.score >= 65 ? "bg-blue-600/60 text-white" :
+                        "bg-white/60 text-slate-900"
                       }`}>
                         {match.score}% {txt.match_label}
                       </span>

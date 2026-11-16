@@ -250,18 +250,18 @@ export default function CollabReviewPromptPanel({
             >
               {T("Αργότερα", "Later")}
             </button>
-            <button
-              type="button"
-              disabled={busyId === item.proposalId}
-              onClick={() => void decline(item)}
-              className="min-h-[44px] rounded-lg px-3 text-sm text-slate-500 hover:bg-slate-100"
-              title={T(REVIEW_DECLINE_HINT_EL, REVIEW_DECLINE_HINT_EN)}
-            >
-              {busyId === item.proposalId
-                ? "…"
-                : T(REVIEW_DECLINE_LABEL_EL, REVIEW_DECLINE_LABEL_EN)}
-            </button>
           </div>
+          <button
+            type="button"
+            disabled={busyId === item.proposalId}
+            onClick={() => void decline(item)}
+            className="mt-2 text-xs text-gray-400 hover:underline disabled:opacity-60"
+            title={T(REVIEW_DECLINE_HINT_EL, REVIEW_DECLINE_HINT_EN)}
+          >
+            {busyId === item.proposalId
+              ? "…"
+              : T(REVIEW_DECLINE_LABEL_EL, REVIEW_DECLINE_LABEL_EN)}
+          </button>
         </article>
       ))}
     </section>

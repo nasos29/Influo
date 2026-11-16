@@ -201,7 +201,7 @@ function BrandAvatar({
   );
 }
 
-function PeopleIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+function PeopleIcon({ className = "h-3.5 w-3.5 text-emerald-600" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -341,10 +341,10 @@ export default function CampaignCard({
           )}
           {closes && (
             <span
-              className={`pointer-events-none absolute right-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm ${
+              className={`pointer-events-none absolute right-3 top-3 z-20 text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-sm backdrop-blur-sm ${
                 closes.urgent
-                  ? "bg-red-600/95 text-white ring-1 ring-white/30"
-                  : "bg-white/90 text-slate-900 ring-1 ring-white/70"
+                  ? "bg-red-600/50 text-white ring-1 ring-white/25"
+                  : "bg-white/60 text-slate-900 ring-1 ring-white/40"
               }`}
             >
               {closes.text}
@@ -389,7 +389,7 @@ export default function CampaignCard({
                     : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
                 }`}
               >
-                <PeopleIcon className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0`} />
+                <PeopleIcon className={`${compact ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 text-emerald-600`} />
                 {publicBadge}
               </span>
             ) : null}
@@ -610,11 +610,10 @@ export default function CampaignCard({
               >
                 {formatEuro(Number(campaign.budget), lang === "en" ? "en" : "el")}
               </p>
-            ) : comp ? (
-              <p className={`font-semibold text-indigo-800 ${compact ? "text-sm" : "text-base"}`}>{comp}</p>
             ) : null}
-            {showBudget && comp && campaign.compensation_type !== "money" ? (
-              <p className="mt-0.5 text-xs font-medium text-indigo-700 truncate">{comp}</p>
+            {/* Product/gifting label: same small style whether or not there is a money fee */}
+            {comp && (showBudget ? campaign.compensation_type !== "money" : true) ? (
+              <p className={`${showBudget ? "mt-0.5" : ""} text-xs font-medium text-indigo-700 truncate`}>{comp}</p>
             ) : null}
           </div>
         </div>

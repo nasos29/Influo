@@ -120,7 +120,10 @@ test("star + decline URLs and HTML helpers", () => {
   ]);
   assert.match(stars, /★/);
   assert.match(stars, /reviews\/open/);
-  assert.match(reviewDeclineLinkHtml(decline), /Όχι, ευχαριστώ/);
+  const declineHtml = reviewDeclineLinkHtml(decline);
+  assert.match(declineHtml, /Όχι, ευχαριστώ/);
+  assert.match(declineHtml, /#9ca3af/);
+  assert.doesNotMatch(declineHtml, /display:\s*inline-block|background:\s*#2563eb/i);
 });
 
 test("helper copy for both parties", () => {

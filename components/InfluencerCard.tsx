@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { Badge, getBadgeStyles } from "../lib/badges";
+import { Badge, getImageOverlayBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
 import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -116,7 +116,7 @@ function PlatformPill({
 }) {
   const Icon = PLATFORM_META.find((p) => p.key === platformKey)?.Icon ?? InstagramIcon;
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-semibold text-white sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ring-1 ring-white/20 sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
       <Icon className="h-2.5 w-2.5 shrink-0 sm:h-3.5 sm:w-3.5" />
       <span className="tabular-nums">{formatNum(count)}</span>
     </span>
@@ -162,7 +162,7 @@ export default function InfluencerCard({
   if (!available) {
     overlay = (
       <span
-        className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80 sm:px-2.5 sm:py-1"
+        className="inline-flex items-center rounded-full bg-amber-50/70 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-900 backdrop-blur-sm ring-1 ring-amber-200/50 sm:px-2.5 sm:py-1"
         title={lang === "el" ? "Μη διαθέσιμος προσωρινά" : "Temporarily unavailable"}
       >
         {lang === "el" ? "Μη διαθέσιμος" : "Unavailable"}
@@ -173,14 +173,14 @@ export default function InfluencerCard({
     const more = badges.slice(1);
     overlay = (
       <span className="inline-flex items-center gap-1">
-        <span className={getBadgeStyles(badge)} title={badge.label}>
+        <span className={getImageOverlayBadgeStyles(badge)} title={badge.label}>
           <span className="text-[10px]">{badge.icon}</span>
           <span className="text-[9px] leading-none">{badge.label}</span>
         </span>
         {more.map((b) => (
           <span
             key={b.type}
-            className={`${b.bgColor} ${b.color} inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px]`}
+            className={`${b.bgColor.replace(/\bbg-([a-z]+-\d+)\b/, "bg-$1/60")} ${b.color} inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/30 text-[10px] backdrop-blur-sm`}
             title={b.label}
             aria-label={b.label}
           >
@@ -196,8 +196,8 @@ export default function InfluencerCard({
         title={lang === "el" ? chip.titleEl : chip.titleEn}
         className={
           chip.kind === "private"
-            ? "inline-flex items-center rounded-full bg-slate-800/90 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white sm:px-2.5 sm:py-1"
-            : "inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200/80 sm:px-2.5 sm:py-1"
+            ? "inline-flex items-center rounded-full bg-slate-800/50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white backdrop-blur-sm ring-1 ring-white/20 sm:px-2.5 sm:py-1"
+            : "inline-flex items-center rounded-full bg-amber-50/70 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-900 backdrop-blur-sm ring-1 ring-amber-200/50 sm:px-2.5 sm:py-1"
         }
       >
         {lang === "el" ? chip.labelEl : chip.labelEn}
@@ -228,7 +228,7 @@ export default function InfluencerCard({
             <PlatformPill key={p.key} platformKey={p.key} count={p.count} />
           ))}
         </div>
-        <span className="inline-flex items-center rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-white sm:px-2 sm:py-1 sm:text-[11px]">
+        <span className="inline-flex items-center rounded-full bg-black/40 px-1.5 py-0.5 text-[9px] font-bold text-white backdrop-blur-sm ring-1 ring-white/20 sm:px-2 sm:py-1 sm:text-[11px]">
           +{ranked.length - 2}
         </span>
       </div>

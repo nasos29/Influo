@@ -19,9 +19,14 @@ export function campaignStatusBadge(
   const now = typeof nowOrOpts === "number" ? nowOrOpts : Date.now();
   const opts = typeof nowOrOpts === "number" ? maybeOpts : nowOrOpts;
   const el = lang === "el";
-  const red = "bg-red-600 text-white";
-  const outlined = "border-[1.5px] border-black";
-  if (c.status === "draft") return { text: el ? "Πρόχειρο" : "Draft", className: "bg-amber-500 text-white" };
+  // Semi-transparent fills — these badges sit on campaign cover images.
+  const red = "bg-red-600/55 text-white backdrop-blur-sm border border-white/25";
+  const outlined = "border-[1.5px] border-black/40";
+  if (c.status === "draft")
+    return {
+      text: el ? "Πρόχειρο" : "Draft",
+      className: "bg-amber-500/60 text-white backdrop-blur-sm border border-white/25",
+    };
   if (c.status !== "open") return c.status ? { text: el ? "Κλειστή" : "Closed", className: `${red} ${outlined}` } : null;
   if (c.slots != null && c.slots > 0 && (c.slots_filled ?? 0) >= c.slots)
     return { text: el ? "Συμπληρώθηκαν οι θέσεις" : "All spots filled", className: red };
@@ -40,5 +45,8 @@ export function campaignStatusBadge(
   } catch {
     /* bad date: treat as open */
   }
-  return { text: el ? "Ανοιχτή" : "Open", className: `bg-emerald-600 text-white ${outlined}` };
+  return {
+    text: el ? "Ανοιχτή" : "Open",
+    className: `bg-emerald-600/60 text-white backdrop-blur-sm ${outlined}`,
+  };
 }
