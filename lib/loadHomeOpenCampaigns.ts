@@ -118,7 +118,11 @@ export async function loadCampaignApplicationsCount(campaignId: string): Promise
   }
 }
 
-/** Open campaigns for the home page (ISR-friendly). */
-export async function loadHomeOpenCampaigns(limit = 3): Promise<CampaignCardData[]> {
+/**
+ * Open campaigns for the home page (ISR-friendly).
+ * Loads every open campaign (newest first); the homepage UI pages by
+ * homepage_campaigns_count. Omit limit for the full set.
+ */
+export async function loadHomeOpenCampaigns(limit?: number): Promise<CampaignCardData[]> {
   return loadOpenCampaigns(limit);
 }
