@@ -51,7 +51,8 @@ export function looksLikeOffPlatformContact(text: string): boolean {
 
   // Profile / chat deep links (not post / reel / TV / video URLs)
   if (/instagram\.com\/(?!(?:p|reel|tv|stories)\/)[a-z0-9._]+/i.test(raw)) return true;
-  if (/tiktok\.com\/@[\w.-]+/i.test(raw)) return true;
+  // TikTok profile (exclude /@user/video/… — those are deliverables)
+  if (/tiktok\.com\/@[\w.-]+/i.test(raw) && !/tiktok\.com\/@[\w.-]+\/video\//i.test(raw)) return true;
   if (/(?:wa\.me\/|api\.whatsapp\.com|chat\.whatsapp\.com|t\.me\/|viber\.com\/)/i.test(raw)) return true;
 
   const aboutDeliverable =

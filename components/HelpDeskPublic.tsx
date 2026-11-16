@@ -454,6 +454,15 @@ export default function HelpDeskPublic({ user, userType }: HelpDeskPublicProps) 
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <p className="font-medium text-slate-900 mb-1">Πώς παραδίδω τη δουλειά μου;</p>
+          <p className="mb-2 text-slate-600">
+            Επικόλλησε το δημοσιευμένο reel/TikTok/post στο πεδίο «Παραδοτέο» της συνεργασίας — εκεί εγκρίνει το brand.
+          </p>
+          <Link href="/faq#deliverable" className="font-medium text-purple-700 hover:underline">
+            Δες το FAQ →
+          </Link>
+        </div>
         {/* New Ticket Form */}
         {showNewTicket && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">

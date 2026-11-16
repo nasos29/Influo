@@ -211,6 +211,7 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
   ],
   deal_complete_creator: [
     { el: "Συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στο chat.", en: "Align brief, assets, and publish date in chat." },
+    { el: "Όταν δημοσιεύσεις, βάλε το link στο πεδίο Παραδοτέο στο dashboard (όχι μόνο στο chat).", en: "When you publish, paste the link in the Deliverable field on the dashboard (not only in chat)." },
     { el: "Ζήτησε προκαταβολή πριν ξεκινήσεις — το Influo δεν μεσολαβεί στην πληρωμή.", en: "Ask for a deposit before you start — Influo does not handle payment." },
     { el: "Κράτα αυτό το email ως αντίγραφο της συμφωνίας.", en: "Keep this email as a copy of the agreement." },
   ],

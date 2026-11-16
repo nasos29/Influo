@@ -221,10 +221,10 @@ const CREATOR_FEATURES: BiFeature[] = [
   },
   {
     icon: FileText,
-    title: { el: "Deliverables", en: "Deliverables" },
+    title: { el: "Παραδοτέο", en: "Deliverable" },
     desc: {
-      el: "Υποβάλετε URL παράδοσης· το brand εγκρίνει ή ζητά αλλαγές στη ροή της καμπάνιας.",
-      en: "Submit a delivery URL; the brand approves or requests changes in-campaign.",
+      el: "Επικόλλησε το δημοσιευμένο reel/TikTok/post στο πεδίο «Παραδοτέο» (όχι μόνο WeTransfer ή chat)· το brand εγκρίνει εκεί και μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες».",
+      en: "Paste the published reel/TikTok/post in the Deliverable field (not only WeTransfer or chat); the brand approves there and it may appear in Recent collaborations.",
     },
   },
 ];
@@ -247,8 +247,8 @@ const CREATOR_STEPS: BiStep[] = [
   {
     title: { el: "Παράδοση & ολοκλήρωση", en: "Deliver & close" },
     desc: {
-      el: "Υποβάλετε deliverable, λάβετε έγκριση και κλείστε τη συνεργασία.",
-      en: "Submit deliverables, get approval, and finish the collaboration.",
+      el: "Βάλε το δημοσιευμένο link στο «Παραδοτέο», πάρε έγκριση από το brand και κλείσε τη συνεργασία.",
+      en: "Put the published link in Deliverable, get brand approval, and finish the collaboration.",
     },
   },
 ];

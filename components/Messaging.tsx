@@ -35,6 +35,14 @@ import MessageActions from '@/components/MessageActions';
 import { byMessage, groupReactions, quoteText, type ReactionRow } from '@/lib/reactions';
 import { insertAtCursor } from '@/lib/emojiData';
 import { isOffPlatformTipMessage, offPlatformTipBody } from '@/lib/offPlatformContact';
+import {
+  deliverableTipBody,
+  deliverableTipCta,
+  deliverableTipHref,
+  isDeliverableTipMessage,
+  parseDeliverableTipPayload,
+} from '@/lib/deliverableChatTip';
+import Link from 'next/link';
 
 const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
 
@@ -2417,7 +2425,9 @@ export default function Messaging({
                   const next = messages[index + 1];
                   const lastOfGroup = !next || next.sender_type !== msg.sender_type || !sameChatDay(msg.created_at, next.created_at);
                   const showDay = !prev || !sameChatDay(prev.created_at, msg.created_at);
+                  const tipLang = lang === 'en' ? 'en' : 'el';
                   const isSafetyTip = isOffPlatformTipMessage(msg.content);
+                  const isDeliverableTip = isDeliverableTipMessage(msg.content);
 
                   return (
                     <div key={msg.id}>
@@ -2428,14 +2438,34 @@ export default function Messaging({
                           </span>
                         </div>
                       )}
-                      {isSafetyTip ? (
+                      {isDeliverableTip ? (
+                        <div className="flex items-end gap-1.5 justify-start mb-1.5">
+                          <span className="w-7 shrink-0" aria-hidden />
+                          <div className="max-w-[85%] sm:max-w-sm lg:max-w-md rounded-2xl rounded-bl-md border border-sky-200 bg-sky-50 px-3.5 py-2.5 text-sky-950 shadow-sm">
+                            <div className="flex gap-2 items-start">
+                              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" aria-hidden strokeWidth={2} />
+                              <div className="min-w-0 space-y-2">
+                                <p className="text-xs leading-snug text-sky-900">
+                                  {deliverableTipBody(tipLang)}
+                                </p>
+                                <Link
+                                  href={deliverableTipHref(parseDeliverableTipPayload(msg.content), mode)}
+                                  className="inline-flex min-h-9 items-center rounded-lg bg-sky-700 px-3 text-xs font-semibold text-white hover:bg-sky-800"
+                                >
+                                  {deliverableTipCta(tipLang)}
+                                </Link>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : isSafetyTip ? (
                         <div className="flex items-end gap-1.5 justify-start mb-1.5">
                           <span className="w-7 shrink-0" aria-hidden />
                           <div className="max-w-[85%] sm:max-w-sm lg:max-w-md rounded-2xl rounded-bl-md border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-amber-950 shadow-sm">
                             <div className="flex gap-2 items-start">
                               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden strokeWidth={2} />
                               <p className="text-xs leading-snug text-amber-900">
-                                {offPlatformTipBody(lang === 'en' ? 'en' : 'el')}
+                                {offPlatformTipBody(tipLang)}
                               </p>
                             </div>
                           </div>

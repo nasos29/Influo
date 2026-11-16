@@ -1045,7 +1045,7 @@ export default function DocsPage() {
               </li>
             </ul>
 
-            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3" id="deliverable">
               {lang === 'el' ? 'Παράδοση περιεχομένου' : 'Content deliverables'}
             </h3>
             <NumberedSteps
@@ -1063,6 +1063,16 @@ export default function DocsPage() {
                     ]
               }
             />
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 mb-6 max-w-prose">
+              <h4 className="font-semibold text-slate-900 mb-2">
+                {lang === 'el' ? 'Πώς παραδίδω τη δουλειά μου' : 'How do I deliver my work'}
+              </h4>
+              <p className="text-slate-700 text-sm leading-relaxed mb-0">
+                {lang === 'el'
+                  ? 'Επικόλλησε το δημοσιευμένο link (reel / TikTok / post) στο πεδίο «Παραδοτέο» της συνεργασίας ή καμπάνιας. Εκεί το brand εγκρίνει επίσημα την παράδοση — μην βασίζεσαι μόνο σε WeTransfer ή links στο chat. Όταν εγκριθεί, μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες».'
+                  : 'Paste the published reel / TikTok / post link in the collaboration or campaign’s Deliverable field. That’s where the brand officially approves delivery — don’t rely only on WeTransfer or chat links. Once approved, it may appear in Recent collaborations.'}
+              </p>
+            </div>
 
             <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
               {lang === 'el' ? 'Δημιουργία καμπάνιας' : 'Creating a campaign'}
@@ -1466,6 +1476,17 @@ export default function DocsPage() {
                 {lang === 'el' 
                   ? 'Και οι δύο πλευρές πρέπει να αποδεχτούν τους όρους. Μόνο τότε η συνεργασία προστίθεται στο Past Brands. Οι όροι προστατεύουν και τις δύο πλευρές.'
                   : 'Both parties must accept terms. Only then collaboration is added to Past Brands. Terms protect both parties.'}
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mt-6" id="how-to-deliver">
+              <h4 className="font-semibold text-slate-900 mb-2">
+                {lang === 'el' ? 'Πώς παραδίδω τη δουλειά μου' : 'How do I deliver my work'}
+              </h4>
+              <p className="text-slate-700 mb-0">
+                {lang === 'el'
+                  ? 'Όταν δημοσιεύσεις το περιεχόμενο, επικόλλησε το δημόσιο link στο πεδίο «Παραδοτέο» (Dashboard → Καμπάνιες ή Προσφορές). Το brand εγκρίνει εκεί· αν συμφωνήσετε, η συνεργασία μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες». Links στο chat ή WeTransfer δεν αντικαθιστούν το πεδίο Παραδοτέο.'
+                  : 'When you publish, paste the public link in the Deliverable field (Dashboard → Campaigns or Proposals). The brand approves there; if you both agree, the collaboration may appear in Recent collaborations. Chat or WeTransfer links do not replace the Deliverable field.'}
               </p>
             </div>
           </section>

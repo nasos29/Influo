@@ -2,7 +2,8 @@
 import { isTestBrandId, testBrandIdsFilter } from "@/lib/testBrandIds";
 
 import { sessionFetch } from "@/lib/sessionFetch";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { getStoredLanguage } from "@/lib/language";
@@ -182,6 +183,8 @@ export default function InfluencerCampaignsPanel({
   const pc = pendingCopy[uiLang];
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
   const notify = (message: string, tone: "success" | "error" | "info" = "info") => pushToast(message, tone);
+  const searchParams = useSearchParams();
+  const deliverableFocusDone = useRef(false);
 
   const [campaigns, setCampaigns] = useState<CampaignWithBrand[]>([]);
   const [mine, setMine] = useState<MyApplication[]>([]);
@@ -211,10 +214,49 @@ export default function InfluencerCampaignsPanel({
     Record<string, { url: string; note: string; showcaseConsent?: boolean }>
   >({});
   const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
+  const [highlightDeliverableId, setHighlightDeliverableId] = useState<string | null>(null);
+
+  const canShowDeliverable = useCallback(
+    (m: MyApplication) =>
+      m.status === "shortlisted" ||
+      m.status === "accepted" ||
+      (!!m.deliverable_status && m.deliverable_status !== "none"),
+    []
+  );
 
   useEffect(() => {
     setUiLang(getStoredLanguage() === "en" ? "en" : "el");
   }, []);
+
+  useEffect(() => {
+    if (deliverableFocusDone.current) return;
+    if (searchParams?.get("focus") !== "deliverable") return;
+    if (loading || mine.length === 0) return;
+    const appId = searchParams.get("application") || "";
+    const prefill = searchParams.get("prefill") || "";
+    const target =
+      (appId && mine.find((m) => m.id === appId)) ||
+      mine.find((m) => canShowDeliverable(m) && m.deliverable_status !== "approved") ||
+      mine[0];
+    if (!target) return;
+    deliverableFocusDone.current = true;
+    setHighlightDeliverableId(target.id);
+    if (prefill) {
+      setDeliverDraft((prev) => ({
+        ...prev,
+        [target.id]: {
+          url: prefill,
+          note: prev[target.id]?.note || target.deliverable_note || "",
+          showcaseConsent: prev[target.id]?.showcaseConsent !== false,
+        },
+      }));
+    }
+    requestAnimationFrame(() => {
+      document.getElementById(`deliverable-${target.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const input = document.querySelector<HTMLInputElement>(`#deliverable-${target.id} input[type="url"]`);
+      input?.focus();
+    });
+  }, [searchParams, loading, mine, canShowDeliverable]);
 
   const appliedCampaignIds = useMemo(() => {
     const s = new Set<string>();
@@ -470,11 +512,6 @@ export default function InfluencerCampaignsPanel({
       setDeliverSaving(null);
     }
   };
-
-  const canShowDeliverable = (m: MyApplication) =>
-    m.status === "shortlisted" ||
-    m.status === "accepted" ||
-    (!!m.deliverable_status && m.deliverable_status !== "none");
 
   if (schemaError) {
     return (
@@ -734,7 +771,12 @@ export default function InfluencerCampaignsPanel({
               return (
               <li
                 key={m.id}
-                className="flex flex-col gap-3 border border-slate-100 rounded-lg p-3 bg-slate-50"
+                id={showDeliver ? `deliverable-${m.id}` : undefined}
+                className={`flex flex-col gap-3 border rounded-lg p-3 scroll-mt-24 ${
+                  highlightDeliverableId === m.id
+                    ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200"
+                    : "border-slate-100 bg-slate-50"
+                }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>

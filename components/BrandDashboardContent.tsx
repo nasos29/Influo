@@ -32,6 +32,7 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
+import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -106,6 +107,7 @@ interface Proposal {
   selected_extras?: unknown;
   publish_deadline?: string | null;
   brand_showcase_consent?: boolean | null;
+  published_post_url?: string | null;
 }
 
 interface Influencer {
@@ -2511,6 +2513,8 @@ export default function BrandDashboardContent() {
               pendingApplicationsCount={pendingCampaignApplicationsCount}
               pendingApplicationsOldestDays={pendingApplicationsOldestDays}
               focusApplications={appsFocus}
+              focusApplicationId={searchParams?.get("application")}
+              focusDeliverable={searchParams?.get("focus") === "deliverable"}
               startNew={searchParams?.get("new") === "1"}
               onApplicationsUpdated={() => {
                 void reloadProposals();
@@ -3158,15 +3162,28 @@ export default function BrandDashboardContent() {
                                 ? "Αναμονή του δημιουργού"
                                 : "Waiting for the creator"}
                           </p>
-                          {proposal.status === "completed" ? (
-                            <div className="mt-3 max-w-md">
-                              <ShowcaseConsentToggle
-                                source="proposal"
-                                id={String(proposal.id)}
-                                initialConsent={!!proposal.brand_showcase_consent}
+                          {(proposal.status === "completed" || !!proposal.influencer_agreement_accepted) &&
+                          proposal.brand_agreement_accepted ? (
+                            <div className="mt-3 max-w-md space-y-2">
+                              <ProposalDeliverableField
+                                proposalId={String(proposal.id)}
+                                initialUrl={proposal.published_post_url}
                                 lang={lang}
-                                party="brand"
+                                readOnly
+                                autoFocus={
+                                  searchParams?.get("focus") === "deliverable" &&
+                                  searchParams?.get("proposalId") === String(proposal.id)
+                                }
                               />
+                              {proposal.status === "completed" ? (
+                                <ShowcaseConsentToggle
+                                  source="proposal"
+                                  id={String(proposal.id)}
+                                  initialConsent={!!proposal.brand_showcase_consent}
+                                  lang={lang}
+                                  party="brand"
+                                />
+                              ) : null}
                             </div>
                           ) : null}
                         </div>

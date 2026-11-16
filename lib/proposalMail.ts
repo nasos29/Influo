@@ -647,7 +647,8 @@ export async function mailCreatorDealComplete(input: {
         deal,
         safety: true,
         nextStepsHtml:
-          "<p><strong>Επόμενα βήματα:</strong> συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στα μηνύματα του Influo. Κράτα αυτό το email ως αντίγραφο της συμφωνίας.</p>",
+          "<p><strong>Επόμενα βήματα:</strong> συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στα μηνύματα του Influo. Κράτα αυτό το email ως αντίγραφο της συμφωνίας.</p>" +
+          "<p>Όταν δημοσιεύσεις, επικόλλησε το link του reel / TikTok / post στο πεδίο <strong>Παραδοτέο</strong> στο dashboard (όχι μόνο στο chat) — εκεί εγκρίνει το brand.</p>",
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_creator",
         closing: "Καλή συνεργασία,",
