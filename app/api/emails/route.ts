@@ -2,6 +2,8 @@ import { Resend } from 'resend';
 import { applicationToBrand, closedToBrand, closingSoonToBrand, notSelectedToCreator, publishedToAdmin } from "@/lib/campaignMail";
 import { NextResponse } from 'next/server';
 import { emailNextSteps } from '@/lib/emailNextSteps';
+import { showcaseInlineNoticeHtml, showcaseMissingPostHtml } from '@/lib/showcaseMail';
+import { showcaseHelperEmailHtml } from '@/lib/showcaseCopy';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
 import { rejectUnlessAdmin, supabaseService, userFromBearer } from '@/lib/apiAuth';
 import { formatEuroAmount } from '@/lib/formatEuro';
@@ -644,6 +646,24 @@ export async function POST(req: Request) {
     else if (type === 'collaboration_complete') {
         toEmail = email;
         subject = `✅ Η συνεργασία με ${brandName} ολοκληρώθηκε!`;
+        const showcaseUrl =
+          body.showcaseConsent === true && typeof body.showcaseOptOutUrl === 'string'
+            ? String(body.showcaseOptOutUrl).trim()
+            : '';
+        const showcaseBlock =
+          showcaseUrl && /^https:\/\//i.test(showcaseUrl)
+            ? showcaseInlineNoticeHtml(showcaseUrl, 'influencer')
+            : '';
+        const addPostRaw =
+          typeof body.addPostUrl === 'string' ? String(body.addPostUrl).trim() : '';
+        const hasPostUrl =
+          typeof body.publishedPostUrl === 'string' && String(body.publishedPostUrl).trim().length > 0;
+        const missingPostBlock =
+          !hasPostUrl && addPostRaw && /^https:\/\//i.test(addPostRaw)
+            ? showcaseMissingPostHtml(addPostRaw)
+            : !hasPostUrl
+              ? `<p style="margin:16px 0;font-size:13px;color:#92400e;">Λείπει το link της ανάρτησης — πρόσθεσέ το στο πεδίο «Παραδοτέο» στο dashboard.</p>${showcaseHelperEmailHtml('influencer')}`
+              : '';
         html = `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
               <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
@@ -656,6 +676,8 @@ export async function POST(req: Request) {
                 <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
                   <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">✨ Συγχαρητήρια για την επιτυχημένη συνεργασία!</p>
                 </div>
+                ${missingPostBlock}
+                ${showcaseBlock}
                 <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
                   <p style="margin: 0; font-size: 12px; color: #9ca3af;">Η ομάδα του Influo</p>
                 </div>

@@ -19,9 +19,11 @@ const copy = {
       "Φτιάξε προφίλ δωρεάν",
       "Εγκρίνεται και τα στατιστικά ελέγχονται από το Influo",
       "Κάνε αίτηση ή δέξου προτάσεις και κλείσε τη συνεργασία με συμφωνία",
+      "Παράδωσε στο πεδίο «Παραδοτέο» το δημοσιευμένο reel/TikTok/post — όχι μόνο στο chat",
     ],
     guide: "Δες τον πλήρη οδηγό",
     agreement: "Πώς λειτουργεί η συμφωνία",
+    deliverFaq: "Πώς παραδίδω τη δουλειά μου",
   },
   en: {
     title: "How it works",
@@ -37,9 +39,11 @@ const copy = {
       "Create a free profile",
       "Get approved — Influo checks your stats",
       "Apply or accept proposals and seal the deal with an agreement",
+      "Submit the published reel/TikTok/post in the Deliverable field — not only in chat",
     ],
     guide: "See the full guide",
     agreement: "How the agreement works",
+    deliverFaq: "How do I deliver my work?",
   },
 } as const;
 
@@ -68,6 +72,7 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
   const brandsHref = lang === "en" ? "/en/for-brands" : "/for-brands";
   const influencersHref = lang === "en" ? "/en/for-influencers" : "/for-influencers";
   const agreementHref = lang === "en" ? "/en/docs#agreement" : "/docs#agreement";
+  const deliverHref = lang === "en" ? "/en/faq#deliverable" : "/faq#deliverable";
 
   return (
     <section
@@ -125,6 +130,12 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
                 className="inline-flex text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
               >
                 {txt.agreement}
+              </a>
+              <a
+                href={deliverHref}
+                className="inline-flex text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+              >
+                {txt.deliverFaq}
               </a>
             </div>
           </div>

@@ -55,6 +55,8 @@ import { displayProposalMessage } from '@/lib/proposalThreadCopy';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
+import ProposalDeliverableField from '@/components/ProposalDeliverableField';
+import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import LocationTypeahead from '@/components/LocationTypeahead';
@@ -1291,6 +1293,7 @@ interface Proposal {
   publish_deadline?: string | null;
   influencer_showcase_consent?: boolean | null;
   published_post_url?: string | null;
+  published_post_pending_approval?: boolean | null;
 }
 
 function tabBadgeText(count: number): string {
@@ -2365,15 +2368,42 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             <p className="text-xs text-slate-500 mt-2">
                                                                 {formatDate(prop.created_at, lang)} {formatTime(prop.created_at, lang)}
                                                             </p>
-                                                            {prop.status === 'completed' ? (
+                                                            {hasAgreement ? (
                                                               <div className="mt-3 space-y-2">
-                                                                <ShowcaseConsentToggle
-                                                                  source="proposal"
-                                                                  id={String(prop.id)}
-                                                                  initialConsent={!!prop.influencer_showcase_consent}
+                                                                {prop.status === 'completed' &&
+                                                                !String(prop.published_post_url || '').trim() ? (
+                                                                  <MissingPostLinkNotice
+                                                                    lang={lang}
+                                                                    party="influencer"
+                                                                    source="proposal"
+                                                                    id={String(prop.id)}
+                                                                  />
+                                                                ) : null}
+                                                                <ProposalDeliverableField
+                                                                  proposalId={String(prop.id)}
+                                                                  initialUrl={prop.published_post_url}
                                                                   lang={lang}
-                                                                  party="influencer"
+                                                                  pendingApproval={!!prop.published_post_pending_approval}
+                                                                  autoFocus={
+                                                                    searchParams?.get('focus') === 'deliverable' &&
+                                                                    searchParams?.get('proposalId') === String(prop.id)
+                                                                  }
+                                                                  prefill={
+                                                                    searchParams?.get('focus') === 'deliverable' &&
+                                                                    searchParams?.get('proposalId') === String(prop.id)
+                                                                      ? searchParams?.get('prefill')
+                                                                      : null
+                                                                  }
                                                                 />
+                                                                {prop.status === 'completed' ? (
+                                                                  <ShowcaseConsentToggle
+                                                                    source="proposal"
+                                                                    id={String(prop.id)}
+                                                                    initialConsent={!!prop.influencer_showcase_consent}
+                                                                    lang={lang}
+                                                                    party="influencer"
+                                                                  />
+                                                                ) : null}
                                                               </div>
                                                             ) : null}
                                                         </div>

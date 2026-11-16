@@ -5,6 +5,7 @@ import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
+import { showcaseHelperText } from "@/lib/showcaseCopy";
 
 type Lang = AgreementLang;
 
@@ -42,10 +43,6 @@ const COPY = {
     statusWaiting: "Αναμονή του δημιουργού",
     statusCompleted: "Ολοκληρώθηκε",
     showcase: "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»",
-    showcaseHintInfluencer:
-      "✨ Οι συνεργασίες που φαίνονται στο προφίλ σου σε βοηθούν να κερδίσεις περισσότερες προτάσεις από brands. Φαίνεται μόνο αν συμφωνήσει και το brand.",
-    showcaseHintBrand:
-      "✨ Οι δημόσιες συνεργασίες δείχνουν ότι η επιχείρησή σας ολοκληρώνει τις συμφωνίες της, και έτσι οι καλοί creators δέχονται πιο εύκολα τις προτάσεις σας. Φαίνεται μόνο αν συμφωνήσει και ο influencer.",
   },
   en: {
     title: (id: string) => `Collaboration Agreement #${id}`,
@@ -66,10 +63,6 @@ const COPY = {
     statusWaiting: "Waiting for the creator",
     statusCompleted: "Completed",
     showcase: "Show publicly in “Recent collaborations”",
-    showcaseHintInfluencer:
-      "✨ Collaborations shown on your profile help you get more proposals from brands. Shown only if the brand also agrees.",
-    showcaseHintBrand:
-      "✨ Public collaborations show that your business completes its deals, so good creators accept your proposals more readily. Shown only if the influencer also agrees.",
   },
 } as const;
 
@@ -128,8 +121,7 @@ export default function AgreementTerms({
   showcaseParty = "influencer",
 }: AgreementTermsProps) {
   const copy = COPY[lang];
-  const showcaseHint =
-    showcaseParty === "brand" ? copy.showcaseHintBrand : copy.showcaseHintInfluencer;
+  const showcaseHint = showcaseHelperText(showcaseParty === "brand" ? "brand" : "influencer", lang);
   const id = String(proposalId);
   const extrasLine = formatProposalExtrasLine(selectedExtras, lang);
   const extras = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
