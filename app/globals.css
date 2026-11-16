@@ -502,14 +502,9 @@ textarea:focus-visible {
     scroll-snap-align: start;
   }
 }
-@media (min-width: 768px) and (max-width: 1023px) {
+@media (min-width: 768px) {
   .grid-home-open-campaigns {
-    /* 1 card → full width; 2+ → up to two readable columns (no cramped 4–5-up). */
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
-  }
-}
-@media (min-width: 1024px) {
-  .grid-home-open-campaigns {
+    /* One equal-width row from --home-open-campaign-cols (homepage_campaigns_count). */
     grid-template-columns: repeat(var(--home-open-campaign-cols, 3), minmax(0, 1fr));
   }
 }

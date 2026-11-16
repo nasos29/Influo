@@ -168,8 +168,8 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       en: "Homepage campaigns",
     },
     description: {
-      el: "Πόσες ανοιχτές καμπάνιες εμφανίζονται στην αρχική σελίδα.",
-      en: "How many open campaigns appear on the homepage.",
+      el: "Πόσες ανοιχτές καμπάνιες φαίνονται ανά σελίδα στην αρχική (βέλη για τις υπόλοιπες).",
+      en: "How many open campaigns show per homepage page (arrows for the rest).",
     },
     public: true,
   },
