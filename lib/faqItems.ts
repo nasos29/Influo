@@ -182,6 +182,17 @@ export const faqs: FAQItem[] = [
     }
   },
   {
+    category: { el: "Για Influencers", en: "For Influencers" },
+    question: {
+      el: "Πώς παραδίδω τη δουλειά μου;",
+      en: "How do I deliver my work?"
+    },
+    answer: {
+      el: "Μετά τη δημοσίευση, επικόλλησε το δημόσιο link του reel / TikTok / post στο πεδίο «Παραδοτέο» της συνεργασίας ή της καμπάνιας (Dashboard → Καμπάνιες / Προσφορές). Μην βασίζεσαι μόνο σε WeTransfer ή links στο chat — εκεί το brand εγκρίνει επίσημα την παράδοση. Όταν εγκριθεί, η συνεργασία μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες» (αν συμφωνήσετε και οι δύο).",
+      en: "After publishing, paste the public reel / TikTok / post link in the collaboration or campaign’s “Deliverable” field (Dashboard → Campaigns / Proposals). Don’t rely only on WeTransfer or chat links — that’s where the brand officially approves delivery. Once approved, the collaboration may appear in “Recent collaborations” (if both sides agree)."
+    }
+  },
+  {
     category: { el: "Συνεργασίες", en: "Collaborations" },
     question: {
       el: "Τι συμβαίνει μετά την αποδοχή μιας προσφοράς;",

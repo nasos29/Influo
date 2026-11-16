@@ -7,6 +7,8 @@ import { formatAthensDateTime, formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 import { escapeHtml } from "@/lib/proposalParty";
+import { showcaseInlineNoticeHtml, showcaseMissingPostHtml } from "@/lib/showcaseMail";
+import { showcaseHelperEmailHtml } from "@/lib/showcaseCopy";
 
 function euroHtml(amount: unknown): string {
   const formatted = formatEuroAmount(amount);
@@ -486,6 +488,8 @@ export async function mailCollaborationComplete(input: {
   budget: string;
   extras?: unknown;
   publishDeadline?: string | null;
+  showcaseOptOutUrl?: string | null;
+  addPostUrl?: string | null;
 }): Promise<void> {
   await mailCreatorDealComplete({
     to: input.influencerEmail,
@@ -498,6 +502,8 @@ export async function mailCollaborationComplete(input: {
     extras: input.extras,
     publishDeadline: input.publishDeadline,
     dashboardUrl: creatorProposalsUrl(),
+    showcaseOptOutUrl: input.showcaseOptOutUrl,
+    addPostUrl: input.addPostUrl,
   });
 }
 
@@ -570,7 +576,17 @@ function lockedAgreementBody(opts: {
   ctaUrl: string;
   nextStepsKey: "deal_complete_creator" | "deal_complete_brand";
   closing: string;
+  showcaseOptOutUrl?: string | null;
+  showcaseParty?: "brand" | "influencer";
+  /** Signed add-post URL when published post link is missing (creator). */
+  addPostUrl?: string | null;
 }): string {
+  const party = opts.showcaseParty || (opts.nextStepsKey === "deal_complete_brand" ? "brand" : "influencer");
+  const showcaseNotice = opts.showcaseOptOutUrl
+    ? showcaseInlineNoticeHtml(opts.showcaseOptOutUrl, party)
+    : "";
+  const missingPost =
+    party === "influencer" && opts.addPostUrl ? showcaseMissingPostHtml(opts.addPostUrl) : "";
   return `${opts.greetingHtml}
        ${opts.leadHtml}
        ${agreementDetailsHtml(opts.deal)}
@@ -578,6 +594,9 @@ function lockedAgreementBody(opts: {
        ${opts.safety ? creatorPaymentSafetyHtml() : ""}
        ${opts.nextStepsHtml}
        ${buttonHtml(opts.ctaUrl, "Άνοιξε το dashboard")}
+       ${showcaseHelperEmailHtml(party)}
+       ${missingPost}
+       ${showcaseNotice}
        ${emailNextSteps(opts.nextStepsKey)}
        <p>${opts.closing}</p>`;
 }
@@ -615,6 +634,10 @@ export async function mailCreatorDealComplete(input: {
   extras?: unknown;
   publishDeadline?: string | null;
   dashboardUrl: string;
+  /** When influencer showcase consent is true. */
+  showcaseOptOutUrl?: string | null;
+  /** When published_post_url is missing — signed add-post page. */
+  addPostUrl?: string | null;
 }): Promise<void> {
   const brand = escapeHtml(input.brandName);
   const date = escapeHtml(formatDate(input.completedAt, "el"));
@@ -637,10 +660,14 @@ export async function mailCreatorDealComplete(input: {
         deal,
         safety: true,
         nextStepsHtml:
-          "<p><strong>Επόμενα βήματα:</strong> συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στα μηνύματα του Influo. Κράτα αυτό το email ως αντίγραφο της συμφωνίας.</p>",
+          "<p><strong>Επόμενα βήματα:</strong> συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στα μηνύματα του Influo. Κράτα αυτό το email ως αντίγραφο της συμφωνίας.</p>" +
+          "<p>Όταν δημοσιεύσεις, επικόλλησε το link του reel / TikTok / post στο πεδίο <strong>Παραδοτέο</strong> στο dashboard (όχι μόνο στο chat) — εκεί εγκρίνει το brand.</p>",
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_creator",
         closing: "Καλή συνεργασία,",
+        showcaseOptOutUrl: input.showcaseOptOutUrl,
+        showcaseParty: "influencer",
+        addPostUrl: input.addPostUrl,
       })
     )
   );
@@ -658,6 +685,8 @@ export async function mailBrandDealComplete(input: {
   extras?: unknown;
   publishDeadline?: string | null;
   dashboardUrl: string;
+  /** When brand showcase consent is true. */
+  showcaseOptOutUrl?: string | null;
 }): Promise<void> {
   const creator = escapeHtml(input.creatorName);
   const date = escapeHtml(formatDate(input.completedAt, "el"));
@@ -684,6 +713,8 @@ export async function mailBrandDealComplete(input: {
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_brand",
         closing: "Με εκτίμηση,",
+        showcaseOptOutUrl: input.showcaseOptOutUrl,
+        showcaseParty: "brand",
       })
     )
   );

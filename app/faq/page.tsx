@@ -20,6 +20,18 @@ export default function FAQPage() {
     setLang(pathname?.startsWith("/en") ? "en" : getStoredLanguage());
   }, [pathname]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#deliverable") return;
+    const idx = faqs.findIndex((f) => /παραδίδω|deliver my work/i.test(f.question.el + f.question.en));
+    if (idx < 0) return;
+    setSelectedCategory("all");
+    setOpenIndex(idx);
+    requestAnimationFrame(() => {
+      document.getElementById("deliverable")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, []);
+
   const categories = Array.from(new Set(faqs.map(faq => faq.category[lang])));
   const filteredFAQs = selectedCategory === "all" 
     ? faqs 
@@ -75,13 +87,17 @@ export default function FAQPage() {
 
           {/* FAQ Items */}
           <div className="space-y-4">
-            {filteredFAQs.map((faq, index) => (
+            {filteredFAQs.map((faq) => {
+              const isDeliverable = /παραδίδω|deliver my work/i.test(faq.question.el + faq.question.en);
+              const absoluteIndex = faqs.indexOf(faq);
+              return (
               <div
-                key={index}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                key={absoluteIndex}
+                id={isDeliverable ? "deliverable" : undefined}
+                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-24"
               >
                 <button
-                  onClick={() => setOpenIndex(openIndex === index ? null : index)}
+                  onClick={() => setOpenIndex(openIndex === absoluteIndex ? null : absoluteIndex)}
                   className="w-full px-6 py-5 text-left flex justify-between items-center hover:bg-slate-50 transition-colors"
                 >
                   <span className="font-semibold text-slate-900 pr-4">
@@ -89,7 +105,7 @@ export default function FAQPage() {
                   </span>
                   <svg
                     className={`w-5 h-5 text-slate-500 flex-shrink-0 transition-transform ${
-                      openIndex === index ? "rotate-180" : ""
+                      openIndex === absoluteIndex ? "rotate-180" : ""
                     }`}
                     fill="none"
                     stroke="currentColor"
@@ -98,7 +114,7 @@ export default function FAQPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                {openIndex === index && (
+                {openIndex === absoluteIndex && (
                   <div className="px-6 pb-5 border-t border-slate-100">
                     <p className="pt-4 text-slate-700 leading-relaxed">
                       {faq.answer[lang]}
@@ -106,7 +122,8 @@ export default function FAQPage() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* Contact Support */}

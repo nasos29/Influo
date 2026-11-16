@@ -26,6 +26,10 @@ test("flags TikTok contact prompts", () => {
   assert.equal(looksLikeOffPlatformContact("γράψε μου στο τικτοκ"), true);
   assert.equal(looksLikeOffPlatformContact("dm me on tiktok"), true);
   assert.equal(looksLikeOffPlatformContact("https://www.tiktok.com/@someuser"), true);
+  assert.equal(
+    looksLikeOffPlatformContact("https://www.tiktok.com/@creator/video/7123456789012345678"),
+    false
+  );
 });
 
 test("flags phone numbers and emails", () => {

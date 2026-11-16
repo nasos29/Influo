@@ -34,13 +34,19 @@ export type ProposalRow = {
   publish_deadline?: string | null;
   selected_extras?: unknown;
   created_at?: string;
+  brand_showcase_consent?: boolean | null;
+  influencer_showcase_consent?: boolean | null;
+  published_post_url?: string | null;
+  published_post_pending_approval?: boolean | null;
+  self_reported_views?: number | null;
+  self_reported_reach?: number | null;
 };
 
 const LIST_COLUMNS =
-  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline, brand_showcase_consent, influencer_showcase_consent, published_post_url, self_reported_views, self_reported_reach";
+  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline, brand_showcase_consent, influencer_showcase_consent, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach";
 
 const SHOWCASE_COLUMNS =
-  ", brand_showcase_consent, influencer_showcase_consent, published_post_url, self_reported_views, self_reported_reach";
+  ", brand_showcase_consent, influencer_showcase_consent, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach";
 
 async function selectProposals(
   build: (columns: string) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>
@@ -55,7 +61,7 @@ async function selectProposals(
       continue;
     }
     if (
-      /showcase_consent|published_post_url|self_reported_/i.test(msg) &&
+      /showcase_consent|published_post_url|published_post_pending_approval|self_reported_/i.test(msg) &&
       columns.includes("brand_showcase_consent")
     ) {
       columns = columns.replace(SHOWCASE_COLUMNS, "");

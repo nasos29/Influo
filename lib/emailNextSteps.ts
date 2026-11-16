@@ -24,6 +24,7 @@ export type EmailNextStepsKey =
   | "campaign_pending_apps_brand"
   | "campaign_deliverable_brand"
   | "campaign_deliverable_approved_creator"
+  | "campaign_deliverable_approved_brand"
   | "campaign_deliverable_changes_creator"
   | "proposal_new_creator"
   | "proposal_brand_confirmation"
@@ -155,6 +156,10 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
     { el: "Δες την ενημέρωση στις Καμπάνιες του dashboard.", en: "Check the update under Dashboard → Campaigns." },
     { el: "Ολοκλήρωσε τυχόν υπόλοιπα βήματα της συνεργασίας (chat/αξιολόγηση).", en: "Finish any remaining steps (chat/review)." },
   ],
+  campaign_deliverable_approved_brand: [
+    { el: "Δες την εγκριμένη παράδοση στις Καμπάνιες του brand dashboard.", en: "View the approved deliverable under Brand Dashboard → Campaigns." },
+    { el: "Αν θέλετε, αφήστε αξιολόγηση στον δημιουργό από το προφίλ του.", en: "Optionally leave a review on the creator’s profile." },
+  ],
   campaign_deliverable_changes_creator: [
     { el: "Διάβασε τι ζητήθηκε στις Καμπάνιες / στο σχόλιο.", en: "Read the requested changes in Campaigns / the note." },
     { el: "Κάνε τις αλλαγές και υπέβαλε ξανά το link παράδοσης.", en: "Make the changes and resubmit the deliverable link." },
@@ -206,6 +211,7 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
   ],
   deal_complete_creator: [
     { el: "Συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στο chat.", en: "Align brief, assets, and publish date in chat." },
+    { el: "Όταν δημοσιεύσεις, βάλε το link στο πεδίο Παραδοτέο στο dashboard (όχι μόνο στο chat).", en: "When you publish, paste the link in the Deliverable field on the dashboard (not only in chat)." },
     { el: "Ζήτησε προκαταβολή πριν ξεκινήσεις — το Influo δεν μεσολαβεί στην πληρωμή.", en: "Ask for a deposit before you start — Influo does not handle payment." },
     { el: "Κράτα αυτό το email ως αντίγραφο της συμφωνίας.", en: "Keep this email as a copy of the agreement." },
   ],

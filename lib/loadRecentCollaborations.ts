@@ -23,7 +23,7 @@ export type RecentCollaborationCard = {
 };
 
 const PROPOSAL_COLS =
-  "id, brand_id, brand_name, influencer_id, service_type, agreement_accepted_at, published_post_url, self_reported_views, self_reported_reach, showcase_admin_pinned";
+  "id, brand_id, brand_name, influencer_id, service_type, agreement_accepted_at, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach, showcase_admin_pinned";
 
 const APP_COLS =
   "id, influencer_id, deliverable_url, self_reported_views, self_reported_reach, showcase_admin_pinned, reviewed_at, delivered_at, brand_campaigns!inner ( id, title, category, brand_id, brands ( brand_name, logo_url ) )";
@@ -79,7 +79,9 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
   const candidates: Candidate[] = [];
 
   try {
-    const { data, error } = await admin
+    const PROPOSAL_COLS_LEGACY =
+      "id, brand_id, brand_name, influencer_id, service_type, agreement_accepted_at, published_post_url, self_reported_views, self_reported_reach, showcase_admin_pinned";
+    const first = await admin
       .from("proposals")
       .select(PROPOSAL_COLS)
       .eq("status", "completed")
@@ -89,27 +91,50 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
       .order("showcase_admin_pinned", { ascending: false })
       .order("agreement_accepted_at", { ascending: false, nullsFirst: false })
       .limit(take);
+    let error = first.error;
+    let rows: Record<string, unknown>[] = Array.isArray(first.data)
+      ? (first.data as unknown as Record<string, unknown>[])
+      : [];
+    if (error && /published_post_pending_approval|PGRST204|42703/i.test(error.message || "")) {
+      const second = await admin
+        .from("proposals")
+        .select(PROPOSAL_COLS_LEGACY)
+        .eq("status", "completed")
+        .eq("brand_showcase_consent", true)
+        .eq("influencer_showcase_consent", true)
+        .eq("showcase_admin_hidden", false)
+        .order("showcase_admin_pinned", { ascending: false })
+        .order("agreement_accepted_at", { ascending: false, nullsFirst: false })
+        .limit(take);
+      error = second.error;
+      rows = Array.isArray(second.data)
+        ? (second.data as unknown as Record<string, unknown>[])
+        : [];
+    }
     if (error) {
       console.error("loadRecentCollaborations proposals", error);
-    } else if (Array.isArray(data)) {
-      for (const row of data) {
-        const influencerId = typeof row.influencer_id === "string" ? row.influencer_id : "";
+    } else {
+      for (const raw of rows) {
+        const influencerId = typeof raw.influencer_id === "string" ? raw.influencer_id : "";
         if (!influencerId) continue;
+        // Exclude creator-submitted links still awaiting brand approval (column may be missing pre-migration).
+        if (raw.published_post_pending_approval === true) continue;
         const completedAt =
-          typeof row.agreement_accepted_at === "string" ? row.agreement_accepted_at : null;
+          typeof raw.agreement_accepted_at === "string" ? raw.agreement_accepted_at : null;
         candidates.push({
-          id: `proposal:${row.id}`,
+          id: `proposal:${String(raw.id)}`,
           source: "proposal",
-          brandName: (typeof row.brand_name === "string" && row.brand_name.trim()) || "Brand",
+          brandName:
+            (typeof raw.brand_name === "string" && raw.brand_name.trim()) || "Brand",
           brandLogoUrl: null,
-          brandId: typeof row.brand_id === "string" ? row.brand_id : null,
+          brandId: typeof raw.brand_id === "string" ? raw.brand_id : null,
           influencerId,
-          category: typeof row.service_type === "string" ? row.service_type : null,
+          category: typeof raw.service_type === "string" ? raw.service_type : null,
           completedAt,
-          postUrlRaw: typeof row.published_post_url === "string" ? row.published_post_url : null,
-          selfReportedViews: numOrNull(row.self_reported_views),
-          selfReportedReach: numOrNull(row.self_reported_reach),
-          pinned: !!row.showcase_admin_pinned,
+          postUrlRaw: typeof raw.published_post_url === "string" ? raw.published_post_url : null,
+          selfReportedViews: numOrNull(raw.self_reported_views),
+          selfReportedReach: numOrNull(raw.self_reported_reach),
+          pinned: !!raw.showcase_admin_pinned,
           sortAt: completedAt ? Date.parse(completedAt) || 0 : 0,
         });
       }

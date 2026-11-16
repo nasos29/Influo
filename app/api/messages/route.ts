@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { isChatParticipant, loadChatActor, senderIdFor } from "@/lib/chatActor";
 import {
+  deliverableTipContent,
+  extractPublishableDeliverableUrl,
+  looksLikeDeliverableLink,
+  DELIVERABLE_TIP_MARKER,
+  type DeliverableTipTarget,
+} from "@/lib/deliverableChatTip";
+import {
   looksLikeOffPlatformContact,
   offPlatformTipContent,
   OFF_PLATFORM_TIP_MARKER,
@@ -11,6 +18,97 @@ import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 type Attachment = { url: string; filename?: string; size?: number; content_type?: string };
 type SenderType = "influencer" | "brand";
 
+async function resolveDeliverableTipTarget(args: {
+  conversationId: string;
+  userText: string;
+}): Promise<DeliverableTipTarget | null> {
+  const admin = supabaseService();
+  const prefill = extractPublishableDeliverableUrl(args.userText) || undefined;
+  const { data: conv } = await admin
+    .from("conversations")
+    .select("id, proposal_id, influencer_id, brand_email")
+    .eq("id", args.conversationId)
+    .maybeSingle();
+  if (!conv) {
+    return prefill ? { prefill } : null;
+  }
+
+  const proposalId = conv.proposal_id != null ? String(conv.proposal_id) : "";
+  if (proposalId) {
+    const { data: prop } = await admin
+      .from("proposals")
+      .select("id, influencer_agreement_accepted, brand_agreement_accepted")
+      .eq("id", proposalId)
+      .maybeSingle();
+    if (prop?.influencer_agreement_accepted && prop?.brand_agreement_accepted) {
+      return { kind: "proposal", id: String(prop.id), prefill };
+    }
+  }
+
+  const influencerId = String(conv.influencer_id || "");
+  const brandEmail = String(conv.brand_email || "").trim().toLowerCase();
+  if (influencerId && brandEmail) {
+    const { data: apps } = await admin
+      .from("campaign_applications")
+      .select("id, status, created_at, brand_campaigns ( brands ( contact_email ) )")
+      .eq("influencer_id", influencerId)
+      .in("status", ["shortlisted", "accepted", "completed"])
+      .order("created_at", { ascending: false })
+      .limit(8);
+    for (const app of apps || []) {
+      const campaignRaw = app.brand_campaigns as unknown;
+      const campaign = (Array.isArray(campaignRaw) ? campaignRaw[0] : campaignRaw) as {
+        brands?: { contact_email?: string } | { contact_email?: string }[] | null;
+      } | null;
+      const brandRow = Array.isArray(campaign?.brands) ? campaign?.brands[0] : campaign?.brands;
+      const email = (brandRow?.contact_email || "").trim().toLowerCase();
+      if (email && email === brandEmail) {
+        return { kind: "campaign", id: String(app.id), prefill };
+      }
+    }
+  }
+
+  if (proposalId) return { kind: "proposal", id: proposalId, prefill };
+  return prefill ? { prefill } : null;
+}
+
+/** Soft tip: paste publishable link in Παραδοτέο. At most one per 12h. Never blocks. */
+async function maybeInsertDeliverableTip(args: {
+  conversationId: string;
+  senderId: string;
+  senderType: SenderType;
+  userText: string;
+}): Promise<Record<string, unknown> | null> {
+  if (!looksLikeDeliverableLink(args.userText)) return null;
+  const admin = supabaseService();
+  const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+  const { data: recent } = await admin
+    .from("messages")
+    .select("id, content")
+    .eq("conversation_id", args.conversationId)
+    .gte("created_at", since)
+    .like("content", `${DELIVERABLE_TIP_MARKER}%`)
+    .limit(1);
+  if (recent && recent.length > 0) return null;
+
+  const target = await resolveDeliverableTipTarget({
+    conversationId: args.conversationId,
+    userText: args.userText,
+  });
+  const tip = await insertMessage({
+    conversation_id: args.conversationId,
+    sender_id: args.senderId,
+    sender_type: args.senderType,
+    content: deliverableTipContent(target),
+    read: false,
+    sent_via_email: false,
+    email_sent: false,
+    admin_notified: false,
+  });
+  if (tip.error || !tip.data) return null;
+  return tip.data as Record<string, unknown>;
+}
+
 /** Soft in-thread notice after an off-platform contact prompt. At most one per 12h. */
 async function maybeInsertOffPlatformTip(args: {
   conversationId: string;
@@ -18,6 +116,8 @@ async function maybeInsertOffPlatformTip(args: {
   senderType: SenderType;
   userText: string;
 }): Promise<Record<string, unknown> | null> {
+  // Prefer deliverable tip when the message is a file-host / publishable post link.
+  if (looksLikeDeliverableLink(args.userText)) return null;
   if (!looksLikeOffPlatformContact(args.userText)) return null;
   const admin = supabaseService();
   const since = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
@@ -301,14 +401,23 @@ export async function POST(req: Request) {
         source: "messages_api",
         sender_type: senderType,
       });
-      const safetyTip = senderId
-        ? await maybeInsertOffPlatformTip({
+      let safetyTip: Record<string, unknown> | null = null;
+      if (senderId) {
+        safetyTip = await maybeInsertDeliverableTip({
+          conversationId: convId!,
+          senderId,
+          senderType,
+          userText: messageContent,
+        });
+        if (!safetyTip) {
+          safetyTip = await maybeInsertOffPlatformTip({
             conversationId: convId!,
             senderId,
             senderType,
             userText: messageContent,
-          })
-        : null;
+          });
+        }
+      }
       return NextResponse.json({
         success: true,
         message: inserted.data,
@@ -373,14 +482,23 @@ export async function POST(req: Request) {
       sender_type: senderType,
     });
 
-    const safetyTip = senderId
-      ? await maybeInsertOffPlatformTip({
+    let safetyTip: Record<string, unknown> | null = null;
+    if (senderId) {
+      safetyTip = await maybeInsertDeliverableTip({
+        conversationId,
+        senderId,
+        senderType,
+        userText: messageContent,
+      });
+      if (!safetyTip) {
+        safetyTip = await maybeInsertOffPlatformTip({
           conversationId,
           senderId,
           senderType,
           userText: messageContent,
-        })
-      : null;
+        });
+      }
+    }
     return NextResponse.json({
       success: true,
       message: inserted.data,

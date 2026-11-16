@@ -564,6 +564,8 @@ export default function BrandCampaignsSection({
   pendingApplicationsCount = 0,
   pendingApplicationsOldestDays = 0,
   focusApplications = 0,
+  focusApplicationId = null,
+  focusDeliverable = false,
   onApplicationsUpdated,
   onOpenInfluencerMessage,
   startNew = false,
@@ -575,6 +577,9 @@ export default function BrandCampaignsSection({
   /** Age in days of the oldest pending application (SLA banner). */
   pendingApplicationsOldestDays?: number;
   focusApplications?: number;
+  /** Deep-link from chat tip: open this application’s deliverable. */
+  focusApplicationId?: string | null;
+  focusDeliverable?: boolean;
   onApplicationsUpdated?: () => void;
   onOpenInfluencerMessage?: (p: { influencerId: string; displayName: string; conversationId?: string | null }) => void;
   /** Opens the existing create form once, from /brand/dashboard?tab=campaigns&new=1. */
@@ -803,9 +808,20 @@ export default function BrandCampaignsSection({
   }, []);
 
   useEffect(() => {
-    if (!focusApplications) return;
+    if (!focusApplications && !focusDeliverable && !focusApplicationId) return;
     setPanel("applications");
-  }, [focusApplications]);
+  }, [focusApplications, focusDeliverable, focusApplicationId]);
+
+  useEffect(() => {
+    if (!focusDeliverable || !focusApplicationId) return;
+    if (panel !== "applications") return;
+    setOpenDeliverableIds((prev) => ({ ...prev, [focusApplicationId]: true }));
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`brand-deliverable-${focusApplicationId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [focusDeliverable, focusApplicationId, panel, appsByCampaign]);
 
   const campaignKey = rows.map((row) => row.id).join(",");
   const loadApplicationPanel = useCallback(async () => {
@@ -1475,7 +1491,10 @@ export default function BrandCampaignsSection({
                                         {openDeliverableIds[app.id] ? t.hide_deliverable : t.view_deliverable}
                                       </button>
                                       {openDeliverableIds[app.id] ? (
-                                        <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 space-y-1.5">
+                                        <div
+                                          id={`brand-deliverable-${app.id}`}
+                                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 space-y-1.5 scroll-mt-24"
+                                        >
                                           {app.deliverable_url ? (
                                             <a
                                               href={app.deliverable_url}
@@ -1515,10 +1534,10 @@ export default function BrandCampaignsSection({
                                               ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
                                               : "Show publicly in “Recent collaborations”"}
                                           </span>
-                                          <span className="mt-0.5 block text-slate-500">
+                                          <span className="mt-0.5 block text-[11px] text-slate-400">
                                             {lang === "el"
-                                              ? "✨ Οι δημόσιες συνεργασίες δείχνουν ότι η επιχείρησή σας ολοκληρώνει τις συμφωνίες της, και έτσι οι καλοί creators δέχονται πιο εύκολα τις προτάσεις σας. Φαίνεται μόνο αν συμφωνήσει και ο influencer."
-                                              : "✨ Public collaborations show that your business completes its deals, so good creators accept your proposals more readily. Shown only if the influencer also agrees."}
+                                              ? "Η καμπάνια σας προβάλλεται στους δημιουργούς και στους επισκέπτες του Influo, οπότε θα δεχτείτε περισσότερες και καλύτερες αιτήσεις στις επόμενες καμπάνιες σας."
+                                              : "Your campaign is shown to creators and Influo visitors, so you'll get more and better applications on your next campaigns."}
                                           </span>
                                         </span>
                                       </label>

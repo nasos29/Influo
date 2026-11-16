@@ -12,6 +12,7 @@ import {
   applicationStatusToCreator,
   closedToBrand,
   closingSoonToBrand,
+  deliverableApprovedToBrand,
   deliverableReviewToCreator,
   deliverableSubmittedToBrand,
   newCampaignToCreator,
@@ -203,6 +204,17 @@ const previews: Preview[] = [
       campaignTitle: "Reels για Γενικά",
       status: "approved",
       reviewNote: "Τέλεια!",
+      showcaseOptOutUrl: "https://www.influo.gr/showcase/opt-out?t=preview",
+    }),
+  },
+  {
+    file: "campaign-deliverable-approved-brand.html",
+    ...deliverableApprovedToBrand({
+      brandEmail,
+      brandName: "Άθος Coffee",
+      campaignTitle: "Reels για Γενικά",
+      influencerName: "Μαρία Παπαδοπούλου",
+      showcaseOptOutUrl: "https://www.influo.gr/showcase/opt-out?t=preview",
     }),
   },
   {

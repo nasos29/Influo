@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { sessionFetch } from "@/lib/sessionFetch";
+import { showcaseHelperText } from "@/lib/showcaseCopy";
 
 type Lang = "el" | "en";
 type Source = "proposal" | "campaign";
@@ -10,19 +11,11 @@ type Party = "brand" | "influencer";
 const COPY = {
   el: {
     label: "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»",
-    hintInfluencer:
-      "✨ Οι συνεργασίες που φαίνονται στο προφίλ σου σε βοηθούν να κερδίσεις περισσότερες προτάσεις από brands. Φαίνεται μόνο αν συμφωνήσει και το brand.",
-    hintBrand:
-      "✨ Οι δημόσιες συνεργασίες δείχνουν ότι η επιχείρησή σας ολοκληρώνει τις συμφωνίες της, και έτσι οι καλοί creators δέχονται πιο εύκολα τις προτάσεις σας. Φαίνεται μόνο αν συμφωνήσει και ο influencer.",
     saving: "Αποθήκευση…",
     error: "Δεν αποθηκεύτηκε. Δοκίμασε ξανά.",
   },
   en: {
     label: "Show publicly in “Recent collaborations”",
-    hintInfluencer:
-      "✨ Collaborations shown on your profile help you get more proposals from brands. Shown only if the brand also agrees.",
-    hintBrand:
-      "✨ Public collaborations show that your business completes its deals, so good creators accept your proposals more readily. Shown only if the influencer also agrees.",
     saving: "Saving…",
     error: "Could not save. Try again.",
   },
@@ -44,7 +37,7 @@ export default function ShowcaseConsentToggle({
   className?: string;
 }) {
   const txt = COPY[lang];
-  const hint = party === "brand" ? txt.hintBrand : txt.hintInfluencer;
+  const hint = showcaseHelperText(party, lang);
   const [consent, setConsent] = useState(!!initialConsent);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

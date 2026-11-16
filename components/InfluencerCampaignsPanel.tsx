@@ -2,7 +2,8 @@
 import { isTestBrandId, testBrandIdsFilter } from "@/lib/testBrandIds";
 
 import { sessionFetch } from "@/lib/sessionFetch";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
 import { getStoredLanguage } from "@/lib/language";
@@ -182,6 +183,8 @@ export default function InfluencerCampaignsPanel({
   const pc = pendingCopy[uiLang];
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
   const notify = (message: string, tone: "success" | "error" | "info" = "info") => pushToast(message, tone);
+  const searchParams = useSearchParams();
+  const deliverableFocusDone = useRef(false);
 
   const [campaigns, setCampaigns] = useState<CampaignWithBrand[]>([]);
   const [mine, setMine] = useState<MyApplication[]>([]);
@@ -211,10 +214,49 @@ export default function InfluencerCampaignsPanel({
     Record<string, { url: string; note: string; showcaseConsent?: boolean }>
   >({});
   const [deliverSaving, setDeliverSaving] = useState<string | null>(null);
+  const [highlightDeliverableId, setHighlightDeliverableId] = useState<string | null>(null);
+
+  const canShowDeliverable = useCallback(
+    (m: MyApplication) =>
+      m.status === "shortlisted" ||
+      m.status === "accepted" ||
+      (!!m.deliverable_status && m.deliverable_status !== "none"),
+    []
+  );
 
   useEffect(() => {
     setUiLang(getStoredLanguage() === "en" ? "en" : "el");
   }, []);
+
+  useEffect(() => {
+    if (deliverableFocusDone.current) return;
+    if (searchParams?.get("focus") !== "deliverable") return;
+    if (loading || mine.length === 0) return;
+    const appId = searchParams.get("application") || "";
+    const prefill = searchParams.get("prefill") || "";
+    const target =
+      (appId && mine.find((m) => m.id === appId)) ||
+      mine.find((m) => canShowDeliverable(m) && m.deliverable_status !== "approved") ||
+      mine[0];
+    if (!target) return;
+    deliverableFocusDone.current = true;
+    setHighlightDeliverableId(target.id);
+    if (prefill) {
+      setDeliverDraft((prev) => ({
+        ...prev,
+        [target.id]: {
+          url: prefill,
+          note: prev[target.id]?.note || target.deliverable_note || "",
+          showcaseConsent: prev[target.id]?.showcaseConsent !== false,
+        },
+      }));
+    }
+    requestAnimationFrame(() => {
+      document.getElementById(`deliverable-${target.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const input = document.querySelector<HTMLInputElement>(`#deliverable-${target.id} input[type="url"]`);
+      input?.focus();
+    });
+  }, [searchParams, loading, mine, canShowDeliverable]);
 
   const appliedCampaignIds = useMemo(() => {
     const s = new Set<string>();
@@ -470,11 +512,6 @@ export default function InfluencerCampaignsPanel({
       setDeliverSaving(null);
     }
   };
-
-  const canShowDeliverable = (m: MyApplication) =>
-    m.status === "shortlisted" ||
-    m.status === "accepted" ||
-    (!!m.deliverable_status && m.deliverable_status !== "none");
 
   if (schemaError) {
     return (
@@ -734,7 +771,12 @@ export default function InfluencerCampaignsPanel({
               return (
               <li
                 key={m.id}
-                className="flex flex-col gap-3 border border-slate-100 rounded-lg p-3 bg-slate-50"
+                id={showDeliver ? `deliverable-${m.id}` : undefined}
+                className={`flex flex-col gap-3 border rounded-lg p-3 scroll-mt-24 ${
+                  highlightDeliverableId === m.id
+                    ? "border-sky-400 bg-sky-50 ring-2 ring-sky-200"
+                    : "border-slate-100 bg-slate-50"
+                }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <div>
@@ -813,6 +855,11 @@ export default function InfluencerCampaignsPanel({
                         ? "Μόνο Instagram, TikTok ή YouTube (https). Δεν ανεβάζουμε αρχεία βίντεο."
                         : "Instagram, TikTok, or YouTube only (https). We never store video files."}
                     </p>
+                    <p className="text-[11px] leading-relaxed text-slate-400">
+                      {uiLang === "el"
+                        ? "Οι συνεργασίες σου εμφανίζονται στην αρχική και στο προφίλ σου. Τα brands βλέπουν τη δουλειά σου, οπότε έχεις περισσότερες πιθανότητες να σε επιλέξουν."
+                        : "Your collaborations appear on the homepage and your profile. Brands see your work, so you have a better chance of being chosen."}
+                    </p>
                     <textarea
                       value={draft.note}
                       onChange={(e) =>
@@ -843,10 +890,10 @@ export default function InfluencerCampaignsPanel({
                             ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
                             : "Show publicly in “Recent collaborations”"}
                         </span>
-                        <span className="mt-0.5 block text-[11px] text-slate-500">
+                        <span className="mt-0.5 block text-[11px] text-slate-400">
                           {uiLang === "el"
-                            ? "✨ Οι συνεργασίες που φαίνονται στο προφίλ σου σε βοηθούν να κερδίσεις περισσότερες προτάσεις από brands. Φαίνεται μόνο αν συμφωνήσει και το brand."
-                            : "✨ Collaborations shown on your profile help you get more proposals from brands. Shown only if the brand also agrees."}
+                            ? "Οι συνεργασίες σου εμφανίζονται στην αρχική και στο προφίλ σου. Τα brands βλέπουν τη δουλειά σου, οπότε έχεις περισσότερες πιθανότητες να σε επιλέξουν."
+                            : "Your collaborations appear on the homepage and your profile. Brands see your work, so you have a better chance of being chosen."}
                         </span>
                       </span>
                     </label>
@@ -870,16 +917,22 @@ export default function InfluencerCampaignsPanel({
                 )}
                 {dStatus === "approved" && (
                   <div className="space-y-2">
-                    {m.deliverable_url ? (
+                    {!String(m.deliverable_url || "").trim() ? (
+                      <p className="text-[11px] leading-relaxed text-amber-800">
+                        {uiLang === "el"
+                          ? "Λείπει το link της ανάρτησης. Πρόσθεσέ το παρακάτω αν χρειάζεται."
+                          : "The post link is missing. Add it below if needed."}
+                      </p>
+                    ) : (
                       <a
-                        href={m.deliverable_url}
+                        href={m.deliverable_url!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-emerald-700 underline break-all"
                       >
                         {m.deliverable_url}
                       </a>
-                    ) : null}
+                    )}
                     <ShowcaseConsentToggle
                       source="campaign"
                       id={m.id}
