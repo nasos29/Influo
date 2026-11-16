@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { sessionFetch } from "@/lib/sessionFetch";
+import { showcaseHelperText } from "@/lib/showcaseCopy";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
 type Lang = "el" | "en";
@@ -14,6 +15,10 @@ const COPY = {
     save: "Αποθήκευση",
     saving: "Αποθήκευση…",
     saved: "Αποθηκεύτηκε.",
+    approve: "Έγκριση link",
+    approving: "Έγκριση…",
+    approved: "Εγκρίθηκε.",
+    pending: "Αναμονή έγκρισης από το brand.",
   },
   en: {
     label: "Deliverable",
@@ -22,6 +27,10 @@ const COPY = {
     save: "Save",
     saving: "Saving…",
     saved: "Saved.",
+    approve: "Approve link",
+    approving: "Approving…",
+    approved: "Approved.",
+    pending: "Waiting for brand approval.",
   },
 } as const;
 
@@ -33,6 +42,8 @@ export default function ProposalDeliverableField({
   autoFocus = false,
   prefill,
   className = "",
+  pendingApproval = false,
+  canApprove = false,
 }: {
   proposalId: string;
   initialUrl?: string | null;
@@ -41,13 +52,22 @@ export default function ProposalDeliverableField({
   autoFocus?: boolean;
   prefill?: string | null;
   className?: string;
+  pendingApproval?: boolean;
+  /** Brand can clear pending approval. */
+  canApprove?: boolean;
 }) {
   const txt = COPY[lang];
   const [url, setUrl] = useState(prefill || initialUrl || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
+  const [pending, setPending] = useState(!!pendingApproval);
+  const [approving, setApproving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setPending(!!pendingApproval);
+  }, [pendingApproval]);
 
   useEffect(() => {
     if (prefill) setUrl(prefill);
@@ -87,11 +107,39 @@ export default function ProposalDeliverableField({
         return;
       }
       setUrl(parsed.url);
+      setPending(true);
       setOk(true);
     } catch {
       setError(lang === "el" ? "Δεν αποθηκεύτηκε." : "Could not save.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const approve = async () => {
+    setApproving(true);
+    setError(null);
+    try {
+      const res = await sessionFetch("/api/collaborations/showcase", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "proposal",
+          id: proposalId,
+          approvePublishedPost: true,
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error || (lang === "el" ? "Δεν εγκρίθηκε." : "Could not approve."));
+        return;
+      }
+      setPending(false);
+      setOk(true);
+    } catch {
+      setError(lang === "el" ? "Δεν εγκρίθηκε." : "Could not approve.");
+    } finally {
+      setApproving(false);
     }
   };
 
@@ -102,11 +150,28 @@ export default function ProposalDeliverableField({
     >
       <p className="text-xs font-semibold text-slate-700">{txt.label}</p>
       <p className="text-[11px] text-slate-500">{txt.hint}</p>
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        {showcaseHelperText(readOnly || canApprove ? "brand" : "influencer", lang)}
+      </p>
       {readOnly ? (
         url ? (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline break-all">
-            {url}
-          </a>
+          <>
+            <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline break-all">
+              {url}
+            </a>
+            {pending ? <p className="text-[11px] text-amber-700">{txt.pending}</p> : null}
+            {canApprove && pending ? (
+              <button
+                type="button"
+                disabled={approving}
+                onClick={() => void approve()}
+                className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {approving ? txt.approving : txt.approve}
+              </button>
+            ) : null}
+            {ok && !pending ? <p className="text-xs text-emerald-700">{txt.approved}</p> : null}
+          </>
         ) : (
           <p className="text-xs text-slate-500">{lang === "el" ? "Δεν έχει υποβληθεί ακόμα." : "Not submitted yet."}</p>
         )
@@ -132,10 +197,12 @@ export default function ProposalDeliverableField({
           >
             {saving ? txt.saving : txt.save}
           </button>
+          {pending ? <p className="text-[11px] text-amber-700">{txt.pending}</p> : null}
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
           {ok ? <p className="text-xs text-emerald-700">{txt.saved}</p> : null}
         </>
       )}
+      {error && readOnly ? <p className="text-xs text-red-600">{error}</p> : null}
     </div>
   );
 }

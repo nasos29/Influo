@@ -855,6 +855,11 @@ export default function InfluencerCampaignsPanel({
                         ? "Μόνο Instagram, TikTok ή YouTube (https). Δεν ανεβάζουμε αρχεία βίντεο."
                         : "Instagram, TikTok, or YouTube only (https). We never store video files."}
                     </p>
+                    <p className="text-[11px] leading-relaxed text-slate-400">
+                      {uiLang === "el"
+                        ? "Οι συνεργασίες σου εμφανίζονται στην αρχική και στο προφίλ σου. Τα brands βλέπουν τη δουλειά σου, οπότε έχεις περισσότερες πιθανότητες να σε επιλέξουν."
+                        : "Your collaborations appear on the homepage and your profile. Brands see your work, so you have a better chance of being chosen."}
+                    </p>
                     <textarea
                       value={draft.note}
                       onChange={(e) =>
@@ -885,10 +890,10 @@ export default function InfluencerCampaignsPanel({
                             ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
                             : "Show publicly in “Recent collaborations”"}
                         </span>
-                        <span className="mt-0.5 block text-[11px] text-slate-500">
+                        <span className="mt-0.5 block text-[11px] text-slate-400">
                           {uiLang === "el"
-                            ? "✨ Οι συνεργασίες που φαίνονται στο προφίλ σου σε βοηθούν να κερδίσεις περισσότερες προτάσεις από brands. Φαίνεται μόνο αν συμφωνήσει και το brand."
-                            : "✨ Collaborations shown on your profile help you get more proposals from brands. Shown only if the brand also agrees."}
+                            ? "Οι συνεργασίες σου εμφανίζονται στην αρχική και στο προφίλ σου. Τα brands βλέπουν τη δουλειά σου, οπότε έχεις περισσότερες πιθανότητες να σε επιλέξουν."
+                            : "Your collaborations appear on the homepage and your profile. Brands see your work, so you have a better chance of being chosen."}
                         </span>
                       </span>
                     </label>
@@ -912,16 +917,22 @@ export default function InfluencerCampaignsPanel({
                 )}
                 {dStatus === "approved" && (
                   <div className="space-y-2">
-                    {m.deliverable_url ? (
+                    {!String(m.deliverable_url || "").trim() ? (
+                      <p className="text-[11px] leading-relaxed text-amber-800">
+                        {uiLang === "el"
+                          ? "Λείπει το link της ανάρτησης. Πρόσθεσέ το παρακάτω αν χρειάζεται."
+                          : "The post link is missing. Add it below if needed."}
+                      </p>
+                    ) : (
                       <a
-                        href={m.deliverable_url}
+                        href={m.deliverable_url!}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs text-emerald-700 underline break-all"
                       >
                         {m.deliverable_url}
                       </a>
-                    ) : null}
+                    )}
                     <ShowcaseConsentToggle
                       source="campaign"
                       id={m.id}

@@ -33,6 +33,7 @@ import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
+import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -108,6 +109,7 @@ interface Proposal {
   publish_deadline?: string | null;
   brand_showcase_consent?: boolean | null;
   published_post_url?: string | null;
+  published_post_pending_approval?: boolean | null;
 }
 
 interface Influencer {
@@ -3165,11 +3167,22 @@ export default function BrandDashboardContent() {
                           {(proposal.status === "completed" || !!proposal.influencer_agreement_accepted) &&
                           proposal.brand_agreement_accepted ? (
                             <div className="mt-3 max-w-md space-y-2">
+                              {proposal.status === "completed" &&
+                              !String(proposal.published_post_url || "").trim() ? (
+                                <MissingPostLinkNotice
+                                  lang={lang}
+                                  party="brand"
+                                  source="proposal"
+                                  id={String(proposal.id)}
+                                />
+                              ) : null}
                               <ProposalDeliverableField
                                 proposalId={String(proposal.id)}
                                 initialUrl={proposal.published_post_url}
                                 lang={lang}
                                 readOnly
+                                canApprove
+                                pendingApproval={!!proposal.published_post_pending_approval}
                                 autoFocus={
                                   searchParams?.get("focus") === "deliverable" &&
                                   searchParams?.get("proposalId") === String(proposal.id)

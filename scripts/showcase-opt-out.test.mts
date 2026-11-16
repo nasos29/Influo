@@ -8,8 +8,19 @@ import {
 import {
   showcaseBackfillNoticeMail,
   showcaseInlineNoticeHtml,
+  showcaseMissingPostHtml,
 } from "../lib/showcaseMail.ts";
 import { maybeNotifyShowcaseAppearance } from "../lib/showcaseNotify.ts";
+import {
+  parseShowcaseAddPostToken,
+  showcaseAddPostToken,
+  showcaseAddPostUrl,
+} from "../lib/showcaseAddPost.ts";
+import {
+  SHOWCASE_HELPER_BRAND_EL,
+  SHOWCASE_HELPER_CREATOR_EL,
+  showcaseHelperText,
+} from "../lib/showcaseCopy.ts";
 import {
   consentColumnForParty,
   optedOutColumnForParty,
@@ -150,4 +161,63 @@ test("backfill notice mail mentions 7-day window", () => {
   assert.match(mail.subject, /7 ημέρες/);
   assert.match(mail.html, /23 Νοεμβρίου 2026/);
   assert.match(mail.html, /Δεν θέλω δημόσια προβολή/);
+  assert.match(mail.html, /Οι συνεργασίες σου εμφανίζονται στην αρχική/);
+});
+
+test("add-post token round-trip and rejects tampering", () => {
+  process.env.SHOWCASE_OPTOUT_SECRET = "test-showcase-secret";
+  const token = showcaseAddPostToken("proposal", UUID);
+  assert.deepEqual(parseShowcaseAddPostToken(token), {
+    source: "proposal",
+    id: UUID,
+    party: "influencer",
+  });
+  assert.equal(parseShowcaseAddPostToken(token.slice(0, -2) + "aa"), null);
+  assert.equal(parseShowcaseOptOutToken(token), null);
+});
+
+test("add-post URL and missing-post email CTA", () => {
+  process.env.SHOWCASE_OPTOUT_SECRET = "test-showcase-secret";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://influo.gr";
+  const url = showcaseAddPostUrl("campaign", UUID, "el");
+  assert.match(url, /^https:\/\/influo\.gr\/showcase\/add-post\?/);
+  const html = showcaseMissingPostHtml(url);
+  assert.match(html, /Πρόσθεσε το link της ανάρτησης/);
+  assert.match(html, /\/showcase\/add-post\?/);
+  assert.match(html, /Οι συνεργασίες σου εμφανίζονται στην αρχική/);
+});
+
+test("backfill mail includes add-post CTA when missingPostUrl", () => {
+  process.env.SHOWCASE_OPTOUT_SECRET = "test-showcase-secret";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://influo.gr";
+  const withCta = showcaseBackfillNoticeMail({
+    party: "influencer",
+    recipientName: "Maria",
+    otherPartyName: "Acme",
+    collabLabel: "Story",
+    source: "proposal",
+    id: UUID,
+    deadlineLabel: "23 Νοεμβρίου 2026",
+    missingPostUrl: true,
+  });
+  assert.match(withCta.html, /Πρόσθεσε το link της ανάρτησης/);
+  assert.match(withCta.html, /\/showcase\/add-post\?/);
+
+  const brand = showcaseBackfillNoticeMail({
+    party: "brand",
+    recipientName: "Acme",
+    otherPartyName: "Maria",
+    collabLabel: "Story",
+    source: "proposal",
+    id: UUID,
+    deadlineLabel: "23 Νοεμβρίου 2026",
+    missingPostUrl: true,
+  });
+  assert.doesNotMatch(brand.html, /Πρόσθεσε το link της ανάρτησης/);
+  assert.match(brand.html, /Η καμπάνια σας προβάλλεται/);
+});
+
+test("showcase helper copy is party-specific", () => {
+  assert.equal(showcaseHelperText("influencer", "el"), SHOWCASE_HELPER_CREATOR_EL);
+  assert.equal(showcaseHelperText("brand", "el"), SHOWCASE_HELPER_BRAND_EL);
 });

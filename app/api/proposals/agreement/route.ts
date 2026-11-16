@@ -16,6 +16,7 @@ import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { sendPushAdminAgreementComplete } from "@/lib/push";
 import { partyProposalView, type ProposalParty } from "@/lib/proposalParty";
+import { showcaseAddPostUrl } from "@/lib/showcaseAddPost";
 import { showcaseOptOutUrl } from "@/lib/showcaseOptOut";
 
 function preferredParty(value: unknown): ProposalParty | null {
@@ -214,6 +215,10 @@ export async function POST(request: Request) {
                   showcaseOptOutUrl: influencerConsent
                     ? showcaseOptOutUrl("proposal", proposalId, "influencer", "el")
                     : null,
+                  // Agreement lock is before publish — post URL is almost always missing.
+                  addPostUrl: String(proposal.published_post_url || "").trim()
+                    ? null
+                    : showcaseAddPostUrl("proposal", proposalId, "el"),
                 }).catch((e) => console.error("[deal complete creator mail]", e instanceof Error ? e.message : e)),
                 mailBrandDealComplete({
                   ...common,

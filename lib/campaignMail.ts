@@ -477,7 +477,9 @@ export function deliverableReviewToCreator(input: {
 }): Mail {
   const approved = input.status === "approved";
   const showcaseNotice =
-    approved && input.showcaseOptOutUrl ? showcaseInlineNoticeHtml(input.showcaseOptOutUrl) : "";
+    approved && input.showcaseOptOutUrl
+      ? showcaseInlineNoticeHtml(input.showcaseOptOutUrl, "influencer")
+      : "";
   return {
     subject: approved
       ? `Η παράδοσή σου εγκρίθηκε: ${clip(input.campaignTitle, 45)}`
@@ -517,7 +519,7 @@ export function deliverableApprovedToBrand(input: {
   showcaseOptOutUrl?: string | null;
 }): Mail {
   const showcaseNotice = input.showcaseOptOutUrl
-    ? showcaseInlineNoticeHtml(input.showcaseOptOutUrl)
+    ? showcaseInlineNoticeHtml(input.showcaseOptOutUrl, "brand")
     : "";
   return {
     subject: `Εγκρίθηκε η παράδοση: ${input.influencerName} — ${clip(input.campaignTitle, 40)}`,

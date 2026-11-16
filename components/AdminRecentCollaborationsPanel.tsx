@@ -15,28 +15,44 @@ type Item = {
   completedAt: string | null;
   hidden: boolean;
   pinned: boolean;
+  brandConsent?: boolean;
+  influencerConsent?: boolean;
+  pendingApproval?: boolean;
+  postUrlUpdatedBy?: string | null;
+  postUrlUpdatedAt?: string | null;
+  pinnedBy?: string | null;
 };
 
 const COPY = {
   el: {
     title: "Πρόσφατες συνεργασίες (public)",
-    empty: "Δεν υπάρχουν συνεργασίες με διπλή συναίνεση ακόμα.",
+    empty: "Δεν υπάρχουν ολοκληρωμένες συνεργασίες ακόμα.",
     pin: "Καρφίτσωμα",
     unpin: "Ξεκαρφίτσωμα",
     hide: "Απόκρυψη",
     show: "Εμφάνιση",
     loadError: "Αποτυχία φόρτωσης.",
-    publicNote: "Δημόσια εμφανίζονται μόνο όσες έχουν συναίνεση και από τις δύο πλευρές και δεν είναι κρυφές.",
+    publicNote:
+      "Δημόσια εμφανίζονται μόνο όσες έχουν συναίνεση και από τις δύο πλευρές, έχουν εγκριμένο post link και δεν είναι κρυφές. Μπορείτε να επεξεργαστείτε το URL και να καρφιτσώσετε οποιαδήποτε.",
+    saveUrl: "Αποθήκευση URL",
+    urlPlaceholder: "https://instagram.com/reel/… ή TikTok / YouTube",
+    audit: "Τελευταία αλλαγή URL",
+    pinnedBy: "Καρφίτσωμα από",
   },
   en: {
     title: "Recent collaborations (public)",
-    empty: "No dual-consent collaborations yet.",
+    empty: "No completed collaborations yet.",
     pin: "Pin",
     unpin: "Unpin",
     hide: "Hide",
     show: "Show",
     loadError: "Failed to load.",
-    publicNote: "Public listing requires both consents and not being hidden by admin.",
+    publicNote:
+      "Public listing requires both consents, an approved post link, and not being hidden. You can edit the URL and pin any collaboration.",
+    saveUrl: "Save URL",
+    urlPlaceholder: "https://instagram.com/reel/… or TikTok / YouTube",
+    audit: "Last URL change",
+    pinnedBy: "Pinned by",
   },
 } as const;
 
@@ -46,6 +62,7 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [draftUrls, setDraftUrls] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -58,7 +75,13 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
         setItems([]);
         return;
       }
-      setItems(Array.isArray(body.items) ? body.items : []);
+      const next = Array.isArray(body.items) ? (body.items as Item[]) : [];
+      setItems(next);
+      const drafts: Record<string, string> = {};
+      for (const row of next) {
+        drafts[`${row.source}:${row.id}`] = row.postUrl || "";
+      }
+      setDraftUrls(drafts);
     } catch {
       setError(txt.loadError);
       setItems([]);
@@ -71,7 +94,10 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
     void load();
   }, [load]);
 
-  const patch = async (item: Item, patchBody: { hidden?: boolean; pinned?: boolean }) => {
+  const patch = async (
+    item: Item,
+    patchBody: { hidden?: boolean; pinned?: boolean; postUrl?: string | null }
+  ) => {
     const key = `${item.source}:${item.id}`;
     setBusyId(key);
     try {
@@ -80,8 +106,8 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ source: item.source, id: item.id, ...patchBody }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         setError(typeof body.error === "string" ? body.error : txt.loadError);
         return;
       }
@@ -92,10 +118,29 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                 ...row,
                 hidden: typeof patchBody.hidden === "boolean" ? patchBody.hidden : row.hidden,
                 pinned: typeof patchBody.pinned === "boolean" ? patchBody.pinned : row.pinned,
+                postUrl: "postUrl" in patchBody ? (patchBody.postUrl ?? null) : row.postUrl,
+                pendingApproval: "postUrl" in patchBody ? false : row.pendingApproval,
+                postUrlUpdatedBy:
+                  typeof body.postUrlUpdatedBy === "string"
+                    ? body.postUrlUpdatedBy
+                    : row.postUrlUpdatedBy,
+                postUrlUpdatedAt:
+                  typeof body.postUrlUpdatedAt === "string"
+                    ? body.postUrlUpdatedAt
+                    : row.postUrlUpdatedAt,
+                pinnedBy:
+                  typeof body.pinnedBy === "string"
+                    ? body.pinnedBy
+                    : typeof patchBody.pinned === "boolean"
+                      ? body.pinnedBy || row.pinnedBy
+                      : row.pinnedBy,
               }
             : row
         )
       );
+      if ("postUrl" in patchBody) {
+        setDraftUrls((prev) => ({ ...prev, [key]: patchBody.postUrl || "" }));
+      }
     } finally {
       setBusyId(null);
     }
@@ -116,46 +161,71 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
           {items.map((item) => {
             const key = `${item.source}:${item.id}`;
             const busy = busyId === key;
+            const draft = draftUrls[key] ?? item.postUrl ?? "";
             return (
-              <li key={key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-900">
-                    {item.brandName}{" "}
-                    <span className="text-xs font-normal text-slate-500">
-                      · {item.source}
-                      {item.pinned ? " · pinned" : ""}
-                      {item.hidden ? " · hidden" : ""}
-                    </span>
-                  </p>
-                  {item.postUrl ? (
-                    <a
-                      href={item.postUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-0.5 block truncate text-xs text-blue-700 hover:underline"
+              <li key={key} className="flex flex-col gap-3 px-4 py-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium text-slate-900">
+                      {item.brandName}{" "}
+                      <span className="text-xs font-normal text-slate-500">
+                        · {item.source}
+                        {item.pinned ? " · pinned" : ""}
+                        {item.hidden ? " · hidden" : ""}
+                        {item.pendingApproval ? " · pending approval" : ""}
+                        {!item.brandConsent || !item.influencerConsent ? " · consent incomplete" : ""}
+                      </span>
+                    </p>
+                    {item.postUrlUpdatedAt || item.postUrlUpdatedBy ? (
+                      <p className="mt-0.5 text-[11px] text-slate-400">
+                        {txt.audit}: {item.postUrlUpdatedBy || "—"}
+                        {item.postUrlUpdatedAt ? ` · ${item.postUrlUpdatedAt}` : ""}
+                      </p>
+                    ) : null}
+                    {item.pinned && item.pinnedBy ? (
+                      <p className="text-[11px] text-slate-400">
+                        {txt.pinnedBy}: {item.pinnedBy}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void patch(item, { pinned: !item.pinned })}
+                      className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                     >
-                      {item.postUrl}
-                    </a>
-                  ) : (
-                    <p className="mt-0.5 text-xs text-slate-400">—</p>
-                  )}
+                      {item.pinned ? txt.unpin : txt.pin}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void patch(item, { hidden: !item.hidden })}
+                      className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      {item.hidden ? txt.show : txt.hide}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    type="url"
+                    value={draft}
+                    onChange={(e) =>
+                      setDraftUrls((prev) => ({ ...prev, [key]: e.target.value }))
+                    }
+                    placeholder={txt.urlPlaceholder}
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800"
+                  />
                   <button
                     type="button"
-                    disabled={busy}
-                    onClick={() => void patch(item, { pinned: !item.pinned })}
-                    className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                    disabled={busy || draft.trim() === (item.postUrl || "")}
+                    onClick={() =>
+                      void patch(item, { postUrl: draft.trim() ? draft.trim() : null })
+                    }
+                    className="inline-flex min-h-10 items-center rounded-lg bg-slate-900 px-3 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
                   >
-                    {item.pinned ? txt.unpin : txt.pin}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void patch(item, { hidden: !item.hidden })}
-                    className="inline-flex min-h-10 items-center rounded-lg border border-slate-200 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {item.hidden ? txt.show : txt.hide}
+                    {txt.saveUrl}
                   </button>
                 </div>
               </li>

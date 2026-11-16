@@ -42,6 +42,7 @@ import {
   isDeliverableTipMessage,
   parseDeliverableTipPayload,
 } from '@/lib/deliverableChatTip';
+import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import Link from 'next/link';
 
 const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
@@ -124,6 +125,7 @@ interface ProposalInfo {
   brand_agreement_accepted?: boolean;
   selected_extras?: unknown;
   publish_deadline?: string | null;
+  published_post_url?: string | null;
 }
 
 interface MessagingProps {
@@ -2390,6 +2392,16 @@ export default function Messaging({
                       <p className="mt-1 text-xs text-slate-600">
                         {formatProposalExtrasLine(proposalInfo.selected_extras, lang === 'en' ? 'en' : 'el')}
                       </p>
+                    ) : null}
+                    {proposalInfo.status === 'completed' &&
+                    !String(proposalInfo.published_post_url || '').trim() ? (
+                      <MissingPostLinkNotice
+                        className="mt-2"
+                        lang={lang}
+                        party={mode === 'brand' ? 'brand' : 'influencer'}
+                        source="proposal"
+                        id={String(proposalInfo.id)}
+                      />
                     ) : null}
                   </div>
                 )}

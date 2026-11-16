@@ -1534,10 +1534,10 @@ export default function BrandCampaignsSection({
                                               ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
                                               : "Show publicly in “Recent collaborations”"}
                                           </span>
-                                          <span className="mt-0.5 block text-slate-500">
+                                          <span className="mt-0.5 block text-[11px] text-slate-400">
                                             {lang === "el"
-                                              ? "✨ Οι δημόσιες συνεργασίες δείχνουν ότι η επιχείρησή σας ολοκληρώνει τις συμφωνίες της, και έτσι οι καλοί creators δέχονται πιο εύκολα τις προτάσεις σας. Φαίνεται μόνο αν συμφωνήσει και ο influencer."
-                                              : "✨ Public collaborations show that your business completes its deals, so good creators accept your proposals more readily. Shown only if the influencer also agrees."}
+                                              ? "Η καμπάνια σας προβάλλεται στους δημιουργούς και στους επισκέπτες του Influo, οπότε θα δεχτείτε περισσότερες και καλύτερες αιτήσεις στις επόμενες καμπάνιες σας."
+                                              : "Your campaign is shown to creators and Influo visitors, so you'll get more and better applications on your next campaigns."}
                                           </span>
                                         </span>
                                       </label>

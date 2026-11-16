@@ -96,6 +96,7 @@ export async function PATCH(request: Request) {
           const raw = body.publishedPostUrl;
           if (raw == null || raw === "") {
             update.published_post_url = null;
+            update.published_post_pending_approval = false;
           } else {
             const parsed = parseSocialPostUrl(raw);
             if (!parsed.ok) {
@@ -105,6 +106,9 @@ export async function PATCH(request: Request) {
               );
             }
             update.published_post_url = parsed.url;
+            update.published_post_pending_approval = true;
+            update.showcase_post_url_updated_at = new Date().toISOString();
+            update.showcase_post_url_updated_by = `influencer:${session.user.email || session.user.id}`;
           }
         }
         if ("selfReportedViews" in body) {
@@ -115,15 +119,28 @@ export async function PATCH(request: Request) {
         }
       }
 
+      // Brand can approve a pending published post URL.
+      if (party === "brand" && body.approvePublishedPost === true) {
+        update.published_post_pending_approval = false;
+      }
+
       if (Object.keys(update).length === 0) {
         return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
       }
 
       let { error } = await admin.from("proposals").update(update).eq("id", id);
-      if (error && /showcase_opted_out|schema cache|column|PGRST204|42703/i.test(error.message || "")) {
+      if (
+        error &&
+        /showcase_opted_out|published_post_pending_approval|showcase_post_url_updated|schema cache|column|PGRST204|42703/i.test(
+          error.message || ""
+        )
+      ) {
         const soft = { ...update };
         delete soft.brand_showcase_opted_out;
         delete soft.influencer_showcase_opted_out;
+        delete soft.published_post_pending_approval;
+        delete soft.showcase_post_url_updated_at;
+        delete soft.showcase_post_url_updated_by;
         ({ error } = await admin.from("proposals").update(soft).eq("id", id));
       }
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });

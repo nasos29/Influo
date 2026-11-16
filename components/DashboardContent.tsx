@@ -56,6 +56,7 @@ import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
+import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import LocationTypeahead from '@/components/LocationTypeahead';
@@ -1290,6 +1291,7 @@ interface Proposal {
   publish_deadline?: string | null;
   influencer_showcase_consent?: boolean | null;
   published_post_url?: string | null;
+  published_post_pending_approval?: boolean | null;
 }
 
 function tabBadgeText(count: number): string {
@@ -2363,10 +2365,20 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             </p>
                                                             {hasAgreement ? (
                                                               <div className="mt-3 space-y-2">
+                                                                {prop.status === 'completed' &&
+                                                                !String(prop.published_post_url || '').trim() ? (
+                                                                  <MissingPostLinkNotice
+                                                                    lang={lang}
+                                                                    party="influencer"
+                                                                    source="proposal"
+                                                                    id={String(prop.id)}
+                                                                  />
+                                                                ) : null}
                                                                 <ProposalDeliverableField
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}
                                                                   lang={lang}
+                                                                  pendingApproval={!!prop.published_post_pending_approval}
                                                                   autoFocus={
                                                                     searchParams?.get('focus') === 'deliverable' &&
                                                                     searchParams?.get('proposalId') === String(prop.id)
