@@ -266,6 +266,10 @@ export async function fetchDigestBrandRecipients(supabaseAdmin: SupabaseClient):
   optedOut: number;
   totalWithEmail: number;
 }> {
+  const { loadNotificationPreferencesMap, allowAnnouncementsEmail } = await import(
+    '@/lib/notificationPreferences'
+  );
+
   let { data: brands, error } = await supabaseAdmin
     .from('brands')
     .select('id, brand_name, contact_email, announcements_email_opted_out');
@@ -279,6 +283,11 @@ export async function fetchDigestBrandRecipients(supabaseAdmin: SupabaseClient):
   if (error) throw new Error(error.message);
 
   const rows = (brands || []) as BrandRow[];
+  const prefsMap = await loadNotificationPreferencesMap(
+    supabaseAdmin,
+    'brand',
+    rows.map((b) => String(b.id))
+  );
   let optedOut = 0;
   let totalWithEmail = 0;
   const eligible: Array<{ id: string; brand_name: string | null; email: string }> = [];
@@ -287,7 +296,11 @@ export async function fetchDigestBrandRecipients(supabaseAdmin: SupabaseClient):
     const email = (b.contact_email || '').trim().toLowerCase();
     if (!email || !email.includes('@')) continue;
     totalWithEmail += 1;
-    if (b.announcements_email_opted_out === true) {
+    const prefs = prefsMap.get(String(b.id));
+    const allowed = prefs
+      ? allowAnnouncementsEmail(prefs)
+      : b.announcements_email_opted_out !== true;
+    if (!allowed) {
       optedOut += 1;
       continue;
     }

@@ -219,7 +219,7 @@ test("reminder mails are Greek and include unsubscribe for reminder kinds", () =
   });
   assert.match(draft.subject, /καμπάνια/i);
   assert.match(draft.html, /Δημοσιεύστε/);
-  assert.match(draft.html, /unsubscribe-brand-reminders/);
+  assert.match(draft.html, /\/notifications\/preferences\?token=/);
 
   const nudge = noCampaignNudgeMail({
     brandEmail: "a@b.com",
@@ -227,7 +227,7 @@ test("reminder mails are Greek and include unsubscribe for reminder kinds", () =
     brandId: "11111111-1111-1111-1111-111111111111",
   });
   assert.match(nudge.html, /Δημιουργία καμπάνιας/);
-  assert.match(nudge.html, /unsubscribe-brand-reminders/);
+  assert.match(nudge.html, /\/notifications\/preferences\?token=/);
 });
 
 test("email next-steps catalog includes brand reminder keys", () => {

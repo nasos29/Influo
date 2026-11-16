@@ -100,10 +100,12 @@ import {
     Megaphone,
     Menu,
     MessageSquare,
+    Settings,
     User,
     Wrench,
     X,
 } from 'lucide-react';
+import NotificationPreferencesPanel from '@/components/NotificationPreferencesPanel';
 
 // --- LANGUAGES LIST ---
 const LANGUAGES = [
@@ -162,7 +164,7 @@ interface InfluencerData {
 }
 
 type EditSection = 'basics' | 'platforms' | 'packages' | 'portfolio';
-type CreatorTab = 'overview' | 'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements';
+type CreatorTab = 'overview' | 'profile' | 'tools' | 'messages' | 'proposals' | 'campaigns' | 'analytics' | 'announcements' | 'notifications';
 
 const HIDDEN_VIDEO_NOTICE = {
   title: {
@@ -1448,6 +1450,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 messages: 'Messages | Influo',
                 analytics: 'Analytics | Influo',
                 announcements: 'Announcements | Influo',
+                notifications: 'Notifications | Influo',
             }
             : {
                 overview: 'Επισκόπηση | Influo',
@@ -1458,6 +1461,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 messages: 'Μηνύματα | Influo',
                 analytics: 'Στατιστικά | Influo',
                 announcements: 'Ανακοινώσεις | Influo',
+                notifications: 'Ειδοποιήσεις | Influo',
             };
         document.title = titles[activeTab] || ui.docTitle;
     }, [lang, activeTab, ui.docTitle]);
@@ -1499,7 +1503,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
 
     useEffect(() => {
         const tab = searchParams?.get('tab');
-        const allowed: CreatorTab[] = ['overview', 'profile', 'tools', 'messages', 'proposals', 'campaigns', 'analytics', 'announcements'];
+        const allowed: CreatorTab[] = ['overview', 'profile', 'tools', 'messages', 'proposals', 'campaigns', 'analytics', 'announcements', 'notifications'];
         if (tab && allowed.includes(tab as CreatorTab)) {
             setActiveTab(tab as CreatorTab);
         } else if (!tab) {
@@ -2157,6 +2161,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 { id: 'analytics' as const, label: ui.tabStats, icon: BarChart3, count: 0 },
                                 { id: 'tools' as const, label: ui.tabTools, icon: Wrench, count: 0 },
                                 { id: 'announcements' as const, label: ui.tabAnnouncements, icon: Bell, count: unreadAnnouncementsCount },
+                                { id: 'notifications' as const, label: T('Ειδοποιήσεις', 'Notifications'), icon: Settings, count: 0 },
                             ]
                         ).map((tab) => {
                             const selected = activeTab === tab.id;
@@ -2620,6 +2625,12 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                     </ul>
                                 )}
                             </div>
+                        ) : activeTab === 'notifications' ? (
+                            <NotificationPreferencesPanel
+                              lang={lang}
+                              party="influencer"
+                              apiPath="/api/notification-preferences?party=influencer"
+                            />
                         ) : activeTab === 'profile' ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">

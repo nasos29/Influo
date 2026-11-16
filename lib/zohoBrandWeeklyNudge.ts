@@ -87,6 +87,7 @@ export async function markReminderOptOutByEmails(
   const unique = Array.from(new Set(emails.map(normalizeEmail).filter((e) => e.includes("@"))));
   if (unique.length === 0) return 0;
   let updated = 0;
+  const { upsertNotificationPreferences } = await import("@/lib/notificationPreferences");
   for (let i = 0; i < unique.length; i += 80) {
     const chunk = unique.slice(i, i + 80);
     const { data, error } = await admin
@@ -105,11 +106,23 @@ export async function markReminderOptOutByEmails(
           .update({ reminders_email_opted_out: true })
           .ilike("contact_email", email)
           .select("id");
-        if (!one.error) updated += (one.data || []).length;
+        if (!one.error) {
+          updated += (one.data || []).length;
+          for (const row of one.data || []) {
+            await upsertNotificationPreferences(admin, "brand", String(row.id), {
+              reminders_email: false,
+            });
+          }
+        }
       }
       continue;
     }
     updated += (data || []).length;
+    for (const row of data || []) {
+      await upsertNotificationPreferences(admin, "brand", String(row.id), {
+        reminders_email: false,
+      });
+    }
   }
   return updated;
 }

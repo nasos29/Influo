@@ -19,6 +19,10 @@ import {
 } from "@/lib/zohoBulkMailFlags";
 import { sendCampaignCategoryViaZoho } from "@/lib/zohoCampaignCategorySend";
 import { siteUrl } from "@/lib/proposalMail";
+import {
+  allowsMatchesEmailFromRow,
+  loadNotificationPreferencesMap,
+} from "@/lib/notificationPreferences";
 
 const SEND_TIMEOUT_MS = 8000;
 const PAGE = 1000;
@@ -193,8 +197,20 @@ export async function notifyMatchingOpenCampaign(opts: {
   };
   const started = Date.now();
   const creators = await loadApprovedCreators();
+  const prefsMap = await loadNotificationPreferencesMap(
+    supabaseService(),
+    "influencer",
+    creators.map((row) => String(row.id))
+  );
   const optedOut = new Set(
-    creators.filter((row) => row.announcements_email_opted_out === true).map((row) => String(row.id))
+    creators
+      .filter((row) => {
+        const id = String(row.id);
+        const prefs = prefsMap.get(id);
+        if (prefs) return prefs.matches_email === false;
+        return !allowsMatchesEmailFromRow(row);
+      })
+      .map((row) => String(row.id))
   );
   const ranked = rankCampaignAlerts(creators, {
     category: opts.category,

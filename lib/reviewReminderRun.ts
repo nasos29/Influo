@@ -5,6 +5,10 @@ import { influencerContact } from "@/lib/proposalAccess";
 import { mailBrandReviewReminder, mailCreatorReviewReminder, siteUrl } from "@/lib/proposalMail";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { shouldSendReviewReminder } from "@/lib/reviewReminder";
+import {
+  allowRemindersEmail,
+  loadNotificationPreferences,
+} from "@/lib/notificationPreferences";
 
 export type ReviewReminderRow = {
   id: string | number;
@@ -192,31 +196,52 @@ export async function runReviewReminders(
         : true;
 
       if (!creatorDone) {
-        jobs.push(
-          mailCreatorReviewReminder({
-            ...common,
-            to: influencer.email,
-            creatorName: influencer.name,
-            brandName: row.brand_name || "Επιχείρηση",
-            profileUrl: bits.profileUrl,
-            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&reviewBrand=1&proposalId=${encodeURIComponent(String(row.id))}`,
-          })
-        );
+        const creatorPrefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
+        if (allowRemindersEmail(creatorPrefs)) {
+          jobs.push(
+            mailCreatorReviewReminder({
+              ...common,
+              to: influencer.email,
+              creatorName: influencer.name,
+              brandName: row.brand_name || "Επιχείρηση",
+              profileUrl: bits.profileUrl,
+              dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&reviewBrand=1&proposalId=${encodeURIComponent(String(row.id))}`,
+            })
+          );
+        } else {
+          skipped += 1;
+        }
       } else {
         skipped += 1;
       }
 
       if (brandEmail && !brandDone) {
-        jobs.push(
-          mailBrandReviewReminder({
-            ...common,
-            to: brandEmail,
-            brandName: row.brand_name || "Επιχείρηση",
-            creatorName: influencer.name,
-            creatorFemale: bits.creatorFemale,
-            reviewUrl: `${bits.profileUrl}?tab=reviews&review=1&proposalId=${encodeURIComponent(String(row.id))}`,
-          })
-        );
+        let brandAllows = true;
+        try {
+          const brandId =
+            (await admin.from("brands").select("id").ilike("contact_email", brandEmail).maybeSingle())
+              .data?.id || null;
+          if (brandId) {
+            const brandPrefs = await loadNotificationPreferences(admin, "brand", String(brandId));
+            brandAllows = allowRemindersEmail(brandPrefs);
+          }
+        } catch {
+          brandAllows = true;
+        }
+        if (brandAllows) {
+          jobs.push(
+            mailBrandReviewReminder({
+              ...common,
+              to: brandEmail,
+              brandName: row.brand_name || "Επιχείρηση",
+              creatorName: influencer.name,
+              creatorFemale: bits.creatorFemale,
+              reviewUrl: `${bits.profileUrl}?tab=reviews&review=1&proposalId=${encodeURIComponent(String(row.id))}`,
+            })
+          );
+        } else {
+          skipped += 1;
+        }
       } else {
         skipped += 1;
       }

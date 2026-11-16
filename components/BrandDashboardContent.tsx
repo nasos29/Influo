@@ -84,10 +84,12 @@ import {
   Menu,
   MessageSquare,
   BarChart3,
+  Settings,
   Sparkles,
   Wrench,
   X,
 } from 'lucide-react';
+import NotificationPreferencesPanel from '@/components/NotificationPreferencesPanel';
 
 interface Proposal {
   id: string;
@@ -784,6 +786,7 @@ type BrandTab =
   | 'shortlist'
   | 'tools'
   | 'announcements'
+  | 'notifications'
   | 'statistics';
 
 const RETRY_LABEL = { el: 'Δοκίμασε ξανά', en: 'Try again' } as const;
@@ -1021,6 +1024,7 @@ export default function BrandDashboardContent() {
       tab === 'shortlist' ||
       tab === 'tools' ||
       tab === 'announcements' ||
+      tab === 'notifications' ||
       tab === 'statistics'
     ) {
       setActiveTab(tab);
@@ -1052,6 +1056,7 @@ export default function BrandDashboardContent() {
       shortlist: "Shortlist | Influo",
       tools: "Εργαλεία | Influo",
       announcements: "Ανακοινώσεις | Influo",
+      notifications: "Ειδοποιήσεις | Influo",
       statistics: "Στατιστικά | Influo",
     };
     const titlesEn: Record<string, string> = {
@@ -1063,6 +1068,7 @@ export default function BrandDashboardContent() {
       shortlist: "Shortlist | Influo",
       tools: "Tools | Influo",
       announcements: "Announcements | Influo",
+      notifications: "Notifications | Influo",
       statistics: "Statistics | Influo",
     };
     const map = lang === "en" ? titlesEn : titlesEl;
@@ -2203,6 +2209,7 @@ export default function BrandDashboardContent() {
                   { id: 'statistics' as const, label: lang === 'el' ? 'Στατιστικά' : 'Statistics', icon: BarChart3, count: 0 },
                   { id: 'tools' as const, label: lang === 'el' ? 'Εργαλεία' : 'Tools', icon: Wrench, count: 0 },
                   { id: 'announcements' as const, label: lang === 'el' ? 'Ανακοινώσεις' : 'Announcements', icon: Bell, count: unreadAnnouncementsCount },
+                  { id: 'notifications' as const, label: lang === 'el' ? 'Ειδοποιήσεις' : 'Notifications', icon: Settings, count: 0 },
                   { id: 'messages' as const, label: lang === 'el' ? 'Μηνύματα' : 'Messages', icon: MessageSquare, count: unreadMessageCount },
                 ]
               ).map((tab) => {
@@ -2503,6 +2510,16 @@ export default function BrandDashboardContent() {
                 ))}
               </ul>
             )}
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div className="mb-12">
+            <NotificationPreferencesPanel
+              lang={lang}
+              party="brand"
+              apiPath="/api/notification-preferences?party=brand"
+            />
           </div>
         )}
 
