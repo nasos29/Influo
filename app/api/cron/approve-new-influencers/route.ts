@@ -80,11 +80,32 @@ async function listNewUnapprovedWithSocials() {
     let rows: Record<string, unknown>[] = [];
     const first = await supabaseAdmin
       .from('influencers')
-      .select('id, display_name, approved, approved_at, accounts')
+      .select('id, display_name, approved, approved_at, manual_unapproved_at, accounts')
       .eq('approved', false)
       .is('approved_at', null)
+      .is('manual_unapproved_at', null)
       .range(from, from + pageSize - 1);
-    if (first.error && /column|approved_at/i.test(first.error.message)) {
+    if (first.error && /column|manual_unapproved_at/i.test(first.error.message)) {
+      const withoutLock = await supabaseAdmin
+        .from('influencers')
+        .select('id, display_name, approved, approved_at, accounts')
+        .eq('approved', false)
+        .is('approved_at', null)
+        .range(from, from + pageSize - 1);
+      if (withoutLock.error && /column|approved_at/i.test(withoutLock.error.message)) {
+        const fallback = await supabaseAdmin
+          .from('influencers')
+          .select('id, display_name, approved, accounts')
+          .eq('approved', false)
+          .range(from, from + pageSize - 1);
+        if (fallback.error) throw new Error(fallback.error.message);
+        rows = (fallback.data ?? []) as Record<string, unknown>[];
+      } else if (withoutLock.error) {
+        throw new Error(withoutLock.error.message);
+      } else {
+        rows = (withoutLock.data ?? []) as Record<string, unknown>[];
+      }
+    } else if (first.error && /column|approved_at/i.test(first.error.message)) {
       const fallback = await supabaseAdmin
         .from('influencers')
         .select('id, display_name, approved, accounts')
@@ -99,6 +120,7 @@ async function listNewUnapprovedWithSocials() {
     }
     for (const row of rows) {
       if (row.approved_at) continue;
+      if (row.manual_unapproved_at) continue;
       const accounts = socialAccountsFromRow(row.accounts);
       if (!accounts.length) continue;
       influencers.push({

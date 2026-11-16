@@ -205,6 +205,9 @@ interface DbInfluencer {
   contact_email: string;
   verified: boolean;
   approved?: boolean;
+  /** Set when admin manually un-approved; blocks cron auto-approval until manual re-approve. */
+  manual_unapproved_at?: string | null;
+  manual_unapproved_by?: string | null;
   analytics_verified?: boolean;
   accounts: { platform: string; username: string; followers: string }[] | null; 
   avatar_url: string | null;
@@ -1535,8 +1538,15 @@ const EditProfileModal = ({
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
-                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                    <h2 className="text-xl font-semibold text-slate-900">Edit Profile - {user.display_name}</h2>
+                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-semibold text-slate-900">Edit Profile - {user.display_name}</h2>
+                      {user.manual_unapproved_at ? (
+                        <span className="mt-2 inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800">
+                          {L("Χειροκίνητη απέγκριση – εκτός αυτόματης έγκρισης", "Manual un-approve – excluded from auto-approval")}
+                        </span>
+                      ) : null}
+                    </div>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600">✕</button>
                 </div>
                 
@@ -3534,8 +3544,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const data = await response.json();
     
     if (data.success) {
+        const nextApproved = !currentStatus;
+        const lockAt = nextApproved
+          ? null
+          : (data.influencer?.manual_unapproved_at ?? new Date().toISOString());
+        const lockBy = nextApproved ? null : (data.influencer?.manual_unapproved_by ?? null);
         if(selectedUser?.id === id) {
-            setSelectedUser(prev => prev ? {...prev, approved: !currentStatus} : null);
+            setSelectedUser(prev => prev ? {
+              ...prev,
+              approved: nextApproved,
+              manual_unapproved_at: lockAt,
+              manual_unapproved_by: lockBy,
+            } : null);
         }
         // If approving, mark all unreviewed changes as reviewed
         if (!currentStatus) {
@@ -3569,9 +3589,6 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         }
     }
     
-    if(selectedUser?.id === id) {
-        setSelectedUser(prev => prev ? {...prev, approved: !currentStatus} : null);
-    }
   };
 
   const toggleAnalyticsVerification = async (id: number, currentStatus: boolean) => {
@@ -5003,6 +5020,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <p className="text-sm text-slate-600 break-all">{u.contact_email || "—"}</p>
                           <p className="text-xs text-slate-400 mt-1">{formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}</p>
                           <p className="mt-2 text-xs text-slate-600">{u.approved ? txt.approved : { el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</p>
+                          {u.manual_unapproved_at ? (
+                            <span className="mt-1 inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800">
+                              {lang === "el" ? "Χειροκίνητη απέγκριση – εκτός αυτόματης έγκρισης" : "Manual un-approve – excluded from auto-approval"}
+                            </span>
+                          ) : null}
                           {!u.approved ? <div className="mt-1">{unapprovalLine(u.id)}</div> : null}
                         </div>
                       </div>
@@ -5116,6 +5138,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</span>
                               )}
+                              {u.manual_unapproved_at ? (
+                                <span className="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-800">
+                                  {lang === "el" ? "Χειροκίνητη απέγκριση – εκτός αυτόματης έγκρισης" : "Manual un-approve – excluded from auto-approval"}
+                                </span>
+                              ) : null}
                               {!u.approved ? unapprovalLine(u.id) : null}
                               {u.analytics_verified ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">{txt.analytics_verified}</span>
