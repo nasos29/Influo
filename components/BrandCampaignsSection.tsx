@@ -714,84 +714,86 @@ export default function BrandCampaignsSection({
 
   const loadApplications = useCallback(async (campaignId: string) => {
     setLoadingApps(campaignId);
-    const full = await supabase
-      .from("campaign_applications")
-      .select(
-        `id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links,
-         deliverable_url, deliverable_note, deliverable_status, deliverable_review_note,
-         influencers ( display_name, avatar_url, profile_slug, category, accounts, engagement_rate )`
-      )
-      .eq("campaign_id", campaignId)
-      .order("created_at", { ascending: false });
-    let data = full.data;
-    let error = full.error;
-    if (error && /column|schema cache/i.test(error.message)) {
-      const basic = await supabase
-        .from("campaign_applications")
-        .select(
-          `id, campaign_id, influencer_id, message, status, created_at,
-           deliverable_url, deliverable_note, deliverable_status, deliverable_review_note,
-           influencers ( display_name, avatar_url, profile_slug, category, accounts, engagement_rate )`
-        )
-        .eq("campaign_id", campaignId)
-        .order("created_at", { ascending: false });
-      data = basic.data as typeof data;
-      error = basic.error;
-    }
-    if (!error && data) {
-      const apps = data as unknown as ApplicationRow[];
-      const ids = [...new Set(apps.map((app) => app.influencer_id).filter(Boolean))];
-      if (ids.length) {
-        const { data: profiles } = await supabase
-          .from("influencers")
-          .select("id, display_name, avatar_url, profile_slug, category, accounts, engagement_rate")
-          .in("id", ids);
-        const byId = new Map((profiles || []).map((row) => [String(row.id), row]));
-        for (const app of apps) {
-          const merged = mergeApplicantProfile(app.influencers, byId.get(app.influencer_id));
-          if (merged) app.influencers = { ...merged, min_rate: app.influencers?.min_rate ?? null };
+    let apps: ApplicationRow[] = [];
+    try {
+      // Service-role list for the owning brand — avoids browser RLS/embed false empties.
+      const listRes = await sessionFetch(
+        `/api/campaigns/applications?campaignId=${encodeURIComponent(campaignId)}`
+      );
+      if (listRes.ok) {
+        const body = (await listRes.json()) as { applications?: ApplicationRow[] };
+        apps = (Array.isArray(body.applications) ? body.applications : []).map((row) => ({
+          ...row,
+          influencers: row.influencers ?? null,
+        }));
+      } else {
+        console.error("[BrandCampaigns] applications API", listRes.status);
+        // Fallback: plain client select (no influencers embed — column grants break embeds).
+        const plain = await supabase
+          .from("campaign_applications")
+          .select(
+            `id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links,
+             deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, initiated_by`
+          )
+          .eq("campaign_id", campaignId)
+          .order("created_at", { ascending: false });
+        if (plain.error && /column|schema cache|initiated_by/i.test(plain.error.message)) {
+          const basic = await supabase
+            .from("campaign_applications")
+            .select(
+              `id, campaign_id, influencer_id, message, status, created_at,
+               deliverable_url, deliverable_note, deliverable_status, deliverable_review_note`
+            )
+            .eq("campaign_id", campaignId)
+            .order("created_at", { ascending: false });
+          if (!basic.error && basic.data) apps = basic.data as unknown as ApplicationRow[];
+          else if (basic.error) console.error("[BrandCampaigns] loadApplications fallback", basic.error);
+        } else if (!plain.error && plain.data) {
+          apps = plain.data as unknown as ApplicationRow[];
+        } else if (plain.error) {
+          console.error("[BrandCampaigns] loadApplications", plain.error);
         }
       }
+
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData.session?.access_token;
-        const priceIds = apps.map((app) => app.influencer_id).filter(Boolean);
-        if (token && priceIds.length) {
-          const priceRes = await fetch(`/api/influencers/commercial?ids=${encodeURIComponent(priceIds.join(","))}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (priceRes.ok) {
-            const body = await priceRes.json();
-            const payload = body?.data ?? body;
-            const list = Array.isArray(payload) ? payload : payload ? [payload] : [];
-            const rates = new Map<string, string>();
-            for (const row of list) {
-              if (row?.id && row.min_rate != null) rates.set(String(row.id), String(row.min_rate));
-            }
-            for (const app of apps) {
-              if (app.influencers && rates.has(app.influencer_id)) {
-                app.influencers.min_rate = rates.get(app.influencer_id) || null;
-              }
+        const res = await sessionFetch(
+          `/api/campaigns/applicant-profiles?campaignId=${encodeURIComponent(campaignId)}`
+        );
+        if (res.ok) {
+          const body = (await res.json()) as { profiles?: Record<string, ApplicantFull> };
+          for (const app of apps) {
+            const profile = body.profiles?.[app.influencer_id] ?? null;
+            app.profile = profile;
+            if (profile) {
+              const merged = mergeApplicantProfile(app.influencers, {
+                display_name: profile.display_name,
+                avatar_url: profile.avatar_url,
+                profile_slug: profile.profile_slug,
+                category: Array.isArray(profile.categories) ? profile.categories.join(", ") : null,
+                accounts: profile.accounts,
+                engagement_rate: null,
+              });
+              if (merged) app.influencers = { ...merged, min_rate: profile.min_rate ?? null };
             }
           }
         }
       } catch {
-        /* prices are optional */
-      }
-      try {
-        // Browser role cannot read `influencers`; the server returns the public profile fields.
-        const res = await sessionFetch(`/api/campaigns/applicant-profiles?campaignId=${encodeURIComponent(campaignId)}`);
-        if (res.ok) {
-          const body = (await res.json()) as { profiles?: Record<string, ApplicantFull> };
-          for (const app of apps) app.profile = body.profiles?.[app.influencer_id] ?? null;
-        }
-      } catch {
         /* card falls back to basic fields */
       }
-      await attachInitiatedBy(apps);
+
+      if (!apps.some((app) => app.initiated_by != null)) {
+        await attachInitiatedBy(apps);
+      }
       setAppsByCampaign((prev) => ({ ...prev, [campaignId]: apps }));
+      setAppCounts((prev) => ({
+        ...prev,
+        [campaignId]: apps.filter((app) => app.status !== "withdrawn").length,
+      }));
+    } catch (err) {
+      console.error("[BrandCampaigns] loadApplications", err);
+    } finally {
+      setLoadingApps(null);
     }
-    setLoadingApps(null);
   }, []);
 
   useEffect(() => {

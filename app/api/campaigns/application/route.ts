@@ -324,7 +324,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     result = await admin.from("campaign_applications").insert(base).select("id").single();
     if (!result.error) {
       if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
-      revalidatePublicCampaigns();
+      revalidatePublicCampaigns(campaignId);
       return NextResponse.json({ ok: true, id: result.data?.id, migration: true, notified: true });
     }
   }
@@ -335,7 +335,7 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     return NextResponse.json({ error: result.error.message }, { status: 400 });
   }
   if (result.data?.id) notifyNewApplication(String(result.data.id), influencer.id);
-  revalidatePublicCampaigns();
+  revalidatePublicCampaigns(campaignId);
   return NextResponse.json({ ok: true, id: result.data?.id, notified: true });
 }
 
@@ -563,6 +563,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  revalidatePublicCampaigns();
+  revalidatePublicCampaigns(String(app.campaign_id || ""));
   return NextResponse.json({ ok: true, status, conversationId, proposalId });
 }

@@ -310,6 +310,6 @@ export async function POST(request: NextRequest) {
     })
   );
 
-  revalidatePublicCampaigns();
+  revalidatePublicCampaigns(id);
   return NextResponse.json({ ok: true, id, deadlineCleared });
 }

@@ -87,13 +87,16 @@ export async function GET(request: NextRequest) {
     const auth = await requireLoggedInAdmin(request);
     if (auth.error) return auth.error;
 
+    const campaignIdFilter = request.nextUrl.searchParams.get("campaignId")?.trim() || "";
+    const filterOne =
+      campaignIdFilter && /^[0-9a-f-]{36}$/i.test(campaignIdFilter) ? campaignIdFilter : "";
+
     let data: Array<Record<string, unknown>> | null = null;
     let error: { code?: string; message?: string } | null = null;
     for (const select of CAMPAIGN_SELECTS) {
-      const result = await supabaseAdmin
-        .from("brand_campaigns")
-        .select(select)
-        .order("created_at", { ascending: false });
+      let query = supabaseAdmin.from("brand_campaigns").select(select).order("created_at", { ascending: false });
+      if (filterOne) query = query.eq("id", filterOne);
+      const result = await query;
       if (!result.error) {
         data = (result.data ?? []) as unknown as Array<Record<string, unknown>>;
         error = null;
@@ -254,7 +257,7 @@ export async function PATCH(request: NextRequest) {
             console.error("[admin/campaigns] EN translate", err);
           })
         );
-        revalidatePublicCampaigns();
+        revalidatePublicCampaigns(parsed.campaignId);
         return NextResponse.json({
           success: true,
           deadlineCleared,
@@ -307,7 +310,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    revalidatePublicCampaigns();
+    revalidatePublicCampaigns(campaignId);
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : "Server error";

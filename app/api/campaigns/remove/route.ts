@@ -46,6 +46,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  revalidatePublicCampaigns();
+  revalidatePublicCampaigns(campaignId);
   return NextResponse.json({ ok: true, applicants: influencerIds.length, notified });
 }
