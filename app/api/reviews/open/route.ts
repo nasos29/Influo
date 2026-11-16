@@ -12,7 +12,10 @@ export async function GET(req: Request) {
     const t = new URL(req.url).searchParams.get("t") || "";
     const payload = parseReviewOpenToken(t);
     if (!payload || payload.source !== "proposal") {
-      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Ο σύνδεσμος αξιολόγησης δεν είναι έγκυρος." },
+        { status: 400 }
+      );
     }
 
     const admin = supabaseService();
@@ -23,7 +26,10 @@ export async function GET(req: Request) {
       .maybeSingle();
 
     if (!proposal) {
-      return NextResponse.json({ error: "Collaboration not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Η συνεργασία δεν βρέθηκε." },
+        { status: 404 }
+      );
     }
 
     const declined =
