@@ -5550,7 +5550,30 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   if (status === "closed") return "bg-slate-200 text-slate-700";
                   return "bg-amber-100 text-amber-800";
                 };
-                const openCampaign = (row: AdminBrandCampaign) => setSelectedCampaign(row);
+                const openCampaign = (row: AdminBrandCampaign) => {
+                  setSelectedCampaign(row);
+                  // Refetch this campaign so applications created after the list load appear.
+                  void (async () => {
+                    try {
+                      const response = await fetch(
+                        `/api/admin/campaigns?campaignId=${encodeURIComponent(row.id)}`,
+                        { headers: await adminAuthHeaders() }
+                      );
+                      const result = await response.json();
+                      if (!response.ok || !result.success) return;
+                      const fresh = (result.campaigns || []).find(
+                        (c: AdminBrandCampaign) => c.id === row.id
+                      ) as AdminBrandCampaign | undefined;
+                      if (!fresh) return;
+                      setSelectedCampaign(fresh);
+                      setAdminCampaigns((prev) =>
+                        prev.map((c) => (c.id === fresh.id ? { ...c, ...fresh } : c))
+                      );
+                    } catch (err) {
+                      console.error("[Admin] refresh campaign applications", err);
+                    }
+                  })();
+                };
 
                 if (campaignsError && adminCampaigns.length === 0) {
                   return (

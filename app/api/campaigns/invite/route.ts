@@ -4,6 +4,7 @@ import { supabaseService } from "@/lib/apiAuth";
 import { requireActor } from "@/lib/proposalAccess";
 import { clipText } from "@/lib/proposalParty";
 import { findContactInfo } from "@/lib/contactFilter";
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 
 /**
  * Records a brand→creator campaign invite on campaign_applications.
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
   };
   const inserted = await admin.from("campaign_applications").insert(row).select("id").single();
   if (!inserted.error) {
+    revalidatePublicCampaigns(campaignId);
     return NextResponse.json({ ok: true, id: inserted.data?.id, recorded: true });
   }
   if (inserted.error.code === "23505") {

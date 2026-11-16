@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { isTestBrandId, testBrandIdsFilter } from "@/lib/testBrandIds";
 import { supabaseService } from "@/lib/apiAuth";
 import type { CampaignCardData } from "@/components/CampaignCard";
@@ -106,7 +107,11 @@ export async function loadOpenCampaigns(limit?: number): Promise<CampaignCardDat
 export async function loadCampaignApplicationsCount(campaignId: string): Promise<number> {
   if (!campaignId) return 0;
   try {
-    return (await loadApplicationsCounts([campaignId])).get(campaignId) ?? 0;
+    return await unstable_cache(
+      async () => (await loadApplicationsCounts([campaignId])).get(campaignId) ?? 0,
+      ["campaign-applications-count", campaignId],
+      { revalidate: 3600, tags: ["public-campaigns", `campaign-${campaignId}`] }
+    )();
   } catch (error) {
     console.error("loadCampaignApplicationsCount", error);
     return 0;
