@@ -610,11 +610,10 @@ export default function CampaignCard({
               >
                 {formatEuro(Number(campaign.budget), lang === "en" ? "en" : "el")}
               </p>
-            ) : comp ? (
-              <p className={`font-semibold text-indigo-800 ${compact ? "text-sm" : "text-base"}`}>{comp}</p>
             ) : null}
-            {showBudget && comp && campaign.compensation_type !== "money" ? (
-              <p className="mt-0.5 text-xs font-medium text-indigo-700 truncate">{comp}</p>
+            {/* Product/gifting label: same small style whether or not there is a money fee */}
+            {comp && (showBudget ? campaign.compensation_type !== "money" : true) ? (
+              <p className={`${showBudget ? "mt-0.5" : ""} text-xs font-medium text-indigo-700 truncate`}>{comp}</p>
             ) : null}
           </div>
         </div>
