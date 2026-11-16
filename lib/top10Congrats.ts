@@ -147,7 +147,31 @@ export async function runTop10Congrats(options?: {
   let pushed = 0;
   const errors: string[] = [];
 
-  for (const row of newcomers) {
+  // Admin Top 10 boosts must not trigger congrats email/push.
+  const newcomerIds = newcomers.map((n) => String(n.id));
+  const boostedNewcomers = new Set<string>();
+  if (newcomerIds.length) {
+    const nowIso = new Date().toISOString();
+    const { data: boostRows, error: boostErr } = await sb
+      .from('influencers')
+      .select('id')
+      .in('id', newcomerIds)
+      .gt('top10_boost_until', nowIso);
+    if (boostErr) {
+      if (!/column|top10_boost_until|schema cache/i.test(boostErr.message)) {
+        errors.push(`top10_boost_until lookup: ${boostErr.message}`);
+      }
+    } else {
+      for (const row of boostRows || []) {
+        boostedNewcomers.add(String(row.id).toLowerCase());
+      }
+    }
+  }
+  const notifyList = newcomers.filter(
+    (t) => !boostedNewcomers.has(String(t.id).toLowerCase())
+  );
+
+  for (const row of notifyList) {
     try {
       const result = await notifyOne(sb, row);
       emailed += result.emailed;

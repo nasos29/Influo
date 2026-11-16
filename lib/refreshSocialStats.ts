@@ -39,6 +39,8 @@ type AccountRow = {
   er_flag_reason?: ErFlagReason | string | null;
   is_private?: boolean;
   engagement_hidden?: boolean;
+  /** Sticky admin flag: hide this account's ER on public surfaces. */
+  engagement_display_hidden?: boolean;
   suspected_fake_penalty?: boolean;
   engagement_rate_raw?: string | null;
   fake_follower_percent?: number | null;
@@ -262,6 +264,10 @@ export async function doRefreshSocialStats(
           er_suspicious: flagged.er_suspicious === true,
           er_flag_reason: flagged.er_flag_reason ?? null,
           engagement_hidden: flagged.engagement_hidden === true,
+          // Sticky admin public-hide: social refresh must not clear this.
+          ...(acc.engagement_display_hidden === true
+            ? { engagement_display_hidden: true }
+            : {}),
           suspected_fake_penalty: flagged.suspected_fake_penalty === true,
           engagement_rate_raw: flagged.engagement_rate_raw ?? null,
           ...penaltyStored,

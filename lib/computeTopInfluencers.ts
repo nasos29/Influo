@@ -346,6 +346,24 @@ async function loadIncumbentIds(sb: SupabaseClient): Promise<Set<string>> {
   return new Set(ids.map((id: unknown) => idKey(String(id))));
 }
 
+/** Active admin Top 10 pins (`influencers.top10_boost_until > now()`). */
+async function loadActiveTop10BoostIds(sb: SupabaseClient): Promise<string[]> {
+  const nowIso = new Date().toISOString();
+  const { data, error } = await sb
+    .from('influencers')
+    .select('id')
+    .eq('approved', true)
+    .gt('top10_boost_until', nowIso)
+    .limit(TOP_INFLUENCERS_N);
+  if (error) {
+    if (!/column|top10_boost_until|schema cache/i.test(error.message)) {
+      console.warn('[computeTopInfluencers] top10_boost_until:', error.message);
+    }
+    return [];
+  }
+  return (data || []).map((row) => idKey(String(row.id))).filter(Boolean);
+}
+
 async function loadSnapshotsByInfluencer(
   sb: SupabaseClient,
   ids: string[]
@@ -424,7 +442,16 @@ async function computeTopInfluencersUncached(
     .slice(0, ACTIVITY_POOL)
     .map(([id]) => id);
 
+  const boostedIds = await loadActiveTop10BoostIds(sb);
   const candidateIds = activityPoolIds;
+  {
+    const seen = new Set(candidateIds);
+    for (const id of boostedIds) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      candidateIds.push(id);
+    }
+  }
   if (candidateIds.length < Math.max(topN, ACTIVITY_POOL)) {
     const { data: fill } = await sb
       .from('influencers')
@@ -445,6 +472,8 @@ async function computeTopInfluencersUncached(
   }
 
   if (candidateIds.length === 0) return [];
+
+  const boostedSet = new Set(boostedIds);
 
   // Only brandSafe from audit JSON — not the full auditpr_audit blob.
   // Raw prices stay server-side. The client gets from_price, never min_rate.
@@ -490,43 +519,50 @@ async function computeTopInfluencersUncached(
   const demandNorm = normalizeScoresLog1p(activityRaw);
   const now = Date.now();
 
-  const ranked = rows
-    .map((inf) => {
-      const id = idKey(String(inf.id));
-      const currentTotal = totalFollowersFromAccounts(inf.accounts || []);
-      const rawSnaps = snapshotsById[id] || [];
-      const aligned = rawSnaps
-        .map((s) => {
-          const total = alignFollowerSnapshotToCurrent(s.total, currentTotal);
-          return total != null ? { total, at: s.at } : null;
-        })
-        .filter((s): s is { total: number; at: number } => s != null);
-      const growthPct = growthPctFromSnapshots(currentTotal, aligned, now);
-      const demand = demandNorm[id] ?? 0;
-      const channelScore = computeChannelScore100(inf, growthPct);
-      const reachScore = computeReachScore(inf);
-      const collabScore = computeCollabScore(inf, completedById[id] ?? 0);
-      const responseScore = computeResponseScore(inf, now);
-      const profileScore = computeProfileCompletenessScore(inf);
-      let composite = blendTopScore({
-        demand,
-        channel: channelScore,
-        collab: collabScore,
-        reach: reachScore,
-        response: responseScore,
-        profile: profileScore,
-      });
-      composite = applyTopTrustPenalty(composite, inf);
-      composite = applyIncumbentPenalty(composite, incumbents.has(id));
-      return {
-        inf,
-        id,
-        activityRaw: activityRaw[id] ?? 0,
-        composite,
-      };
-    })
-    .sort((a, b) => b.composite - a.composite || b.activityRaw - a.activityRaw)
-    .slice(0, topN);
+  const scored = rows.map((inf) => {
+    const id = idKey(String(inf.id));
+    const currentTotal = totalFollowersFromAccounts(inf.accounts || []);
+    const rawSnaps = snapshotsById[id] || [];
+    const aligned = rawSnaps
+      .map((s) => {
+        const total = alignFollowerSnapshotToCurrent(s.total, currentTotal);
+        return total != null ? { total, at: s.at } : null;
+      })
+      .filter((s): s is { total: number; at: number } => s != null);
+    const growthPct = growthPctFromSnapshots(currentTotal, aligned, now);
+    const demand = demandNorm[id] ?? 0;
+    const channelScore = computeChannelScore100(inf, growthPct);
+    const reachScore = computeReachScore(inf);
+    const collabScore = computeCollabScore(inf, completedById[id] ?? 0);
+    const responseScore = computeResponseScore(inf, now);
+    const profileScore = computeProfileCompletenessScore(inf);
+    let composite = blendTopScore({
+      demand,
+      channel: channelScore,
+      collab: collabScore,
+      reach: reachScore,
+      response: responseScore,
+      profile: profileScore,
+    });
+    composite = applyTopTrustPenalty(composite, inf);
+    composite = applyIncumbentPenalty(composite, incumbents.has(id));
+    return {
+      inf,
+      id,
+      activityRaw: activityRaw[id] ?? 0,
+      composite,
+      boosted: boostedSet.has(id),
+    };
+  });
+
+  // Active admin boosts take the first slots; remaining slots are organic.
+  const boostedRanked = scored
+    .filter((r) => r.boosted)
+    .sort((a, b) => b.composite - a.composite || b.activityRaw - a.activityRaw);
+  const organicRanked = scored
+    .filter((r) => !r.boosted)
+    .sort((a, b) => b.composite - a.composite || b.activityRaw - a.activityRaw);
+  const ranked = [...boostedRanked, ...organicRanked].slice(0, topN);
 
   return ranked.map((r) => {
     const inf = r.inf as TopScoreInfluencer & {
