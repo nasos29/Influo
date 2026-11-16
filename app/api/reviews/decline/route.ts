@@ -19,7 +19,10 @@ export async function POST(req: Request) {
     if (token) {
       const payload = parseReviewDeclineToken(token);
       if (!payload) {
-        return NextResponse.json({ error: "Invalid token" }, { status: 400 });
+        return NextResponse.json(
+          { error: "Ο σύνδεσμος δεν είναι έγκυρος." },
+          { status: 400 }
+        );
       }
       const result = await applyReviewDecline(admin, payload);
       if (!result.ok) {

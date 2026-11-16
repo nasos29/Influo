@@ -1402,7 +1402,11 @@ export default function BrandDashboardContent() {
           setLoadError(lang === 'el' ? 'Η σύνδεση άργησε να απαντήσει. Δοκιμάστε ξανά.' : 'Sign-in took too long. Try again.');
           return;
         }
-        router.replace('/login');
+        const returnTo =
+          typeof window !== 'undefined'
+            ? `${window.location.pathname}${window.location.search}`
+            : '/brand/dashboard';
+        router.replace(`/login?redirect=${encodeURIComponent(returnTo)}`);
         return;
       }
       setViewerId(auth.user.id);
