@@ -197,7 +197,9 @@ export function directoryCandidateFromRow(
     if (!platform || !username) continue;
     socials[platform] = username;
     followers[platform] = directoryFollowerCount(acc.followers);
-    if (acc.engagement_rate) engagementRates[platform] = String(acc.engagement_rate);
+    if (acc.engagement_display_hidden !== true && acc.engagement_rate) {
+      engagementRates[platform] = String(acc.engagement_rate);
+    }
   }
   const fromPrice = lowestListedPrice(row);
   const category = row.category;

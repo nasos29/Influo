@@ -89,7 +89,11 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
     if (acc.followers != null && acc.followers !== "") {
       followers[platform] = parseFollowerString(acc.followers as string | number);
     }
-    if (typeof acc.engagement_rate === "string" && acc.engagement_rate) {
+    if (
+      acc.engagement_display_hidden !== true &&
+      typeof acc.engagement_rate === "string" &&
+      acc.engagement_rate
+    ) {
       engagementRates[platform] = acc.engagement_rate;
     }
     if (typeof acc.avg_likes === "string" && acc.avg_likes) avgLikes[platform] = acc.avg_likes;

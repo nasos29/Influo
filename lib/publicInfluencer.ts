@@ -81,6 +81,8 @@ const ACCOUNT_KEYS = [
   "er_suspicious",
   "er_flag_reason",
   "engagement_hidden",
+  /** Sticky admin hide of public ER; refresh must preserve this key. */
+  "engagement_display_hidden",
   "suspected_fake_penalty",
   "engagement_rate_raw",
   "fake_follower_percent",
@@ -332,6 +334,7 @@ function sanitizeAccounts(raw: unknown): Array<Record<string, unknown>> {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => {
     const src = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    const hideEr = src.engagement_display_hidden === true;
     const acc: Record<string, unknown> = {};
     for (const key of ACCOUNT_KEYS) {
       if (src[key] === undefined) continue;
@@ -339,6 +342,8 @@ function sanitizeAccounts(raw: unknown): Array<Record<string, unknown>> {
         acc.top_posts = sanitizeTopPosts(src.top_posts);
         continue;
       }
+      // Keep the rate in DB for admin/refresh; strip it from public payloads.
+      if (hideEr && (key === "engagement_rate" || key === "engagement_rate_raw")) continue;
       acc[key] = src[key];
     }
     return acc;

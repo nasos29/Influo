@@ -296,6 +296,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 'er_suspicious',
                 'er_flag_reason',
                 'engagement_hidden',
+                'engagement_display_hidden',
                 'suspected_fake_penalty',
                 'engagement_rate_raw',
                 'fake_follower_percent',

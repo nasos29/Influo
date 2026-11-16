@@ -93,6 +93,7 @@ type ProfileAccount = {
   er_suspicious?: boolean;
   er_flag_reason?: string;
   engagement_hidden?: boolean;
+  engagement_display_hidden?: boolean;
   suspected_fake_penalty?: boolean;
   fake_follower_percent?: number | string | null;
   suspected_fake_percent?: number | string | null;
@@ -1087,8 +1088,8 @@ export default function InfluencerProfile(props: {
             }
             followersObj[platform] = Math.round(followersNum);
             
-            // Store engagement rate per platform if available
-            if (acc.engagement_rate) {
+            // Store engagement rate per platform if available (respect admin public-hide)
+            if (acc.engagement_display_hidden !== true && acc.engagement_rate) {
               engagementRatesObj[platform] = acc.engagement_rate;
             }
             
@@ -2538,14 +2539,15 @@ export default function InfluencerProfile(props: {
                   >
                       <div className="w-full">
                         {availablePlatforms.map((platform) => {
+                          const acc = (profile.accounts || []).find(
+                            (a) => String(a.platform || "").toLowerCase() === platform.key
+                          );
+                          if (acc?.engagement_display_hidden === true) return null;
                           let engagementRate = engagementRates[platform.key] || "-";
                           if (engagementRate === "-") return null;
                           if (!engagementRate.includes("%")) {
                             engagementRate = engagementRate + "%";
                           }
-                          const acc = (profile.accounts || []).find(
-                            (a) => String(a.platform || "").toLowerCase() === platform.key
-                          );
                           const erFlag = displayErFlag({
                             ...acc,
                             platform: acc?.platform || platform.key,
