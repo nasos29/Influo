@@ -6,7 +6,6 @@ import {
   useEffect,
   useCallback,
   useRef,
-  type CSSProperties,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -17,10 +16,10 @@ import SiteHeader from "@/components/SiteHeader";
 import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
-import CampaignCard, { type CampaignCardData } from "@/components/CampaignCard";
+import type { CampaignCardData } from "@/components/CampaignCard";
 import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
-import PublishCampaignPromoCard from "@/components/PublishCampaignPromoCard";
+import HomeOpenCampaignsSection from "@/components/HomeOpenCampaignsSection";
 import RecentCollaborationsSection from "@/components/RecentCollaborationsSection";
 import SocialProofStatsRow from "@/components/SocialProofStatsRow";
 import { supabase } from "@/lib/supabaseClient";
@@ -127,11 +126,6 @@ const t = {
     feat_3_desc: "Ασφαλείς και γρήγορες πληρωμές.",
     feat_4_title: "Καμπάνιες",
     feat_4_desc: "Τα brands δημοσιεύουν καμπάνιες με budget — οι creators κάνουν αίτηση ενδιαφέροντος.",
-    open_campaigns_eyebrow: "Νέες ευκαιρίες",
-    open_campaigns_title: "Ανοιχτές καμπάνιες από brands",
-    open_campaigns_subtitle: "Κάνε αίτηση και συνεργάσου με brands που ψάχνουν influencers σαν εσένα.",
-    open_campaigns_see_all: "Δες όλες τις καμπάνιες →",
-    open_campaigns_post: "Δημοσίευσε καμπάνια",
     footer_rights: "Με επιφύλαξη παντός δικαιώματος.",
     footer_privacy: "Απόρρητο",
     footer_terms: "Όροι Χρήσης",
@@ -180,11 +174,6 @@ const t = {
     feat_3_desc: "Secure and fast payouts.",
     feat_4_title: "Campaigns",
     feat_4_desc: "Brands publish campaigns with budget — creators apply if interested.",
-    open_campaigns_eyebrow: "New opportunities",
-    open_campaigns_title: "Open campaigns from brands",
-    open_campaigns_subtitle: "Apply and work with brands looking for influencers like you.",
-    open_campaigns_see_all: "See all campaigns →",
-    open_campaigns_post: "Post a campaign",
     footer_rights: "All rights reserved.",
     footer_privacy: "Privacy",
     footer_terms: "Terms",
@@ -216,6 +205,7 @@ export default function Home({
   homeCreatorsLimit = 8,
   homeNewlyApprovedLimit = 8,
   homeTopInfluencersLimit = 10,
+  homeCampaignsLimit = 3,
   sectionOrder = defaultHomepageSectionOrder(),
   sectionHidden = [],
 }: {
@@ -228,6 +218,8 @@ export default function Home({
   homeCreatorsLimit?: number;
   homeNewlyApprovedLimit?: number;
   homeTopInfluencersLimit?: number;
+  /** Visible page size for open-campaigns row (homepage_campaigns_count). */
+  homeCampaignsLimit?: number;
   sectionOrder?: HomepageSectionId[];
   sectionHidden?: HomepageSectionId[];
 }) {
@@ -588,85 +580,17 @@ export default function Home({
                 </div>
               );
 
-            case "open_campaigns": {
-              if (openCampaigns.length === 0) return null;
-              const showPublishPromo = openCampaigns.length < 3;
-              const homeOpenCampaignCols = Math.max(
-                1,
-                openCampaigns.length + (showPublishPromo ? 1 : 0)
-              );
-              const homeOpenCampaignStyle = {
-                ["--home-open-campaign-cols"]: homeOpenCampaignCols,
-              } as CSSProperties;
+            case "open_campaigns":
               return (
-                <section
+                <HomeOpenCampaignsSection
                   key={sectionId}
-                  data-homepage-section="open_campaigns"
-                  className="home-section-cv relative py-20 px-6 bg-gradient-to-br from-slate-50 via-white to-blue-50 border-y border-slate-100/80"
-                >
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
-                    <div className="absolute -top-24 right-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(191,219,254,0.45)_0%,transparent_70%)]" />
-                    <div className="absolute -bottom-24 left-0 h-80 w-80 rounded-full bg-[radial-gradient(circle,rgba(226,232,240,0.55)_0%,transparent_70%)]" />
-                  </div>
-                  <div className="relative max-w-page mx-auto">
-                    <div className="text-center mb-12 max-w-2xl mx-auto">
-                      <div className="mb-3">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-blue-50 text-blue-700 border border-blue-100">
-                          {txt.open_campaigns_eyebrow}
-                        </span>
-                      </div>
-                      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>
-                        {txt.open_campaigns_title}
-                      </h2>
-                      <p className="text-base md:text-lg text-slate-600">
-                        {txt.open_campaigns_subtitle}
-                      </p>
-                    </div>
-                    <ul
-                      className="grid-home-open-campaigns auto-rows-fr"
-                      style={homeOpenCampaignStyle}
-                    >
-                      {openCampaigns.map((campaign) => (
-                        <li key={campaign.id} className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
-                          <CampaignCard campaign={campaign} lang={lang} viewCta />
-                        </li>
-                      ))}
-                      {showPublishPromo ? (
-                        <li className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg">
-                          <PublishCampaignPromoCard
-                            lang={lang}
-                            href={
-                              userType === "brand"
-                                ? "/brand/dashboard?tab=campaigns"
-                                : "/brand/signup"
-                            }
-                            approvedInfluencers={trustStats.approvedInfluencers}
-                          />
-                        </li>
-                      ) : null}
-                    </ul>
-                    <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
-                      <a
-                        href={lang === "en" ? "/en/campaigns" : "/campaigns"}
-                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold transition-colors shadow-sm"
-                      >
-                        {txt.open_campaigns_see_all}
-                      </a>
-                      <a
-                        href={
-                          userType === "brand"
-                            ? "/brand/dashboard?tab=campaigns"
-                            : "/brand/signup"
-                        }
-                        className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-white hover:bg-slate-50 text-slate-900 text-sm font-semibold border border-slate-200 transition-colors"
-                      >
-                        {txt.open_campaigns_post}
-                      </a>
-                    </div>
-                  </div>
-                </section>
+                  campaigns={openCampaigns}
+                  pageSize={homeCampaignsLimit}
+                  lang={lang}
+                  userType={userType}
+                  approvedInfluencers={trustStats.approvedInfluencers}
+                />
               );
-            }
 
             case "directory":
               return (
