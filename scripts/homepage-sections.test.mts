@@ -19,19 +19,7 @@ import {
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const HOME_PAGE = path.join(ROOT, "components", "HomePage.tsx");
-const HOME_OPEN_CAMPAIGNS = path.join(ROOT, "components", "HomeOpenCampaignsSection.tsx");
 const REGISTRY = path.join(ROOT, "lib", "homepageSections.ts");
-
-function collectSectionIds(...files: string[]): Set<string> {
-  const ids = new Set<string>();
-  for (const file of files) {
-    const src = fs.readFileSync(file, "utf8");
-    for (const m of src.matchAll(/data-homepage-section="([a-z0-9_]+)"/g)) {
-      ids.add(m[1]);
-    }
-  }
-  return ids;
-}
 
 test("default order places brand_cta before newly_approved", () => {
   const order = defaultHomepageSectionOrder();
@@ -77,7 +65,10 @@ test("serialize uses bare array when nothing is hidden", () => {
 });
 
 test("every data-homepage-section in HomePage is in the registry", () => {
-  const rendered = collectSectionIds(HOME_PAGE, HOME_OPEN_CAMPAIGNS);
+  const src = fs.readFileSync(HOME_PAGE, "utf8");
+  const rendered = new Set(
+    [...src.matchAll(/data-homepage-section="([a-z0-9_]+)"/g)].map((m) => m[1])
+  );
   const registryIds = new Set(HOMEPAGE_SECTION_REGISTRY.map((s) => s.id));
 
   assert.ok(rendered.size > 0, "HomePage must render data-homepage-section attributes");

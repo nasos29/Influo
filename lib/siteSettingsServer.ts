@@ -237,7 +237,7 @@ export async function updateSiteSetting(
       return { ok: false, error: "Update failed (no site_settings table yet)", status: 500 };
     }
     bustSettingsCaches();
-    // Homepage campaigns count is the visible page size for home-open-campaigns —
+    // Homepage campaigns count drives unstable_cache(["home-open-campaigns", limit]) —
     // expire home-campaigns again (incl. delayed pass) so / shows the new row immediately.
     if (key === "homepage_campaigns_count") revalidatePublicCampaigns();
     return { ok: true, settings: current };
