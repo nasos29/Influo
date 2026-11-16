@@ -12,6 +12,7 @@ import { escapeHtml } from "@/lib/proposalParty";
 import { Resend } from "resend";
 import { logEmail } from "@/lib/deliveryLog";
 import type { BrandReminderKind } from "@/lib/brandCampaignReminders";
+import { brandReminderPrefsUnsubUrl } from "@/lib/notificationUnsubToken";
 
 export type ReminderMail = { subject: string; html: string };
 
@@ -65,8 +66,7 @@ export function parseBrandReminderUnsubToken(
 }
 
 export function brandReminderUnsubscribeUrl(brandId: string, email: string): string {
-  const token = brandReminderUnsubToken(brandId, email);
-  return `${siteUrl()}/api/email/unsubscribe-brand-reminders?token=${encodeURIComponent(token)}`;
+  return brandReminderPrefsUnsubUrl(brandId, email);
 }
 
 function unsubFooter(brandId: string, email: string): string {

@@ -347,28 +347,37 @@ function toZohoContacts(rows: ContactRow[]): ZohoSelectedContact[] {
 async function notifyInfluencerRecipients(
   title: string,
   target_type: 'all' | 'specific',
-  target_influencer_ids?: string[]
+  target_influencer_ids?: string[],
+  opts?: { importantEmail?: boolean }
 ) {
   try {
-    const useZoho = await zohoAnnouncementsEnabled();
+    const important = Boolean(opts?.importantEmail);
+    // Always respect announcements_email preference unless admin marks «Σημαντική».
+    const respectOptOut = !important;
+    const useZoho = !important && (await zohoAnnouncementsEnabled());
     const rows =
       target_type === 'all'
-        ? await loadAllCreatorContacts(useZoho)
-        : await loadSelectedCreatorContacts(target_influencer_ids || [], useZoho);
+        ? await loadAllCreatorContacts(respectOptOut)
+        : await loadSelectedCreatorContacts(target_influencer_ids || [], respectOptOut);
 
     for (const row of rows) {
-      if (useZoho && row.optedOut) {
+      if (respectOptOut && row.optedOut) {
         console.info('[admin announcements] skip opted-out influencer email', row.email);
       }
     }
 
+    const mailRows = respectOptOut ? rows.filter((r) => !r.optedOut) : rows;
+
     await deliverAnnouncementEmails({
       useZoho,
       audience: 'creators',
-      mode: target_type === 'all' ? 'all' : 'selected',
+      // Important force-send uses selected Resend/Zoho-temp with full contact list.
+      mode: important || target_type === 'specific' ? 'selected' : 'all',
       title,
-      contacts: toZohoContacts(rows),
-      resendEmails: rows.map((r) => r.email),
+      contacts: toZohoContacts(
+        respectOptOut ? rows : rows.map((r) => ({ ...r, optedOut: false }))
+      ),
+      resendEmails: mailRows.map((r) => r.email),
       dashboardPath: CREATOR_DASHBOARD_PATH,
     });
   } catch (emailErr) {
@@ -413,31 +422,38 @@ async function notifyInfluencerRecipients(
 async function notifyBrandRecipients(
   title: string,
   target_type: 'all_brands' | 'specific_brand',
-  target_brand_ids?: string[]
+  target_brand_ids?: string[],
+  opts?: { importantEmail?: boolean }
 ) {
   try {
-    const useZoho = await zohoAnnouncementsEnabled();
+    const important = Boolean(opts?.importantEmail);
+    const respectOptOut = !important;
+    const useZoho = !important && (await zohoAnnouncementsEnabled());
     const rows =
       target_type === 'all_brands'
-        ? await loadAllBrandContacts(useZoho)
-        : await loadSelectedBrandContacts(target_brand_ids || [], useZoho);
+        ? await loadAllBrandContacts(respectOptOut)
+        : await loadSelectedBrandContacts(target_brand_ids || [], respectOptOut);
 
     for (const row of rows) {
-      if (useZoho && row.optedOut) {
+      if (respectOptOut && row.optedOut) {
         console.info('[admin announcements] skip opted-out brand email', row.email);
       }
     }
 
-    // Push uses contact emails regardless of mail provider.
+    const mailRows = respectOptOut ? rows.filter((r) => !r.optedOut) : rows;
+
+    // Push uses contact emails regardless of mail provider / opt-out (in-site always on).
     const pushEmails = rows.map((r) => r.email);
 
     await deliverAnnouncementEmails({
       useZoho,
       audience: 'brands',
-      mode: target_type === 'all_brands' ? 'all' : 'selected',
+      mode: important || target_type === 'specific_brand' ? 'selected' : 'all',
       title,
-      contacts: toZohoContacts(rows),
-      resendEmails: rows.map((r) => r.email),
+      contacts: toZohoContacts(
+        respectOptOut ? rows : rows.map((r) => ({ ...r, optedOut: false }))
+      ),
+      resendEmails: mailRows.map((r) => r.email),
       dashboardPath: BRAND_DASHBOARD_PATH,
     });
 
@@ -567,7 +583,10 @@ export async function POST(request: NextRequest) {
       target_influencer_ids,
       target_brand_id,
       target_brand_ids,
+      important_email,
+      force_email_all,
     } = body;
+    const importantEmail = Boolean(important_email || force_email_all);
 
     if (!title || !content || !target_type) {
       return NextResponse.json(
@@ -610,12 +629,12 @@ export async function POST(request: NextRequest) {
       const rows = data ? [data] : [];
       after(() => {
         if (target_type === 'all') {
-          return notifyInfluencerRecipients(title, 'all');
+          return notifyInfluencerRecipients(title, 'all', undefined, { importantEmail });
         }
-        return notifyBrandRecipients(title, 'all_brands');
+        return notifyBrandRecipients(title, 'all_brands', undefined, { importantEmail });
       });
 
-      return NextResponse.json({ data: rows, count: rows.length });
+      return NextResponse.json({ data: rows, count: rows.length, important_email: importantEmail });
     }
 
     if (target_type === 'specific') {
@@ -660,9 +679,9 @@ export async function POST(request: NextRequest) {
 
       const rows = data || [];
       const notifyIds = resolved.authIds;
-      after(() => notifyInfluencerRecipients(title, 'specific', notifyIds));
+      after(() => notifyInfluencerRecipients(title, 'specific', notifyIds, { importantEmail }));
 
-      return NextResponse.json({ data: rows, count: rows.length });
+      return NextResponse.json({ data: rows, count: rows.length, important_email: importantEmail });
     }
 
     // specific_brand
@@ -701,9 +720,9 @@ export async function POST(request: NextRequest) {
 
     const rows = data || [];
     const notifyIds = resolved.brandIds;
-    after(() => notifyBrandRecipients(title, 'specific_brand', notifyIds));
+    after(() => notifyBrandRecipients(title, 'specific_brand', notifyIds, { importantEmail }));
 
-    return NextResponse.json({ data: rows, count: rows.length });
+    return NextResponse.json({ data: rows, count: rows.length, important_email: importantEmail });
   } catch (err: unknown) {
     console.error('[admin announcements]', err);
     const message = err instanceof Error ? err.message : 'Internal error';

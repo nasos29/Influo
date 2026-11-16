@@ -2343,6 +2343,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementsError, setAnnouncementsError] = useState<LoadError>(null);
   const [announcementSending, setAnnouncementSending] = useState(false);
+  const [announcementImportantEmail, setAnnouncementImportantEmail] = useState(false);
   const [announcementReadersOpenId, setAnnouncementReadersOpenId] = useState<string | null>(null);
   const [announcementReadersById, setAnnouncementReadersById] = useState<
     Record<string, Array<{ id: string; name: string; read_at: string }>>
@@ -2807,6 +2808,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       );
       return;
     }
+    if (announcementImportantEmail) {
+      const ok = window.confirm(
+        lang === 'el'
+          ? 'Σημαντική ανακοίνωση: θα σταλεί email σε ΟΛΟΥΣ τους στοχευμένους παραλήπτες, ακόμα κι αν έχουν απενεργοποιήσει τις ενημερώσεις. Να χρησιμοποιείται σπάνια. Συνέχεια;'
+          : 'Important announcement: email will go to ALL targeted recipients, even if they opted out of updates. Use rarely. Continue?'
+      );
+      if (!ok) return;
+    }
     setAnnouncementSending(true);
     try {
       const res = await fetch('/api/admin/announcements', {
@@ -2820,6 +2829,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             announcementTargetType === 'specific' ? announcementTargetInfluencerIds : undefined,
           target_brand_ids:
             announcementTargetType === 'specific_brand' ? announcementTargetBrandIds : undefined,
+          important_email: announcementImportantEmail,
         }),
       });
       const result = await res.json();
@@ -2828,6 +2838,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         setAnnouncementBody('');
         setAnnouncementTargetInfluencerIds([]);
         setAnnouncementTargetBrandIds([]);
+        setAnnouncementImportantEmail(false);
         setAnnouncementsPage(1);
         setAnnouncementReadersById({});
         await fetchAnnouncements({ page: 1 });
@@ -6039,6 +6050,27 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       )}
                     </div>
                   </div>
+                  <label className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={announcementImportantEmail}
+                      onChange={(e) => setAnnouncementImportantEmail(e.target.checked)}
+                      className="mt-1 h-4 w-4 rounded border-amber-400 text-amber-700 focus:ring-amber-500"
+                      data-announcement-important-email
+                    />
+                    <span className="min-w-0 text-sm text-amber-950">
+                      <span className="font-semibold">
+                        {lang === 'el'
+                          ? 'Σημαντική — αποστολή email σε όλους'
+                          : 'Important — email everyone'}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-amber-800/90 leading-relaxed">
+                        {lang === 'el'
+                          ? 'Παρακάμπτει το opt-out ενημερώσεων. Χρησιμοποίησέ το σπάνια (π.χ. κρίσιμη ασφάλεια / νομική ενημέρωση). Οι ανακοινώσεις στο καμπανάκι εμφανίζονται πάντα.'
+                          : 'Bypasses the updates email opt-out. Use rarely (e.g. critical safety / legal notice). Bell announcements always show.'}
+                      </span>
+                    </span>
+                  </label>
                   <button
                     type="submit"
                     disabled={

@@ -2,6 +2,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { agreementReminderTarget, type AgreementReminderRow } from "@/lib/agreementReminder";
 import { brandHasAccount, influencerContact } from "@/lib/proposalAccess";
 import { mailAgreementReminder } from "@/lib/proposalMail";
+import {
+  allowRemindersEmail,
+  loadNotificationPreferences,
+} from "@/lib/notificationPreferences";
 
 type Row = AgreementReminderRow & {
   id: string | number;
@@ -93,6 +97,31 @@ export async function runAgreementReminders(
     try {
       const influencer = await influencerContact(row.influencer_id);
       const brandEmail = (row.brand_email || "").trim();
+      if (target === "brand") {
+        let allows = true;
+        if (brandEmail) {
+          const brandId = (
+            await admin.from("brands").select("id").ilike("contact_email", brandEmail).maybeSingle()
+          ).data?.id;
+          if (brandId) {
+            allows = allowRemindersEmail(
+              await loadNotificationPreferences(admin, "brand", String(brandId))
+            );
+          }
+        }
+        if (!allows) {
+          await releaseClaim(admin, row.id);
+          continue;
+        }
+      } else {
+        const allows = allowRemindersEmail(
+          await loadNotificationPreferences(admin, "influencer", row.influencer_id)
+        );
+        if (!allows) {
+          await releaseClaim(admin, row.id);
+          continue;
+        }
+      }
       const result =
         target === "brand"
           ? await mailAgreementReminder({

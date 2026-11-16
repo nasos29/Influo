@@ -123,16 +123,24 @@ export function draftReminderDue(input: {
 }
 
 export function brandOptedOutOfReminders(row: {
+  reminders_email?: boolean | null;
   reminders_email_opted_out?: boolean | null;
+  announcements_email?: boolean | null;
   announcements_email_opted_out?: boolean | null;
 }): boolean {
+  // New prefs: reminders_email=false. Legacy: either reminders or announcements opt-out.
+  if (row.reminders_email === false) return true;
+  if (row.reminders_email === true) return false;
   return row.reminders_email_opted_out === true || row.announcements_email_opted_out === true;
 }
 
 /** Event emails still skip hard announcement opt-out. */
 export function brandOptedOutOfAnnouncementMail(row: {
+  announcements_email?: boolean | null;
   announcements_email_opted_out?: boolean | null;
 }): boolean {
+  if (row.announcements_email === false) return true;
+  if (row.announcements_email === true) return false;
   return row.announcements_email_opted_out === true;
 }
 

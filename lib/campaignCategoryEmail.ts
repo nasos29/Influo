@@ -20,6 +20,7 @@ import {
   zohoBulkTestRecipient,
 } from "@/lib/zohoBulkMailFlags";
 import { sendCampaignCategoryViaZoho } from "@/lib/zohoCampaignCategorySend";
+import { loadNotificationPreferencesMap } from "@/lib/notificationPreferences";
 
 export { campaignIdFromQueueKey, groupCategoryQueueByCampaign } from "@/lib/campaignCategoryQueueHelpers";
 
@@ -406,6 +407,11 @@ export async function queueCategoryCampaignEmails(c: {
   if (!category.length) return { matched: 0, related: 0, skippedStrong: 0, relatedCategories: relatedLabel, via: "no_category" };
 
   const creators = await loadApprovedCreators();
+  const prefsMap = await loadNotificationPreferencesMap(
+    supabaseService(),
+    "influencer",
+    creators.map((row) => String(row.id))
+  );
   const generalCampaign = campaignCategoryIsGeneral(c.category);
   const forceInclude = new Set((c.forceIncludeIds || []).map(String).filter(Boolean));
   const strong = new Set(
@@ -419,7 +425,9 @@ export async function queueCategoryCampaignEmails(c: {
     const status = (row as { availability_status?: string | null }).availability_status;
     if (status && status !== "available") continue;
     if (!presenceAllows(c, (row as { location?: string | null }).location)) continue;
-    if (row.announcements_email_opted_out === true) continue;
+    const prefs = prefsMap.get(String(row.id));
+    if (prefs?.matches_email === false) continue;
+    if (!prefs && row.announcements_email_opted_out === true) continue;
     const id = String(row.id);
     // «Γενικά» = every approved creator is a category match (same as campaign alerts).
     if (generalCampaign || sharedCategoryKeys(c.category, row.category).length) {
