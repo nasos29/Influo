@@ -1,6 +1,7 @@
 /**
- * Showcase appearance notice emails (Greek primary).
- * Used for live deliverable notify (flagged) and backfill (script).
+ * Showcase notice copy.
+ * Live path: short bilingual line inside existing transactional emails (consent-gated).
+ * Past path: dedicated backfill mail (script, dry-run by default).
  */
 
 import { escapeHtml } from "@/lib/proposalParty";
@@ -21,8 +22,17 @@ function greeting(party: ShowcaseParty, name: string): string {
   return party === "brand" ? `Γεια σας ${escapeHtml(name)},` : `Γεια σου ${escapeHtml(name)},`;
 }
 
-/** Live path: collaboration may appear in Πρόσφατες συνεργασίες; one-click opt-out. */
-export function showcaseAppearanceNotifyMail(input: {
+/**
+ * Short EL/EN notice + one-click opt-out for existing transactional emails.
+ * Only callers should include this when that recipient's showcase consent is currently true.
+ */
+export function showcaseInlineNoticeHtml(optOutUrl: string): string {
+  const href = escapeHtml(optOutUrl);
+  return `<p style="margin:16px 0;padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.55;">Η συνεργασία μπορεί να εμφανιστεί στις <strong>Πρόσφατες συνεργασίες</strong>. <a href="${href}" style="color:#2563eb;font-weight:600;text-decoration:underline;">Δεν θέλω να εμφανιστεί</a><br/><span style="color:#64748b;font-size:12px;">This collaboration may appear in <strong>Recent collaborations</strong>. <a href="${href}" style="color:#2563eb;font-weight:600;text-decoration:underline;">I don&apos;t want it shown</a></span></p>`;
+}
+
+/** @deprecated Separate live appearance notify removed — use showcaseInlineNoticeHtml in existing mails. */
+export function showcaseAppearanceNotifyMail(_input: {
   party: ShowcaseParty;
   recipientName: string;
   otherPartyName: string;
@@ -30,28 +40,7 @@ export function showcaseAppearanceNotifyMail(input: {
   source: ShowcaseSource;
   id: string;
 }): ShowcaseMail {
-  const optOut = showcaseOptOutUrl(input.source, input.id, input.party, "el");
-  const who =
-    input.party === "brand"
-      ? `με τον/την creator <strong>${escapeHtml(input.otherPartyName)}</strong>`
-      : `με το brand <strong>${escapeHtml(input.otherPartyName)}</strong>`;
-  return {
-    subject: `Η συνεργασία σας θα εμφανιστεί στις Πρόσφατες συνεργασίες`,
-    html: shell(
-      "Πρόσφατες συνεργασίες",
-      `${greeting(input.party, input.recipientName)}
-       <p>Η ολοκληρωμένη συνεργασία σας ${who}${
-         input.collabLabel ? ` («${escapeHtml(clip(input.collabLabel, 60))}»)` : ""
-       } θα εμφανιστεί στην ενότητα <strong>Πρόσφατες συνεργασίες</strong> στο influo.gr — ως social proof για brands.</p>
-       <p>Αν προτιμάτε να μην εμφανίζεται δημόσια, μπορείτε να εξαιρεθείτε με ένα κλικ:</p>
-       ${buttonHtml(optOut, "Εξαίρεση από τις Πρόσφατες συνεργασίες")}
-       <p style="font-size:12px;color:#64748b;margin-top:16px;">Μπορείτε επίσης να αλλάξετε την επιλογή αργότερα από τη σελίδα της συνεργασίας στο dashboard.</p>
-       ${tipsHtml([
-         "Εμφανίζονται μόνο συνεργασίες με συναίνεση και από τις δύο πλευρές.",
-         "Δεν αποθηκεύουμε αρχεία βίντεο — μόνο δημόσιο link του post.",
-       ])}`
-    ),
-  };
+  return { subject: "", html: "" };
 }
 
 /** Backfill: 7-day soft consent unless they opt out. */

@@ -1,13 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { deliverableApprovedToBrand, deliverableReviewToCreator } from "../lib/campaignMail.ts";
 import {
   isShowcaseAppearanceNotifyEnabled,
   isShowcaseAppearanceNotifyLive,
 } from "../lib/showcaseFlags.ts";
 import {
-  showcaseAppearanceNotifyMail,
   showcaseBackfillNoticeMail,
+  showcaseInlineNoticeHtml,
 } from "../lib/showcaseMail.ts";
+import { maybeNotifyShowcaseAppearance } from "../lib/showcaseNotify.ts";
 import {
   consentColumnForParty,
   optedOutColumnForParty,
@@ -18,11 +20,24 @@ import {
 
 const UUID = "11111111-2222-4333-8444-555555555555";
 
-test("showcase appearance notify flags default OFF", () => {
+test("showcase appearance notify flags are disabled (inline notice instead)", () => {
   assert.equal(isShowcaseAppearanceNotifyEnabled({}), false);
+  assert.equal(isShowcaseAppearanceNotifyEnabled({ SHOWCASE_APPEARANCE_NOTIFY_ENABLED: "1" }), false);
   assert.equal(isShowcaseAppearanceNotifyLive({}), false);
-  assert.equal(isShowcaseAppearanceNotifyEnabled({ SHOWCASE_APPEARANCE_NOTIFY_ENABLED: "1" }), true);
   assert.equal(isShowcaseAppearanceNotifyLive({ SHOWCASE_APPEARANCE_NOTIFY_LIVE: "yes" }), true);
+});
+
+test("maybeNotifyShowcaseAppearance is a no-op", async () => {
+  const result = await maybeNotifyShowcaseAppearance({
+    source: "campaign",
+    id: UUID,
+    brandName: "Acme",
+    brandEmail: "a@example.com",
+    influencerId: UUID,
+    collabLabel: "Reel",
+  });
+  assert.equal(result.sent, 0);
+  assert.equal(result.skipped, "disabled_inline_notice");
 });
 
 test("opt-out token round-trip and rejects tampering", () => {
@@ -53,20 +68,71 @@ test("consent / opted-out column helpers", () => {
   assert.equal(optedOutColumnForParty("influencer"), "influencer_showcase_opted_out");
 });
 
-test("appearance notify mail is Greek and has opt-out CTA", () => {
+test("inline notice has el/en lines and opt-out CTA text", () => {
   process.env.SHOWCASE_OPTOUT_SECRET = "test-showcase-secret";
   process.env.NEXT_PUBLIC_SITE_URL = "https://influo.gr";
-  const mail = showcaseAppearanceNotifyMail({
-    party: "brand",
-    recipientName: "Acme",
-    otherPartyName: "Maria",
-    collabLabel: "Reel",
-    source: "campaign",
-    id: UUID,
+  const url = showcaseOptOutUrl("campaign", UUID, "influencer", "el");
+  const html = showcaseInlineNoticeHtml(url);
+  assert.match(html, /Πρόσφατες συνεργασίες/);
+  assert.match(html, /Recent collaborations/);
+  assert.match(html, /Δεν θέλω να εμφανιστεί/);
+  assert.match(html, /I don&apos;t want it shown|I don't want it shown/);
+  assert.match(html, /\/showcase\/opt-out\?/);
+});
+
+test("deliverable approved creator mail includes notice only when opt-out URL passed", () => {
+  process.env.SHOWCASE_OPTOUT_SECRET = "test-showcase-secret";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://influo.gr";
+  const url = showcaseOptOutUrl("campaign", UUID, "influencer", "el");
+  const withNotice = deliverableReviewToCreator({
+    influencerName: "Μαρία",
+    brandName: "Acme",
+    campaignTitle: "Reel",
+    status: "approved",
+    showcaseOptOutUrl: url,
   });
-  assert.match(mail.subject, /Πρόσφατες συνεργασίες/);
-  assert.match(mail.html, /Εξαίρεση από τις Πρόσφατες συνεργασίες/);
-  assert.match(mail.html, /\/showcase\/opt-out\?/);
+  assert.match(withNotice.html, /Δεν θέλω να εμφανιστεί/);
+  assert.match(withNotice.html, /Πρόσφατες συνεργασίες/);
+
+  const without = deliverableReviewToCreator({
+    influencerName: "Μαρία",
+    brandName: "Acme",
+    campaignTitle: "Reel",
+    status: "approved",
+  });
+  assert.doesNotMatch(without.html, /Δεν θέλω να εμφανιστεί/);
+
+  const changes = deliverableReviewToCreator({
+    influencerName: "Μαρία",
+    brandName: "Acme",
+    campaignTitle: "Reel",
+    status: "changes_requested",
+    showcaseOptOutUrl: url,
+  });
+  assert.doesNotMatch(changes.html, /Δεν θέλω να εμφανιστεί/);
+});
+
+test("deliverable approved brand mail includes notice only when opt-out URL passed", () => {
+  process.env.SHOWCASE_OPTOUT_SECRET = "test-showcase-secret";
+  process.env.NEXT_PUBLIC_SITE_URL = "https://influo.gr";
+  const url = showcaseOptOutUrl("campaign", UUID, "brand", "el");
+  const withNotice = deliverableApprovedToBrand({
+    brandEmail: "b@example.com",
+    brandName: "Acme",
+    campaignTitle: "Reel",
+    influencerName: "Μαρία",
+    showcaseOptOutUrl: url,
+  });
+  assert.match(withNotice.html, /Δεν θέλω να εμφανιστεί/);
+  assert.match(withNotice.subject, /Εγκρίθηκε η παράδοση/);
+
+  const without = deliverableApprovedToBrand({
+    brandEmail: "b@example.com",
+    brandName: "Acme",
+    campaignTitle: "Reel",
+    influencerName: "Μαρία",
+  });
+  assert.doesNotMatch(without.html, /Δεν θέλω να εμφανιστεί/);
 });
 
 test("backfill notice mail mentions 7-day window", () => {

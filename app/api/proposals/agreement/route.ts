@@ -16,6 +16,7 @@ import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { sendPushAdminAgreementComplete } from "@/lib/push";
 import { partyProposalView, type ProposalParty } from "@/lib/proposalParty";
+import { showcaseOptOutUrl } from "@/lib/showcaseOptOut";
 
 function preferredParty(value: unknown): ProposalParty | null {
   return value === "influencer" || value === "brand" ? value : null;
@@ -190,6 +191,19 @@ export async function POST(request: Request) {
                 publishDeadline: proposal.publish_deadline,
                 completedAt,
               };
+              const influencerConsent =
+                party === "influencer"
+                  ? typeof body.showcaseConsent === "boolean"
+                    ? body.showcaseConsent
+                    : !!proposal.influencer_showcase_consent
+                  : !!proposal.influencer_showcase_consent;
+              const brandConsent =
+                party === "brand"
+                  ? typeof body.showcaseConsent === "boolean"
+                    ? body.showcaseConsent
+                    : !!proposal.brand_showcase_consent
+                  : !!proposal.brand_showcase_consent;
+              const proposalId = String(proposal.id);
               await Promise.all([
                 mailCreatorDealComplete({
                   ...common,
@@ -197,6 +211,9 @@ export async function POST(request: Request) {
                   creatorName: influencer.name,
                   brandName,
                   dashboardUrl: `${site}/dashboard?tab=proposals`,
+                  showcaseOptOutUrl: influencerConsent
+                    ? showcaseOptOutUrl("proposal", proposalId, "influencer", "el")
+                    : null,
                 }).catch((e) => console.error("[deal complete creator mail]", e instanceof Error ? e.message : e)),
                 mailBrandDealComplete({
                   ...common,
@@ -204,6 +221,9 @@ export async function POST(request: Request) {
                   brandName,
                   creatorName: influencer.name,
                   dashboardUrl: brandLink(email || "", email ? await brandHasAccount(email) : false),
+                  showcaseOptOutUrl: brandConsent
+                    ? showcaseOptOutUrl("proposal", proposalId, "brand", "el")
+                    : null,
                 }).catch((e) => console.error("[deal complete brand mail]", e instanceof Error ? e.message : e)),
               ]);
             } catch (error) {

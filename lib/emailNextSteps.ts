@@ -24,6 +24,7 @@ export type EmailNextStepsKey =
   | "campaign_pending_apps_brand"
   | "campaign_deliverable_brand"
   | "campaign_deliverable_approved_creator"
+  | "campaign_deliverable_approved_brand"
   | "campaign_deliverable_changes_creator"
   | "proposal_new_creator"
   | "proposal_brand_confirmation"
@@ -154,6 +155,10 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
   campaign_deliverable_approved_creator: [
     { el: "Δες την ενημέρωση στις Καμπάνιες του dashboard.", en: "Check the update under Dashboard → Campaigns." },
     { el: "Ολοκλήρωσε τυχόν υπόλοιπα βήματα της συνεργασίας (chat/αξιολόγηση).", en: "Finish any remaining steps (chat/review)." },
+  ],
+  campaign_deliverable_approved_brand: [
+    { el: "Δες την εγκριμένη παράδοση στις Καμπάνιες του brand dashboard.", en: "View the approved deliverable under Brand Dashboard → Campaigns." },
+    { el: "Αν θέλετε, αφήστε αξιολόγηση στον δημιουργό από το προφίλ του.", en: "Optionally leave a review on the creator’s profile." },
   ],
   campaign_deliverable_changes_creator: [
     { el: "Διάβασε τι ζητήθηκε στις Καμπάνιες / στο σχόλιο.", en: "Read the requested changes in Campaigns / the note." },

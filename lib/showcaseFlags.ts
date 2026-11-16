@@ -1,19 +1,20 @@
 /**
- * Showcase appearance notification flags. Default OFF — no emails until enabled.
+ * Showcase flags. Live appearance-notify emails were removed (inline notice instead).
+ * Flags kept so existing env docs / tests stay stable; they no longer gate sends.
  */
 
 function truthy(value: string | undefined): boolean {
   return /^(1|true|yes)$/i.test(String(value || "").trim());
 }
 
-/** Notify both parties when a deliverable is submitted/approved that it may appear in Πρόσφατες συνεργασίες. */
+/** @deprecated Separate showcase appearance emails are disabled; always false for send paths. */
 export function isShowcaseAppearanceNotifyEnabled(
-  env: Record<string, string | undefined> = process.env
+  _env: Record<string, string | undefined> = process.env
 ): boolean {
-  return truthy(env.SHOWCASE_APPEARANCE_NOTIFY_ENABLED);
+  return false;
 }
 
-/** When notify is on, LIVE sends to real recipients; otherwise redirect to test inbox if configured. */
+/** @deprecated Separate showcase appearance emails are disabled. */
 export function isShowcaseAppearanceNotifyLive(
   env: Record<string, string | undefined> = process.env
 ): boolean {

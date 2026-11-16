@@ -34,6 +34,11 @@ export type ProposalRow = {
   publish_deadline?: string | null;
   selected_extras?: unknown;
   created_at?: string;
+  brand_showcase_consent?: boolean | null;
+  influencer_showcase_consent?: boolean | null;
+  published_post_url?: string | null;
+  self_reported_views?: number | null;
+  self_reported_reach?: number | null;
 };
 
 const LIST_COLUMNS =

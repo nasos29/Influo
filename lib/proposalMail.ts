@@ -7,6 +7,7 @@ import { formatAthensDateTime, formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 import { escapeHtml } from "@/lib/proposalParty";
+import { showcaseInlineNoticeHtml } from "@/lib/showcaseMail";
 
 function euroHtml(amount: unknown): string {
   const formatted = formatEuroAmount(amount);
@@ -486,6 +487,7 @@ export async function mailCollaborationComplete(input: {
   budget: string;
   extras?: unknown;
   publishDeadline?: string | null;
+  showcaseOptOutUrl?: string | null;
 }): Promise<void> {
   await mailCreatorDealComplete({
     to: input.influencerEmail,
@@ -498,6 +500,7 @@ export async function mailCollaborationComplete(input: {
     extras: input.extras,
     publishDeadline: input.publishDeadline,
     dashboardUrl: creatorProposalsUrl(),
+    showcaseOptOutUrl: input.showcaseOptOutUrl,
   });
 }
 
@@ -570,7 +573,11 @@ function lockedAgreementBody(opts: {
   ctaUrl: string;
   nextStepsKey: "deal_complete_creator" | "deal_complete_brand";
   closing: string;
+  showcaseOptOutUrl?: string | null;
 }): string {
+  const showcaseNotice = opts.showcaseOptOutUrl
+    ? showcaseInlineNoticeHtml(opts.showcaseOptOutUrl)
+    : "";
   return `${opts.greetingHtml}
        ${opts.leadHtml}
        ${agreementDetailsHtml(opts.deal)}
@@ -578,6 +585,7 @@ function lockedAgreementBody(opts: {
        ${opts.safety ? creatorPaymentSafetyHtml() : ""}
        ${opts.nextStepsHtml}
        ${buttonHtml(opts.ctaUrl, "Άνοιξε το dashboard")}
+       ${showcaseNotice}
        ${emailNextSteps(opts.nextStepsKey)}
        <p>${opts.closing}</p>`;
 }
@@ -615,6 +623,8 @@ export async function mailCreatorDealComplete(input: {
   extras?: unknown;
   publishDeadline?: string | null;
   dashboardUrl: string;
+  /** When influencer showcase consent is true. */
+  showcaseOptOutUrl?: string | null;
 }): Promise<void> {
   const brand = escapeHtml(input.brandName);
   const date = escapeHtml(formatDate(input.completedAt, "el"));
@@ -641,6 +651,7 @@ export async function mailCreatorDealComplete(input: {
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_creator",
         closing: "Καλή συνεργασία,",
+        showcaseOptOutUrl: input.showcaseOptOutUrl,
       })
     )
   );
@@ -658,6 +669,8 @@ export async function mailBrandDealComplete(input: {
   extras?: unknown;
   publishDeadline?: string | null;
   dashboardUrl: string;
+  /** When brand showcase consent is true. */
+  showcaseOptOutUrl?: string | null;
 }): Promise<void> {
   const creator = escapeHtml(input.creatorName);
   const date = escapeHtml(formatDate(input.completedAt, "el"));
@@ -684,6 +697,7 @@ export async function mailBrandDealComplete(input: {
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_brand",
         closing: "Με εκτίμηση,",
+        showcaseOptOutUrl: input.showcaseOptOutUrl,
       })
     )
   );

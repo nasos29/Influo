@@ -3,6 +3,7 @@ import { emailNextSteps } from "@/lib/emailNextSteps";
 import { formatDate } from "@/lib/formatDateTime";
 import { escapeHtml } from "@/lib/proposalParty";
 import { brandLink, buttonHtml, intEuro, shell, siteUrl, tipsHtml, todayAthens } from "@/lib/proposalMail";
+import { showcaseInlineNoticeHtml } from "@/lib/showcaseMail";
 
 export type Mail = { subject: string; html: string };
 
@@ -471,8 +472,12 @@ export function deliverableReviewToCreator(input: {
   campaignTitle: string;
   status: "approved" | "changes_requested";
   reviewNote?: string | null;
+  /** When consent is true for this creator, include Πρόσφατες συνεργασίες opt-out line. */
+  showcaseOptOutUrl?: string | null;
 }): Mail {
   const approved = input.status === "approved";
+  const showcaseNotice =
+    approved && input.showcaseOptOutUrl ? showcaseInlineNoticeHtml(input.showcaseOptOutUrl) : "";
   return {
     subject: approved
       ? `Η παράδοσή σου εγκρίθηκε: ${clip(input.campaignTitle, 45)}`
@@ -496,7 +501,40 @@ export function deliverableReviewToCreator(input: {
        ])}
        ${quoteHtml(approved ? "Σχόλιο:" : "Τι ζητήθηκε:", input.reviewNote)}
        ${buttonHtml(creatorCampaignsTab(), "Δες τις καμπάνιες σου")}
+       ${showcaseNotice}
        ${emailNextSteps(approved ? "campaign_deliverable_approved_creator" : "campaign_deliverable_changes_creator")}`
+    ),
+  };
+}
+
+/** Brand: confirmation after approving a deliverable (collaboration complete for this campaign app). */
+export function deliverableApprovedToBrand(input: {
+  brandEmail: string;
+  brandName: string;
+  campaignTitle: string;
+  influencerName: string;
+  /** When consent is true for this brand, include Πρόσφατες συνεργασίες opt-out line. */
+  showcaseOptOutUrl?: string | null;
+}): Mail {
+  const showcaseNotice = input.showcaseOptOutUrl
+    ? showcaseInlineNoticeHtml(input.showcaseOptOutUrl)
+    : "";
+  return {
+    subject: `Εγκρίθηκε η παράδοση: ${input.influencerName} — ${clip(input.campaignTitle, 40)}`,
+    html: shell(
+      "Η παράδοση εγκρίθηκε",
+      `<p>Γεια σας ${escapeHtml(input.brandName)},</p>
+       <p>Εγκρίνατε την παράδοση του/της <strong>${escapeHtml(input.influencerName)}</strong> για την καμπάνια σας. Η συνεργασία για αυτή την αίτηση ολοκληρώθηκε.</p>
+       <p style="color:#64748b;font-size:13px;">You approved the deliverable — this campaign collaboration is complete.</p>
+       ${campaignSummaryHtml([
+         ["Καμπάνια", input.campaignTitle],
+         ["Δημιουργός", input.influencerName],
+         ["Κατάσταση", "Εγκρίθηκε / Approved"],
+         ["Ημερομηνία", todayAthens()],
+       ])}
+       ${buttonHtml(brandCampaignsLink(input.brandEmail), "Δείτε τις καμπάνιες")}
+       ${showcaseNotice}
+       ${emailNextSteps("campaign_deliverable_approved_brand")}`
     ),
   };
 }
