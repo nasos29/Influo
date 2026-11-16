@@ -342,8 +342,8 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
       en: "Announcements via Zoho Campaigns",
     },
     description: {
-      el: "ON: κάθε admin ανακοίνωση (όλοι ή επιλεγμένοι creators/brands) μέσω Zoho Campaigns· προσωρινή λίστα για επιλεγμένους· Resend μόνο αν OFF ή αποτύχει το Zoho. Χρειάζονται env keys στον server (όρια free: ~2.000 επαφές / ~6.000 emails/μήνα).",
-      en: "ON: every admin announcement (all or selected creators/brands) via Zoho Campaigns; temp list for selected; Resend only if OFF or Zoho fails. Needs server env keys (free limits: ~2,000 contacts / ~6,000 emails/month).",
+      el: "ON: admin ανακοινώσεις + category bulk (νέες καμπάνιες) μέσω Zoho Campaigns· προσωρινή λίστα για επιλεγμένους/category· Resend μόνο αν OFF ή αποτύχει το Zoho. Χρειάζονται env keys στον server (όρια free: ~2.000 επαφές / ~6.000 emails/μήνα).",
+      en: "ON: admin announcements + category bulk (new campaigns) via Zoho Campaigns; temp list for selected/category; Resend only if OFF or Zoho fails. Needs server env keys (free limits: ~2,000 contacts / ~6,000 emails/month).",
     },
     public: false,
     options: [

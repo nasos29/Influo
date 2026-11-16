@@ -7,9 +7,21 @@ import { isProtectedTestAccount } from "@/lib/protectedAccount";
 import { emailNextSteps } from "@/lib/emailNextSteps";
 import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { categoryTranslations } from "@/lib/categories";
+import { supabaseService } from "@/lib/apiAuth";
 import { getSiteSetting } from "@/lib/siteSettingsServer";
-import { shouldUseZohoForAnnouncements } from "@/lib/zohoCampaignsConfig";
+import {
+  campaignIdFromQueueKey,
+  groupCategoryQueueByCampaign,
+} from "@/lib/campaignCategoryQueueHelpers";
+import {
+  categoryZohoDrainMaxCampaigns,
+  isCampaignCategoryZohoLive,
+  shouldUseZohoForCategoryBulk,
+  zohoBulkTestRecipient,
+} from "@/lib/zohoBulkMailFlags";
 import { sendCampaignCategoryViaZoho } from "@/lib/zohoCampaignCategorySend";
+
+export { campaignIdFromQueueKey, groupCategoryQueueByCampaign } from "@/lib/campaignCategoryQueueHelpers";
 
 /**
  * Adjacent categories: a campaign in the key also interests creators in these.
@@ -113,11 +125,180 @@ export function categoryQueueStatus(): { pending: number; sentKeys: number; day:
   return { pending: state.queue.length, sentKeys: state.sent.size, day: state.day, sentToday: state.sentToday, dailyLimit: DAILY_LIMIT, pausedForQuota: state.pausedDay === state.day };
 }
 
-/** Resume a persisted queue (called at boot). */
+export type CategoryZohoDrainResult = {
+  drainedCampaigns: number;
+  skippedClosed: number;
+  remaining: number;
+  errors: string[];
+  via: "zoho" | "skipped" | "dry_run";
+};
+
+/**
+ * Drain Resend disk backlog via Zoho: one campaign per open brand_campaign,
+ * skip closed, dedupe emails, cap campaigns per tick (no flood).
+ * When LIVE is off, only sends to the test recipient (still removes drained jobs if dryRun=false and live path… wait).
+ *
+ * Safety: dryRun never calls Zoho. Non-LIVE replaces recipient list with test inbox only
+ * and does NOT clear real-user jobs from the queue (so prod backlog stays until LIVE).
+ */
+export async function drainCategoryQueueViaZoho(opts?: {
+  maxCampaigns?: number;
+  dryRun?: boolean;
+  /** Force LIVE behaviour (real recipients / clear queue). Default from env. */
+  live?: boolean;
+}): Promise<CategoryZohoDrainResult> {
+  load();
+  const errors: string[] = [];
+  const maxCampaigns = opts?.maxCampaigns ?? categoryZohoDrainMaxCampaigns();
+  const dryRun = opts?.dryRun === true;
+  const live = opts?.live ?? isCampaignCategoryZohoLive();
+
+  let useZoho = false;
+  try {
+    const flag = await getSiteSetting("zoho_campaigns_announcements");
+    useZoho = shouldUseZohoForCategoryBulk(flag);
+  } catch (err) {
+    errors.push(`flag: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (!useZoho) {
+    return { drainedCampaigns: 0, skippedClosed: 0, remaining: state.queue.length, errors, via: "skipped" };
+  }
+
+  const grouped = groupCategoryQueueByCampaign(state.queue);
+  const campaignIds = [...grouped.keys()].slice(0, Math.max(maxCampaigns * 3, maxCampaigns));
+  if (!campaignIds.length) {
+    return { drainedCampaigns: 0, skippedClosed: 0, remaining: state.queue.length, errors, via: "skipped" };
+  }
+
+  const admin = supabaseService();
+  const { data: rows, error } = await admin
+    .from("brand_campaigns")
+    .select("id, title, status, brands ( brand_name )")
+    .in("id", campaignIds);
+  if (error) {
+    errors.push(`campaigns: ${error.message}`);
+    return { drainedCampaigns: 0, skippedClosed: 0, remaining: state.queue.length, errors, via: "skipped" };
+  }
+
+  const meta = new Map<
+    string,
+    { title: string; status: string; brandName: string }
+  >();
+  for (const row of rows || []) {
+    const br = row.brands as { brand_name?: string | null } | { brand_name?: string | null }[] | null;
+    const brand = Array.isArray(br) ? br[0] : br;
+    meta.set(String(row.id), {
+      title: row.title || "Καμπάνια",
+      status: String(row.status || ""),
+      brandName: brand?.brand_name || "Brand",
+    });
+  }
+
+  let drainedCampaigns = 0;
+  let skippedClosed = 0;
+
+  for (const campaignId of campaignIds) {
+    if (drainedCampaigns >= maxCampaigns) break;
+    const bucket = grouped.get(campaignId);
+    if (!bucket) continue;
+    const info = meta.get(campaignId);
+    if (!info || info.status !== "open") {
+      // Closed / missing: drop pending jobs, keep sent keys so we never re-queue.
+      const drop = new Set(bucket.jobKeys);
+      state.queue = state.queue.filter((j) => !drop.has(j.key));
+      skippedClosed += 1;
+      save();
+      console.log("[campaign category email] drain skip closed", campaignId, {
+        dropped: bucket.jobKeys.length,
+      });
+      continue;
+    }
+
+    if (dryRun) {
+      console.log("[campaign category email] drain dry-run", {
+        campaignId,
+        recipients: live ? bucket.emails.length : 1,
+        title: info.title,
+      });
+      drainedCampaigns += 1;
+      continue;
+    }
+
+    const contacts = live
+      ? bucket.emails.map((email) => ({ email }))
+      : [{ email: zohoBulkTestRecipient(), displayName: "Influo test" }];
+
+    const zoho = await sendCampaignCategoryViaZoho({
+      campaignId,
+      title: info.title,
+      brandName: info.brandName,
+      contacts,
+      siteUrl: siteUrl(),
+    }).catch((err) => ({
+      ok: false as const,
+      syncErrors: [] as string[],
+      error: err instanceof Error ? err.message : String(err),
+    }));
+
+    if (!zoho.ok) {
+      errors.push(`${campaignId}: ${zoho.error || "zoho_failed"}`);
+      console.warn("[campaign category email] drain zoho failed", campaignId, zoho.error);
+      // Leave jobs for Resend pump / next drain.
+      continue;
+    }
+
+    // Clear drained jobs only when LIVE (real recipients). Non-LIVE test send keeps backlog.
+    if (live) {
+      const drop = new Set(bucket.jobKeys);
+      for (const email of bucket.emails) {
+        state.sent.add(`${campaignId}:${email}`);
+      }
+      for (const k of bucket.jobKeys) state.sent.add(k);
+      state.queue = state.queue.filter((j) => !drop.has(j.key));
+      save();
+    }
+    drainedCampaigns += 1;
+    console.log("[campaign category email] drain zoho ok", campaignId, {
+      subscribed: zoho.subscribed,
+      live,
+      remaining: state.queue.length,
+    });
+  }
+
+  return {
+    drainedCampaigns,
+    skippedClosed,
+    remaining: state.queue.length,
+    errors: errors.slice(0, 20),
+    via: dryRun ? "dry_run" : "zoho",
+  };
+}
+
+/** Resume a persisted queue (called at boot). Prefers Zoho drain when flags allow. */
 export function resumeCategoryEmailQueue(): void {
   load();
   if (state.queue.length) console.log("[campaign category email] resuming", state.queue.length);
-  pump();
+  void (async () => {
+    try {
+      const flag = await getSiteSetting("zoho_campaigns_announcements");
+      if (shouldUseZohoForCategoryBulk(flag)) {
+        const result = await drainCategoryQueueViaZoho();
+        console.log("[campaign category email] zoho drain on resume", result);
+        if (result.remaining > 0 && !isCampaignCategoryZohoLive()) {
+          // Backlog kept for LIVE; Resend pump would flood — stay paused until LIVE or flag off.
+          console.log("[campaign category email] Zoho non-LIVE: Resend pump skipped (backlog preserved)");
+          return;
+        }
+        if (result.remaining === 0) return;
+      }
+    } catch (err) {
+      console.warn(
+        "[campaign category email] zoho drain resume failed; Resend pump",
+        err instanceof Error ? err.message : err
+      );
+    }
+    pump();
+  })();
 }
 
 function rollDay(): void {
@@ -283,29 +464,33 @@ export async function queueCategoryCampaignEmails(c: {
     return { matched, related, skippedStrong, relatedCategories: relatedLabel, via: "empty" };
   }
 
-  // M3: Zoho temp-list bulk when admin flag ON; otherwise (or on failure) Resend disk queue.
+  // Zoho temp-list bulk when category/announcements flag ON; otherwise (or on failure) Resend disk queue.
   let via = "resend_queue";
   let useZoho = false;
   try {
     const flag = await getSiteSetting("zoho_campaigns_announcements");
-    useZoho = shouldUseZohoForAnnouncements(flag);
+    useZoho = shouldUseZohoForCategoryBulk(flag);
   } catch (err) {
     console.warn("[campaign category email] zoho flag read failed; using Resend", err instanceof Error ? err.message : err);
   }
 
   if (useZoho) {
+    const live = isCampaignCategoryZohoLive();
+    const contacts = live
+      ? jobs.map((j) => ({ email: j.to, displayName: j.name }))
+      : [{ email: zohoBulkTestRecipient(), displayName: "Influo test" }];
     const zoho = await sendCampaignCategoryViaZoho({
       campaignId: c.campaignId,
       title: c.title,
       brandName: c.brandName,
-      contacts: jobs.map((j) => ({ email: j.to, displayName: j.name })),
+      contacts,
       siteUrl: siteUrl(),
     }).catch((err) => ({
       ok: false as const,
       syncErrors: [] as string[],
       error: err instanceof Error ? err.message : String(err),
     }));
-    if (zoho.ok) {
+    if (zoho.ok && live) {
       for (const j of jobs) {
         state.sent.add(j.key);
         state.sent.add(j.emailKey);
@@ -318,6 +503,24 @@ export async function queueCategoryCampaignEmails(c: {
         skippedStrong,
         subscribed: zoho.subscribed,
         relatedCategories: relatedCats,
+      });
+      return { matched, related, skippedStrong, relatedCategories: relatedLabel, via };
+    }
+    if (zoho.ok && !live) {
+      // Hold on disk for LIVE drain — do not Resend (quota). Test already went to zohoBulkTestRecipient.
+      for (const j of jobs) {
+        state.sent.add(j.key);
+        state.sent.add(j.emailKey);
+        state.queue.push({ key: j.key, emailKey: j.emailKey, to: j.to, subject: j.subject, html: j.html });
+      }
+      // Un-mark sent so drain can still clear by job key; sent keys prevent re-queue on republish.
+      // Actually: sent keys block re-queue; jobs stay for LIVE drain. Keep both.
+      save();
+      via = "zoho_held";
+      console.log("[campaign category email] zoho test + held for LIVE", c.campaignId, {
+        matched,
+        related,
+        pending: state.queue.length,
       });
       return { matched, related, skippedStrong, relatedCategories: relatedLabel, via };
     }

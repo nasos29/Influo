@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
 import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
-import { maybeSendStatsEmail } from '@/lib/statsUpdateEmail';
+import { flushStatsUpdatedViaZoho, maybeSendStatsEmail } from '@/lib/statsUpdateEmail';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 import { sanitizeTopPosts } from '@/lib/topPosts';
@@ -262,7 +262,16 @@ export async function POST(request: NextRequest) {
         influencers_unapproved: Number(body?.influencers_unapproved ?? 0),
         message: String(body?.message || 'Completed'),
       });
-      return NextResponse.json({ ok: true });
+      const statsZoho = await flushStatsUpdatedViaZoho().catch((err) => ({
+        ok: false as const,
+        queued: 0,
+        via: 'error' as const,
+        error: err instanceof Error ? err.message : String(err),
+      }));
+      if (statsZoho.queued > 0 || statsZoho.via === 'error') {
+        console.log('[social-refresh-batch] stats zoho flush', statsZoho);
+      }
+      return NextResponse.json({ ok: true, statsZoho });
     }
 
     if (action === 'apply') {

@@ -1,13 +1,27 @@
 /**
  * "Stats updated" email to approved creators after a successful social-refresh-batch apply.
  * Sent only when something material changed. No unsubscribe link (owner decision).
+ * When STATS_UPDATED_ZOHO_ENABLED=1, recipients are queued and flushed as one Zoho campaign
+ * (generic body) on finish — Resend personalized path remains the fallback.
  */
+import fs from "node:fs";
+import path from "node:path";
 import { emailNextSteps } from "@/lib/emailNextSteps";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { escapeHtml } from "@/lib/proposalParty";
 import { buttonHtml, send, shell, siteUrl, todayAthens } from "@/lib/proposalMail";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { isProtectedTestAccount } from "@/lib/protectedAccount";
+import {
+  isStatsUpdatedZohoEnabled,
+  isStatsUpdatedZohoLive,
+  zohoBulkTestRecipient,
+} from "@/lib/zohoBulkMailFlags";
+import { sendZohoTempListCampaign } from "@/lib/zohoTempListCampaign";
+import {
+  STATS_UPDATED_ZOHO_SUBJECT,
+  statsUpdatedContentUrl,
+} from "@/lib/zohoStatsUpdatedContent";
 
 export type StatsAccount = {
   platform?: string | null;
@@ -129,6 +143,82 @@ export function buildStatsEmail(input: {
 const sentThisProcess = new Set<string>();
 const perRunCount = new Map<string, number>();
 
+const STATS_ZOHO_QUEUE_FILE =
+  process.env.STATS_ZOHO_QUEUE_FILE || path.join(process.cwd(), ".data", "stats-zoho-queue.json");
+
+type StatsZohoJob = { email: string; name: string; runId: string; influencerId: string };
+
+function loadStatsZohoQueue(): StatsZohoJob[] {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STATS_ZOHO_QUEUE_FILE, "utf8")) as { queue?: StatsZohoJob[] };
+    return Array.isArray(raw.queue) ? raw.queue : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStatsZohoQueue(queue: StatsZohoJob[]): void {
+  try {
+    fs.mkdirSync(path.dirname(STATS_ZOHO_QUEUE_FILE), { recursive: true });
+    const tmp = `${STATS_ZOHO_QUEUE_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ queue }), { mode: 0o600 });
+    fs.renameSync(tmp, STATS_ZOHO_QUEUE_FILE);
+  } catch (err) {
+    console.error("[stats email] zoho queue save failed", err instanceof Error ? err.message : err);
+  }
+}
+
+function enqueueStatsZoho(job: StatsZohoJob): void {
+  const queue = loadStatsZohoQueue();
+  const email = job.email.trim().toLowerCase();
+  if (queue.some((j) => j.email === email && j.runId === job.runId)) return;
+  queue.push({ ...job, email });
+  saveStatsZohoQueue(queue);
+}
+
+export type StatsZohoFlushResult = {
+  ok: boolean;
+  queued: number;
+  subscribed?: number;
+  via: "zoho" | "zoho_test" | "empty" | "skipped" | "error";
+  error?: string;
+};
+
+/** Flush pending stats recipients as one Zoho campaign (generic body). */
+export async function flushStatsUpdatedViaZoho(opts?: {
+  dryRun?: boolean;
+}): Promise<StatsZohoFlushResult> {
+  if (!isStatsUpdatedZohoEnabled()) {
+    return { ok: false, queued: 0, via: "skipped", error: "flag_off" };
+  }
+  const queue = loadStatsZohoQueue();
+  if (!queue.length) return { ok: true, queued: 0, via: "empty" };
+  if (opts?.dryRun) {
+    return { ok: true, queued: queue.length, via: "zoho_test" };
+  }
+  const live = isStatsUpdatedZohoLive();
+  const contacts = live
+    ? queue.map((j) => ({ email: j.email, displayName: j.name }))
+    : [{ email: zohoBulkTestRecipient(), displayName: "Influo test" }];
+  const zoho = await sendZohoTempListCampaign({
+    contacts,
+    subject: STATS_UPDATED_ZOHO_SUBJECT,
+    contentUrl: statsUpdatedContentUrl(siteUrl()),
+    label: "stats-updated",
+    audience: "creators",
+  });
+  if (!zoho.ok) {
+    return { ok: false, queued: queue.length, via: "error", error: zoho.error };
+  }
+  if (live) saveStatsZohoQueue([]);
+  return {
+    ok: true,
+    queued: queue.length,
+    subscribed: zoho.subscribed,
+    via: live ? "zoho" : "zoho_test",
+  };
+}
+
 function cap(): number {
   const n = Number(process.env.STATS_EMAIL_MAX_PER_RUN);
   return Number.isFinite(n) && n >= 0 ? n : 400;
@@ -169,6 +259,17 @@ export async function maybeSendStatsEmail(
     if (isProtectedTestAccount({ display_name: row.display_name, contact_email: email })) return;
     sentThisProcess.add(dedupeKey);
     perRunCount.set(runId, used + 1);
+
+    if (isStatsUpdatedZohoEnabled()) {
+      enqueueStatsZoho({
+        email,
+        name: row.display_name || "Influencer",
+        runId,
+        influencerId: info.id,
+      });
+      return;
+    }
+
     const mail = buildStatsEmail({
       name: row.display_name || "Influencer",
       slug: typeof row.profile_slug === "string" ? row.profile_slug : null,
