@@ -10,6 +10,8 @@ import {
   parseSocialPostUrl,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
+import { maybeNotifyShowcaseAppearance } from "@/lib/showcaseNotify";
+import { isShowcaseAppearanceNotifyEnabled } from "@/lib/showcaseFlags";
 
 type Action = "submit" | "approve" | "request_changes";
 
@@ -127,6 +129,9 @@ export async function POST(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
     const influencerName = influencer.display_name || "Influencer";
+    const notifyShowcase =
+      isShowcaseAppearanceNotifyEnabled() &&
+      (showcaseConsent === true || showcaseConsent === undefined);
     deferAfterResponse(async () => {
       try {
         if (brandEmail) {
@@ -144,6 +149,16 @@ export async function POST(request: NextRequest) {
             url: "/brand/dashboard?tab=campaigns",
             tag: `deliverable-submitted-${applicationId}`,
           }).catch((err) => console.error("[deliverable] brand push", err));
+        }
+        if (notifyShowcase) {
+          await maybeNotifyShowcaseAppearance({
+            source: "campaign",
+            id: applicationId,
+            brandName,
+            brandEmail,
+            influencerId: String(app.influencer_id),
+            collabLabel: campaignTitle,
+          }).catch((err) => console.error("[deliverable] showcase notify", err));
         }
       } catch (err) {
         console.error("[deliverable] submit notify", err);
@@ -194,6 +209,11 @@ export async function POST(request: NextRequest) {
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
+  const notifyShowcaseOnApprove =
+    action === "approve" &&
+    isShowcaseAppearanceNotifyEnabled() &&
+    (brandShowcaseConsent === true || brandShowcaseConsent === undefined);
+
   deferAfterResponse(async () => {
     try {
       const person = await creatorContact(String(app.influencer_id));
@@ -219,6 +239,16 @@ export async function POST(request: NextRequest) {
         url: "/dashboard?tab=campaigns",
         tag: `deliverable-${nextStatus}-${applicationId}`,
       }).catch((err) => console.error("[deliverable] creator push", err));
+      if (notifyShowcaseOnApprove) {
+        await maybeNotifyShowcaseAppearance({
+          source: "campaign",
+          id: applicationId,
+          brandName,
+          brandEmail,
+          influencerId: String(app.influencer_id),
+          collabLabel: campaignTitle,
+        }).catch((err) => console.error("[deliverable] showcase notify", err));
+      }
     } catch (err) {
       console.error("[deliverable] review notify", err);
     }

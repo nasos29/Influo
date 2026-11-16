@@ -509,6 +509,41 @@ textarea:focus-visible {
   }
 }
 
+/* Homepage / collaborations: recent collaborations row (same pattern as open campaigns). */
+.grid-home-collaborations {
+  display: grid;
+  gap: 1rem;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  justify-content: start;
+}
+.grid-home-collaborations > * {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  justify-self: stretch;
+}
+@media (max-width: 767px) {
+  .grid-home-collaborations {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(16.5rem, 82vw);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.25rem;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .grid-home-collaborations > * {
+    scroll-snap-align: start;
+  }
+}
+@media (min-width: 768px) {
+  .grid-home-collaborations {
+    grid-template-columns: repeat(var(--home-collab-cols, 3), minmax(0, 1fr));
+  }
+}
+
 /*
  * Public /campaigns listing only: 1 → md:2 → lg:3 → xl(≥1280):4.
  * Wider shell than max-w-page so four columns stay comfortable on desktop.

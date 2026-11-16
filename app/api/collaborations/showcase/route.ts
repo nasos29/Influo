@@ -82,8 +82,13 @@ export async function PATCH(request: Request) {
 
       const update: Record<string, unknown> = {};
       if (typeof body.consent === "boolean") {
-        if (party === "brand") update.brand_showcase_consent = body.consent;
-        else update.influencer_showcase_consent = body.consent;
+        if (party === "brand") {
+          update.brand_showcase_consent = body.consent;
+          update.brand_showcase_opted_out = !body.consent;
+        } else {
+          update.influencer_showcase_consent = body.consent;
+          update.influencer_showcase_opted_out = !body.consent;
+        }
       }
 
       if (party === "influencer") {
@@ -114,7 +119,13 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
       }
 
-      const { error } = await admin.from("proposals").update(update).eq("id", id);
+      let { error } = await admin.from("proposals").update(update).eq("id", id);
+      if (error && /showcase_opted_out|schema cache|column|PGRST204|42703/i.test(error.message || "")) {
+        const soft = { ...update };
+        delete soft.brand_showcase_opted_out;
+        delete soft.influencer_showcase_opted_out;
+        ({ error } = await admin.from("proposals").update(soft).eq("id", id));
+      }
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
       return NextResponse.json({ ok: true });
     }
@@ -126,8 +137,13 @@ export async function PATCH(request: Request) {
 
     const update: Record<string, unknown> = {};
     if (typeof body.consent === "boolean") {
-      if (owned.party === "brand") update.brand_showcase_consent = body.consent;
-      else update.influencer_showcase_consent = body.consent;
+      if (owned.party === "brand") {
+        update.brand_showcase_consent = body.consent;
+        update.brand_showcase_opted_out = !body.consent;
+      } else {
+        update.influencer_showcase_consent = body.consent;
+        update.influencer_showcase_opted_out = !body.consent;
+      }
     }
     if (owned.party === "influencer") {
       if ("publishedPostUrl" in body) {
@@ -156,9 +172,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
     let { error } = await admin.from("campaign_applications").update(update).eq("id", id);
-    if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
-      const { deliverable_seen_at: _drop, ...withoutSeen } = update;
-      ({ error } = await admin.from("campaign_applications").update(withoutSeen).eq("id", id));
+    if (
+      error &&
+      /deliverable_seen_at|showcase_opted_out|schema cache|column|PGRST204|42703/i.test(error.message || "")
+    ) {
+      const soft = { ...update };
+      delete soft.deliverable_seen_at;
+      delete soft.brand_showcase_opted_out;
+      delete soft.influencer_showcase_opted_out;
+      ({ error } = await admin.from("campaign_applications").update(soft).eq("id", id));
     }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true });
