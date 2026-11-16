@@ -34,6 +34,7 @@ import AgreementTerms from '@/components/AgreementTerms';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
+import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
 import BrandCampaignsSection from '@/components/BrandCampaignsSection';
 import BrandActionInbox from '@/components/BrandActionInbox';
@@ -806,8 +807,23 @@ export default function BrandDashboardContent() {
   const notify = (message: string, tone: 'success' | 'error' | 'info' = 'info') => pushToast(message, tone);
   const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null);
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [pendingCollabReviews, setPendingCollabReviews] = useState<PendingCollabReview[]>([]);
   const [influencers, setInfluencers] = useState<Record<string, Influencer>>({});
   const [loading, setLoading] = useState(true);
+
+  const reloadPendingCollabReviews = async () => {
+    try {
+      const res = await sessionFetch('/api/reviews/pending?party=brand', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(data.pending)) {
+        setPendingCollabReviews([]);
+        return;
+      }
+      setPendingCollabReviews(data.pending as PendingCollabReview[]);
+    } catch {
+      setPendingCollabReviews([]);
+    }
+  };
   const [loadError, setLoadError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
@@ -1426,6 +1442,7 @@ export default function BrandDashboardContent() {
       const proposalsData = Array.isArray(proposalsBody.proposals) ? proposalsBody.proposals as Proposal[] : [];
         setProposals(proposalsData as Proposal[]);
         setProposalsLoaded(true);
+        void reloadPendingCollabReviews();
 
         // Get unique influencer IDs
         const influencerIds = [...new Set(proposalsData.map((p: Proposal) => p.influencer_id))];
@@ -2247,6 +2264,21 @@ export default function BrandDashboardContent() {
             />
           </div>
         </div>
+
+        <CollabReviewPromptPanel
+          lang={lang === 'en' ? 'en' : 'el'}
+          party="brand"
+          items={pendingCollabReviews}
+          onChanged={() => {
+            void reloadPendingCollabReviews();
+          }}
+          onOpenReview={(item) => {
+            const path = item.profileUrl
+              ? `${item.profileUrl}?tab=reviews&review=1&proposalId=${encodeURIComponent(item.proposalId)}`
+              : null;
+            if (path) router.push(path);
+          }}
+        />
 
         {activeTab === 'overview' && (
           <div className="mb-12 space-y-6">

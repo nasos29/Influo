@@ -70,7 +70,7 @@ function LoginPageContent() {
         setLang(getStoredLanguage());
     }, []);
 
-    // Already signed in → go to the right dashboard (avoids showing login while session exists)
+    // Already signed in → honor ?redirect= when safe, else the right dashboard
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -81,10 +81,17 @@ function LoginPageContent() {
             }
             const { data: { user } } = await supabase.auth.getUser();
             if (!user || cancelled) return;
+            const redirectParam = searchParams?.get('redirect');
+            const safeRedirect =
+                redirectParam &&
+                redirectParam.startsWith('/') &&
+                !redirectParam.startsWith('//')
+                    ? redirectParam
+                    : null;
             const userEmail = user.email?.toLowerCase().trim();
             const adminEmail = 'nd.6@hotmail.com'.toLowerCase().trim();
             if (userEmail === adminEmail) {
-                router.replace('/admin');
+                router.replace(safeRedirect || '/admin');
                 return;
             }
             const profiles = await loadOwnProfiles(supabase);
@@ -92,6 +99,10 @@ function LoginPageContent() {
             if (!profiles.ok) {
                 setMessage(profiles.message);
                 setMessageType('error');
+                return;
+            }
+            if (safeRedirect) {
+                router.replace(safeRedirect);
                 return;
             }
             if (profiles.brand) {
@@ -103,7 +114,7 @@ function LoginPageContent() {
         return () => {
             cancelled = true;
         };
-    }, [router]);
+    }, [router, searchParams]);
 
     // Pre-fill email from URL parameter if provided
     useEffect(() => {

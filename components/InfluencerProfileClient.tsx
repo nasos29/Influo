@@ -719,13 +719,18 @@ export default function InfluencerProfile(props: {
   const [sessionChecked, setSessionChecked] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [hasSession, setHasSession] = useState(false);
-  // ?review=1 from reminder emails opens the brand→creator modal after session check.
+  // ?review=1 from reminder / star emails opens the brand→creator modal.
+  // Open even when logged out so the modal can show the brand-login CTA (with full return URL).
   useEffect(() => {
-    if (!sessionChecked || !isBrand) return;
+    if (!sessionChecked) return;
     if (searchParams?.get("review") !== "1") return;
     setActiveTab("reviews");
+    const ratingParam = Number(searchParams?.get("rating") || "");
+    if (Number.isInteger(ratingParam) && ratingParam >= 1 && ratingParam <= 5) {
+      setReviewRating(ratingParam);
+    }
     setShowReviewModal(true);
-  }, [searchParams, sessionChecked, isBrand]);
+  }, [searchParams, sessionChecked]);
   /** Commercial row (raw min_rate) still loads only for brand, admin, or the owner. */
   const revealPrices = isBrand || isAdmin || isOwnProfile;
   const commercialRef = useRef<{
@@ -1457,19 +1462,22 @@ export default function InfluencerProfile(props: {
         }),
       });
 
-      const result = await response.json();
-      if (result.success) {
+      const result = await response.json().catch(() => ({}));
+      if (response.ok && result.success) {
         alert(lang === "el" ? "Η αξιολόγηση υποβλήθηκε!" : "Review submitted!");
         setShowReviewModal(false);
         setReviewRating(5);
         setReviewText("");
         setReviewProjectType("");
         const reloadResponse = await fetch(`/api/reviews?influencerId=${id}`);
-        const reloadData = await reloadResponse.json();
+        const reloadData = await reloadResponse.json().catch(() => ({}));
         if (reloadData.reviews) setReviews(reloadData.reviews);
         window.location.reload();
       } else {
-        const errorMsg = result.error || txt.review_error_no_collab;
+        const errorMsg =
+          (typeof result.error === "string" && result.error) ||
+          txt.review_error_no_collab ||
+          (lang === "el" ? "Αποτυχία υποβολής" : "Submit failed");
         throw new Error(errorMsg);
       }
     } catch (err: unknown) {
@@ -1904,7 +1912,15 @@ export default function InfluencerProfile(props: {
                 <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
                   <p className="font-medium break-words">{txt.reviews_login_brand}</p>
                   <Link
-                    href={`/brand/login?redirect=${encodeURIComponent(publicPath)}`}
+                    href={`/brand/login?redirect=${encodeURIComponent(
+                      `${publicPath}?tab=reviews&review=1${
+                        reviewRating ? `&rating=${reviewRating}` : ""
+                      }${
+                        searchParams?.get("proposalId")
+                          ? `&proposalId=${encodeURIComponent(searchParams.get("proposalId")!)}`
+                          : ""
+                      }`
+                    )}`}
                     className="mt-3 inline-flex min-h-[44px] items-center text-blue-700 font-semibold hover:underline sm:min-h-0"
                   >
                     {txt.reviews_login_link}
@@ -1912,6 +1928,11 @@ export default function InfluencerProfile(props: {
                 </div>
               ) : (
               <form onSubmit={handleSubmitReview} className="space-y-4 w-full max-w-full">
+                <p className="text-sm text-slate-600">
+                  {lang === "el"
+                    ? "Οι αξιολογήσεις σας βοηθούν να έρχονται καλύτεροι δημιουργοί στις καμπάνιες σας και δείχνουν ότι είστε αξιόπιστος συνεργάτης."
+                    : "Reviews help better creators find your campaigns and show you are a reliable partner."}
+                </p>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase mb-2">{txt.reviews_rating}</label>
                   <div className="flex flex-wrap gap-1 sm:gap-2">

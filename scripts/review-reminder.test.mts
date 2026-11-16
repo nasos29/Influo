@@ -4,9 +4,12 @@ import { AGREEMENT_TERMS } from "../lib/agreementTermsCopy.ts";
 import { EMAIL_NEXT_STEPS } from "../lib/emailNextSteps.ts";
 import {
   REVIEW_REMINDER_FALLBACK_DAYS,
+  REVIEW_REMINDER_SECOND_DAYS,
+  isSecondReviewReminderWaveEnabled,
   publishDeadlineDueMs,
   reviewReminderDueMs,
   shouldSendReviewReminder,
+  shouldSendSecondReviewReminder,
 } from "../lib/reviewReminder.ts";
 
 test("fallback days is 3 after project end or agreement", () => {
@@ -96,6 +99,33 @@ test("shouldSendReviewReminder gates on completed + due + not yet sent", () => {
     }),
     true
   );
+});
+
+test("second reminder due 7 days after first", () => {
+  assert.equal(REVIEW_REMINDER_SECOND_DAYS, 7);
+  assert.equal(
+    shouldSendSecondReviewReminder({
+      status: "completed",
+      reviewReminderSentAt: "2026-11-01T00:00:00.000Z",
+      nowMs: Date.parse("2026-11-08T00:00:00.000Z"),
+    }),
+    true
+  );
+});
+
+test("second review-reminder wave is off unless REVIEW_REMINDER_SECOND_WAVE is set", () => {
+  const prev = process.env.REVIEW_REMINDER_SECOND_WAVE;
+  try {
+    delete process.env.REVIEW_REMINDER_SECOND_WAVE;
+    assert.equal(isSecondReviewReminderWaveEnabled(), false);
+    process.env.REVIEW_REMINDER_SECOND_WAVE = "1";
+    assert.equal(isSecondReviewReminderWaveEnabled(), true);
+    process.env.REVIEW_REMINDER_SECOND_WAVE = "0";
+    assert.equal(isSecondReviewReminderWaveEnabled(), false);
+  } finally {
+    if (prev === undefined) delete process.env.REVIEW_REMINDER_SECOND_WAVE;
+    else process.env.REVIEW_REMINDER_SECOND_WAVE = prev;
+  }
 });
 
 test("deal-complete next steps are work steps, review reminder is separate", () => {

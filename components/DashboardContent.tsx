@@ -57,6 +57,7 @@ import AgreementTerms from '@/components/AgreementTerms';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
+import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
 import CreatorPlatformPrices from '@/components/CreatorPlatformPrices';
 import LocationTypeahead from '@/components/LocationTypeahead';
@@ -1553,12 +1554,27 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [brandReviewText, setBrandReviewText] = useState('');
     const [brandReviewSubmitting, setBrandReviewSubmitting] = useState(false);
     const [reviewedBrandEmails, setReviewedBrandEmails] = useState<Set<string>>(new Set());
+    const [pendingCollabReviews, setPendingCollabReviews] = useState<PendingCollabReview[]>([]);
+
+    const reloadPendingCollabReviews = async () => {
+        try {
+            const res = await sessionFetch('/api/reviews/pending?party=influencer', { cache: 'no-store' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !Array.isArray(data.pending)) {
+                setPendingCollabReviews([]);
+                return;
+            }
+            setPendingCollabReviews(data.pending as PendingCollabReview[]);
+        } catch {
+            setPendingCollabReviews([]);
+        }
+    };
     const [selectedProposalForMessaging, setSelectedProposalForMessaging] = useState<Proposal | null>(null);
     const [proposalsLoaded, setProposalsLoaded] = useState(false);
     const [proposalsLoading, setProposalsLoading] = useState(true);
     const [proposalsError, setProposalsError] = useState<null | 'timeout' | 'error'>(null);
 
-    // Deep link from review-reminder emails: ?tab=proposals&reviewBrand=1&proposalId=
+    // Deep link from review-reminder / star emails: ?tab=proposals&reviewBrand=1&proposalId=&rating=
     useEffect(() => {
         if (!proposalsLoaded) return;
         if (searchParams?.get('reviewBrand') !== '1') return;
@@ -1569,7 +1585,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         if (!(prop.influencer_agreement_accepted && prop.brand_agreement_accepted)) return;
         setActiveTab('proposals');
         setBrandReviewTarget(prop);
-        setBrandReviewRating(5);
+        const ratingParam = Number(searchParams?.get('rating') || '');
+        setBrandReviewRating(
+            Number.isInteger(ratingParam) && ratingParam >= 1 && ratingParam <= 5 ? ratingParam : 5
+        );
         setBrandReviewText('');
         setShowBrandReviewModal(true);
     }, [proposalsLoaded, proposals, searchParams]);
@@ -1633,6 +1652,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             setProposals(rows);
             setProposalsLoaded(true);
             setProposalsError(null);
+            void reloadPendingCollabReviews();
             return rows;
         } catch (error) {
             console.error('Error loading proposals:', error);
@@ -2071,6 +2091,25 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 onCancel={() => setRejectProposalId(null)}
             />
             <PushNotificationPrompt userType="influencer" userIdentifier={profile?.id || ''} lang={lang} />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+                <CollabReviewPromptPanel
+                    lang={lang === 'en' ? 'en' : 'el'}
+                    party="influencer"
+                    items={pendingCollabReviews}
+                    onChanged={() => {
+                        void reloadProposals(true);
+                        void reloadPendingCollabReviews();
+                    }}
+                    onOpenReview={(item) => {
+                        const prop = proposals.find((p) => String(p.id) === String(item.proposalId));
+                        if (!prop) return;
+                        setBrandReviewTarget(prop);
+                        setBrandReviewRating(5);
+                        setBrandReviewText('');
+                        setShowBrandReviewModal(true);
+                    }}
+                />
+            </div>
             <div className="bg-white border-b border-slate-200">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
                     <div className="flex items-center justify-between gap-3">
@@ -2898,10 +2937,16 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 mb-2 pr-10">
                                 {T('Αξιολόγηση επιχείρησης', 'Rate this brand')}
                             </h2>
-                            <p className="text-slate-500 mb-6 text-sm">
+                            <p className="text-slate-500 mb-2 text-sm">
                                 {T(
                                     `Πώς πήγε η συνεργασία με την ${brandReviewTarget.brand_name};`,
                                     `How was working with ${brandReviewTarget.brand_name}?`
+                                )}
+                            </p>
+                            <p className="text-slate-500 mb-6 text-xs leading-relaxed">
+                                {T(
+                                    'Οι αξιολογήσεις ανεβάζουν το προφίλ σου στις αναζητήσεις και χτίζουν εμπιστοσύνη με τα brands.',
+                                    'Reviews raise your profile in search and build trust with brands.'
                                 )}
                             </p>
                             <form

@@ -5,12 +5,13 @@
  */
 
 import { escapeHtml } from "@/lib/proposalParty";
-import { buttonHtml, shell, tipsHtml } from "@/lib/proposalMail";
+import { buttonHtml, reviewDeclineLinkHtml, shell, tipsHtml } from "@/lib/proposalMail";
 import { showcaseAddPostUrl } from "@/lib/showcaseAddPost";
 import {
   SHOWCASE_ADD_POST_CTA_EL,
   showcaseHelperEmailHtml,
 } from "@/lib/showcaseCopy";
+import { reviewDeclineUrl } from "@/lib/reviewInvite";
 import {
   showcaseOptOutUrl,
   type ShowcaseParty,
@@ -37,13 +38,22 @@ export function showcaseInlineNoticeHtml(optOutUrl: string, party: ShowcaseParty
 }
 
 /** Reminder + CTA when published post URL is missing (creator emails). */
-export function showcaseMissingPostHtml(addPostUrl: string): string {
+export function showcaseMissingPostHtml(
+  addPostUrl: string,
+  opts?: { declineUrl?: string | null; source?: ShowcaseSource; id?: string }
+): string {
   const href = escapeHtml(addPostUrl);
+  const decline =
+    opts?.declineUrl ||
+    (opts?.source && opts?.id
+      ? reviewDeclineUrl(opts.source, opts.id, "influencer", "el")
+      : null);
   return `<div style="margin:16px 0;padding:12px 14px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;line-height:1.55;">
     <p style="margin:0 0 10px;">Λείπει το link της ανάρτησης. Πρόσθεσέ το για να εγκρίνει το brand και να μπορεί να εμφανιστεί στις <strong>Πρόσφατες συνεργασίες</strong>.</p>
     ${buttonHtml(href, SHOWCASE_ADD_POST_CTA_EL)}
     <p style="margin:8px 0 0;font-size:12px;color:#64748b;">The post link is missing. Add it so the brand can approve it and it can appear in <strong>Recent collaborations</strong>.</p>
     ${showcaseHelperEmailHtml("influencer")}
+    ${decline ? reviewDeclineLinkHtml(decline) : ""}
   </div>`;
 }
 
@@ -78,7 +88,10 @@ export function showcaseBackfillNoticeMail(input: {
       : `με το brand <strong>${escapeHtml(input.otherPartyName)}</strong>`;
   const addPostBlock =
     input.missingPostUrl && input.party === "influencer"
-      ? showcaseMissingPostHtml(showcaseAddPostUrl(input.source, input.id, "el"))
+      ? showcaseMissingPostHtml(showcaseAddPostUrl(input.source, input.id, "el"), {
+          source: input.source,
+          id: input.id,
+        })
       : "";
   return {
     subject: `Θα προβάλουμε τη συνεργασία σας στις Πρόσφατες συνεργασίες (έχετε 7 ημέρες)`,
