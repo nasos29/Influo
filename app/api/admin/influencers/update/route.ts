@@ -70,8 +70,21 @@ export async function POST(request: NextRequest) {
     delete patch.profile_slug;
     // min_rate is derived from packages / rate card, never typed in.
     delete patch.min_rate;
+    // Lock fields are server-owned (set/cleared below on approve toggles).
+    delete patch.manual_unapproved_at;
+    delete patch.manual_unapproved_by;
     if (typeof patch.contact_email === 'string') {
       patch.contact_email = patch.contact_email.trim().toLowerCase();
+    }
+
+    // Admin manual un-approve → lock out of cron auto-approval.
+    // Admin manual approve → clear lock so future un-approves can re-lock.
+    if (patch.approved === false) {
+      patch.manual_unapproved_at = new Date().toISOString();
+      patch.manual_unapproved_by = admin.id;
+    } else if (patch.approved === true) {
+      patch.manual_unapproved_at = null;
+      patch.manual_unapproved_by = null;
     }
 
     // Defensive: empty bio must not wipe an existing bio unless clearBio is explicit.
@@ -165,12 +178,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, influencer: existing });
     }
 
-    const { data, error } = await supabaseAdmin
+    let { data, error } = await supabaseAdmin
       .from('influencers')
       .update(patch)
       .eq('id', influencerId)
       .select()
       .single();
+
+    if (error && /column|manual_unapproved/i.test(error.message)) {
+      delete patch.manual_unapproved_at;
+      delete patch.manual_unapproved_by;
+      ({ data, error } = await supabaseAdmin
+        .from('influencers')
+        .update(patch)
+        .eq('id', influencerId)
+        .select()
+        .single());
+    }
 
     if (error) {
       console.error('[admin/influencers/update]', error);

@@ -21,6 +21,25 @@ const LIST_COLUMNS = [
   "auth_user_id",
   "min_rate",
   "hidden_videos",
+  "manual_unapproved_at",
+  "manual_unapproved_by",
+].join(",");
+
+const LIST_COLUMNS_WITHOUT_LOCK = [
+  "id",
+  "created_at",
+  "display_name",
+  "contact_email",
+  "avatar_url",
+  "location",
+  "category",
+  "approved",
+  "analytics_verified",
+  "verified",
+  "accounts",
+  "auth_user_id",
+  "min_rate",
+  "hidden_videos",
 ].join(",");
 
 const PICKER_COLUMNS = [
@@ -117,28 +136,47 @@ export async function GET(request: NextRequest) {
     const orderAsc = (url.searchParams.get("order") || "desc").toLowerCase() === "asc";
     const sortColumn = sort === "display_name" ? "display_name" : "created_at";
 
-    let listQuery = admin
-      .from("influencers")
-      .select(LIST_COLUMNS, { count: "exact" })
-      .order(sortColumn, { ascending: orderAsc })
-      .range((page - 1) * pageSize, page * pageSize - 1);
+    const buildListQuery = (columns: string) => {
+      let qy = admin
+        .from("influencers")
+        .select(columns, { count: "exact" })
+        .order(sortColumn, { ascending: orderAsc })
+        .range((page - 1) * pageSize, page * pageSize - 1);
+      qy = applyStatusFilter(qy, status);
+      if (q) {
+        const pattern = `%${escapeIlike(q)}%`;
+        // name / email / location (+ username via accounts_text when migration applied)
+        // accounts_text probe happens once below
+        return { qy, pattern };
+      }
+      return { qy, pattern: null as string | null };
+    };
 
-    listQuery = applyStatusFilter(listQuery, status);
-
-    if (q) {
-      const pattern = `%${escapeIlike(q)}%`;
-      const useAccountsText = await hasAccountsTextColumn(admin);
-      // name / email / location (+ username via accounts_text when migration applied)
-      listQuery = useAccountsText
-        ? listQuery.or(
+    const useAccountsText = q ? await hasAccountsTextColumn(admin) : false;
+    const applySearch = (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      qy: any,
+      pattern: string | null
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ): any => {
+      if (!pattern) return qy;
+      return useAccountsText
+        ? qy.or(
             `display_name.ilike.${pattern},contact_email.ilike.${pattern},location.ilike.${pattern},accounts_text.ilike.${pattern}`
           )
-        : listQuery.or(
+        : qy.or(
             `display_name.ilike.${pattern},contact_email.ilike.${pattern},location.ilike.${pattern}`
           );
-    }
+    };
 
-    const { data, error, count } = await listQuery;
+    let built = buildListQuery(LIST_COLUMNS);
+    let listQuery = applySearch(built.qy, built.pattern);
+    let { data, error, count } = await listQuery;
+    if (error && /column|manual_unapproved/i.test(error.message)) {
+      built = buildListQuery(LIST_COLUMNS_WITHOUT_LOCK);
+      listQuery = applySearch(built.qy, built.pattern);
+      ({ data, error, count } = await listQuery);
+    }
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }

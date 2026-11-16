@@ -63,9 +63,16 @@ export async function finalizeNewInfluencerApproval(
 ): Promise<{ bioNote: string; approved: boolean }> {
   let { data: inf, error } = await supabaseAdmin
     .from('influencers')
-    .select('id, display_name, contact_email, approved, approved_at, bio, bio_en')
+    .select('id, display_name, contact_email, approved, approved_at, manual_unapproved_at, bio, bio_en')
     .eq('id', influencerId)
     .maybeSingle();
+  if (error && /column|manual_unapproved_at/i.test(error.message)) {
+    ({ data: inf, error } = await supabaseAdmin
+      .from('influencers')
+      .select('id, display_name, contact_email, approved, approved_at, bio, bio_en')
+      .eq('id', influencerId)
+      .maybeSingle());
+  }
   if (error && /column|approved_at/i.test(error.message)) {
     ({ data: inf, error } = await supabaseAdmin
       .from('influencers')
@@ -75,6 +82,12 @@ export async function finalizeNewInfluencerApproval(
   }
   if (error || !inf) {
     throw new Error(error?.message || 'Influencer not found');
+  }
+  if ((inf as { manual_unapproved_at?: string | null }).manual_unapproved_at) {
+    return {
+      bioNote: 'Skipped: admin manual un-approve lock (manual_unapproved_at set)',
+      approved: false,
+    };
   }
   if (inf.approved || (inf as { approved_at?: string | null }).approved_at) {
     return { bioNote: 'Skipped: already approved before', approved: false };
