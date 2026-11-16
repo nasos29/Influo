@@ -565,7 +565,7 @@ export function reviewStarsHtml(starUrls: string[]): string {
 }
 
 export function reviewDeclineLinkHtml(href: string, label = "Όχι, ευχαριστώ"): string {
-  return `<p style="margin:16px 0 0;font-size:12px;color:#94a3b8;"><a href="${escapeHtml(href)}" style="color:#64748b;text-decoration:underline;">${escapeHtml(label)}</a> — δεν θα ξαναρωτήσουμε για αυτή τη συνεργασία.</p>`;
+  return `<p style="margin:12px 0 0;font-size:11px;line-height:1.4;color:#9ca3af;"><a href="${escapeHtml(href)}" style="color:#9ca3af;text-decoration:underline;font-weight:400;">${escapeHtml(label)}</a> — δεν θα ξαναρωτήσουμε για αυτή τη συνεργασία.</p>`;
 }
 
 type DealMailBits = {

@@ -147,7 +147,7 @@ function CollaborationCard({
           )}
         </div>
         {platform ? (
-          <span className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[11px] font-semibold tracking-wide text-slate-700 shadow-sm ring-1 ring-slate-200/80">
+          <span className="absolute left-3 top-3 rounded-md bg-white/60 px-2 py-1 text-[11px] font-semibold tracking-wide text-slate-800 shadow-sm backdrop-blur-sm ring-1 ring-white/40">
             {platform}
           </span>
         ) : null}

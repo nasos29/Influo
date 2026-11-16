@@ -2260,7 +2260,7 @@ export default function InfluencerProfile(props: {
                 ) : null}
                 {profile.verified && (
                   <div
-                    className="absolute bottom-1 right-1 bg-blue-600 text-white p-1.5 rounded-full border-2 border-white shadow-sm"
+                    className="absolute bottom-1 right-1 bg-blue-600/70 text-white p-1.5 rounded-full border-2 border-white/80 shadow-sm backdrop-blur-sm"
                     title={lang === "en" ? "Stats checked by Influo" : "Στατιστικά ελεγμένα από το Influo"}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>

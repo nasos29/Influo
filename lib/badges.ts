@@ -279,3 +279,20 @@ export function getBadgeFilterLabel(type: BadgeType, lang: 'el' | 'en' = 'el'): 
 export function getBadgeStyles(badge: Badge) {
   return `${badge.bgColor} ${badge.color} border px-2 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1`;
 }
+
+/**
+ * Same badge chrome for chips overlaid on photos — softer fill so the image shows through.
+ * Non-image usages should keep {@link getBadgeStyles}.
+ */
+export function getImageOverlayBadgeStyles(badge: Badge) {
+  let softBg = badge.bgColor
+    .replace(/\bbg-gradient-to-r\b/g, "")
+    .replace(/\bfrom-[^\s]+/g, "")
+    .replace(/\bto-[^\s]+/g, "")
+    .replace(/\bbg-([a-z]+-\d+)\b/g, "bg-$1/60")
+    .replace(/\bborder-([a-z]+-\d+)\b/g, "border-$1/40")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!/\bbg-/.test(softBg)) softBg = `bg-white/60 ${softBg}`.trim();
+  return `${softBg} ${badge.color} border px-2 py-1 rounded-full text-[10px] font-bold inline-flex items-center gap-1 backdrop-blur-sm shadow-sm`;
+}
