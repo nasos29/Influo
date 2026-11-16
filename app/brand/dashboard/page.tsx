@@ -11,7 +11,13 @@ export default function BrandDashboardPage() {
   useEffect(() => {
     const checkAuth = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) router.push('/login');
+      if (!user) {
+        const returnTo =
+          typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/brand/dashboard";
+        router.push(`/login?redirect=${encodeURIComponent(returnTo)}`);
+      }
     };
 
     checkAuth();

@@ -1,6 +1,8 @@
 /**
  * Daily: 3 days after publish_deadline EOD (or 3 days after agreement) —
- * remind each side to leave a review (one stamp / deal; skip side if already reviewed).
+ * remind each side to leave a review (one stamp / deal; skip side if already reviewed,
+ * declined prompts, or opted out of reminder emails via notification prefs).
+ * Optional second wave (7 days after first) only when REVIEW_REMINDER_SECOND_WAVE=1.
  * Auth: Authorization: Bearer CRON_SECRET (or Vercel cron headers).
  */
 

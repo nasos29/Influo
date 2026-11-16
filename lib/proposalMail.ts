@@ -552,6 +552,22 @@ export function buttonHtml(href: string, label: string): string {
   return `<p style="margin: 20px 0;"><a href="${escapeHtml(href)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; padding: 10px 18px; border-radius: 8px;">${escapeHtml(label)}</a></p>`;
 }
 
+/** Five clickable stars that deep-link into the review form with that rating preselected. */
+export function reviewStarsHtml(starUrls: string[]): string {
+  const cells = [1, 2, 3, 4, 5]
+    .map((n) => {
+      const href = starUrls[n - 1] || "#";
+      return `<a href="${escapeHtml(href)}" style="display:inline-block;margin:0 4px;font-size:28px;line-height:1;text-decoration:none;color:#f59e0b;" title="${n}/5">★</a>`;
+    })
+    .join("");
+  return `<p style="margin:16px 0 8px;font-size:13px;color:#64748b;">Πατήστε τα αστέρια για να αξιολογήσετε:</p>
+    <p style="margin:0 0 16px;text-align:center;">${cells}</p>`;
+}
+
+export function reviewDeclineLinkHtml(href: string, label = "Όχι, ευχαριστώ"): string {
+  return `<p style="margin:16px 0 0;font-size:12px;color:#94a3b8;"><a href="${escapeHtml(href)}" style="color:#64748b;text-decoration:underline;">${escapeHtml(label)}</a> — δεν θα ξαναρωτήσουμε για αυτή τη συνεργασία.</p>`;
+}
+
 type DealMailBits = {
   proposalId: string | number;
   service: string;
@@ -586,7 +602,12 @@ function lockedAgreementBody(opts: {
     ? showcaseInlineNoticeHtml(opts.showcaseOptOutUrl, party)
     : "";
   const missingPost =
-    party === "influencer" && opts.addPostUrl ? showcaseMissingPostHtml(opts.addPostUrl) : "";
+    party === "influencer" && opts.addPostUrl
+      ? showcaseMissingPostHtml(opts.addPostUrl, {
+          source: "proposal",
+          id: String(opts.deal.proposalId || ""),
+        })
+      : "";
   return `${opts.greetingHtml}
        ${opts.leadHtml}
        ${agreementDetailsHtml(opts.deal)}
@@ -611,14 +632,23 @@ function projectWrapUpBody(opts: {
   nextStepsKey: "review_reminder_brand" | "review_reminder_creator";
   mention: { forCreator: boolean; profileUrl?: string };
   closing: string;
+  starUrls?: string[];
+  declineUrl?: string | null;
+  helperHtml?: string;
 }): string {
+  const stars = opts.starUrls && opts.starUrls.length === 5 ? reviewStarsHtml(opts.starUrls) : "";
+  const decline = opts.declineUrl ? reviewDeclineLinkHtml(opts.declineUrl) : "";
+  const helper = opts.helperHtml || "";
   return `${opts.greetingHtml}
        ${opts.leadHtml}
        ${agreementDetailsHtml(opts.deal)}
+       ${stars}
        ${buttonHtml(opts.ctaUrl, opts.ctaLabel)}
+       ${helper}
        ${emailNextSteps(opts.nextStepsKey)}
        ${influoMentionHtml(opts.mention)}
        ${ignoreIfStillOngoing(opts.mention.forCreator)}
+       ${decline}
        <p>${opts.closing}</p>`;
 }
 
@@ -732,19 +762,30 @@ export async function mailBrandReviewReminder(input: {
   extras?: unknown;
   publishDeadline?: string | null;
   reviewUrl: string;
+  starUrls?: string[];
+  declineUrl?: string | null;
+  helperHtml?: string;
+  /** When true, subject/body note this is the final reminder. */
+  isSecond?: boolean;
 }): Promise<void> {
   const creator = escapeHtml(input.creatorName);
   const article = input.creatorFemale == null ? "τον/την" : input.creatorFemale ? "την" : "τον";
   const id = escapeHtml(String(input.proposalId));
+  const subject = input.isSecond
+    ? `Υπενθύμιση: αξιολόγηση συνεργασίας με ${input.creatorName}`
+    : `Πώς πήγε η συνεργασία με ${input.creatorName};`;
+  const leadExtra = input.isSecond
+    ? " Αυτή είναι η τελευταία υπενθύμιση."
+    : "";
   await send(
-    "review_reminder_brand",
+    input.isSecond ? "review_reminder_brand_2" : "review_reminder_brand",
     input.to,
-    `Πώς πήγε η συνεργασία με ${input.creatorName};`,
+    subject,
     shell(
       "Ώρα για μια σύντομη αξιολόγηση",
       projectWrapUpBody({
         greetingHtml: `<p>Γεια σας ${escapeHtml(input.brandName)},</p>`,
-        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία με τον/την <strong>${creator}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν το έργο ολοκληρώθηκε, μια σύντομη αξιολόγηση βοηθά άλλες επιχειρήσεις να βρουν τον κατάλληλο δημιουργό.</p>`,
+        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία με τον/την <strong>${creator}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν το έργο ολοκληρώθηκε, μια σύντομη αξιολόγηση βοηθά άλλες επιχειρήσεις να βρουν τον κατάλληλο δημιουργό.${leadExtra}</p>`,
         deal: {
           proposalId: input.proposalId,
           service: input.service,
@@ -757,6 +798,9 @@ export async function mailBrandReviewReminder(input: {
         nextStepsKey: "review_reminder_brand",
         mention: { forCreator: false },
         closing: "Με εκτίμηση,",
+        starUrls: input.starUrls,
+        declineUrl: input.declineUrl,
+        helperHtml: input.helperHtml,
       })
     )
   );
@@ -774,18 +818,28 @@ export async function mailCreatorReviewReminder(input: {
   publishDeadline?: string | null;
   profileUrl: string;
   dashboardUrl: string;
+  starUrls?: string[];
+  declineUrl?: string | null;
+  helperHtml?: string;
+  isSecond?: boolean;
 }): Promise<void> {
   const brand = escapeHtml(input.brandName);
   const id = escapeHtml(String(input.proposalId));
+  const subject = input.isSecond
+    ? `Υπενθύμιση: αξιολόγηση συνεργασίας με ${input.brandName}`
+    : `Πώς πήγε η συνεργασία με ${input.brandName};`;
+  const leadExtra = input.isSecond
+    ? " Αυτή είναι η τελευταία υπενθύμιση."
+    : "";
   await send(
-    "review_reminder_creator",
+    input.isSecond ? "review_reminder_creator_2" : "review_reminder_creator",
     input.to,
-    `Πώς πήγε η συνεργασία με ${input.brandName};`,
+    subject,
     shell(
       "Ώρα για μια σύντομη αξιολόγηση",
       projectWrapUpBody({
         greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
-        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν όλα πήγαν καλά, μια σύντομη αξιολόγηση βοηθά άλλους creators.</p>`,
+        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν όλα πήγαν καλά, μια σύντομη αξιολόγηση βοηθά άλλους creators.${leadExtra}</p>`,
         deal: {
           proposalId: input.proposalId,
           service: input.service,
@@ -798,6 +852,9 @@ export async function mailCreatorReviewReminder(input: {
         nextStepsKey: "review_reminder_creator",
         mention: { forCreator: true, profileUrl: input.profileUrl },
         closing: "Καλή συνέχεια,",
+        starUrls: input.starUrls,
+        declineUrl: input.declineUrl,
+        helperHtml: input.helperHtml,
       })
     )
   );

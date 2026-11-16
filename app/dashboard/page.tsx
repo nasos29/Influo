@@ -41,7 +41,11 @@ export default function DashboardPage() {
                     setLoading(false);
                     return;
                 }
-                router.replace('/login');
+                const returnTo =
+                    typeof window !== 'undefined'
+                        ? `${window.location.pathname}${window.location.search}`
+                        : '/dashboard';
+                router.replace(`/login?redirect=${encodeURIComponent(returnTo)}`);
                 return;
             }
             const user = auth.user;
