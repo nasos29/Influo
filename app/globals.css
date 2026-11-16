@@ -469,6 +469,52 @@ textarea:focus-visible {
 }
 
 /*
+ * Homepage open-campaigns row: one equal-width row on desktop that tracks the
+ * rendered card count (--home-open-campaign-cols from homepage_campaigns_count
+ * or fewer when not enough open campaigns). Mobile = horizontal snap scroll;
+ * tablet = up to 2 columns so cards stay readable.
+ */
+.grid-home-open-campaigns {
+  display: grid;
+  gap: 1rem;
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+  justify-content: start;
+}
+.grid-home-open-campaigns > * {
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  justify-self: stretch;
+}
+@media (max-width: 767px) {
+  .grid-home-open-campaigns {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(16.5rem, 82vw);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 0.25rem;
+    padding-bottom: 0.25rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  .grid-home-open-campaigns > * {
+    scroll-snap-align: start;
+  }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .grid-home-open-campaigns {
+    /* 1 card → full width; 2+ → up to two readable columns (no cramped 4–5-up). */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  }
+}
+@media (min-width: 1024px) {
+  .grid-home-open-campaigns {
+    grid-template-columns: repeat(var(--home-open-campaign-cols, 3), minmax(0, 1fr));
+  }
+}
+
+/*
  * Public /campaigns listing only: 1 → md:2 → lg:3 → xl(≥1280):4.
  * Wider shell than max-w-page so four columns stay comfortable on desktop.
  * Do not reuse on homepage (keeps .grid-campaigns-responsive / max-w-page).

@@ -18,6 +18,7 @@ import {
   serializeHomepageSectionOrderSetting,
   type HomepageSectionId,
 } from "@/lib/homepageSections";
+import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 
 export const SITE_SETTINGS_CACHE_TAG = "site-settings";
 
@@ -236,10 +237,14 @@ export async function updateSiteSetting(
       return { ok: false, error: "Update failed (no site_settings table yet)", status: 500 };
     }
     bustSettingsCaches();
+    // Homepage campaigns count drives unstable_cache(["home-open-campaigns", limit]) —
+    // expire home-campaigns again (incl. delayed pass) so / shows the new row immediately.
+    if (key === "homepage_campaigns_count") revalidatePublicCampaigns();
     return { ok: true, settings: current };
   }
 
   bustSettingsCaches();
+  if (key === "homepage_campaigns_count") revalidatePublicCampaigns();
 
   const settings = { ...(await loadSiteSettingsFromDb()) };
   settings[key] = coerceSiteSetting(key, rounded);

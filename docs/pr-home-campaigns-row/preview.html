@@ -1,0 +1,115 @@
+﻿<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home open campaigns row preview</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(135deg, #f8fafc 0%, #fff 45%, #eff6ff 100%);
+    color: #0f172a;
+  }
+  .wrap { max-width: 80rem; margin: 0 auto; padding: 2.5rem 1.5rem 3rem; }
+  @media (min-width: 1536px) { .wrap { max-width: 1536px; } }
+  .eyebrow {
+    display: inline-flex; padding: 0.25rem 0.75rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe;
+  }
+  h1 { font-size: 1.75rem; margin: 0.75rem 0 0.5rem; text-align: center; }
+  .sub { text-align: center; color: #475569; margin: 0 0 2rem; }
+  .head { text-align: center; margin-bottom: 0.75rem; }
+  .grid-home-open-campaigns {
+    display: grid; gap: 1rem; grid-auto-rows: 1fr; align-items: stretch; justify-content: start;
+  }
+  .grid-home-open-campaigns > * { min-width: 0; width: 100%; height: 100%; }
+  @media (max-width: 767px) {
+    .grid-home-open-campaigns {
+      grid-auto-flow: column;
+      grid-auto-columns: minmax(16.5rem, 82vw);
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      padding-bottom: 0.25rem;
+    }
+    .grid-home-open-campaigns > * { scroll-snap-align: start; }
+  }
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .grid-home-open-campaigns {
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    }
+  }
+  @media (min-width: 1024px) {
+    .grid-home-open-campaigns {
+      grid-template-columns: repeat(var(--home-open-campaign-cols, 3), minmax(0, 1fr));
+    }
+  }
+  .card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 1rem;
+    overflow: hidden; display: flex; flex-direction: column; min-height: 22rem;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+  }
+  .cover {
+    height: 9.5rem; background: linear-gradient(120deg, #94a3b8, #64748b 40%, #334155);
+    position: relative;
+  }
+  .cover span {
+    position: absolute; left: 0.75rem; bottom: 0.75rem;
+    background: rgba(15,23,42,0.75); color: #fff; font-size: 0.7rem;
+    padding: 0.2rem 0.5rem; border-radius: 999px; font-weight: 600;
+  }
+  .body { padding: 1rem 1rem 1.15rem; display: flex; flex-direction: column; gap: 0.5rem; flex: 1; }
+  .brand { font-size: 0.75rem; color: #64748b; font-weight: 600; }
+  .title { font-size: 1.05rem; font-weight: 700; margin: 0; line-height: 1.3; }
+  .desc { font-size: 0.875rem; color: #475569; margin: 0; flex: 1; }
+  .meta { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .chip {
+    font-size: 0.7rem; font-weight: 600; background: #f1f5f9; color: #334155;
+    border-radius: 0.5rem; padding: 0.2rem 0.45rem;
+  }
+  .cta {
+    margin-top: 0.5rem; display: inline-flex; justify-content: center;
+    padding: 0.55rem 0.85rem; border-radius: 0.75rem; background: #0f172a; color: #fff;
+    font-size: 0.8rem; font-weight: 650; text-decoration: none;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head"><span class="eyebrow">Ανοιχτές καμπάνιες</span></div>
+    <h1 id="heading">Καμπάνιες αρχικής</h1>
+    <p class="sub" id="sub">Preview layout</p>
+    <ul class="grid-home-open-campaigns" id="grid"></ul>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const n = Math.max(1, Math.min(8, Number(params.get("n") || 3)));
+    document.getElementById("heading").textContent = n + " κάρτες σε μία σειρά (desktop)";
+    document.getElementById("sub").textContent = "homepage_campaigns_count / rendered = " + n;
+    const grid = document.getElementById("grid");
+    grid.style.setProperty("--home-open-campaign-cols", String(n));
+    const brands = ["Nova Beauty", "Aegean Coffee", "FitLab", "Urban Wear", "Green Basket", "Studio Lumen"];
+    for (let i = 0; i < n; i++) {
+      const li = document.createElement("li");
+      li.innerHTML = `
+        <article class="card">
+          <div class="cover" style="filter: hue-rotate(${i * 40}deg)"><span>Ανοιχτή</span></div>
+          <div class="body">
+            <div class="brand">${brands[i % brands.length]}</div>
+            <h2 class="title">Καμπάνια ${i + 1}: Story + Reel</h2>
+            <p class="desc">Δημιούργησε αυθεντικό περιεχόμενο για το launch. Budget και deliverables εμφανίζονται στην κάρτα.</p>
+            <div class="meta">
+              <span class="chip">Instagram</span>
+              <span class="chip">€${150 + i * 40}</span>
+            </div>
+            <a class="cta" href="#">Δες την καμπάνια</a>
+          </div>
+        </article>`;
+      grid.appendChild(li);
+    }
+  </script>
+</body>
+</html>

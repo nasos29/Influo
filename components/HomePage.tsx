@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useState, useEffect, useCallback, useRef } from "react";
+import {
+  Suspense,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type CSSProperties,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import Directory, { type Influencer } from "@/components/Directory";
@@ -581,8 +588,16 @@ export default function Home({
                 </div>
               );
 
-            case "open_campaigns":
+            case "open_campaigns": {
               if (openCampaigns.length === 0) return null;
+              const showPublishPromo = openCampaigns.length < 3;
+              const homeOpenCampaignCols = Math.max(
+                1,
+                openCampaigns.length + (showPublishPromo ? 1 : 0)
+              );
+              const homeOpenCampaignStyle = {
+                ["--home-open-campaign-cols"]: homeOpenCampaignCols,
+              } as CSSProperties;
               return (
                 <section
                   key={sectionId}
@@ -607,13 +622,16 @@ export default function Home({
                         {txt.open_campaigns_subtitle}
                       </p>
                     </div>
-                    <ul className="grid-campaigns-responsive auto-rows-fr">
+                    <ul
+                      className="grid-home-open-campaigns auto-rows-fr"
+                      style={homeOpenCampaignStyle}
+                    >
                       {openCampaigns.map((campaign) => (
                         <li key={campaign.id} className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg [&>*]:h-full">
                           <CampaignCard campaign={campaign} lang={lang} viewCta />
                         </li>
                       ))}
-                      {openCampaigns.length < 3 ? (
+                      {showPublishPromo ? (
                         <li className="h-full min-w-0 rounded-2xl transition-shadow duration-200 hover:shadow-lg">
                           <PublishCampaignPromoCard
                             lang={lang}
@@ -648,6 +666,7 @@ export default function Home({
                   </div>
                 </section>
               );
+            }
 
             case "directory":
               return (
