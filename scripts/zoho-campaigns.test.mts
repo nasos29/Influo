@@ -113,8 +113,9 @@ test("admin settings description covers selected recipients + Resend fallback", 
   assert.match(desc.el, /επιλεγμέν/i);
   assert.match(desc.el, /Resend/i);
   assert.match(desc.el, /προσωριν/i);
-  assert.match(desc.en, /selected/i);
-  assert.match(desc.en, /temp/i);
+  assert.match(desc.el, /category|κατηγορ/i);
+  assert.match(desc.en, /selected|category/i);
+  assert.match(desc.en, /temp|category/i);
   assert.match(desc.en, /Resend/i);
 });
 

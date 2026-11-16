@@ -12,6 +12,13 @@ import {
 import { sendPushToInfluencer } from "@/lib/push";
 import { sendTransactional } from "@/lib/transactionalEmail";
 import { applicationStatusToCreator, newCampaignToCreator, removedToCreator } from "@/lib/campaignMail";
+import {
+  isStrongMatchZohoEnabled,
+  isStrongMatchZohoLive,
+  zohoBulkTestRecipient,
+} from "@/lib/zohoBulkMailFlags";
+import { sendCampaignCategoryViaZoho } from "@/lib/zohoCampaignCategorySend";
+import { siteUrl } from "@/lib/proposalMail";
 
 const SEND_TIMEOUT_MS = 8000;
 const PAGE = 1000;
@@ -247,6 +254,50 @@ async function deliverStrongMatches(
   const order = new Map(targets.map((row, index) => [row.id, index]));
   const people = await contactsFor(targets.map((row) => row.id));
   people.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+
+  // Bulk Zoho when flag+creds ON; Resend 1:1 fallback on failure or flag OFF.
+  if (isStrongMatchZohoEnabled()) {
+    const withEmail = people.filter((p) => (p.email || "").includes("@"));
+    const live = isStrongMatchZohoLive();
+    const contacts = live
+      ? withEmail.map((p) => ({ email: String(p.email), displayName: p.name }))
+      : [{ email: zohoBulkTestRecipient(), displayName: "Influo test" }];
+    if (contacts.length) {
+      const zoho = await sendCampaignCategoryViaZoho({
+        campaignId: opts.campaignId,
+        title: opts.title,
+        brandName: opts.brandName,
+        contacts,
+        siteUrl: siteUrl(),
+        kind: "strong",
+      }).catch((err) => ({
+        ok: false as const,
+        syncErrors: [] as string[],
+        error: err instanceof Error ? err.message : String(err),
+      }));
+      if (zoho.ok) {
+        console.log("[campaignNotify] strong-match zoho", {
+          campaignId: opts.campaignId,
+          subscribed: zoho.subscribed,
+          live,
+          targets: withEmail.length,
+        });
+        // LIVE: all emailed. Non-LIVE: test only — fall through to Resend for real users? No:
+        // non-LIVE must not Resend-flood; budget-skip all so category queue can cover later if needed.
+        if (live) {
+          return { emailed: withEmail.length, pushed: 0, budgetSkippedIds: [] };
+        }
+        console.warn("[campaignNotify] strong-match zoho test-only; skipping Resend outreach");
+        return {
+          emailed: 0,
+          pushed: 0,
+          budgetSkippedIds: withEmail.map((p) => p.id),
+        };
+      }
+      console.warn("[campaignNotify] strong-match zoho failed → Resend", zoho.error);
+    }
+  }
+
   let emailed = 0;
   let pushed = 0;
   let stopAt = people.length;

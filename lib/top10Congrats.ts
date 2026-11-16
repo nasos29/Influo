@@ -9,6 +9,16 @@ import { computeTopInfluencers, type TopInfluencerRow } from '@/lib/computeTopIn
 import { emailNextSteps } from '@/lib/emailNextSteps';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { sendPushInfluencerTop10 } from '@/lib/push';
+import {
+  isTop10CongratsZohoEnabled,
+  isTop10CongratsZohoLive,
+  zohoBulkTestRecipient,
+} from '@/lib/zohoBulkMailFlags';
+import { sendZohoTempListCampaign } from '@/lib/zohoTempListCampaign';
+import {
+  TOP10_CONGRATS_ZOHO_SUBJECT,
+  top10CongratsContentUrl,
+} from '@/lib/zohoTop10Content';
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr').replace(/\/$/, '');
 const FROM_EMAIL = 'Influo <noreply@influo.gr>';
@@ -171,15 +181,82 @@ export async function runTop10Congrats(options?: {
     (t) => !boostedNewcomers.has(String(t.id).toLowerCase())
   );
 
-  for (const row of notifyList) {
-    try {
-      const result = await notifyOne(sb, row);
-      emailed += result.emailed;
-      pushed += result.pushed;
-    } catch (e) {
-      errors.push(
-        `${row.display_name || row.id}: ${e instanceof Error ? e.message : String(e)}`
-      );
+  let zohoBulkDone = false;
+  if (notifyList.length > 0 && isTop10CongratsZohoEnabled()) {
+    const contacts: { email: string; displayName: string; row: TopInfluencerRow }[] = [];
+    for (const row of notifyList) {
+      try {
+        const { data: inf } = await sb
+          .from('influencers')
+          .select('id, display_name, contact_email, profile_slug')
+          .eq('id', row.id)
+          .maybeSingle();
+        const email = (inf?.contact_email || '').trim().toLowerCase();
+        if (!email.includes('@')) continue;
+        contacts.push({
+          email,
+          displayName: (inf?.display_name || row.display_name || '').trim() || 'δημιουργέ',
+          row,
+        });
+      } catch (e) {
+        errors.push(
+          `${row.display_name || row.id}: ${e instanceof Error ? e.message : String(e)}`
+        );
+      }
+    }
+    if (contacts.length) {
+      const live = isTop10CongratsZohoLive();
+      const zoho = await sendZohoTempListCampaign({
+        contacts: live
+          ? contacts.map((c) => ({ email: c.email, displayName: c.displayName }))
+          : [{ email: zohoBulkTestRecipient(), displayName: 'Influo test' }],
+        subject: TOP10_CONGRATS_ZOHO_SUBJECT,
+        contentUrl: top10CongratsContentUrl(SITE_URL),
+        label: 'top10-congrats',
+        audience: 'creators',
+      }).catch((err) => ({
+        ok: false as const,
+        syncErrors: [] as string[],
+        error: err instanceof Error ? err.message : String(err),
+      }));
+      if (zoho.ok && live) {
+        zohoBulkDone = true;
+        emailed = contacts.length;
+        for (const c of contacts) {
+          try {
+            const path = publicProfilePath(
+              // profile from row is enough for push url
+              (c.row as TopInfluencerRow).profile_slug,
+              c.row.id
+            );
+            const push = await sendPushInfluencerTop10(String(c.row.id), c.displayName, path);
+            pushed += push.sent;
+          } catch (e) {
+            errors.push(
+              `push ${c.row.id}: ${e instanceof Error ? e.message : String(e)}`
+            );
+          }
+        }
+      } else if (zoho.ok && !live) {
+        console.warn('[top10 congrats] zoho test-only; falling back to Resend for real recipients');
+      } else {
+        errors.push(`zoho: ${zoho.error || 'failed'}`);
+        console.warn('[top10 congrats] zoho failed → Resend', zoho.error);
+      }
+    }
+  }
+
+  if (!zohoBulkDone) {
+    for (const row of notifyList) {
+      try {
+        const result = await notifyOne(sb, row);
+        emailed += result.emailed;
+        pushed += result.pushed;
+      } catch (e) {
+        errors.push(
+          `${row.display_name || row.id}: ${e instanceof Error ? e.message : String(e)}`
+        );
+      }
     }
   }
 

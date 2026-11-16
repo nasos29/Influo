@@ -11,6 +11,8 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: NextRequest) {
   const campaignId = (request.nextUrl.searchParams.get("campaignId") || "").trim();
+  const kindRaw = (request.nextUrl.searchParams.get("kind") || "").trim().toLowerCase();
+  const kind = kindRaw === "strong" ? "strong" : "category";
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(campaignId)) {
     return new NextResponse("Not found", { status: 404 });
   }
@@ -37,6 +39,7 @@ export async function GET(request: NextRequest) {
     brandName: brand?.brand_name || "Brand",
     campaignId,
     siteUrl,
+    kind,
   });
 
   return new NextResponse(html, {

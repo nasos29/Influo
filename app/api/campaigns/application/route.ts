@@ -6,6 +6,7 @@ import { addAdminNotice } from "@/lib/adminNotice";
 import { ensureProposalThread } from "@/lib/proposalChat";
 import { creatorContact, notifyApplicationStatus } from "@/lib/campaignNotify";
 import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCreator } from "@/lib/campaignMail";
+import { enqueueAdminApplicationDigest } from "@/lib/adminApplicationDigest";
 import { mailAdminEvent, send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushAdminNewCampaignApplication, sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
@@ -118,14 +119,31 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
         });
         jobs.push(send("campaign_application_creator", person.email, toCreator.subject, toCreator.html));
       }
-      jobs.push(
-        mailAdminEvent("campaign_application_admin", `Νέα αίτηση καμπάνιας: ${influencerName} / ${brandName}`, "Νέα αίτηση σε καμπάνια", [
-          ["Καμπάνια", campaignTitle],
-          ["Επιχείρηση", brandName],
-          ["Δημιουργός", influencerName],
-          ["Προτεινόμενη τιμή", row.proposed_price != null ? `${Math.round(Number(row.proposed_price))} €` : null],
-        ])
-      );
+      {
+        const priceLabel =
+          row.proposed_price != null ? `${Math.round(Number(row.proposed_price))} €` : null;
+        const queuedDigest = enqueueAdminApplicationDigest({
+          campaignTitle,
+          brandName,
+          influencerName,
+          proposedPrice: priceLabel,
+        });
+        if (!queuedDigest) {
+          jobs.push(
+            mailAdminEvent(
+              "campaign_application_admin",
+              `Νέα αίτηση καμπάνιας: ${influencerName} / ${brandName}`,
+              "Νέα αίτηση σε καμπάνια",
+              [
+                ["Καμπάνια", campaignTitle],
+                ["Επιχείρηση", brandName],
+                ["Δημιουργός", influencerName],
+                ["Προτεινόμενη τιμή", priceLabel],
+              ]
+            )
+          );
+        }
+      }
       await Promise.all(jobs);
     } catch (err) {
       console.error("[campaign application] notify", err);
