@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deliverable seen indicator preview</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    background: linear-gradient(160deg, #f8fafc 0%, #fff 50%, #ecfdf5 100%);
+    color: #0f172a;
+  }
+  .wrap { max-width: 44rem; margin: 0 auto; padding: 2rem 1.25rem 3rem; }
+  .eyebrow {
+    display: inline-flex; padding: 0.25rem 0.75rem; border-radius: 999px;
+    font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0;
+  }
+  h1 { font-size: 1.5rem; margin: 0.75rem 0 0.35rem; }
+  .sub { color: #475569; margin: 0 0 1.5rem; font-size: 0.95rem; }
+  .card {
+    border: 1px solid #e2e8f0; border-radius: 0.75rem; background: #f8fafc;
+    padding: 0.9rem 1rem; margin-bottom: 0.75rem;
+  }
+  .title { font-weight: 600; margin: 0; }
+  .meta { font-size: 0.75rem; color: #64748b; margin: 0.35rem 0 0; }
+  .seen-red { font-size: 0.75rem; font-weight: 600; color: #dc2626; margin: 0.35rem 0 0; }
+  .seen-green { font-size: 0.75rem; font-weight: 600; color: #047857; margin: 0.35rem 0 0; }
+  .grid { display: grid; gap: 1rem; }
+  @media (min-width: 768px) { .grid { grid-template-columns: 1fr 1fr; } }
+  .panel {
+    border: 1px solid #e2e8f0; border-radius: 1rem; background: #fff;
+    padding: 1rem; box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+  }
+  .panel h2 { font-size: 0.95rem; margin: 0 0 0.75rem; }
+  .brand-btn {
+    display: inline-flex; font-size: 0.7rem; padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem; border: 1px solid #bfdbfe; background: #eff6ff; color: #1e40af;
+  }
+  .url {
+    display: block; margin-top: 0.5rem; font-size: 0.7rem; color: #1d4ed8;
+    word-break: break-all; text-decoration: underline;
+  }
+  .note { font-size: 0.7rem; color: #475569; margin-top: 0.35rem; }
+  .lang { font-size: 0.7rem; color: #64748b; margin-bottom: 0.5rem; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="eyebrow">Creator campaigns panel</span>
+    <h1>Ένδειξη «το είδε το brand»</h1>
+    <p class="sub">Κόκκινο όσο δεν έχει ανοίξει το brand την παράδοση · πράσινο μετά την πρώτη προβολή.</p>
+
+    <div class="grid">
+      <section class="panel" data-shot="creator-unseen">
+        <div class="lang">EL · submitted, unseen</div>
+        <h2>Οι αιτήσεις μου</h2>
+        <div class="card">
+          <p class="title">Καλοκαιρινή καμπάνια · Demo Brand</p>
+          <p class="meta">16/11/2026 14:10 · Αποδεκτή · Υποβλήθηκε — αναμονή έγκρισης</p>
+          <p class="seen-red">Δεν το έχει δει ακόμα</p>
+        </div>
+        <div class="card" style="margin-top:0.75rem">
+          <div class="lang">EN</div>
+          <p class="title">Summer campaign · Demo Brand</p>
+          <p class="meta">16/11/2026 14:10 · Accepted · Submitted — awaiting review</p>
+          <p class="seen-red">Not seen by the brand yet</p>
+        </div>
+      </section>
+
+      <section class="panel" data-shot="creator-seen">
+        <div class="lang">EL · submitted, seen</div>
+        <h2>Οι αιτήσεις μου</h2>
+        <div class="card">
+          <p class="title">Καλοκαιρινή καμπάνια · Demo Brand</p>
+          <p class="meta">16/11/2026 14:10 · Αποδεκτή · Υποβλήθηκε — αναμονή έγκρισης</p>
+          <p class="seen-green">Το είδε το brand · 16/11 18:40</p>
+        </div>
+        <div class="card" style="margin-top:0.75rem">
+          <div class="lang">EN</div>
+          <p class="title">Summer campaign · Demo Brand</p>
+          <p class="meta">16/11/2026 14:10 · Accepted · Submitted — awaiting review</p>
+          <p class="seen-green">Seen by the brand · 16/11 18:40</p>
+        </div>
+      </section>
+
+      <section class="panel" data-shot="brand-open" style="grid-column: 1 / -1">
+        <div class="lang">Brand dashboard · open deliverable</div>
+        <h2>Αίτηση creator (submitted)</h2>
+        <div class="card" style="background:#fff">
+          <p class="title">Μαρία Παπαδοπούλου · Υποβλήθηκε</p>
+          <button class="brand-btn" type="button">Άνοιγμα παράδοσης</button>
+          <a class="url" href="#">https://www.instagram.com/p/DEMO123/</a>
+          <p class="note"><strong>Σημείωση:</strong> Stories + feed post με tag.</p>
+        </div>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

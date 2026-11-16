@@ -96,6 +96,7 @@ type ApplicationRow = {
   deliverable_note?: string | null;
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
+  deliverable_seen_at?: string | null;
   initiated_by?: string | null;
   influencers: InfluencerBits;
   profile?: ApplicantFull | null;
@@ -269,6 +270,9 @@ const txt = langPack({
   deliverable_submitted: { el: "Υποβλήθηκε", en: "Submitted" },
   deliverable_approved: { el: "Εγκρίθηκε", en: "Approved" },
   deliverable_changes: { el: "Αλλαγές", en: "Changes requested" },
+  view_deliverable: { el: "Άνοιγμα παράδοσης", en: "Open deliverable" },
+  hide_deliverable: { el: "Κλείσιμο παράδοσης", en: "Hide deliverable" },
+  deliverable_note_label: { el: "Σημείωση", en: "Note" },
   approve_deliverable: { el: "Έγκριση", en: "Approve" },
   request_changes: { el: "Ζήτα αλλαγές", en: "Request changes" },
   review_note_ph: { el: "Σχόλιο για αλλαγές…", en: "Note for changes…" },
@@ -606,6 +610,8 @@ export default function BrandCampaignsSection({
   const [decidingAppId, setDecidingAppId] = useState<string | null>(null);
   /** Brand showcase consent at deliverable approval (UI default on). */
   const [approveShowcaseByApp, setApproveShowcaseByApp] = useState<Record<string, boolean>>({});
+  /** Application ids whose deliverable details are expanded (marks seen on open). */
+  const [openDeliverableIds, setOpenDeliverableIds] = useState<Record<string, boolean>>({});
   const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -1302,6 +1308,39 @@ export default function BrandCampaignsSection({
     }
   };
 
+  const markDeliverableSeen = async (appId: string) => {
+    try {
+      const res = await sessionFetch("/api/campaigns/deliverable/seen", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: appId }),
+      });
+      if (!res.ok) return;
+      const body = (await res.json().catch(() => ({}))) as { seen_at?: string | null };
+      const seenAt = typeof body.seen_at === "string" ? body.seen_at : null;
+      if (!seenAt) return;
+      setAppsByCampaign((prev) => {
+        const next: Record<string, ApplicationRow[]> = {};
+        for (const [campaignId, list] of Object.entries(prev)) {
+          next[campaignId] = list.map((row) =>
+            row.id === appId ? { ...row, deliverable_seen_at: row.deliverable_seen_at || seenAt } : row
+          );
+        }
+        return next;
+      });
+    } catch (err) {
+      console.error("[BrandCampaigns] markDeliverableSeen", err);
+    }
+  };
+
+  const toggleDeliverableOpen = (appId: string) => {
+    setOpenDeliverableIds((prev) => {
+      const opening = !prev[appId];
+      if (opening) void markDeliverableSeen(appId);
+      return { ...prev, [appId]: opening };
+    });
+  };
+
   const reviewDeliverable = async (
     appId: string,
     next: "approved" | "changes_requested",
@@ -1428,6 +1467,36 @@ export default function BrandCampaignsSection({
                                   {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
                                   {app.deliverable_status === "submitted" && (
                                     <div className="flex w-full flex-col gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleDeliverableOpen(app.id)}
+                                        className="text-[11px] self-start px-2 py-1 rounded border border-blue-200 bg-blue-50 text-blue-800 hover:bg-blue-100"
+                                      >
+                                        {openDeliverableIds[app.id] ? t.hide_deliverable : t.view_deliverable}
+                                      </button>
+                                      {openDeliverableIds[app.id] ? (
+                                        <div className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 space-y-1.5">
+                                          {app.deliverable_url ? (
+                                            <a
+                                              href={app.deliverable_url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="block text-[11px] text-blue-700 underline break-all"
+                                              onClick={() => void markDeliverableSeen(app.id)}
+                                            >
+                                              {app.deliverable_url}
+                                            </a>
+                                          ) : (
+                                            <p className="text-[11px] text-slate-500">—</p>
+                                          )}
+                                          {app.deliverable_note ? (
+                                            <p className="text-[11px] text-slate-600">
+                                              <span className="font-medium text-slate-700">{t.deliverable_note_label}: </span>
+                                              {app.deliverable_note}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
                                       <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700">
                                         <input
                                           type="checkbox"

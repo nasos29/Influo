@@ -141,6 +141,8 @@ export async function PATCH(request: Request) {
             );
           }
           update.deliverable_url = parsed.url;
+          // New URL from showcase editor → clear brand seen receipt (same as deliverable submit).
+          update.deliverable_seen_at = null;
         }
       }
       if ("selfReportedViews" in body) {
@@ -153,7 +155,11 @@ export async function PATCH(request: Request) {
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
-    const { error } = await admin.from("campaign_applications").update(update).eq("id", id);
+    let { error } = await admin.from("campaign_applications").update(update).eq("id", id);
+    if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
+      const { deliverable_seen_at: _drop, ...withoutSeen } = update;
+      ({ error } = await admin.from("campaign_applications").update(withoutSeen).eq("id", id));
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (error) {

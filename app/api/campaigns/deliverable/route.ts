@@ -30,13 +30,23 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = supabaseService();
-  const { data: app } = await admin
+  const appSelectWithSeen =
+    "id, influencer_id, status, deliverable_status, deliverable_seen_at, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+  const appSelectBasic =
+    "id, influencer_id, status, deliverable_status, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+  let appRes = await admin
     .from("campaign_applications")
-    .select(
-      "id, influencer_id, status, deliverable_status, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )"
-    )
+    .select(appSelectWithSeen)
     .eq("id", applicationId)
     .maybeSingle();
+  if (appRes.error && /deliverable_seen_at|schema cache|column/i.test(appRes.error.message || "")) {
+    appRes = await admin
+      .from("campaign_applications")
+      .select(appSelectBasic)
+      .eq("id", applicationId)
+      .maybeSingle();
+  }
+  const app = appRes.data;
   if (!app) return NextResponse.json({ error: "Application not found" }, { status: 404 });
 
   const campaignRaw = app.brand_campaigns as unknown;
@@ -94,16 +104,26 @@ export async function POST(request: NextRequest) {
       deliverable_note: note || null,
       deliverable_status: "submitted",
       delivered_at: new Date().toISOString(),
+      // New URL → brand must view again (seen receipt resets).
+      deliverable_seen_at: null,
     };
     if (selfReportedViews !== undefined) updatePayload.self_reported_views = selfReportedViews;
     if (selfReportedReach !== undefined) updatePayload.self_reported_reach = selfReportedReach;
     if (showcaseConsent !== undefined) updatePayload.influencer_showcase_consent = showcaseConsent;
 
-    const { error } = await admin
+    let { error } = await admin
       .from("campaign_applications")
       .update(updatePayload)
       .eq("id", applicationId)
       .eq("influencer_id", influencer.id);
+    if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
+      const { deliverable_seen_at: _drop, ...withoutSeen } = updatePayload;
+      ({ error } = await admin
+        .from("campaign_applications")
+        .update(withoutSeen)
+        .eq("id", applicationId)
+        .eq("influencer_id", influencer.id));
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
     const influencerName = influencer.display_name || "Influencer";
@@ -152,14 +172,26 @@ export async function POST(request: NextRequest) {
     deliverable_review_note: reviewNote || null,
     reviewed_at: new Date().toISOString(),
   };
+  // Approving / requesting changes implies the brand has seen the deliverable (first time only).
+  const existingSeen =
+    typeof (app as { deliverable_seen_at?: string | null }).deliverable_seen_at === "string"
+      ? (app as { deliverable_seen_at?: string | null }).deliverable_seen_at
+      : null;
+  if (!existingSeen) {
+    reviewUpdate.deliverable_seen_at = new Date().toISOString();
+  }
   if (brandShowcaseConsent !== undefined) {
     reviewUpdate.brand_showcase_consent = brandShowcaseConsent;
   }
 
-  const { error } = await admin
+  let { error } = await admin
     .from("campaign_applications")
     .update(reviewUpdate)
     .eq("id", applicationId);
+  if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
+    const { deliverable_seen_at: _drop, ...withoutSeen } = reviewUpdate;
+    ({ error } = await admin.from("campaign_applications").update(withoutSeen).eq("id", applicationId));
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   deferAfterResponse(async () => {

@@ -13,6 +13,7 @@ import CampaignCard from "@/components/CampaignCard";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import ToastViewport, { useToasts } from "@/components/ui/Toast";
 import { formatDate, formatTime } from "@/lib/formatDateTime";
+import { formatDisplayTime, pad2, type DateInput } from "@/lib/formatDate";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignField } from "@/lib/campaignLocalized";
 import ShowcaseConsentToggle from "@/components/ShowcaseConsentToggle";
@@ -55,6 +56,7 @@ type MyApplication = {
   deliverable_note?: string | null;
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
+  deliverable_seen_at?: string | null;
   initiated_by?: string | null;
   influencer_showcase_consent?: boolean | null;
   brand_campaigns: {
@@ -135,6 +137,35 @@ const deliverableStatusUi = {
     changes_requested: "Changes requested",
   },
 };
+
+const deliverableSeenUi = {
+  el: {
+    unseen: "Δεν το έχει δει ακόμα",
+    seenPrefix: "Το είδε το brand",
+  },
+  en: {
+    unseen: "Not seen by the brand yet",
+    seenPrefix: "Seen by the brand",
+  },
+};
+
+/** Compact Athens stamp matching owner copy: «16/11 18:40». */
+function formatDeliverableSeenAt(value: DateInput): string {
+  if (value == null || value === "") return "";
+  const date = value instanceof Date ? value : new Date(value as string | number);
+  if (Number.isNaN(date.getTime())) return "";
+  const time = formatDisplayTime(date);
+  if (!time) return "";
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Athens",
+    day: "2-digit",
+    month: "2-digit",
+  }).formatToParts(date);
+  const day = parts.find((p) => p.type === "day")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  if (!day || !month) return time;
+  return `${pad2(Number(day))}/${pad2(Number(month))} ${time}`;
+}
 
 export default function InfluencerCampaignsPanel({
   influencerId,
@@ -228,10 +259,26 @@ export default function InfluencerCampaignsPanel({
             .not("brand_id", "in", testBrandIdsFilter())
             .order("created_at", { ascending: false });
 
-          const mineRes = await supabase
-            .from("campaign_applications")
-            .select(
-              `
+          const mineSelectWithSeen = `
+        id,
+        campaign_id,
+        status,
+        message,
+        created_at,
+        deliverable_url,
+        deliverable_note,
+        deliverable_status,
+        deliverable_review_note,
+        deliverable_seen_at,
+        influencer_showcase_consent,
+        brand_campaigns (
+          title,
+          title_en,
+          status,
+          brands ( brand_name )
+        )
+      `;
+          const mineSelectBasic = `
         id,
         campaign_id,
         status,
@@ -248,10 +295,20 @@ export default function InfluencerCampaignsPanel({
           status,
           brands ( brand_name )
         )
-      `
-            )
+      `;
+          const mineWithSeen = await supabase
+            .from("campaign_applications")
+            .select(mineSelectWithSeen)
             .eq("influencer_id", influencerId)
             .order("created_at", { ascending: false });
+          const mineRes =
+            mineWithSeen.error && /deliverable_seen_at|schema cache|column/i.test(mineWithSeen.error.message || "")
+              ? await supabase
+                  .from("campaign_applications")
+                  .select(mineSelectBasic)
+                  .eq("influencer_id", influencerId)
+                  .order("created_at", { ascending: false })
+              : mineWithSeen;
 
           return { openRes, mineRes };
         })(),
@@ -711,6 +768,17 @@ export default function InfluencerCampaignsPanel({
                     </p>
                     {m.deliverable_review_note && dStatus === "changes_requested" && (
                       <p className="text-xs text-amber-700 mt-1">{m.deliverable_review_note}</p>
+                    )}
+                    {showDeliver && dStatus === "submitted" && (
+                      <p
+                        className={`text-xs font-medium mt-1 ${
+                          m.deliverable_seen_at ? "text-emerald-700" : "text-red-600"
+                        }`}
+                      >
+                        {m.deliverable_seen_at
+                          ? `${deliverableSeenUi[uiLang].seenPrefix} · ${formatDeliverableSeenAt(m.deliverable_seen_at)}`
+                          : deliverableSeenUi[uiLang].unseen}
+                      </p>
                     )}
                   </div>
                   {m.status === "pending" && (
