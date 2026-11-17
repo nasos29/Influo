@@ -22,6 +22,9 @@ type Item = {
   postUrlUpdatedBy?: string | null;
   postUrlUpdatedAt?: string | null;
   pinnedBy?: string | null;
+  deliveryState?: string | null;
+  deliveryMode?: string | null;
+  eventAdminAllowed?: boolean;
 };
 
 function hasPublicVideo(url: string | null | undefined): boolean {
@@ -184,6 +187,12 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                         {!item.brandConsent || !item.influencerConsent ? " · consent incomplete" : ""}
                       </span>
                     </p>
+                    {item.deliveryState ? (
+                      <p className="mt-0.5 text-[11px] font-medium text-slate-600">
+                        {lang === "el" ? "Παράδοση:" : "Delivery:"} {item.deliveryState}
+                        {item.deliveryMode === "event" ? " · event" : ""}
+                      </p>
+                    ) : null}
                     {!videoOk ? (
                       <span className="mt-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200/80">
                         {txt.noVideoBadge}

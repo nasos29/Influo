@@ -117,13 +117,13 @@ export async function POST(request: Request) {
         payload:
           otherSide === "brand"
             ? {
-                title: completed ? "Η συμφωνία ολοκληρώθηκε" : "Αποδοχή συμφωνίας",
+                title: completed ? "Η συνεργασία ξεκίνησε" : "Αποδοχή συμφωνίας",
                 body: `${influencer.name} αποδέχτηκε τη συμφωνία.`,
                 url: "/brand/dashboard",
                 tag: completed ? "agreement-complete" : "agreement-accepted",
               }
             : {
-                title: completed ? "Η συμφωνία ολοκληρώθηκε" : "Αποδοχή συμφωνίας",
+                title: completed ? "Η συνεργασία ξεκίνησε" : "Αποδοχή συμφωνίας",
                 body: `${brandName} αποδέχτηκε τη συμφωνία.`,
                 url: "/dashboard",
                 tag: completed ? "agreement-complete" : "agreement-accepted",
@@ -164,7 +164,7 @@ export async function POST(request: Request) {
             });
             await addAdminNotice({
               kind: "agreement_complete",
-              title: `Ολοκληρώθηκε συμφωνία: ${brandName} / ${influencer.name}`,
+              title: `Η συνεργασία ξεκίνησε: ${brandName} / ${influencer.name}`,
               url: "/admin",
               dedupeKey: `agreement_complete:${proposal.id}`,
             });

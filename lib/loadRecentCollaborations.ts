@@ -33,10 +33,10 @@ export type LoadRecentCollaborationsOptions = {
 };
 
 const PROPOSAL_COLS =
-  "id, brand_id, brand_name, influencer_id, service_type, agreement_accepted_at, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach, showcase_admin_pinned";
+  "id, brand_id, brand_name, influencer_id, service_type, agreement_accepted_at, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach, showcase_admin_pinned, delivery_mode, showcase_event_admin_allowed, delivery_proof_url";
 
 const APP_COLS =
-  "id, influencer_id, deliverable_url, self_reported_views, self_reported_reach, showcase_admin_pinned, reviewed_at, delivered_at, brand_campaigns!inner ( id, title, category, brand_id, brands ( brand_name, logo_url ) )";
+  "id, influencer_id, deliverable_url, self_reported_views, self_reported_reach, showcase_admin_pinned, reviewed_at, delivered_at, delivery_mode, showcase_event_admin_allowed, delivery_proof_url, brand_campaigns!inner ( id, title, category, brand_id, brands ( brand_name, logo_url ) )";
 
 type InfRow = {
   id: string;
@@ -104,7 +104,7 @@ export async function loadRecentCollaborations(
     let rows: Record<string, unknown>[] = Array.isArray(first.data)
       ? (first.data as unknown as Record<string, unknown>[])
       : [];
-    if (error && /published_post_pending_approval|PGRST204|42703/i.test(error.message || "")) {
+    if (error && /published_post_pending_approval|delivery_mode|showcase_event_admin|PGRST204|42703/i.test(error.message || "")) {
       const second = await admin
         .from("proposals")
         .select(PROPOSAL_COLS_LEGACY)
@@ -129,8 +129,14 @@ export async function loadRecentCollaborations(
         if (!influencerId) continue;
         // Exclude creator-submitted links still awaiting brand approval (column may be missing pre-migration).
         if (raw.published_post_pending_approval === true) continue;
+        // Event / in-person: stay out of public list unless admin explicitly allows.
+        if (raw.delivery_mode === "event" && raw.showcase_event_admin_allowed !== true) continue;
         const postUrlRaw =
-          typeof raw.published_post_url === "string" ? raw.published_post_url.trim() : "";
+          typeof raw.published_post_url === "string"
+            ? raw.published_post_url.trim()
+            : raw.delivery_mode === "event" && raw.showcase_event_admin_allowed === true
+              ? String(raw.delivery_proof_url || "").trim()
+              : "";
         if (!postUrlRaw) continue;
         const completedAt =
           typeof raw.agreement_accepted_at === "string" ? raw.agreement_accepted_at : null;
@@ -175,6 +181,10 @@ export async function loadRecentCollaborations(
       for (const row of data) {
         const influencerId = typeof row.influencer_id === "string" ? row.influencer_id : "";
         if (!influencerId) continue;
+        const rowRec = row as Record<string, unknown>;
+        if (rowRec.delivery_mode === "event" && rowRec.showcase_event_admin_allowed !== true) {
+          continue;
+        }
         const postUrlRaw =
           typeof row.deliverable_url === "string" ? row.deliverable_url.trim() : "";
         if (!postUrlRaw) continue;

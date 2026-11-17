@@ -208,15 +208,30 @@ export async function mailNewProposal(input: DealInfo & {
        ])}`
     )
   ),
-  send(
-    "proposal_admin",
-    adminEmail(),
-    campaignTitle
-      ? `Πρόσκληση σε καμπάνια: ${input.brandName} προς ${input.influencerName} (${campaignTitle})`
-      : `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
-    shell(
-      campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση",
-      `${campaignTitle ? `<p><strong>Καμπάνια:</strong> ${escapeHtml(campaignTitle)}</p>` : ""}<p><strong>Brand:</strong> ${brandName}<br/>
+  (async () => {
+    try {
+      const { enqueueAdminDigestItem } = await import("@/lib/adminDailyDigest");
+      const { supabaseService } = await import("@/lib/apiAuth");
+      const queued = await enqueueAdminDigestItem(supabaseService(), "proposal", {
+        brandName: input.brandName,
+        creatorName: input.influencerName,
+        service: input.service,
+        campaignTitle: campaignTitle || null,
+        budget: input.budget,
+      });
+      if (queued) return;
+    } catch (err) {
+      console.error("[proposal_admin digest]", err instanceof Error ? err.message : err);
+    }
+    await send(
+      "proposal_admin",
+      adminEmail(),
+      campaignTitle
+        ? `Πρόσκληση σε καμπάνια: ${input.brandName} προς ${input.influencerName} (${campaignTitle})`
+        : `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
+      shell(
+        campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση",
+        `${campaignTitle ? `<p><strong>Καμπάνια:</strong> ${escapeHtml(campaignTitle)}</p>` : ""}<p><strong>Brand:</strong> ${brandName}<br/>
         <strong>Email:</strong> ${escapeHtml(input.brandEmail)}<br/>
         <strong>Influencer:</strong> ${influencerName}<br/>
         <strong>Υπηρεσία:</strong> ${service}<br/>
@@ -224,8 +239,9 @@ export async function mailNewProposal(input: DealInfo & {
        ${note}
        <p><a href="${siteUrl()}/admin">Admin</a></p>
        ${emailNextSteps("admin_event")}`
-    )
-  ),
+      )
+    );
+  })(),
   ]);
 }
 
@@ -528,10 +544,11 @@ export async function mailAdminAgreementComplete(input: {
   await send(
     "agreement_complete_admin",
     adminEmail(),
-    `Συμφωνία συνεργασίας #${input.proposalId} ολοκληρώθηκε`,
+    `Η συνεργασία ξεκίνησε #${input.proposalId}`,
     shell(
-      `Η συμφωνία συνεργασίας #${id} ολοκληρώθηκε`,
-      `<p><strong>Αριθμός συμφωνίας:</strong> #${id}<br/>
+      `Η συνεργασία ξεκίνησε · συμφωνία #${id}`,
+      `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία. Η συνεργασία είναι πλέον σε εξέλιξη (όχι ακόμα ολοκληρωμένη παράδοση).</p>
+       <p><strong>Αριθμός συμφωνίας:</strong> #${id}<br/>
         <strong>Επιχείρηση:</strong> ${escapeHtml(input.brandName)}<br/>
         <strong>Email επιχείρησης:</strong> ${escapeHtml(input.brandEmail)}<br/>
         <strong>Δημιουργός:</strong> ${escapeHtml(input.creatorName)}<br/>
@@ -681,17 +698,18 @@ export async function mailCreatorDealComplete(input: {
   await send(
     "deal_complete_creator",
     input.to,
-    `Η συμφωνία με ${input.brandName} κλειδώθηκε – #${input.proposalId}`,
+    `Η συνεργασία ξεκίνησε με ${input.brandName} – #${input.proposalId}`,
     shell(
-      "Η συμφωνία κλειδώθηκε",
+      "Η συνεργασία ξεκίνησε",
       lockedAgreementBody({
         greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
-        leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας στις ${date}. Η <strong>${brand}</strong> καταγράφεται πλέον στις συνεργασίες σου.</p>`,
+        leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία στις ${date}. Η συνεργασία με την <strong>${brand}</strong> ξεκίνησε — οι όροι και η προθεσμία κλειδώθηκαν.</p>
+        <p style="font-size:13px;color:#64748b;">The collaboration with <strong>${brand}</strong> has started — terms and deadline are locked.</p>`,
         deal,
         safety: true,
         nextStepsHtml:
-          "<p><strong>Επόμενα βήματα:</strong> συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στα μηνύματα του Influo. Κράτα αυτό το email ως αντίγραφο της συμφωνίας.</p>" +
-          "<p>Όταν δημοσιεύσεις, επικόλλησε το link του reel / TikTok / post στο πεδίο <strong>Παραδοτέο</strong> στο dashboard (όχι μόνο στο chat) — εκεί εγκρίνει το brand.</p>",
+          "<p><strong>Επόμενο βήμα:</strong> συντόνισε brief και υλικό στο chat. Όταν είσαι έτοιμος, ανέβασε το παραδοτέο από το πεδίο <strong>Παραδοτέο</strong> στο dashboard (link reel/TikTok/post) ή επιβεβαίωσε event/παρουσία — όχι μόνο στο chat.</p>" +
+          "<p style=\"font-size:13px;color:#64748b;\"><strong>Next step:</strong> upload the deliverable via <strong>Deliverable</strong> on the dashboard, or confirm the event.</p>",
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_creator",
         closing: "Καλή συνεργασία,",
@@ -730,16 +748,18 @@ export async function mailBrandDealComplete(input: {
   await send(
     "deal_complete_brand",
     input.to,
-    `Η συμφωνία με ${input.creatorName} κλειδώθηκε – #${input.proposalId}`,
+    `Η συνεργασία ξεκίνησε με ${input.creatorName} – #${input.proposalId}`,
     shell(
-      "Η συμφωνία κλειδώθηκε",
+      "Η συνεργασία ξεκίνησε",
       lockedAgreementBody({
         greetingHtml: `<p>Γεια σας ${escapeHtml(input.brandName)},</p>`,
-        leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία συνεργασίας με τον/την <strong>${creator}</strong> στις ${date}. Μπορείτε να προχωρήσετε στην εκτέλεση.</p>`,
+        leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία με τον/την <strong>${creator}</strong> στις ${date}. Η συνεργασία ξεκίνησε — όροι και προθεσμία είναι κλειδωμένα.</p>
+        <p style="font-size:13px;color:#64748b;">The collaboration with <strong>${creator}</strong> has started — terms and deadline are locked.</p>`,
         deal,
         safety: false,
         nextStepsHtml:
-          "<p><strong>Επόμενα βήματα:</strong> στείλτε brief και υλικό (προϊόν, links, tags, do &amp; don'ts) από τα μηνύματα του Influo και συμφωνήστε ημερομηνία παράδοσης/δημοσίευσης.</p>",
+          "<p><strong>Επόμενα βήματα:</strong> στείλτε brief και υλικό από τα μηνύματα του Influo. Όταν ο δημιουργός ανεβάσει παραδοτέο από το πεδίο <strong>Παραδοτέο</strong> (ή δηλώσει event), εγκρίνετε το link ή επιβεβαιώστε ότι έγινε.</p>" +
+          "<p style=\"font-size:13px;color:#64748b;\"><strong>Next:</strong> when the creator uploads via <strong>Deliverable</strong> (or marks an event), approve the link or confirm presence.</p>",
         ctaUrl: input.dashboardUrl,
         nextStepsKey: "deal_complete_brand",
         closing: "Με εκτίμηση,",

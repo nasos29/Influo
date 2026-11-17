@@ -113,6 +113,12 @@ interface Proposal {
   brand_showcase_consent?: boolean | null;
   published_post_url?: string | null;
   published_post_pending_approval?: boolean | null;
+  delivery_mode?: string | null;
+  delivery_note?: string | null;
+  delivery_proof_url?: string | null;
+  delivery_submitted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 }
 
 interface Influencer {
@@ -3208,14 +3214,24 @@ export default function BrandDashboardContent() {
                           {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
                             <p className="mt-2 text-sm text-slate-700">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
                           ) : null}
-                          <p className={`mt-3 text-sm font-medium ${completed ? "text-green-700" : "text-amber-800"}`}>
-                            {completed
+                          <p className={`mt-3 text-sm font-medium ${
+                            proposal.delivery_confirmed_at || proposal.auto_completed_at
+                              ? "text-green-700"
+                              : completed
+                                ? "text-blue-700"
+                                : "text-amber-800"
+                          }`}>
+                            {proposal.delivery_confirmed_at || proposal.auto_completed_at
                               ? lang === "el"
                                 ? "Ολοκληρώθηκε"
                                 : "Completed"
-                              : lang === "el"
-                                ? "Αναμονή του δημιουργού"
-                                : "Waiting for the creator"}
+                              : completed
+                                ? lang === "el"
+                                  ? "Σε εξέλιξη"
+                                  : "In progress"
+                                : lang === "el"
+                                  ? "Αναμονή του δημιουργού"
+                                  : "Waiting for the creator"}
                           </p>
                           {(proposal.status === "completed" || !!proposal.influencer_agreement_accepted) &&
                           proposal.brand_agreement_accepted ? (
@@ -3235,7 +3251,24 @@ export default function BrandDashboardContent() {
                                 lang={lang}
                                 readOnly
                                 canApprove
-                                pendingApproval={!!proposal.published_post_pending_approval}
+                                showStepLabel={
+                                  proposal.status === "completed" &&
+                                  !!proposal.delivery_submitted_at &&
+                                  !proposal.delivery_confirmed_at &&
+                                  !proposal.auto_completed_at
+                                }
+                                pendingApproval={
+                                  !!proposal.published_post_pending_approval ||
+                                  (!!proposal.delivery_submitted_at &&
+                                    !proposal.delivery_confirmed_at &&
+                                    !proposal.auto_completed_at)
+                                }
+                                initialMode={proposal.delivery_mode || "link"}
+                                initialNote={proposal.delivery_note}
+                                initialProofUrl={proposal.delivery_proof_url}
+                                deliveryConfirmed={
+                                  !!proposal.delivery_confirmed_at || !!proposal.auto_completed_at
+                                }
                                 autoFocus={
                                   searchParams?.get("focus") === "deliverable" &&
                                   searchParams?.get("proposalId") === String(proposal.id)

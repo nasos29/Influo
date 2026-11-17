@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, supabaseService } from "@/lib/apiAuth";
+import { deliveryStateLabel } from "@/lib/deliveryCompletion";
 import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
@@ -67,13 +68,21 @@ export async function GET(request: Request) {
     postUrlUpdatedBy: string | null;
     postUrlUpdatedAt: string | null;
     pinnedBy: string | null;
+    deliveryMode?: string | null;
+    deliverySubmittedAt?: string | null;
+    deliveryConfirmedAt?: string | null;
+    autoCompletedAt?: string | null;
+    deliveryNote?: string | null;
+    deliveryProofUrl?: string | null;
+    eventAdminAllowed?: boolean;
+    deliveryState?: string;
   }> = [];
 
   try {
     let q = admin
       .from("proposals")
       .select(
-        "id, brand_name, influencer_id, published_post_url, published_post_pending_approval, agreement_accepted_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by"
+        "id, brand_name, influencer_id, published_post_url, published_post_pending_approval, agreement_accepted_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_note, delivery_proof_url, showcase_event_admin_allowed"
       )
       .eq("status", "completed")
       .order("agreement_accepted_at", { ascending: false })
@@ -83,7 +92,7 @@ export async function GET(request: Request) {
       q = q.eq("brand_showcase_consent", true).eq("influencer_showcase_consent", true);
     }
     let { data, error } = await q;
-    if (error && /published_post_pending_approval|showcase_post_url_updated|showcase_admin_pinned_by|PGRST204|42703/i.test(error.message || "")) {
+    if (error && /published_post_pending_approval|showcase_post_url_updated|showcase_admin_pinned_by|delivery_|showcase_event_admin|PGRST204|42703/i.test(error.message || "")) {
       let q2 = admin
         .from("proposals")
         .select(
@@ -116,6 +125,32 @@ export async function GET(request: Request) {
           brandConsent: !!row.brand_showcase_consent,
           influencerConsent: !!row.influencer_showcase_consent,
           pendingApproval: !!row.published_post_pending_approval,
+          deliveryMode: typeof row.delivery_mode === "string" ? row.delivery_mode : null,
+          deliverySubmittedAt:
+            typeof row.delivery_submitted_at === "string" ? row.delivery_submitted_at : null,
+          deliveryConfirmedAt:
+            typeof row.delivery_confirmed_at === "string" ? row.delivery_confirmed_at : null,
+          autoCompletedAt: typeof row.auto_completed_at === "string" ? row.auto_completed_at : null,
+          deliveryNote: typeof row.delivery_note === "string" ? row.delivery_note : null,
+          deliveryProofUrl:
+            typeof row.delivery_proof_url === "string" ? row.delivery_proof_url : null,
+          eventAdminAllowed: !!row.showcase_event_admin_allowed,
+          deliveryState: deliveryStateLabel(
+            {
+              status: "completed",
+              delivery_mode: typeof row.delivery_mode === "string" ? row.delivery_mode : null,
+              delivery_submitted_at:
+                typeof row.delivery_submitted_at === "string" ? row.delivery_submitted_at : null,
+              delivery_confirmed_at:
+                typeof row.delivery_confirmed_at === "string" ? row.delivery_confirmed_at : null,
+              auto_completed_at:
+                typeof row.auto_completed_at === "string" ? row.auto_completed_at : null,
+              published_post_url:
+                typeof row.published_post_url === "string" ? row.published_post_url : null,
+              published_post_pending_approval: !!row.published_post_pending_approval,
+            },
+            "el"
+          ),
           postUrlUpdatedBy:
             typeof row.showcase_post_url_updated_by === "string"
               ? row.showcase_post_url_updated_by

@@ -41,7 +41,7 @@ const COPY = {
     saving: "Αποθήκευση...",
     close: "Κλείσιμο",
     statusWaiting: "Αναμονή του δημιουργού",
-    statusCompleted: "Ολοκληρώθηκε",
+    statusCompleted: "Σε εξέλιξη",
     showcase: "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»",
   },
   en: {
@@ -61,7 +61,7 @@ const COPY = {
     saving: "Saving...",
     close: "Close",
     statusWaiting: "Waiting for the creator",
-    statusCompleted: "Completed",
+    statusCompleted: "In progress",
     showcase: "Show publicly in “Recent collaborations”",
   },
 } as const;
@@ -199,7 +199,7 @@ export default function AgreementTerms({
             <p
               className={`rounded-xl border px-4 py-3 text-sm font-medium ${
                 status === "completed"
-                  ? "border-green-200 bg-green-50 text-green-800"
+                  ? "border-blue-200 bg-blue-50 text-blue-800"
                   : "border-amber-200 bg-amber-50 text-amber-900"
               }`}
             >

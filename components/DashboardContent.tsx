@@ -1295,6 +1295,12 @@ interface Proposal {
   influencer_showcase_consent?: boolean | null;
   published_post_url?: string | null;
   published_post_pending_approval?: boolean | null;
+  delivery_mode?: string | null;
+  delivery_note?: string | null;
+  delivery_proof_url?: string | null;
+  delivery_submitted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 }
 
 function tabBadgeText(count: number): string {
@@ -2373,15 +2379,21 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             <div className="flex items-center gap-3 mb-2">
                                                                 <h3 className="font-bold text-slate-900">{prop.brand_name}</h3>
                                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                                    prop.status === 'accepted' || prop.status === 'completed' 
-                                                                        ? hasAgreement ? 'bg-green-100 text-green-700' : 'bg-green-100 text-green-700'
+                                                                    prop.status === 'completed' && (prop.delivery_confirmed_at || prop.auto_completed_at)
+                                                                        ? 'bg-green-100 text-green-700'
+                                                                        : prop.status === 'accepted' || prop.status === 'completed'
+                                                                        ? 'bg-blue-100 text-blue-700'
                                                                         : prop.status === 'rejected' 
                                                                         ? 'bg-red-100 text-red-700'
                                                                         : 'bg-blue-100 text-blue-700'
                                                                 }`}>
                                                                     {prop.status === 'pending' ? T("Εκκρεμεί", "Pending") : 
                                                                      prop.status === 'accepted' ? (hasAgreement ? T("✅ Συμφωνία Αποδεκτή", "✅ Agreement Accepted") : T("Αποδεκτή - Αναμένεται Συμφωνία", "Accepted - Awaiting Agreement")) :
-                                                                     prop.status === 'completed' ? (hasAgreement ? T("✅ Ολοκληρωμένη", "✅ Completed") : T("Ολοκληρωμένη - Αναμένεται Συμφωνία", "Completed - Awaiting Agreement")) :
+                                                                     prop.status === 'completed' ? (hasAgreement
+                                                                       ? ((prop.delivery_confirmed_at || prop.auto_completed_at)
+                                                                         ? T("✅ Ολοκληρώθηκε", "✅ Completed")
+                                                                         : T("Σε εξέλιξη", "In progress"))
+                                                                       : T("Σε εξέλιξη - Αναμένεται Συμφωνία", "In progress - Awaiting Agreement")) :
                                                                      prop.status === 'rejected' ? T("Απορρίφθηκε", "Rejected") : prop.status}
                                                                 </span>
                                                             </div>
@@ -2422,9 +2434,27 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}
                                                                   lang={lang}
-                                                                  pendingApproval={!!prop.published_post_pending_approval}
+                                                                  showStepLabel={
+                                                                    prop.status === 'completed' &&
+                                                                    !prop.delivery_confirmed_at &&
+                                                                    !prop.auto_completed_at
+                                                                  }
+                                                                  pendingApproval={
+                                                                    !!prop.published_post_pending_approval ||
+                                                                    (!!prop.delivery_submitted_at &&
+                                                                      !prop.delivery_confirmed_at &&
+                                                                      !prop.auto_completed_at)
+                                                                  }
+                                                                  initialMode={prop.delivery_mode || 'link'}
+                                                                  initialNote={prop.delivery_note}
+                                                                  initialProofUrl={prop.delivery_proof_url}
+                                                                  deliveryConfirmed={
+                                                                    !!prop.delivery_confirmed_at ||
+                                                                    !!prop.auto_completed_at
+                                                                  }
                                                                   autoFocus={
-                                                                    searchParams?.get('focus') === 'deliverable' &&
+                                                                    (searchParams?.get('focus') === 'deliverable' ||
+                                                                      searchParams?.get('deliverable') === '1') &&
                                                                     searchParams?.get('proposalId') === String(prop.id)
                                                                   }
                                                                   prefill={

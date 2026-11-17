@@ -99,7 +99,7 @@ export async function sendPushInfluencerAccountDeleted(
   });
 }
 
-/** Both sides accepted a collaboration agreement. */
+/** Both sides accepted a collaboration agreement (work started). */
 export async function sendPushAdminAgreementComplete(opts: {
   proposalId: string | number;
   brandName: string;
@@ -109,7 +109,7 @@ export async function sendPushAdminAgreementComplete(opts: {
   if (!admin) return { sent: 0, failed: 0 };
   const id = String(opts.proposalId);
   return sendPushToBrand(admin, {
-    title: "Συμφωνία ολοκληρώθηκε",
+    title: "Η συνεργασία ξεκίνησε",
     body: `#${id} · ${clipPushText(opts.brandName || "Επιχείρηση", 28)} · ${clipPushText(opts.creatorName || "Δημιουργός", 28)}`,
     url: "/admin",
     tag: `admin-agreement-${id}`,

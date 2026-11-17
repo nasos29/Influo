@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { creatorContact } from "@/lib/campaignNotify";
 import {
-  deliverableApprovedToBrand,
   deliverableReviewToCreator,
   deliverableSubmittedToBrand,
 } from "@/lib/campaignMail";
+import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
@@ -14,8 +14,6 @@ import {
   parseSocialPostUrl,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
-import { showcaseOptOutUrl } from "@/lib/showcaseOptOut";
-
 type Action = "submit" | "approve" | "request_changes";
 
 /**
@@ -80,9 +78,6 @@ export async function POST(request: NextRequest) {
   const brandName = brandRow?.brand_name || "Brand";
   const brandEmail = (brandRow?.contact_email || "").trim().toLowerCase();
   const campaignTitle = campaign.title || "Καμπάνια";
-  const existingInfluencerConsent = !!(app as { influencer_showcase_consent?: boolean | null })
-    .influencer_showcase_consent;
-
   if (action === "submit") {
     const { data: influencer } = await admin
       .from("influencers")
@@ -101,14 +96,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "not_accepted" }, { status: 400 });
     }
 
-    const parsedUrl = parseSocialPostUrl(body.url);
-    if (!parsedUrl.ok) {
-      return NextResponse.json(
-        { error: parsedUrl.error === "empty" ? "missing_url" : socialPostUrlErrorMessage(parsedUrl.error) },
-        { status: 400 }
-      );
+    const isEvent =
+      body.deliveryMode === "event" || body.eventDelivery === true || body.noLink === true;
+    let url: string | null = null;
+    let proofUrl: string | null = null;
+    if (isEvent) {
+      const proofRaw = body.deliveryProofUrl ?? body.proofUrl ?? body.url;
+      if (proofRaw != null && String(proofRaw).trim()) {
+        const raw = String(proofRaw).trim();
+        if (!raw.startsWith("https://")) {
+          return NextResponse.json({ error: "proof_url_https_required" }, { status: 400 });
+        }
+        proofUrl = raw;
+      }
+    } else {
+      const parsedUrl = parseSocialPostUrl(body.url);
+      if (!parsedUrl.ok) {
+        return NextResponse.json(
+          { error: parsedUrl.error === "empty" ? "missing_url" : socialPostUrlErrorMessage(parsedUrl.error) },
+          { status: 400 }
+        );
+      }
+      url = parsedUrl.url;
     }
-    const url = parsedUrl.url;
     const note = String(body.note || "").trim();
     const selfReportedViews = "selfReportedViews" in body
       ? parseSelfReportedCount(body.selfReportedViews)
@@ -119,11 +129,15 @@ export async function POST(request: NextRequest) {
     const showcaseConsent =
       typeof body.showcaseConsent === "boolean" ? body.showcaseConsent : undefined;
 
+    const submittedAt = new Date().toISOString();
     const updatePayload: Record<string, unknown> = {
       deliverable_url: url,
       deliverable_note: note || null,
       deliverable_status: "submitted",
-      delivered_at: new Date().toISOString(),
+      delivered_at: submittedAt,
+      delivery_mode: isEvent ? "event" : "link",
+      delivery_proof_url: proofUrl,
+      delivery_submitted_at: submittedAt,
       // New URL → brand must view again (seen receipt resets).
       deliverable_seen_at: null,
     };
@@ -136,11 +150,15 @@ export async function POST(request: NextRequest) {
       .update(updatePayload)
       .eq("id", applicationId)
       .eq("influencer_id", influencer.id);
-    if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
-      const { deliverable_seen_at: _drop, ...withoutSeen } = updatePayload;
+    if (error && /deliverable_seen_at|delivery_|schema cache|column/i.test(error.message || "")) {
+      const soft = { ...updatePayload };
+      delete soft.deliverable_seen_at;
+      delete soft.delivery_mode;
+      delete soft.delivery_proof_url;
+      delete soft.delivery_submitted_at;
       ({ error } = await admin
         .from("campaign_applications")
-        .update(withoutSeen)
+        .update(soft)
         .eq("id", applicationId)
         .eq("influencer_id", influencer.id));
     }
@@ -155,7 +173,7 @@ export async function POST(request: NextRequest) {
             brandName,
             campaignTitle,
             influencerName,
-            deliverableUrl: url,
+            deliverableUrl: url || proofUrl,
           });
           await send("campaign_deliverable_submitted_brand", brandEmail, mail.subject, mail.html);
           await sendPushToBrand(brandEmail, {
@@ -187,11 +205,15 @@ export async function POST(request: NextRequest) {
       ? body.showcaseConsent
       : undefined;
 
+  const reviewedAt = new Date().toISOString();
   const reviewUpdate: Record<string, unknown> = {
     deliverable_status: nextStatus,
     deliverable_review_note: reviewNote || null,
-    reviewed_at: new Date().toISOString(),
+    reviewed_at: reviewedAt,
   };
+  if (action === "approve") {
+    reviewUpdate.delivery_confirmed_at = reviewedAt;
+  }
   // Approving / requesting changes implies the brand has seen the deliverable (first time only).
   const existingSeen =
     typeof (app as { deliverable_seen_at?: string | null }).deliverable_seen_at === "string"
@@ -208,66 +230,64 @@ export async function POST(request: NextRequest) {
     .from("campaign_applications")
     .update(reviewUpdate)
     .eq("id", applicationId);
-  if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
-    const { deliverable_seen_at: _drop, ...withoutSeen } = reviewUpdate;
-    ({ error } = await admin.from("campaign_applications").update(withoutSeen).eq("id", applicationId));
+  if (error && /deliverable_seen_at|delivery_confirmed|schema cache|column/i.test(error.message || "")) {
+    const soft = { ...reviewUpdate };
+    delete soft.deliverable_seen_at;
+    delete soft.delivery_confirmed_at;
+    ({ error } = await admin.from("campaign_applications").update(soft).eq("id", applicationId));
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-  const existingBrandConsent = !!(app as { brand_showcase_consent?: boolean | null }).brand_showcase_consent;
-  const creatorConsentTrue = existingInfluencerConsent;
-  const brandConsentTrue =
-    brandShowcaseConsent === true || (brandShowcaseConsent === undefined && existingBrandConsent);
 
   deferAfterResponse(async () => {
     try {
       const person = await creatorContact(String(app.influencer_id));
       if (!person) return;
-      const creatorOptOut =
-        nextStatus === "approved" && creatorConsentTrue
-          ? showcaseOptOutUrl("campaign", applicationId, "influencer", "el")
-          : null;
+
+      if (nextStatus === "approved") {
+        // Real completion: one «Η συνεργασία ολοκληρώθηκε» + review (no separate approve/review mails).
+        await notifyRealCollaborationComplete(admin, {
+          source: "campaign",
+          id: applicationId,
+          influencerId: String(app.influencer_id),
+          brandName,
+          brandEmail,
+          creatorName: person.name,
+          creatorEmail: person.email,
+          mode: "confirmed",
+          deliveryMode:
+            (app as { delivery_mode?: string | null }).delivery_mode || "link",
+        });
+        await sendPushToInfluencer(person.id, {
+          title: "Η συνεργασία ολοκληρώθηκε",
+          body: `${brandName}: ${campaignTitle}`.slice(0, 120),
+          url: "/dashboard?tab=campaigns",
+          tag: `deliverable-approved-${applicationId}`,
+        }).catch((err) => console.error("[deliverable] creator push", err));
+        return;
+      }
+
       const mail = deliverableReviewToCreator({
         influencerName: person.name,
         brandName,
         campaignTitle,
         status: nextStatus,
         reviewNote: reviewNote || null,
-        showcaseOptOutUrl: creatorOptOut,
+        showcaseOptOutUrl: null,
       });
       if (person.email) {
         await send(
-          nextStatus === "approved" ? "campaign_deliverable_approved_creator" : "campaign_deliverable_changes_creator",
+          "campaign_deliverable_changes_creator",
           person.email,
           mail.subject,
           mail.html
         );
       }
       await sendPushToInfluencer(person.id, {
-        title: nextStatus === "approved" ? "Η παράδοσή σου εγκρίθηκε" : "Ζητήθηκαν αλλαγές",
+        title: "Ζητήθηκαν αλλαγές",
         body: `${brandName}: ${campaignTitle}`.slice(0, 120),
         url: "/dashboard?tab=campaigns",
         tag: `deliverable-${nextStatus}-${applicationId}`,
       }).catch((err) => console.error("[deliverable] creator push", err));
-
-      if (nextStatus === "approved" && brandEmail) {
-        const brandOptOut = brandConsentTrue
-          ? showcaseOptOutUrl("campaign", applicationId, "brand", "el")
-          : null;
-        const brandMail = deliverableApprovedToBrand({
-          brandEmail,
-          brandName,
-          campaignTitle,
-          influencerName: person.name,
-          showcaseOptOutUrl: brandOptOut,
-        });
-        await send(
-          "campaign_deliverable_approved_brand",
-          brandEmail,
-          brandMail.subject,
-          brandMail.html
-        ).catch((err) => console.error("[deliverable] brand approve mail", err));
-      }
     } catch (err) {
       console.error("[deliverable] review notify", err);
     }

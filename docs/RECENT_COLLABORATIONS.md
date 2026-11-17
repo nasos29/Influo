@@ -28,7 +28,8 @@ Additive migrations:
 - **No separate showcase appearance email.** A short EL/EN line + «Δεν θέλω να εμφανιστεί» is embedded in existing transactional emails when **that recipient’s consent is currently true**:
   - `campaign_deliverable_approved_creator`
   - `campaign_deliverable_approved_brand` (brand confirmation on approve)
-  - `deal_complete_creator` / `deal_complete_brand` (collaboration complete, both sides)
+  - `deal_complete_creator` / `deal_complete_brand` (collaboration started / agreement locked, both sides)
+  - `collaboration_completed_creator` / `collaboration_completed_brand` (real delivery completion + review prompt)
   - legacy `collaboration_complete` (when caller passes `showcaseConsent` + `showcaseOptOutUrl`)
 - Helper: `showcaseInlineNoticeHtml` in `lib/showcaseMail.ts`.
 - Former `SHOWCASE_APPEARANCE_NOTIFY_*` flags no longer send mail (`maybeNotifyShowcaseAppearance` is a no-op).

@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { applicationToBrand, closedToBrand, closingSoonToBrand, notSelectedToCreator, publishedToAdmin } from "@/lib/campaignMail";
 import { NextResponse } from 'next/server';
+import { enqueueAdminDigestItem, type AdminDigestKind } from '@/lib/adminDailyDigest';
 import { emailNextSteps } from '@/lib/emailNextSteps';
 import { showcaseInlineNoticeHtml, showcaseMissingPostHtml } from '@/lib/showcaseMail';
 import { showcaseHelperEmailHtml } from '@/lib/showcaseCopy';
@@ -9,6 +10,13 @@ import { rejectUnlessAdmin, supabaseService, userFromBearer } from '@/lib/apiAut
 import { formatEuroAmount } from '@/lib/formatEuro';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/formatDate';
 import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
+
+const ADMIN_DIGEST_EMAIL_TYPES: Record<string, AdminDigestKind> = {
+  signup_admin: 'signup_creator',
+  signup_brand_admin: 'signup_brand',
+  profile_edit_admin: 'profile_edit',
+  proposal_admin_notification: 'proposal',
+};
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -145,6 +153,22 @@ export async function POST(req: Request) {
         { success: false, error: `Invalid email type: ${type}` },
         { status: 400 }
       );
+    }
+
+    // Queue admin digest items instead of 1:1 when ADMIN_DAILY_DIGEST_ENABLED is on.
+    const digestKind = ADMIN_DIGEST_EMAIL_TYPES[type];
+    if (digestKind) {
+      const queued = await enqueueAdminDigestItem(supabaseService(), digestKind, {
+        name: name || brandName || null,
+        email: email || null,
+        brandName: brandName || null,
+        creatorName: influencerName || null,
+        service: proposalType || null,
+        location: location || null,
+      });
+      if (queued) {
+        return NextResponse.json({ success: true, queued: true, digest: digestKind });
+      }
     }
 
     // Some email types don't require email field (admin notifications)
@@ -645,7 +669,7 @@ export async function POST(req: Request) {
     }
     else if (type === 'collaboration_complete') {
         toEmail = email;
-        subject = `✅ Η συνεργασία με ${brandName} ολοκληρώθηκε!`;
+        subject = `Η συνεργασία με ${brandName} ξεκίνησε`;
         const showcaseUrl =
           body.showcaseConsent === true && typeof body.showcaseOptOutUrl === 'string'
             ? String(body.showcaseOptOutUrl).trim()
@@ -662,19 +686,20 @@ export async function POST(req: Request) {
           !hasPostUrl && addPostRaw && /^https:\/\//i.test(addPostRaw)
             ? showcaseMissingPostHtml(addPostRaw)
             : !hasPostUrl
-              ? `<p style="margin:16px 0;font-size:13px;color:#92400e;">Λείπει το link της ανάρτησης — πρόσθεσέ το στο πεδίο «Παραδοτέο» στο dashboard.</p>${showcaseHelperEmailHtml('influencer')}`
+              ? `<p style="margin:16px 0;font-size:13px;color:#92400e;">Επόμενο βήμα: ανέβασε το παραδοτέο από το πεδίο «Παραδοτέο» στο dashboard (ή επιβεβαίωσε event).</p>${showcaseHelperEmailHtml('influencer')}`
               : '';
         html = `
             <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #1f2937; max-width: 600px; margin: 0 auto;">
-              <div style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-                <h1 style="color: #065f46; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">🎉 Συνεργασία Ολοκληρώθηκε!</h1>
+              <div style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); padding: 24px; border-radius: 12px 12px 0 0;">
+                <h1 style="color: #1e3a8a; font-size: 22px; font-weight: 700; margin: 0; padding: 0;">Η συνεργασία ξεκίνησε</h1>
               </div>
               <div style="background: #ffffff; padding: 24px; border: 1px solid #f3f4f6; border-top: none; border-radius: 0 0 12px 12px;">
                 <p style="margin: 0 0 16px 0; font-size: 14px;">Γεια σου ${influencerName},</p>
-                <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Η συνεργασία με το brand <strong style="color: #1f2937;">${brandName}</strong> έχει ολοκληρωθεί και το brand προστέθηκε στις συνεργασίες σου!</p>
+                <p style="margin: 0 0 12px 0; font-size: 13px; color: #4b5563;">Η συμφωνία με το brand <strong style="color: #1f2937;">${brandName}</strong> κλειδώθηκε και η συνεργασία ξεκίνησε. Το brand προστέθηκε στις συνεργασίες σου.</p>
+                <p style="margin: 0 0 12px 0; font-size: 12px; color: #64748b;">The collaboration with <strong>${brandName}</strong> has started — terms are locked.</p>
                 <p style="margin: 0 0 20px 0; font-size: 13px; color: #4b5563;">Το brand <strong style="color: #1f2937;">${brandName}</strong> εμφανίζεται πλέον στο προφίλ σου στο tab "Συνεργασίες".</p>
-                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                  <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600;">✨ Συγχαρητήρια για την επιτυχημένη συνεργασία!</p>
+                <div style="background: #eff6ff; border-left: 4px solid #2563eb; padding: 16px; border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-size: 13px; color: #1e40af; font-weight: 600;">Επόμενο βήμα: ανέβασε το παραδοτέο από «Παραδοτέο» ή επιβεβαίωσε event.</p>
                 </div>
                 ${missingPostBlock}
                 ${showcaseBlock}
