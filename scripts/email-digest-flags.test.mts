@@ -35,11 +35,24 @@ test("admin daily digest html groups kinds", () => {
         at: "2026-11-17T08:10:00.000Z",
       },
     },
+    {
+      payload: {
+        kind: "event_confirm_pending",
+        brandName: "Cafe",
+        creatorName: "Maria",
+        source: "proposal",
+        id: "42",
+        at: "2026-11-17T08:20:00.000Z",
+      },
+    },
   ]);
   assert.match(mail.subject, /digest/i);
   assert.match(mail.html, /Αιτήσεις καμπάνιας/);
   assert.match(mail.html, /Νέοι creators/);
   assert.match(mail.html, /Neo/);
+  assert.match(mail.html, /Εκκρεμεί επιβεβαίωση \(event\)/);
+  assert.match(mail.html, /Cafe/);
+  assert.match(mail.html, /ολοκλήρωσε χειροκίνητα/);
 });
 
 test("digest flags off by default", () => {

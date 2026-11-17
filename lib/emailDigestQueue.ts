@@ -13,7 +13,8 @@ export type DigestType =
   | "admin_profile_edit"
   | "admin_alert_unapproved"
   | "admin_proposal"
-  | "admin_collaboration_completed";
+  | "admin_collaboration_completed"
+  | "admin_event_confirm_pending";
 
 export type DigestRecipientKind = "brand" | "admin";
 

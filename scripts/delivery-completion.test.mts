@@ -5,9 +5,11 @@ import {
   collaborationProgressLabel,
   deliveryStateLabel,
   isDeliveryPendingBrand,
+  isEventConfirmPending,
   isRealDeliveryComplete,
   mayShowEventCollabPublicly,
   realCompletionAt,
+  shouldAutoCompleteDelivery,
 } from "../lib/deliveryCompletion.ts";
 import {
   isBrandApproveRemindersEnabled,
@@ -106,6 +108,61 @@ test("event collabs stay private unless admin allows", () => {
   assert.equal(mayShowEventCollabPublicly({ delivery_mode: "link" }), true);
 });
 
+test("auto-complete is link-mode only; abandoned deals never auto-complete", () => {
+  assert.equal(
+    shouldAutoCompleteDelivery({
+      delivery_mode: "link",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    }),
+    true
+  );
+  assert.equal(
+    shouldAutoCompleteDelivery({
+      delivery_mode: "event",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    }),
+    false
+  );
+  assert.equal(shouldAutoCompleteDelivery({ delivery_mode: "link" }), false);
+  assert.equal(shouldAutoCompleteDelivery({ delivery_mode: null }), false);
+  assert.equal(shouldAutoCompleteDelivery({}), false);
+});
+
+test("event confirm pending badge helper", () => {
+  assert.equal(
+    isEventConfirmPending({
+      delivery_mode: "event",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    }),
+    true
+  );
+  assert.equal(
+    isEventConfirmPending({
+      delivery_mode: "event",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+      delivery_confirmed_at: "2026-11-02T00:00:00.000Z",
+    }),
+    false
+  );
+  assert.equal(
+    isEventConfirmPending({
+      delivery_mode: "link",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    }),
+    false
+  );
+  assert.match(
+    deliveryStateLabel(
+      {
+        delivery_mode: "event",
+        delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+      },
+      "el"
+    ),
+    /Εκκρεμεί επιβεβαίωση/
+  );
+});
+
 test("review reminders use real completion when flag on", () => {
   const confirmed = "2026-11-10T12:00:00.000Z";
   const due = reviewReminderDueMs({
@@ -142,6 +199,7 @@ test("admin digest queue gate", () => {
   env.ADMIN_DAILY_DIGEST_ENABLED = "1";
   assert.equal(shouldQueueAdminDigest("proposal", env), true);
   assert.equal(shouldQueueAdminDigest("campaign_application", env), true);
+  assert.equal(shouldQueueAdminDigest("event_confirm_pending", env), true);
 });
 
 test("athens admin digest window helper is boolean", () => {

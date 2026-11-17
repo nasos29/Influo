@@ -1,6 +1,8 @@
 /**
- * 7-day safety net: auto-complete submitted deliveries without brand response.
- * Flag DELIVERY_AUTO_COMPLETE_ENABLED default OFF.
+ * 7-day safety net (DELIVERY_AUTO_COMPLETE_ENABLED, default OFF):
+ * - Link mode: auto-complete submitted published-link deliveries without brand response.
+ * - Event mode: do not auto-complete; enqueue admin digest for manual confirmation.
+ * - No submission: never auto-complete (abandoned deals stay in progress).
  * Suggested daily crontab (do not auto-add):
  *   40 7 * * * curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://www.influo.gr/api/cron/delivery-auto-complete
  */

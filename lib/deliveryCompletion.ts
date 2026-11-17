@@ -2,6 +2,10 @@
  * Real collaboration completion helpers.
  * Agreement acceptance still sets status='completed' (work started / past brands).
  * Real completion = delivery_confirmed_at OR auto_completed_at.
+ *
+ * 7-day auto-complete applies ONLY to link mode (published post URL submitted).
+ * Event mode never auto-completes — admin is notified and may complete manually.
+ * Unsubmitted / abandoned deals stay «Σε εξέλιξη».
  */
 
 export type DeliveryMode = "link" | "event";
@@ -16,6 +20,32 @@ export function isRealDeliveryComplete(row: {
   auto_completed_at?: string | null;
 }): boolean {
   return !!(row.delivery_confirmed_at || row.auto_completed_at);
+}
+
+/**
+ * Cron may auto-complete only link-mode submissions (published link).
+ * Event mode and rows with no submission are never auto-completed.
+ */
+export function shouldAutoCompleteDelivery(row: {
+  delivery_mode?: string | null;
+  delivery_submitted_at?: string | null;
+}): boolean {
+  return row.delivery_mode === "link" && !!row.delivery_submitted_at;
+}
+
+/** Event delivery submitted, waiting on brand (or admin) confirmation. */
+export function isEventConfirmPending(row: {
+  delivery_mode?: string | null;
+  delivery_submitted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+}): boolean {
+  return (
+    row.delivery_mode === "event" &&
+    !!row.delivery_submitted_at &&
+    !row.delivery_confirmed_at &&
+    !row.auto_completed_at
+  );
 }
 
 /** Instant used for review scheduling (prefer confirmed, else auto). */
@@ -61,7 +91,7 @@ export function deliveryStateLabel(
   }
   if (row.delivery_submitted_at || row.published_post_pending_approval) {
     if (row.delivery_mode === "event") {
-      return lang === "el" ? "Σε εξέλιξη · αναμονή επιβεβαίωσης event" : "In progress · awaiting event confirmation";
+      return lang === "el" ? "Εκκρεμεί επιβεβαίωση" : "Pending confirmation";
     }
     return lang === "el" ? "Σε εξέλιξη · αναμονή έγκρισης link" : "In progress · awaiting link approval";
   }

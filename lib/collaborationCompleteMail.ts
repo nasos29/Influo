@@ -1,7 +1,8 @@
 /**
  * «Η συνεργασία ολοκληρώθηκε» — sent only on real delivery completion
- * (brand approves link / confirms event, or 7-day auto-complete).
- * Includes the review prompt so the delayed review reminder is not a second email.
+ * (brand approves link / confirms event, admin completes event, or 7-day
+ * link-mode auto-complete). Includes the review prompt so the delayed review
+ * reminder is not a second email.
  */
 
 import { emailNextSteps } from "@/lib/emailNextSteps";
@@ -23,7 +24,7 @@ export async function mailCollaborationCompleted(input: {
   creatorName: string;
   brandName: string;
   creatorFemale?: boolean | null;
-  mode: "confirmed" | "auto";
+  mode: "confirmed" | "auto" | "admin";
   deliveryMode?: "link" | "event" | string | null;
   collabLabel?: string | null;
   dashboardUrl: string;
@@ -46,22 +47,24 @@ export async function mailCollaborationCompleted(input: {
     : "";
   const how =
     input.mode === "auto"
-      ? isCreator
-        ? "αυτόματα (πέρασαν 7 ημέρες χωρίς απάντηση στο παραδοτέο)"
-        : "αυτόματα (πέρασαν 7 ημέρες χωρίς απάντηση στο παραδοτέο)"
-      : input.deliveryMode === "event"
-        ? isCreator
-          ? "με επιβεβαίωση παρουσίας / event από το brand"
-          : "με την επιβεβαίωση παρουσίας / event"
-        : isCreator
-          ? "με έγκριση του παραδοτέου από το brand"
-          : "με την έγκριση του παραδοτέου";
+      ? "αυτόματα (πέρασαν 7 ημέρες χωρίς απάντηση στο δημοσιευμένο link)"
+      : input.mode === "admin"
+        ? "με ολοκλήρωση από το admin του Influo"
+        : input.deliveryMode === "event"
+          ? isCreator
+            ? "με επιβεβαίωση παρουσίας / event από το brand"
+            : "με την επιβεβαίωση παρουσίας / event"
+          : isCreator
+            ? "με έγκριση του παραδοτέου από το brand"
+            : "με την έγκριση του παραδοτέου";
   const howEn =
     input.mode === "auto"
-      ? "automatically (7 days with no response on the deliverable)"
-      : input.deliveryMode === "event"
-        ? "after event / presence confirmation"
-        : "after deliverable approval";
+      ? "automatically (7 days with no response on the published link)"
+      : input.mode === "admin"
+        ? "after Influo admin completion"
+        : input.deliveryMode === "event"
+          ? "after event / presence confirmation"
+          : "after deliverable approval";
 
   const greeting = isCreator
     ? `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`
