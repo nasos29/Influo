@@ -11,8 +11,8 @@ export const metadata: Metadata = {
 };
 
 const cached = unstable_cache(
-  () => loadRecentCollaborations(24),
-  ["collaborations-listing-en"],
+  () => loadRecentCollaborations(24, { surface: "listing" }),
+  ["collaborations-listing-en", "listing-surface"],
   { revalidate: 3600, tags: ["recent-collaborations"] }
 );
 

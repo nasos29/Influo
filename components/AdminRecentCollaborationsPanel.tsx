@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { sessionFetch } from "@/lib/sessionFetch";
+import { showcasePostFields } from "@/lib/showcasePostUrl";
 
 type Lang = "el" | "en";
 type Source = "proposal" | "campaign";
@@ -23,36 +24,42 @@ type Item = {
   pinnedBy?: string | null;
 };
 
+function hasPublicVideo(url: string | null | undefined): boolean {
+  return !!showcasePostFields(url).postUrl;
+}
+
 const COPY = {
   el: {
-    title: "Πρόσφατες συνεργασίες (public)",
+    title: "Πρόσφατες συνεργασίες (admin)",
     empty: "Δεν υπάρχουν ολοκληρωμένες συνεργασίες ακόμα.",
-    pin: "Καρφίτσωμα",
-    unpin: "Ξεκαρφίτσωμα",
+    pin: "Εμφάνιση στην αρχική",
+    unpin: "Αφαίρεση από αρχική",
     hide: "Απόκρυψη",
     show: "Εμφάνιση",
     loadError: "Αποτυχία φόρτωσης.",
     publicNote:
-      "Δημόσια εμφανίζονται μόνο όσες έχουν συναίνεση και από τις δύο πλευρές, έχουν εγκριμένο post link και δεν είναι κρυφές. Μπορείτε να επεξεργαστείτε το URL και να καρφιτσώσετε οποιαδήποτε.",
+      "Δημόσια εμφανίζονται μόνο συνεργασίες με έγκυρο video/post link, διπλή συναίνεση και χωρίς απόκρυψη. Η αρχική δείχνει όσες έχουν «Εμφάνιση στην αρχική»· αν καμία δεν είναι επιλεγμένη, εμφανίζονται οι πιο πρόσφατες με βίντεο. Το /collaborations δείχνει όλες τις επιλέξιμες με βίντεο.",
     saveUrl: "Αποθήκευση URL",
     urlPlaceholder: "https://instagram.com/reel/… ή TikTok / YouTube",
     audit: "Τελευταία αλλαγή URL",
-    pinnedBy: "Καρφίτσωμα από",
+    pinnedBy: "Επιλογή αρχικής από",
+    noVideoBadge: "Χωρίς βίντεο — δεν εμφανίζεται",
   },
   en: {
-    title: "Recent collaborations (public)",
+    title: "Recent collaborations (admin)",
     empty: "No completed collaborations yet.",
-    pin: "Pin",
-    unpin: "Unpin",
+    pin: "Show on homepage",
+    unpin: "Remove from homepage",
     hide: "Hide",
     show: "Show",
     loadError: "Failed to load.",
     publicNote:
-      "Public listing requires both consents, an approved post link, and not being hidden. You can edit the URL and pin any collaboration.",
+      "Public listing requires a valid video/post link, both consents, and not being hidden. Homepage shows items marked «Show on homepage»; if none are marked, it falls back to the latest with video. /collaborations lists all eligible with video.",
     saveUrl: "Save URL",
     urlPlaceholder: "https://instagram.com/reel/… or TikTok / YouTube",
     audit: "Last URL change",
-    pinnedBy: "Pinned by",
+    pinnedBy: "Homepage pick by",
+    noVideoBadge: "No video — not shown publicly",
   },
 } as const;
 
@@ -162,6 +169,7 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
             const key = `${item.source}:${item.id}`;
             const busy = busyId === key;
             const draft = draftUrls[key] ?? item.postUrl ?? "";
+            const videoOk = hasPublicVideo(item.postUrl);
             return (
               <li key={key} className="flex flex-col gap-3 px-4 py-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -170,12 +178,17 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                       {item.brandName}{" "}
                       <span className="text-xs font-normal text-slate-500">
                         · {item.source}
-                        {item.pinned ? " · pinned" : ""}
+                        {item.pinned ? " · homepage" : ""}
                         {item.hidden ? " · hidden" : ""}
                         {item.pendingApproval ? " · pending approval" : ""}
                         {!item.brandConsent || !item.influencerConsent ? " · consent incomplete" : ""}
                       </span>
                     </p>
+                    {!videoOk ? (
+                      <span className="mt-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200/80">
+                        {txt.noVideoBadge}
+                      </span>
+                    ) : null}
                     {item.postUrlUpdatedAt || item.postUrlUpdatedBy ? (
                       <p className="mt-0.5 text-[11px] text-slate-400">
                         {txt.audit}: {item.postUrlUpdatedBy || "—"}

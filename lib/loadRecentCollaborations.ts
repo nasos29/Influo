@@ -1,7 +1,6 @@
 import { supabaseService } from "@/lib/apiAuth";
 import { publicProfilePath } from "@/lib/profileSlug";
-import { isAllowedTopPostUrl } from "@/lib/topPosts";
-import { detectProvider } from "@/lib/videoThumbnail";
+import { showcasePostFields } from "@/lib/showcasePostUrl";
 
 export type RecentCollaborationCard = {
   id: string;
@@ -20,6 +19,17 @@ export type RecentCollaborationCard = {
   selfReportedViews: number | null;
   selfReportedReach: number | null;
   pinned: boolean;
+};
+
+export { showcasePostFields } from "@/lib/showcasePostUrl";
+
+export type LoadRecentCollaborationsOptions = {
+  /**
+   * homepage: if any admin-pinned (showcase_admin_pinned) rows have a valid video,
+   * return only those; otherwise fall back to latest with video.
+   * listing: all eligible with video (pinned sort first). Used by /collaborations.
+   */
+  surface?: "homepage" | "listing";
 };
 
 const PROPOSAL_COLS =
@@ -43,21 +53,19 @@ function numOrNull(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function postFields(urlRaw: unknown): {
-  postUrl: string | null;
-  postProvider: RecentCollaborationCard["postProvider"];
-} {
-  const url = typeof urlRaw === "string" ? urlRaw.trim() : "";
-  if (!url || !isAllowedTopPostUrl(url)) return { postUrl: null, postProvider: null };
-  return { postUrl: url, postProvider: detectProvider(url) };
-}
-
 /**
- * Public recent collaborations: only rows with BOTH consents, not admin-hidden.
- * Narrow selects + batched influencer/brand lookups. Limit keeps egress small.
+ * Public recent collaborations: dual consent, not admin-hidden, and a valid
+ * video/post URL (proposals.published_post_url or campaign_applications.deliverable_url).
+ * Completed without a video must never appear publicly.
  */
-export async function loadRecentCollaborations(limit = 12): Promise<RecentCollaborationCard[]> {
+export async function loadRecentCollaborations(
+  limit = 12,
+  options: LoadRecentCollaborationsOptions = {}
+): Promise<RecentCollaborationCard[]> {
+  const surface = options.surface === "homepage" ? "homepage" : "listing";
   const take = Math.min(Math.max(1, Math.floor(limit)), 24);
+  // Over-fetch: many completed rows lack a valid post URL and are dropped below.
+  const fetchLimit = Math.min(Math.max(take * 4, 32), 80);
   const admin = supabaseService();
 
   type Candidate = {
@@ -88,9 +96,10 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
       .eq("brand_showcase_consent", true)
       .eq("influencer_showcase_consent", true)
       .eq("showcase_admin_hidden", false)
+      .not("published_post_url", "is", null)
       .order("showcase_admin_pinned", { ascending: false })
       .order("agreement_accepted_at", { ascending: false, nullsFirst: false })
-      .limit(take);
+      .limit(fetchLimit);
     let error = first.error;
     let rows: Record<string, unknown>[] = Array.isArray(first.data)
       ? (first.data as unknown as Record<string, unknown>[])
@@ -103,9 +112,10 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
         .eq("brand_showcase_consent", true)
         .eq("influencer_showcase_consent", true)
         .eq("showcase_admin_hidden", false)
+        .not("published_post_url", "is", null)
         .order("showcase_admin_pinned", { ascending: false })
         .order("agreement_accepted_at", { ascending: false, nullsFirst: false })
-        .limit(take);
+        .limit(fetchLimit);
       error = second.error;
       rows = Array.isArray(second.data)
         ? (second.data as unknown as Record<string, unknown>[])
@@ -119,6 +129,9 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
         if (!influencerId) continue;
         // Exclude creator-submitted links still awaiting brand approval (column may be missing pre-migration).
         if (raw.published_post_pending_approval === true) continue;
+        const postUrlRaw =
+          typeof raw.published_post_url === "string" ? raw.published_post_url.trim() : "";
+        if (!postUrlRaw) continue;
         const completedAt =
           typeof raw.agreement_accepted_at === "string" ? raw.agreement_accepted_at : null;
         candidates.push({
@@ -131,7 +144,7 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
           influencerId,
           category: typeof raw.service_type === "string" ? raw.service_type : null,
           completedAt,
-          postUrlRaw: typeof raw.published_post_url === "string" ? raw.published_post_url : null,
+          postUrlRaw,
           selfReportedViews: numOrNull(raw.self_reported_views),
           selfReportedReach: numOrNull(raw.self_reported_reach),
           pinned: !!raw.showcase_admin_pinned,
@@ -151,9 +164,10 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
       .eq("brand_showcase_consent", true)
       .eq("influencer_showcase_consent", true)
       .eq("showcase_admin_hidden", false)
+      .not("deliverable_url", "is", null)
       .order("showcase_admin_pinned", { ascending: false })
       .order("reviewed_at", { ascending: false, nullsFirst: false })
-      .limit(take);
+      .limit(fetchLimit);
     if (error) {
       // Schema may not have new columns yet locally — fail soft.
       console.error("loadRecentCollaborations campaigns", error);
@@ -161,6 +175,9 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
       for (const row of data) {
         const influencerId = typeof row.influencer_id === "string" ? row.influencer_id : "";
         if (!influencerId) continue;
+        const postUrlRaw =
+          typeof row.deliverable_url === "string" ? row.deliverable_url.trim() : "";
+        if (!postUrlRaw) continue;
         const campaignRaw = row.brand_campaigns as unknown;
         const campaign = (Array.isArray(campaignRaw) ? campaignRaw[0] : campaignRaw) as {
           title?: string | null;
@@ -192,7 +209,7 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
             (typeof campaign?.title === "string" && campaign.title) ||
             null,
           completedAt,
-          postUrlRaw: typeof row.deliverable_url === "string" ? row.deliverable_url : null,
+          postUrlRaw,
           selfReportedViews: numOrNull(row.self_reported_views),
           selfReportedReach: numOrNull(row.self_reported_reach),
           pinned: !!row.showcase_admin_pinned,
@@ -204,11 +221,18 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
     console.error("loadRecentCollaborations campaigns", error);
   }
 
-  candidates.sort((a, b) => {
+  // Drop invalid / non-social URLs before sorting (empty grey cards must never ship).
+  const withVideo = candidates.filter((c) => showcasePostFields(c.postUrlRaw).postUrl);
+
+  withVideo.sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     return b.sortAt - a.sortAt;
   });
-  const picked = candidates.slice(0, take);
+
+  const pinnedWithVideo = withVideo.filter((c) => c.pinned);
+  const pool =
+    surface === "homepage" && pinnedWithVideo.length > 0 ? pinnedWithVideo : withVideo;
+  const picked = pool.slice(0, take);
   if (picked.length === 0) return [];
 
   const influencerIds = [...new Set(picked.map((c) => c.influencerId))];
@@ -250,7 +274,7 @@ export async function loadRecentCollaborations(limit = 12): Promise<RecentCollab
 
   return picked.map((c) => {
     const inf = infById.get(c.influencerId);
-    const { postUrl, postProvider } = postFields(c.postUrlRaw);
+    const { postUrl, postProvider } = showcasePostFields(c.postUrlRaw);
     const rating = numOrNull(inf?.avg_rating);
     return {
       id: c.id,
