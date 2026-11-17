@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, supabaseService } from "@/lib/apiAuth";
 import { ilikePattern, pageBounds, parsePositiveInt, sevenDaysAgoIso } from "@/lib/adminPaging";
+import {
+  applyProposalDisplayStatusFilter,
+  normalizeProposalDisplayStatusFilter,
+} from "@/lib/proposalDisplayStatus";
 
 const LIST_COLUMNS =
-  "id, created_at, brand_name, budget, service_type, status, influencer_id, influencers(display_name)";
+  "id, created_at, brand_name, budget, service_type, status, influencer_id, influencer_agreement_accepted, brand_agreement_accepted, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, published_post_url, published_post_pending_approval, influencers(display_name)";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
-const STATUSES = new Set(["pending", "accepted", "completed", "rejected", "cancelled", "canceled"]);
 
 function influencerName(row: Record<string, unknown>): string {
   const raw = row.influencers;
@@ -35,7 +38,7 @@ export async function GET(request: Request) {
       parsePositiveInt(url.searchParams.get("pageSize"), DEFAULT_PAGE_SIZE)
     );
     const q = (url.searchParams.get("q") || "").trim();
-    const status = (url.searchParams.get("status") || "all").toLowerCase();
+    const status = normalizeProposalDisplayStatusFilter(url.searchParams.get("status"));
     const since = sevenDaysAgoIso();
     const { from, to } = pageBounds(page, pageSize);
 
@@ -49,13 +52,15 @@ export async function GET(request: Request) {
       influencerIds = (matches || []).map((row) => row.id as string | number);
     }
 
-    let listQuery = db
+    let listQuery: any = db
       .from("proposals")
       .select(LIST_COLUMNS, { count: "exact" })
       .order("created_at", { ascending: false })
       .range(from, to);
 
-    if (STATUSES.has(status)) listQuery = listQuery.eq("status", status);
+    if (status !== "all") {
+      listQuery = applyProposalDisplayStatusFilter(listQuery, status);
+    }
 
     if (q) {
       const pattern = ilikePattern(q);

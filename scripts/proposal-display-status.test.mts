@@ -1,0 +1,130 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import {
+  deriveProposalDisplayStatus,
+  deriveProposalDisplayStatusKey,
+  normalizeProposalDisplayStatusFilter,
+  proposalDisplayStatusLabel,
+} from "../lib/proposalDisplayStatus.ts";
+
+test("normalize maps legacy accepted/canceled", () => {
+  assert.equal(normalizeProposalDisplayStatusFilter("accepted"), "awaiting_agreement");
+  assert.equal(normalizeProposalDisplayStatusFilter("canceled"), "cancelled");
+  assert.equal(normalizeProposalDisplayStatusFilter("awaiting_approval"), "awaiting_approval");
+  assert.equal(normalizeProposalDisplayStatusFilter("all"), "all");
+  assert.equal(normalizeProposalDisplayStatusFilter("nope"), "all");
+});
+
+test("derive pending / rejected / cancelled", () => {
+  assert.equal(deriveProposalDisplayStatusKey({ status: "pending" }), "pending");
+  assert.equal(deriveProposalDisplayStatusKey({ status: "rejected" }), "rejected");
+  assert.equal(deriveProposalDisplayStatusKey({ status: "cancelled" }), "cancelled");
+  assert.equal(deriveProposalDisplayStatusKey({ status: "canceled" }), "cancelled");
+});
+
+test("accepted -> awaiting agreement", () => {
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "accepted",
+      influencer_agreement_accepted: false,
+      brand_agreement_accepted: false,
+    }),
+    "awaiting_agreement"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "accepted" }, "el").label,
+    "Αναμονή συμφωνίας"
+  );
+});
+
+test("completed without deliverable -> in progress", () => {
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      influencer_agreement_accepted: true,
+      brand_agreement_accepted: true,
+    }),
+    "in_progress"
+  );
+  assert.equal(proposalDisplayStatusLabel("in_progress", "el"), "Σε εξέλιξη");
+});
+
+test("link submitted awaiting brand -> awaiting approval", () => {
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      delivery_mode: "link",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+      published_post_url: "https://example.com/post",
+    }),
+    "awaiting_approval"
+  );
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      published_post_url: "https://example.com/post",
+      published_post_pending_approval: true,
+    }),
+    "awaiting_approval"
+  );
+});
+
+test("event confirm pending -> needs admin", () => {
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      delivery_mode: "event",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    }),
+    "needs_admin"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "completed", delivery_mode: "event", delivery_submitted_at: "x" }, "el")
+      .label,
+    "Χρειάζεται admin"
+  );
+});
+
+test("real completion stamps -> completed", () => {
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      delivery_confirmed_at: "2026-11-02T00:00:00.000Z",
+    }),
+    "completed"
+  );
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      auto_completed_at: "2026-11-02T00:00:00.000Z",
+      delivery_mode: "link",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    }),
+    "completed"
+  );
+});
+
+test("badge classes cover waiting / progress / done / reject / cancel / admin", () => {
+  const waiting = deriveProposalDisplayStatus({ status: "pending" }, "en");
+  assert.match(waiting.badgeClass, /amber/);
+  const progress = deriveProposalDisplayStatus({ status: "completed" }, "en");
+  assert.match(progress.badgeClass, /blue/);
+  const done = deriveProposalDisplayStatus(
+    { status: "completed", delivery_confirmed_at: "2026-11-01T00:00:00.000Z" },
+    "en"
+  );
+  assert.match(done.badgeClass, /emerald/);
+  const rejected = deriveProposalDisplayStatus({ status: "rejected" }, "en");
+  assert.match(rejected.badgeClass, /red/);
+  const cancelled = deriveProposalDisplayStatus({ status: "cancelled" }, "en");
+  assert.match(cancelled.badgeClass, /slate/);
+  const admin = deriveProposalDisplayStatus(
+    {
+      status: "completed",
+      delivery_mode: "event",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+    },
+    "en"
+  );
+  assert.match(admin.badgeClass, /purple/);
+});
