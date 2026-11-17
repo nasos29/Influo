@@ -24,7 +24,14 @@ function siteUrl(): string {
 
 function asMessage(row: Record<string, unknown>): SummaryMessage | null {
   if (!row.id || !row.conversation_id) return null;
-  const sender = row.sender_type === "brand" ? "brand" : row.sender_type === "influencer" ? "influencer" : null;
+  const sender =
+    row.sender_type === "brand"
+      ? "brand"
+      : row.sender_type === "influencer"
+        ? "influencer"
+        : row.sender_type === "admin"
+          ? "admin"
+          : null;
   if (!sender) return null;
   return {
     id: String(row.id),
@@ -38,15 +45,18 @@ function asMessage(row: Record<string, unknown>): SummaryMessage | null {
 }
 
 function asConversation(row: Record<string, unknown>): SummaryConversation | null {
-  if (!row.id || !row.influencer_id) return null;
+  if (!row.id) return null;
+  const kind = typeof row.conversation_kind === "string" ? row.conversation_kind : "peer";
+  if (kind !== "admin" && !row.influencer_id) return null;
   return {
     id: String(row.id),
-    influencer_id: String(row.influencer_id),
+    influencer_id: row.influencer_id ? String(row.influencer_id) : null,
     influencer_name: typeof row.influencer_name === "string" ? row.influencer_name : null,
     influencer_email: typeof row.influencer_email === "string" ? row.influencer_email : null,
     brand_email: typeof row.brand_email === "string" ? row.brand_email : null,
     brand_name: typeof row.brand_name === "string" ? row.brand_name : null,
     last_message_at: typeof row.last_message_at === "string" ? row.last_message_at : null,
+    conversation_kind: kind,
   };
 }
 
@@ -82,7 +92,9 @@ export function createSupabaseSummaryStore(): SummaryStore {
       if (!ids.length) return [];
       const { data, error } = await admin
         .from("conversations")
-        .select("id, influencer_id, influencer_name, influencer_email, brand_email, brand_name, last_message_at")
+        .select(
+          "id, conversation_kind, influencer_id, influencer_name, influencer_email, brand_email, brand_name, last_message_at"
+        )
         .in("id", ids);
       if (error) throw new Error(error.message);
       return (data || [])
@@ -189,8 +201,9 @@ export function createSupabaseAdminSummaryStore(): AdminSummaryStore {
       if (!ids.length) return [];
       const { data, error } = await admin
         .from("conversations")
-        .select("id, influencer_name, brand_name, brand_email, last_message_at, closed_at")
-        .in("id", ids);
+        .select("id, conversation_kind, influencer_name, brand_name, brand_email, last_message_at, closed_at")
+        .in("id", ids)
+        .neq("conversation_kind", "admin");
       if (error) throw new Error(error.message);
       return (data || [])
         .map((row) => asAdminConversation(row as Record<string, unknown>))

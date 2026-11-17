@@ -6,7 +6,7 @@ export const DEFAULT_QUIET_MINUTES = 20;
 export type SummaryMessage = {
   id: string;
   conversation_id: string;
-  sender_type: "influencer" | "brand";
+  sender_type: "influencer" | "brand" | "admin";
   content: string;
   created_at: string;
   read: boolean;
@@ -15,12 +15,13 @@ export type SummaryMessage = {
 
 export type SummaryConversation = {
   id: string;
-  influencer_id: string;
+  influencer_id: string | null;
   influencer_name: string | null;
   influencer_email: string | null;
   brand_email: string | null;
   brand_name: string | null;
   last_message_at: string | null;
+  conversation_kind?: string | null;
 };
 
 export type SummaryStore = {
@@ -38,7 +39,7 @@ export type SummaryMail = {
   subject: string;
   html: string;
   conversationId: string;
-  recipient: "influencer" | "brand";
+  recipient: "influencer" | "brand" | "admin";
   messageIds: string[];
 };
 
@@ -77,11 +78,12 @@ export function clipPreview(text: string, max = 140): string {
 
 export function conversationLink(
   siteUrl: string,
-  recipient: "influencer" | "brand",
+  recipient: "influencer" | "brand" | "admin",
   conversationId: string
 ): string {
   const base = siteUrl.replace(/\/$/, "");
   const id = encodeURIComponent(conversationId);
+  if (recipient === "admin") return `${base}/admin?tab=admin_chat&conversation=${id}`;
   if (recipient === "influencer") return `${base}/dashboard?tab=messages&conversation=${id}`;
   return `${base}/brand/dashboard?tab=messages&conversation=${id}`;
 }
@@ -136,7 +138,7 @@ export function buildSummaryEmail(input: {
 
 type PendingDigest = {
   conversation: SummaryConversation;
-  recipient: "influencer" | "brand";
+  recipient: "influencer" | "brand" | "admin";
   messages: SummaryMessage[];
 };
 
@@ -158,6 +160,19 @@ export function digestsForConversation(
       m.email_sent === false
   );
   const out: PendingDigest[] = [];
+  const isAdminThread = conversation.conversation_kind === "admin";
+  if (isAdminThread) {
+    const forUser = pending.filter((m) => m.sender_type === "admin");
+    const forAdmin = pending.filter((m) => m.sender_type === "influencer" || m.sender_type === "brand");
+    if (forUser.length) {
+      const recipient = conversation.influencer_id ? "influencer" : "brand";
+      out.push({ conversation, recipient, messages: forUser });
+    }
+    if (forAdmin.length) {
+      out.push({ conversation, recipient: "admin", messages: forAdmin });
+    }
+    return out;
+  }
   const forInfluencer = pending.filter((m) => m.sender_type === "brand");
   const forBrand = pending.filter((m) => m.sender_type === "influencer");
   if (forInfluencer.length) {
@@ -228,12 +243,18 @@ export async function deliverSummaries(args: {
     }
     used += 1;
     for (const digest of digests) {
-      const to =
-        digest.recipient === "influencer"
+      let to: string | null = null;
+      if (digest.recipient === "admin") {
+        to = (process.env.ADMIN_EMAIL || "").trim().toLowerCase() || null;
+      } else if (digest.recipient === "influencer") {
+        to = conversation.influencer_id
           ? await args.store.influencerEmail(conversation.influencer_id, conversation.influencer_email)
-          : conversation.brand_email
-            ? await args.store.brandEmail(conversation.brand_email)
-            : null;
+          : null;
+      } else {
+        to = conversation.brand_email
+          ? await args.store.brandEmail(conversation.brand_email)
+          : null;
+      }
       if (!to) {
         errors.push(`missing email for ${digest.recipient} on ${conversation.id}`);
         skipped += 1;
@@ -248,9 +269,11 @@ export async function deliverSummaries(args: {
       const claimedSet = new Set(claimed);
       const claimedMessages = digest.messages.filter((m) => claimedSet.has(m.id));
       const counterpart =
-        digest.recipient === "influencer"
-          ? conversation.brand_name || "Επιχείρηση"
-          : conversation.influencer_name || "Influencer";
+        digest.recipient === "admin"
+          ? conversation.influencer_name || conversation.brand_name || "Χρήστης"
+          : digest.recipient === "influencer"
+            ? conversation.brand_name || conversation.influencer_name || "Influo"
+            : conversation.influencer_name || conversation.brand_name || "Influo";
       const link = conversationLink(args.siteUrl, digest.recipient, conversation.id);
       const { subject, html } = buildSummaryEmail({
         count: claimedMessages.length,
