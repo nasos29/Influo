@@ -13,6 +13,8 @@ import {
   offPlatformTipContent,
   OFF_PLATFORM_TIP_MARKER,
 } from "@/lib/offPlatformContact";
+import { isAdminConversationKind } from "@/lib/adminChat";
+import { notifyAdminOfUserReply } from "@/lib/adminChatNotify";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 
 type Attachment = { url: string; filename?: string; size?: number; content_type?: string };
@@ -317,7 +319,7 @@ export async function POST(req: Request) {
       const admin = supabaseService();
       const { data: existingRows } = await admin
         .from("conversations")
-        .select("id, closed_at, influencer_id, brand_email")
+        .select("id, closed_at, influencer_id, brand_email, conversation_kind")
         .eq("influencer_id", influencerId)
         .ilike("brand_email", brandEmail)
         .limit(1);
@@ -429,12 +431,28 @@ export async function POST(req: Request) {
     const admin = supabaseService();
     const { data: conv } = await admin
       .from("conversations")
-      .select("id, influencer_id, influencer_name, brand_email, brand_name, proposal_id")
+      .select("id, conversation_kind, influencer_id, influencer_name, brand_email, brand_name, proposal_id")
       .eq("id", conversationId)
       .maybeSingle();
     if (!conv) return NextResponse.json({ error: "Conversation not found" }, { status: 404 });
-    if (!isChatParticipant(actor, conv) || (senderType === "influencer" && actor.influencerId !== conv.influencer_id) || (senderType === "brand" && actor.brandEmail !== String(conv.brand_email || "").toLowerCase().trim())) {
+    const adminThread = isAdminConversationKind(
+      typeof conv.conversation_kind === "string" ? conv.conversation_kind : null
+    );
+    if (
+      !isChatParticipant(actor, conv) ||
+      (senderType === "influencer" && actor.influencerId !== conv.influencer_id) ||
+      (senderType === "brand" &&
+        actor.brandEmail !== String(conv.brand_email || "").toLowerCase().trim())
+    ) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (adminThread) {
+      if (senderType === "influencer" && !conv.influencer_id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (senderType === "brand" && !conv.brand_email) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
     }
 
     const senderId = senderIdFor(actor, senderType, conv);
@@ -453,7 +471,7 @@ export async function POST(req: Request) {
       read: false,
       sent_via_email: false,
       email_sent: false,
-      admin_notified: false,
+      admin_notified: adminThread ? true : false,
     });
     if (inserted.error || !inserted.data) return NextResponse.json({ error: inserted.error || "Insert failed" }, { status: 500 });
 
@@ -464,26 +482,42 @@ export async function POST(req: Request) {
       .update({ last_message_at: now, [updateField]: now, closed_at: null })
       .eq("id", conversationId);
 
-    deferAfterResponse(() =>
-      notifyPush({
-        senderType,
-        conversationId,
-        preview: contentForNotify,
-        influencerId: conv.influencer_id,
-        influencerName: conv.influencer_name || "Influencer",
-        brandEmail: String(conv.brand_email || ""),
-        brandName: conv.brand_name || "Επιχείρηση",
-        skipBecauseProposal: false,
-      })
-    );
-    await track(conv.influencer_id, "message_sent", conv.brand_email, conv.brand_name, {
-      conversation_id: conversationId,
-      source: "messages_api",
-      sender_type: senderType,
-    });
+    if (adminThread) {
+      const fromName =
+        senderType === "influencer"
+          ? conv.influencer_name || "Influencer"
+          : conv.brand_name || String(conv.brand_email || "Brand");
+      deferAfterResponse(() =>
+        notifyAdminOfUserReply({
+          conversationId,
+          preview: contentForNotify,
+          fromName,
+        })
+      );
+    } else {
+      deferAfterResponse(() =>
+        notifyPush({
+          senderType,
+          conversationId,
+          preview: contentForNotify,
+          influencerId: String(conv.influencer_id || ""),
+          influencerName: conv.influencer_name || "Influencer",
+          brandEmail: String(conv.brand_email || ""),
+          brandName: conv.brand_name || "Επιχείρηση",
+          skipBecauseProposal: false,
+        })
+      );
+      if (conv.influencer_id) {
+        await track(String(conv.influencer_id), "message_sent", conv.brand_email, conv.brand_name, {
+          conversation_id: conversationId,
+          source: "messages_api",
+          sender_type: senderType,
+        });
+      }
+    }
 
     let safetyTip: Record<string, unknown> | null = null;
-    if (senderId) {
+    if (senderId && !adminThread) {
       safetyTip = await maybeInsertDeliverableTip({
         conversationId,
         senderId,
@@ -525,7 +559,7 @@ export async function GET(req: Request) {
     if (conversationId) {
       const { data: conv } = await admin
         .from("conversations")
-        .select("id, influencer_id, brand_email")
+        .select("id, influencer_id, brand_email, conversation_kind")
         .eq("id", conversationId)
         .maybeSingle();
       if (!conv || !isChatParticipant(actor, conv)) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, supabaseService } from "@/lib/apiAuth";
+import { ADMIN_CHAT_DISPLAY_NAME } from "@/lib/adminChat";
 import { ilikePattern, pageBounds, parsePositiveInt } from "@/lib/adminPaging";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -8,13 +9,14 @@ const MESSAGE_LIMIT_DEFAULT = 80;
 const MESSAGE_LIMIT_MAX = 100;
 
 const CONVERSATION_COLUMNS =
-  "id, influencer_id, influencer_name, influencer_email, brand_email, brand_name, proposal_id, created_at, last_message_at, closed_at";
+  "id, conversation_kind, influencer_id, influencer_name, influencer_email, brand_email, brand_name, proposal_id, created_at, last_message_at, closed_at";
 const MESSAGE_COLUMNS =
   "id, conversation_id, sender_id, sender_type, content, attachments, read, sent_via_email, created_at";
 
 /**
- * Admin read of brand↔influencer threads. Lists are one page; a thread loads a
+ * Admin read of brand↔influencer (peer) threads. Lists are one page; a thread loads a
  * bounded message window. This route never updates messages, presence, or email_sent.
+ * Admin↔user inbox lives at /api/admin/chat.
  */
 export async function GET(request: Request) {
   try {
@@ -75,12 +77,15 @@ export async function GET(request: Request) {
       const messages = raw.slice(0, limit).reverse().map((row) => {
         const senderType = String((row as { sender_type?: string }).sender_type || "");
         const isCreator = senderType === "influencer";
+        const isAdmin = senderType === "admin";
         return {
           ...row,
-          sender_name: isCreator
-            ? conv?.influencer_name || ""
-            : conv?.brand_name || conv?.brand_email || "",
-          sender_role: isCreator ? "creator" : "brand",
+          sender_name: isAdmin
+            ? ADMIN_CHAT_DISPLAY_NAME
+            : isCreator
+              ? conv?.influencer_name || ""
+              : conv?.brand_name || conv?.brand_email || "",
+          sender_role: isAdmin ? "admin" : isCreator ? "creator" : "brand",
         };
       });
       return NextResponse.json({ success: true, messages, hasMore });
@@ -99,6 +104,7 @@ export async function GET(request: Request) {
     let listQuery = db
       .from("conversations")
       .select(CONVERSATION_COLUMNS, { count: "exact" })
+      .neq("conversation_kind", "admin")
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .range(from, to);
 
@@ -117,14 +123,23 @@ export async function GET(request: Request) {
         ? db
             .from("conversations")
             .select("id", { count: "exact", head: true })
+            .neq("conversation_kind", "admin")
             .gt("last_message_at", newerThan)
         : null;
 
     const [listResult, totalCount, openCount, closedCount, newerResult] = await Promise.all([
       listQuery,
-      db.from("conversations").select("id", { count: "exact", head: true }),
-      db.from("conversations").select("id", { count: "exact", head: true }).is("closed_at", null),
-      db.from("conversations").select("id", { count: "exact", head: true }).not("closed_at", "is", null),
+      db.from("conversations").select("id", { count: "exact", head: true }).neq("conversation_kind", "admin"),
+      db
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .neq("conversation_kind", "admin")
+        .is("closed_at", null),
+      db
+        .from("conversations")
+        .select("id", { count: "exact", head: true })
+        .neq("conversation_kind", "admin")
+        .not("closed_at", "is", null),
       newerQuery,
     ]);
 

@@ -74,6 +74,8 @@ import {
   type AdminBrandCampaign,
 } from "@/components/admin/adminCampaignTypes";
 import { formatChatDayLabel, sameChatDay } from "@/lib/chatTime";
+import ChatBubbleText from "@/components/ChatBubbleText";
+import AdminChatInbox, { openAdminChatWithUser } from "@/components/AdminChatInbox";
 import { logoutEverywhere } from "@/lib/authSession";
 import {
   adminCampaignSeenKey,
@@ -269,9 +271,9 @@ interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
-  sender_type: 'influencer' | 'brand';
+  sender_type: 'influencer' | 'brand' | 'admin';
   sender_name?: string;
-  sender_role?: "creator" | "brand";
+  sender_role?: "creator" | "brand" | "admin";
   content: string;
   attachments?: MessageAttachment[] | null;
   read: boolean;
@@ -2195,6 +2197,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [conversationMessages, setConversationMessages] = useState<Message[]>([]);
   const [showConversationsDrawer, setShowConversationsDrawer] = useState(false); // Mobile: toggle conversations drawer
+  /** peer = brand↔creator monitor (read-only); influo = admin 1:1 inbox */
+  const [conversationsMode, setConversationsMode] = useState<"peer" | "influo">("peer");
+  const [adminChatFocusId, setAdminChatFocusId] = useState<string | null>(null);
+  const [openingAdminChat, setOpeningAdminChat] = useState<string | null>(null);
   const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
   const [blogSearchQuery, setBlogSearchQuery] = useState("");
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
@@ -3421,11 +3427,38 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const linkedConversationId = useRef<string | null>(null);
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("conversation");
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("conversation");
+    const tab = params.get("tab");
+    if (tab === "admin_chat") {
+      setActiveTab("conversations");
+      setConversationsMode("influo");
+      if (id) setAdminChatFocusId(id);
+      return;
+    }
     if (!id) return;
     linkedConversationId.current = id;
     setActiveTab("conversations");
+    setConversationsMode("peer");
   }, []);
+
+  const startAdminChat = async (userType: "influencer" | "brand", userId: string) => {
+    const key = `${userType}:${userId}`;
+    if (openingAdminChat === key) return;
+    setOpeningAdminChat(key);
+    try {
+      const result = await openAdminChatWithUser({ userType, userId });
+      if ("error" in result) {
+        notify(lang === "el" ? `Σφάλμα: ${result.error}` : `Error: ${result.error}`);
+        return;
+      }
+      setActiveTab("conversations");
+      setConversationsMode("influo");
+      setAdminChatFocusId(result.conversationId);
+    } finally {
+      setOpeningAdminChat(null);
+    }
+  };
   // Deep link from a public profile: /admin?influencer=<id> opens that influencer's editor.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("influencer");
@@ -4406,6 +4439,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           <button type="button" onClick={() => { void openEditUser(u); }} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50">
             {txt.edit}
           </button>
+          <button
+            type="button"
+            onClick={() => void startAdminChat("influencer", String(u.id))}
+            disabled={openingAdminChat === `influencer:${u.id}`}
+            className="inline-flex min-h-11 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-900 disabled:opacity-50"
+          >
+            {openingAdminChat === `influencer:${u.id}` ? "…" : { el: "Μήνυμα", en: "Message" }[lang]}
+          </button>
           {!u.approved && (
             <button type="button" onClick={() => toggleApproval(u.id, false, u.contact_email || "", u.display_name)} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-3 text-sm font-medium text-white">
               {txt.btn_approve}
@@ -5375,6 +5416,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                         <button type="button" onClick={() => { setSelectedBrand(b); setShowBrandEditModal(true); }} className="inline-flex min-h-11 items-center rounded-lg bg-slate-900 px-3 text-sm font-medium text-white">
                           {{ el: "Επεξεργασία", en: "Edit" }[lang]}
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => void startAdminChat("brand", String(b.id))}
+                          disabled={openingAdminChat === `brand:${b.id}`}
+                          className="inline-flex min-h-11 items-center rounded-lg border border-sky-200 bg-sky-50 px-3 text-sm font-medium text-sky-900 disabled:opacity-50"
+                        >
+                          {openingAdminChat === `brand:${b.id}` ? "…" : { el: "Μήνυμα", en: "Message" }[lang]}
+                        </button>
                         {!b.verified && (
                           <button type="button" onClick={() => handleToggleBrandVerification(b.id, false)} className="inline-flex min-h-11 items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 text-sm font-medium text-emerald-800">
                             {{ el: "Έγκριση", en: "Approve" }[lang]}
@@ -5474,6 +5523,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   className="inline-flex min-h-11 items-center px-3 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                   {lang === 'el' ? 'Επεξεργασία' : 'Edit'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void startAdminChat("brand", String(b.id))}
+                                  disabled={openingAdminChat === `brand:${b.id}` || updatingBrand === b.id || deletingBrand === b.id}
+                                  className="inline-flex min-h-11 items-center px-3 text-sm rounded-lg border border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 disabled:opacity-50"
+                                >
+                                  {openingAdminChat === `brand:${b.id}` ? "…" : { el: "Μήνυμα", en: "Message" }[lang]}
                                 </button>
                                 {!b.verified && (
                                   <button
@@ -6381,25 +6438,62 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
           {activeTab === "conversations" && (
             <div>
-              <div className="p-4 border-b border-slate-200 flex flex-col gap-3 sm:flex-row">
-                <input
-                  type="search"
-                  value={conversationSearch}
-                  onChange={(e) => setConversationSearch(e.target.value)}
-                  placeholder={{ el: "Αναζήτηση ονόματος ή email…", en: "Search name or email…" }[lang]}
-                  className="min-h-11 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
-                />
-                <select
-                  value={conversationStatus}
-                  onChange={(e) => setConversationStatus(e.target.value as typeof conversationStatus)}
-                  className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm"
-                >
-                  <option value="all">{{ el: "Όλες", en: "All" }[lang]}</option>
-                  <option value="open">{{ el: "Ανοιχτές", en: "Open" }[lang]}</option>
-                  <option value="closed">{{ el: "Κλειστές", en: "Closed" }[lang]}</option>
-                </select>
+              <div className="p-4 border-b border-slate-200 flex flex-col gap-3">
+                <div className="inline-flex rounded-lg border border-slate-200 p-1 bg-slate-50 self-start">
+                  <button
+                    type="button"
+                    onClick={() => setConversationsMode("peer")}
+                    className={`min-h-10 rounded-md px-3 text-sm font-medium ${
+                      conversationsMode === "peer" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
+                    }`}
+                  >
+                    {{ el: "Παρακολούθηση", en: "Monitor" }[lang]}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConversationsMode("influo")}
+                    className={`min-h-10 rounded-md px-3 text-sm font-medium ${
+                      conversationsMode === "influo" ? "bg-white text-sky-900 shadow-sm" : "text-slate-600"
+                    }`}
+                  >
+                    {{ el: "Influo inbox", en: "Influo inbox" }[lang]}
+                  </button>
+                </div>
+                {conversationsMode === "peer" ? (
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                      type="search"
+                      value={conversationSearch}
+                      onChange={(e) => setConversationSearch(e.target.value)}
+                      placeholder={{ el: "Αναζήτηση ονόματος ή email…", en: "Search name or email…" }[lang]}
+                      className="min-h-11 flex-1 rounded-lg border border-slate-300 px-3 text-sm"
+                    />
+                    <select
+                      value={conversationStatus}
+                      onChange={(e) => setConversationStatus(e.target.value as typeof conversationStatus)}
+                      className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm"
+                    >
+                      <option value="all">{{ el: "Όλες", en: "All" }[lang]}</option>
+                      <option value="open">{{ el: "Ανοιχτές", en: "Open" }[lang]}</option>
+                      <option value="closed">{{ el: "Κλειστές", en: "Closed" }[lang]}</option>
+                    </select>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {{
+                      el: "1:1 με χρήστες. Οι συνομιλίες brand↔δημιουργό μένουν μόνο για ανάγνωση στην Παρακολούθηση.",
+                      en: "1:1 with users. Brand↔creator threads stay read-only under Monitor.",
+                    }[lang]}
+                  </p>
+                )}
               </div>
-              {conversationsLoading && conversations.length === 0 ? (
+              {conversationsMode === "influo" ? (
+                <AdminChatInbox
+                  lang={lang === "en" ? "en" : "el"}
+                  initialConversationId={adminChatFocusId}
+                  onOpened={(id) => setAdminChatFocusId(id)}
+                />
+              ) : conversationsLoading && conversations.length === 0 ? (
                 <AdminListSkeleton />
               ) : conversationsError && conversations.length === 0 ? (
                 <AdminLoadError lang={lang} timedOut={conversationsError === "timeout"} onRetry={() => void fetchConversations({ page: conversationsPage })} />
@@ -6469,7 +6563,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </div>
 
                   {/* Messages Area */}
-                  <div className="flex-1 overflow-y-auto p-4 sm:p-6 relative z-10">
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 relative z-10 min-w-0">
                     {/* Mobile: Back button to show conversations list */}
                     {selectedConversation && (
                       <button
@@ -6484,16 +6578,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     )}
                     {selectedConversation ? (
                       <>
-                        <div className="mb-4 pb-4 border-b border-slate-200">
-                          <h3 className="font-semibold text-slate-900 text-sm sm:text-base">
+                        <div className="mb-4 pb-4 border-b border-slate-200 min-w-0">
+                          <h3 className="font-semibold text-slate-900 text-sm sm:text-base break-words">
                             {selectedConversation.influencer_name} ↔ {selectedConversation.brand_name || selectedConversation.brand_email}
                           </h3>
-                          <div className="text-sm text-slate-500 mt-1">
+                          <div className="text-sm text-slate-500 mt-1 break-all">
                             {{ el: "Δημιουργός", en: "Creator" }[lang]}: {selectedConversation.influencer_email} · {{ el: "Επιχείρηση", en: "Brand" }[lang]}: {selectedConversation.brand_email}
                             {selectedConversation.closed_at ? { el: " · Κλειστή", en: " · Closed" }[lang] : ""}
                           </div>
                         </div>
-                        <div className="space-y-3 rounded-xl bg-slate-50 p-3">
+                        <div className="space-y-3 rounded-xl bg-slate-50 p-3 overflow-x-hidden min-w-0">
                           {messagesLoading && conversationMessages.length === 0 ? (
                             <AdminListSkeleton rows={2} />
                           ) : messagesError && conversationMessages.length === 0 ? (
@@ -6503,14 +6597,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           ) : (
                             conversationMessages.map((msg, index) => {
                               const isInfluencer = msg.sender_type === "influencer";
+                              const isAdminMsg = msg.sender_type === "admin";
                               const prev = conversationMessages[index - 1];
                               const showDay = !prev || !sameChatDay(prev.created_at, msg.created_at);
                               const senderName = msg.sender_name || (isInfluencer ? selectedConversation.influencer_name : selectedConversation.brand_name || selectedConversation.brand_email);
-                              const role = isInfluencer
-                                ? { el: "Δημιουργός", en: "Creator" }[lang]
-                                : { el: "Επιχείρηση", en: "Brand" }[lang];
+                              const role = isAdminMsg
+                                ? "Influo"
+                                : isInfluencer
+                                  ? { el: "Δημιουργός", en: "Creator" }[lang]
+                                  : { el: "Επιχείρηση", en: "Brand" }[lang];
                               return (
-                                <div key={msg.id}>
+                                <div key={msg.id} className="min-w-0">
                                   {showDay ? (
                                     <div className="my-3 flex justify-center">
                                       <span className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[10px] font-medium text-slate-500">
@@ -6518,13 +6615,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                       </span>
                                     </div>
                                   ) : null}
-                                  <div className={`flex ${isInfluencer ? "justify-start" : "justify-end"}`}>
-                                    <div className={`max-w-[85%] sm:max-w-md ${isInfluencer ? "items-start" : "items-end"} flex flex-col`}>
-                                      <p className={`mb-1 text-xs font-medium ${isInfluencer ? "text-slate-600" : "text-blue-800"}`}>
+                                  <div className={`flex min-w-0 ${isInfluencer || isAdminMsg ? "justify-start" : "justify-end"}`}>
+                                    <div className={`max-w-[85%] min-w-0 sm:max-w-md ${isInfluencer || isAdminMsg ? "items-start" : "items-end"} flex flex-col`}>
+                                      <p className={`mb-1 text-xs font-medium ${isAdminMsg ? "text-sky-800" : isInfluencer ? "text-slate-600" : "text-blue-800"}`}>
                                         {senderName} · {role}
                                       </p>
-                                      <div className={`px-3.5 py-2 rounded-2xl ${isInfluencer ? "bg-white text-slate-900 border border-slate-200 rounded-bl-md" : "bg-blue-600 text-white rounded-br-md"}`}>
-                                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                      <div className={`min-w-0 max-w-full px-3.5 py-2 rounded-2xl ${isAdminMsg ? "bg-sky-50 text-slate-900 border border-sky-200 rounded-bl-md" : isInfluencer ? "bg-white text-slate-900 border border-slate-200 rounded-bl-md" : "bg-blue-600 text-white rounded-br-md"}`}>
+                                    <ChatBubbleText content={msg.content || ""} own={!isInfluencer && !isAdminMsg} showPreview={false} />
                                     {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                                       <div className="mt-2 space-y-1">
                                         {msg.attachments.map((att, index) => {
@@ -6591,7 +6688,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   </div>
                 </div>
               )}
-              {conversationsTotal > 0 ? (
+              {conversationsMode === "peer" && conversationsTotal > 0 ? (
                 <AdminPager
                   lang={lang}
                   page={conversationsPage}

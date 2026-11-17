@@ -28,9 +28,14 @@ import AgreementTerms from '@/components/AgreementTerms';
 import dynamic from 'next/dynamic';
 import ChatAvatar from '@/components/ChatAvatar';
 import ImageLightbox from '@/components/ImageLightbox';
-import LinkPreview from '@/components/LinkPreview';
+import ChatBubbleText from '@/components/ChatBubbleText';
 import { openDockedChat } from '@/components/ChatDock';
-import { firstLink, splitLinks } from '@/lib/linkify';
+import { firstLink } from '@/lib/linkify';
+import {
+  ADMIN_CHAT_AVATAR_SRC,
+  ADMIN_CHAT_DISPLAY_NAME,
+  isAdminConversationKind,
+} from '@/lib/adminChat';
 import MessageActions from '@/components/MessageActions';
 import { byMessage, groupReactions, quoteText, type ReactionRow } from '@/lib/reactions';
 import { insertAtCursor } from '@/lib/emojiData';
@@ -85,7 +90,7 @@ interface Message {
   id: string;
   conversation_id: string;
   sender_id: string;
-  sender_type: 'influencer' | 'brand';
+  sender_type: 'influencer' | 'brand' | 'admin';
   content: string;
   attachments?: MessageAttachment[] | null;
   read: boolean;
@@ -101,8 +106,9 @@ interface Conversation {
   influencer_id: string;
   influencer_name: string;
   influencer_email: string;
-  brand_email: string;
+  brand_email: string | null;
   brand_name: string | null;
+  conversation_kind?: string | null;
   last_message_at: string;
   last_activity_influencer?: string | null;
   last_activity_brand?: string | null;
@@ -456,7 +462,9 @@ export default function Messaging({
   // Auto-select conversation when proposalId and brandEmail are provided
   useEffect(() => {
     if (proposalId && brandEmail && conversations.length > 0) {
-      const matchingConv = conversations.find(c => c.brand_email.toLowerCase() === brandEmail.toLowerCase());
+      const matchingConv = conversations.find(
+        (c) => (c.brand_email || "").toLowerCase() === brandEmail.toLowerCase()
+      );
       if (matchingConv) {
         setSelectedConversation(matchingConv.id);
       }
@@ -1210,7 +1218,7 @@ export default function Messaging({
       let query = supabase
         .from('conversations')
         .select(
-          'id, influencer_id, influencer_name, influencer_email, brand_email, brand_name, last_message_at, last_activity_influencer, last_activity_brand, closed_at, proposal_id'
+          'id, conversation_kind, influencer_id, influencer_name, influencer_email, brand_email, brand_name, last_message_at, last_activity_influencer, last_activity_brand, closed_at, proposal_id'
         );
 
       if (mode === 'influencer') {
@@ -2032,6 +2040,7 @@ export default function Messaging({
 
   const avatarFor = (c?: Conversation | null): string | null => {
     if (!c) return null;
+    if (isAdminConversationKind(c.conversation_kind)) return ADMIN_CHAT_AVATAR_SRC;
     return mode === 'influencer'
       ? avatarMap.brands[String(c.brand_email || '').toLowerCase()] || null
       : avatarMap.influencers[c.influencer_id] || (c.influencer_id === influencerId ? targetAvatar : null);
@@ -2049,9 +2058,12 @@ export default function Messaging({
 
   const currentConversation = conversations.find(c => c.id === selectedConversation);
   const otherPartyAvatar = avatarFor(currentConversation);
-  const otherPartyName = mode === 'influencer' 
-    ? currentConversation?.brand_name || txt.brandFallback
-    : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
+  const isAdminThread = isAdminConversationKind(currentConversation?.conversation_kind);
+  const otherPartyName = isAdminThread
+    ? ADMIN_CHAT_DISPLAY_NAME
+    : mode === 'influencer'
+      ? currentConversation?.brand_name || txt.brandFallback
+      : displayNameForLang(currentConversation?.influencer_name, lang || 'el');
 
   const isComposingNew =
     mode === 'brand' && !!influencerId && !!brandEmail && !selectedConversation && !initialConversationId;
@@ -2162,8 +2174,10 @@ export default function Messaging({
             }).map((conv) => {
               const isClosed = !!conv.closed_at;
               const isActive = selectedConversation === conv.id;
-              const name =
-                mode === 'influencer'
+              const adminConv = isAdminConversationKind(conv.conversation_kind);
+              const name = adminConv
+                ? ADMIN_CHAT_DISPLAY_NAME
+                : mode === 'influencer'
                   ? conv.brand_name || txt.brandFallback
                   : displayNameForLang(conv.influencer_name, lang || 'el');
               const unread = conv.unread_count || 0;
@@ -2181,6 +2195,11 @@ export default function Messaging({
                     <div className="flex items-center justify-between gap-2">
                       <span className={`truncate text-sm ${unread > 0 ? 'font-semibold text-slate-900' : 'font-medium text-slate-800'}`}>
                         {name}
+                        {adminConv ? (
+                          <span className="ml-1.5 inline-flex align-middle rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">
+                            Influo
+                          </span>
+                        ) : null}
                       </span>
                       <span className="text-[10px] text-slate-400 tabular-nums shrink-0">
                         {formatChatRelativeTime(conv.last_message_at, lang)}
@@ -2242,7 +2261,14 @@ export default function Messaging({
                     </button>
                   ) : null}
                   <div className="min-w-0 flex-1">
-                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">{otherPartyName}</h3>
+                    <h3 className="text-sm sm:text-base font-semibold text-slate-900 truncate">
+                      {otherPartyName}
+                      {isAdminThread ? (
+                        <span className="ml-1.5 inline-flex align-middle rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-800">
+                          Influo
+                        </span>
+                      ) : null}
+                    </h3>
                     <div className="flex items-center gap-1.5">
                       <div
                         className={`w-1.5 h-1.5 rounded-full ${
@@ -2424,7 +2450,7 @@ export default function Messaging({
               <div
                 ref={messageListRef}
                 onScroll={onMessageListScroll}
-                className="relative flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-1 bg-slate-50/80 pb-4"
+                className="relative flex-1 overflow-y-auto overflow-x-hidden px-3 sm:px-4 py-3 space-y-1 bg-slate-50/80 pb-4"
               >
                 {messages.length === 0 && (
                   <p className="text-center text-sm text-slate-500 py-8">{txt.emptyThread}</p>
@@ -2483,13 +2509,25 @@ export default function Messaging({
                           </div>
                         </div>
                       ) : (
-                      <div className={`flex items-end gap-1.5 ${isOwn ? 'justify-end' : 'justify-start'} mb-1.5`}>
+                      <div className={`flex items-end gap-1.5 min-w-0 ${isOwn ? 'justify-end' : 'justify-start'} mb-1.5`}>
                         {!isOwn && (
                           <span className="w-7 shrink-0">
-                            {lastOfGroup ? <ChatAvatar src={otherPartyAvatar} name={otherPartyName || '?'} size={28} /> : null}
+                            {lastOfGroup ? (
+                              <ChatAvatar
+                                src={msg.sender_type === 'admin' ? ADMIN_CHAT_AVATAR_SRC : otherPartyAvatar}
+                                name={msg.sender_type === 'admin' ? ADMIN_CHAT_DISPLAY_NAME : otherPartyName || '?'}
+                                size={28}
+                              />
+                            ) : null}
                           </span>
                         )}
-                        <div className={`flex max-w-[85%] sm:max-w-sm lg:max-w-md flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                        <div className={`flex max-w-[85%] min-w-0 sm:max-w-sm lg:max-w-md flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
+                        {!isOwn && msg.sender_type === 'admin' ? (
+                          <span className="mb-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-sky-800">
+                            {ADMIN_CHAT_DISPLAY_NAME}
+                            <span className="rounded bg-sky-100 px-1 py-0.5">Influo</span>
+                          </span>
+                        ) : null}
                         <MessageActions
                           own={isOwn}
                           pinned={!!msg.pinned_at}
@@ -2503,10 +2541,12 @@ export default function Messaging({
                         >
                         <div
                           id={`msg-${msg.id}`}
-                          className={`max-w-full px-3.5 py-2 rounded-2xl transition-shadow ${
+                          className={`max-w-full min-w-0 px-3.5 py-2 rounded-2xl transition-shadow ${
                             isOwn
                               ? 'bg-blue-600 text-white rounded-br-md'
-                              : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
+                              : msg.sender_type === 'admin'
+                                ? 'bg-sky-50 text-slate-900 border border-sky-200 rounded-bl-md shadow-sm'
+                                : 'bg-white text-slate-900 border border-slate-200 rounded-bl-md shadow-sm'
                           }`}
                         >
                           {msg.reply_to_id ? (() => {
@@ -2515,30 +2555,29 @@ export default function Messaging({
                               <button
                                 type="button"
                                 onClick={() => parent && jumpToMessage(parent.id)}
-                                className={`mb-1.5 block w-full rounded-lg border-l-4 px-2 py-1 text-left text-xs ${isOwn ? 'border-white/60 bg-white/15 text-blue-50' : 'border-blue-500 bg-slate-100 text-slate-600'}`}
+                                className={`mb-1.5 block w-full min-w-0 rounded-lg border-l-4 px-2 py-1 text-left text-xs ${isOwn ? 'border-white/60 bg-white/15 text-blue-50' : 'border-blue-500 bg-slate-100 text-slate-600'}`}
                               >
                                 <span className="block font-semibold">
-                                  {parent ? (parent.sender_type === mode ? (lang === 'en' ? 'You' : 'Εσείς') : otherPartyName) : ''}
+                                  {parent
+                                    ? parent.sender_type === mode
+                                      ? lang === 'en'
+                                        ? 'You'
+                                        : 'Εσείς'
+                                      : parent.sender_type === 'admin'
+                                        ? ADMIN_CHAT_DISPLAY_NAME
+                                        : otherPartyName
+                                    : ''}
                                 </span>
                                 <span className="block truncate">{parent ? quoteText(displayProposalThread(parent.content, lang), !!parent.attachments?.length, 70) : (lang === 'en' ? 'Message' : 'Μήνυμα')}</span>
                               </button>
                             );
                           })() : null}
                           {msg.content ? (
-                            <>
-                              <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-                                {splitLinks(displayProposalThread(msg.content, lang)).map((part, pi) =>
-                                  part.type === 'link' ? (
-                                    <a key={pi} href={part.value} target="_blank" rel="noopener noreferrer" className={`underline underline-offset-2 break-all ${isOwn ? 'text-white' : 'text-blue-700'}`}>
-                                      {part.value}
-                                    </a>
-                                  ) : (
-                                    <span key={pi}>{part.value}</span>
-                                  )
-                                )}
-                              </p>
-                              {firstLink(msg.content) ? <LinkPreview url={firstLink(msg.content) as string} own={isOwn} /> : null}
-                            </>
+                            <ChatBubbleText
+                              content={displayProposalThread(msg.content, lang)}
+                              own={isOwn}
+                              showPreview={!!firstLink(msg.content)}
+                            />
                           ) : null}
                           {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                             <div className={`mt-1.5 space-y-1.5 ${msg.content ? '' : ''}`}>

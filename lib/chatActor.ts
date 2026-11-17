@@ -12,8 +12,9 @@ export type ChatActor = {
 };
 
 export type ConversationParty = {
-  influencer_id: string;
+  influencer_id: string | null;
   brand_email: string | null;
+  conversation_kind?: string | null;
 };
 
 function normEmail(value: string | null | undefined): string {
@@ -148,9 +149,10 @@ export async function loadChatActor(user: User): Promise<ChatActor> {
 }
 
 export function isChatParticipant(actor: ChatActor, conv: ConversationParty): boolean {
-  const asInfluencer = !!actor.influencerId && actor.influencerId === conv.influencer_id;
+  const asInfluencer =
+    !!actor.influencerId && !!conv.influencer_id && actor.influencerId === conv.influencer_id;
   const asBrand =
-    !!actor.brandEmail && actor.brandEmail === normEmail(conv.brand_email);
+    !!actor.brandEmail && !!conv.brand_email && actor.brandEmail === normEmail(conv.brand_email);
   return asInfluencer || asBrand;
 }
 
