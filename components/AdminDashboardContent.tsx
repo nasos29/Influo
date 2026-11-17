@@ -111,6 +111,11 @@ import {
   type ServicePackage,
 } from "@/lib/servicePackages";
 import AnnouncementRecipientMultiSelect from "@/components/AnnouncementRecipientMultiSelect";
+import {
+  deriveProposalDisplayStatus,
+  proposalDisplayStatusFilterOptions,
+  type ProposalDisplayStatusKey,
+} from "@/lib/proposalDisplayStatus";
 
 const ADMIN_PAGE_SIZE = 20;
 const LOAD_TIMEOUT_MS = 20000;
@@ -246,7 +251,17 @@ interface Proposal {
   influencer_id: number;
   influencer_name?: string;
   influencers?: { display_name: string } | Array<{ display_name: string }> | null;
+  influencer_agreement_accepted?: boolean | null;
+  brand_agreement_accepted?: boolean | null;
+  delivery_mode?: string | null;
+  delivery_submitted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  published_post_url?: string | null;
+  published_post_pending_approval?: boolean | null;
 }
+
+type ProposalStatusFilter = "all" | ProposalDisplayStatusKey;
 
 interface Conversation {
   id: string;
@@ -2250,7 +2265,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   >([]);
   const [proposalSearch, setProposalSearch] = useState("");
   const [proposalSearchDebounced, setProposalSearchDebounced] = useState("");
-  const [proposalStatus, setProposalStatus] = useState<"all" | "pending" | "accepted" | "completed" | "rejected">("all");
+  const [proposalStatus, setProposalStatus] = useState<ProposalStatusFilter>("all");
   const [proposalsPage, setProposalsPage] = useState(1);
   const [proposalsTotal, setProposalsTotal] = useState(0);
   const [proposalsLoading, setProposalsLoading] = useState(true);
@@ -2489,7 +2504,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const fetchProposals = async (opts?: {
     page?: number;
     q?: string;
-    status?: "all" | "pending" | "accepted" | "completed" | "rejected";
+    status?: ProposalStatusFilter;
     silent?: boolean;
   }) => {
     const page = opts?.page ?? proposalsPage;
@@ -4745,7 +4760,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     value: proposalCounts.active,
                     hint: { el: "Αποδεκτές και ολοκληρωμένες", en: "Accepted and completed" }[lang],
                     onClick: () => {
-                      setProposalStatus("accepted");
+                      setProposalStatus("all");
                       setActiveTab("proposals");
                     },
                   },
@@ -5262,14 +5277,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 />
                 <select
                   value={proposalStatus}
-                  onChange={(e) => setProposalStatus(e.target.value as typeof proposalStatus)}
+                  onChange={(e) => setProposalStatus(e.target.value as ProposalStatusFilter)}
                   className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm"
                 >
-                  <option value="all">{{ el: "Όλες οι καταστάσεις", en: "All statuses" }[lang]}</option>
-                  <option value="pending">{{ el: "Εκκρεμείς", en: "Pending" }[lang]}</option>
-                  <option value="accepted">{{ el: "Αποδεκτές", en: "Accepted" }[lang]}</option>
-                  <option value="completed">{{ el: "Ολοκληρωμένες", en: "Completed" }[lang]}</option>
-                  <option value="rejected">{{ el: "Απορριφθείσες", en: "Rejected" }[lang]}</option>
+                  {proposalDisplayStatusFilterOptions(lang).map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               {proposalsLoading && proposals.length === 0 ? (
@@ -5283,12 +5298,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <p className="px-4 py-8 text-center text-sm text-slate-500">{txt.no_data}</p>
                     ) : proposals.map((p) => {
                       const name = p.influencer_name || (Array.isArray(p.influencers) ? p.influencers[0]?.display_name : p.influencers?.display_name) || "—";
+                      const display = deriveProposalDisplayStatus(p, lang);
                       return (
                         <article key={p.id} className="space-y-3 p-4">
                           <div>
                             <p className="font-semibold text-slate-900">{p.brand_name}</p>
                             <p className="text-sm text-slate-600">{name}</p>
-                            <p className="mt-1 text-sm font-medium text-emerald-700">{formatEuroAmount(p.budget, lang)} · {p.status}</p>
+                            <p className="mt-1 text-sm font-medium text-emerald-700">{formatEuroAmount(p.budget, lang)}</p>
+                            <p className="mt-1">
+                              <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                                {display.label}
+                              </span>
+                            </p>
                             <p className="text-xs text-slate-400">{formatDate(p.created_at, lang)} {formatTime(p.created_at, lang)}</p>
                           </div>
                           <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
@@ -5314,20 +5335,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">{txt.no_data}</td></tr>
                         ) : proposals.map((p) => {
                           const name = p.influencer_name || (Array.isArray(p.influencers) ? p.influencers[0]?.display_name : p.influencers?.display_name) || "—";
-                          const statusKey = String(p.status || "").toLowerCase();
-                          const statusLabel =
-                            statusKey === "pending" ? { el: "Εκκρεμεί", en: "Pending" }[lang]
-                            : statusKey === "accepted" ? { el: "Αποδεκτή", en: "Accepted" }[lang]
-                            : statusKey === "completed" ? { el: "Ολοκληρώθηκε", en: "Completed" }[lang]
-                            : statusKey === "rejected" ? { el: "Απορρίφθηκε", en: "Rejected" }[lang]
-                            : statusKey === "cancelled" || statusKey === "canceled" ? { el: "Ακυρώθηκε", en: "Cancelled" }[lang]
-                            : { el: "Άγνωστο", en: "Unknown" }[lang];
+                          const display = deriveProposalDisplayStatus(p, lang);
                           return (
                             <tr key={p.id} className="hover:bg-slate-50">
                               <td className="px-4 py-3 font-medium text-slate-900">{p.brand_name}</td>
                               <td className="px-4 py-3 text-slate-600">{name}</td>
                               <td className="px-4 py-3 font-medium text-emerald-700">{formatEuroAmount(p.budget, lang)}</td>
-                              <td className="px-4 py-3"><span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{statusLabel}</span></td>
+                              <td className="px-4 py-3">
+                                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                                  {display.label}
+                                </span>
+                              </td>
                               <td className="px-4 py-3 text-right">
                                 <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
                                   {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : txt.btn_delete}
