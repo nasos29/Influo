@@ -1295,6 +1295,12 @@ interface Proposal {
   influencer_showcase_consent?: boolean | null;
   published_post_url?: string | null;
   published_post_pending_approval?: boolean | null;
+  delivery_mode?: string | null;
+  delivery_note?: string | null;
+  delivery_proof_url?: string | null;
+  delivery_submitted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 }
 
 function tabBadgeText(count: number): string {
@@ -2422,9 +2428,27 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}
                                                                   lang={lang}
-                                                                  pendingApproval={!!prop.published_post_pending_approval}
+                                                                  showStepLabel={
+                                                                    prop.status === 'completed' &&
+                                                                    !prop.delivery_confirmed_at &&
+                                                                    !prop.auto_completed_at
+                                                                  }
+                                                                  pendingApproval={
+                                                                    !!prop.published_post_pending_approval ||
+                                                                    (!!prop.delivery_submitted_at &&
+                                                                      !prop.delivery_confirmed_at &&
+                                                                      !prop.auto_completed_at)
+                                                                  }
+                                                                  initialMode={prop.delivery_mode || 'link'}
+                                                                  initialNote={prop.delivery_note}
+                                                                  initialProofUrl={prop.delivery_proof_url}
+                                                                  deliveryConfirmed={
+                                                                    !!prop.delivery_confirmed_at ||
+                                                                    !!prop.auto_completed_at
+                                                                  }
                                                                   autoFocus={
-                                                                    searchParams?.get('focus') === 'deliverable' &&
+                                                                    (searchParams?.get('focus') === 'deliverable' ||
+                                                                      searchParams?.get('deliverable') === '1') &&
                                                                     searchParams?.get('proposalId') === String(prop.id)
                                                                   }
                                                                   prefill={

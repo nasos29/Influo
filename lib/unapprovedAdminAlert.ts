@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
+import { enqueueAdminDigestItem } from '@/lib/adminDailyDigest';
 import { adminInboxAddress } from '@/lib/adminMessageSummary';
 import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushToBrand, getAdminPushRecipient } from '@/lib/push';
@@ -43,7 +44,12 @@ export async function alertAdminUnapproved(
     const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.influo.gr').replace(/\/$/, '');
     const name = opts.influencerName || 'Creator';
 
-    if (process.env.RESEND_API_KEY) {
+    const queued = await enqueueAdminDigestItem(supabaseAdmin, 'unapproved', {
+      name,
+      detail: reason,
+      influencerId: opts.influencerId,
+    });
+    if (!queued && process.env.RESEND_API_KEY) {
       const to = adminInboxAddress(process.env.ADMIN_EMAIL);
       const resend = new Resend(process.env.RESEND_API_KEY);
       const { error } = await resend.emails.send({

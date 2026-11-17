@@ -101,14 +101,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "not_accepted" }, { status: 400 });
     }
 
-    const parsedUrl = parseSocialPostUrl(body.url);
-    if (!parsedUrl.ok) {
-      return NextResponse.json(
-        { error: parsedUrl.error === "empty" ? "missing_url" : socialPostUrlErrorMessage(parsedUrl.error) },
-        { status: 400 }
-      );
+    const isEvent =
+      body.deliveryMode === "event" || body.eventDelivery === true || body.noLink === true;
+    let url: string | null = null;
+    let proofUrl: string | null = null;
+    if (isEvent) {
+      const proofRaw = body.deliveryProofUrl ?? body.proofUrl ?? body.url;
+      if (proofRaw != null && String(proofRaw).trim()) {
+        const raw = String(proofRaw).trim();
+        if (!raw.startsWith("https://")) {
+          return NextResponse.json({ error: "proof_url_https_required" }, { status: 400 });
+        }
+        proofUrl = raw;
+      }
+    } else {
+      const parsedUrl = parseSocialPostUrl(body.url);
+      if (!parsedUrl.ok) {
+        return NextResponse.json(
+          { error: parsedUrl.error === "empty" ? "missing_url" : socialPostUrlErrorMessage(parsedUrl.error) },
+          { status: 400 }
+        );
+      }
+      url = parsedUrl.url;
     }
-    const url = parsedUrl.url;
     const note = String(body.note || "").trim();
     const selfReportedViews = "selfReportedViews" in body
       ? parseSelfReportedCount(body.selfReportedViews)
@@ -119,11 +134,15 @@ export async function POST(request: NextRequest) {
     const showcaseConsent =
       typeof body.showcaseConsent === "boolean" ? body.showcaseConsent : undefined;
 
+    const submittedAt = new Date().toISOString();
     const updatePayload: Record<string, unknown> = {
       deliverable_url: url,
       deliverable_note: note || null,
       deliverable_status: "submitted",
-      delivered_at: new Date().toISOString(),
+      delivered_at: submittedAt,
+      delivery_mode: isEvent ? "event" : "link",
+      delivery_proof_url: proofUrl,
+      delivery_submitted_at: submittedAt,
       // New URL → brand must view again (seen receipt resets).
       deliverable_seen_at: null,
     };
@@ -136,11 +155,15 @@ export async function POST(request: NextRequest) {
       .update(updatePayload)
       .eq("id", applicationId)
       .eq("influencer_id", influencer.id);
-    if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
-      const { deliverable_seen_at: _drop, ...withoutSeen } = updatePayload;
+    if (error && /deliverable_seen_at|delivery_|schema cache|column/i.test(error.message || "")) {
+      const soft = { ...updatePayload };
+      delete soft.deliverable_seen_at;
+      delete soft.delivery_mode;
+      delete soft.delivery_proof_url;
+      delete soft.delivery_submitted_at;
       ({ error } = await admin
         .from("campaign_applications")
-        .update(withoutSeen)
+        .update(soft)
         .eq("id", applicationId)
         .eq("influencer_id", influencer.id));
     }
@@ -155,7 +178,7 @@ export async function POST(request: NextRequest) {
             brandName,
             campaignTitle,
             influencerName,
-            deliverableUrl: url,
+            deliverableUrl: url || proofUrl,
           });
           await send("campaign_deliverable_submitted_brand", brandEmail, mail.subject, mail.html);
           await sendPushToBrand(brandEmail, {
@@ -187,11 +210,15 @@ export async function POST(request: NextRequest) {
       ? body.showcaseConsent
       : undefined;
 
+  const reviewedAt = new Date().toISOString();
   const reviewUpdate: Record<string, unknown> = {
     deliverable_status: nextStatus,
     deliverable_review_note: reviewNote || null,
-    reviewed_at: new Date().toISOString(),
+    reviewed_at: reviewedAt,
   };
+  if (action === "approve") {
+    reviewUpdate.delivery_confirmed_at = reviewedAt;
+  }
   // Approving / requesting changes implies the brand has seen the deliverable (first time only).
   const existingSeen =
     typeof (app as { deliverable_seen_at?: string | null }).deliverable_seen_at === "string"
@@ -208,9 +235,11 @@ export async function POST(request: NextRequest) {
     .from("campaign_applications")
     .update(reviewUpdate)
     .eq("id", applicationId);
-  if (error && /deliverable_seen_at|schema cache|column/i.test(error.message || "")) {
-    const { deliverable_seen_at: _drop, ...withoutSeen } = reviewUpdate;
-    ({ error } = await admin.from("campaign_applications").update(withoutSeen).eq("id", applicationId));
+  if (error && /deliverable_seen_at|delivery_confirmed|schema cache|column/i.test(error.message || "")) {
+    const soft = { ...reviewUpdate };
+    delete soft.deliverable_seen_at;
+    delete soft.delivery_confirmed_at;
+    ({ error } = await admin.from("campaign_applications").update(soft).eq("id", applicationId));
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

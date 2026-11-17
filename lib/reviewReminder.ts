@@ -1,9 +1,15 @@
 /**
  * When to email a post-deal review reminder for completed proposals.
- * Prefer publish_deadline (end of that calendar day UTC) + REVIEW_REMINDER_FALLBACK_DAYS;
- * otherwise agreement_accepted_at + REVIEW_REMINDER_FALLBACK_DAYS.
+ *
+ * Default (legacy): prefer publish_deadline + FALLBACK_DAYS, else agreement_accepted_at.
+ * When REVIEW_FROM_REAL_COMPLETION_ENABLED=1: schedule from delivery_confirmed_at or
+ * auto_completed_at only (agreement acceptance is not enough). Legacy completed deals
+ * without those stamps are skipped for review (they may still get deliverable reminders).
+ *
  * A second (final) reminder may go out REVIEW_REMINDER_SECOND_DAYS after the first.
  */
+
+import { isReviewFromRealCompletionEnabled } from "@/lib/deliveryFlags";
 
 export const REVIEW_REMINDER_FALLBACK_DAYS = 3;
 export const REVIEW_REMINDER_SECOND_DAYS = 7;
@@ -17,6 +23,8 @@ export function isSecondReviewReminderWaveEnabled(): boolean {
   const raw = (process.env.REVIEW_REMINDER_SECOND_WAVE || "").trim().toLowerCase();
   return raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
+
+export { isReviewFromRealCompletionEnabled };
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})/;
 
@@ -41,10 +49,22 @@ export function publishDeadlineDueMs(publishDeadline: string | null | undefined)
 export function reviewReminderDueMs(opts: {
   publishDeadline?: string | null;
   agreementAcceptedAt?: string | null;
+  /** Real completion stamp (delivery_confirmed_at or auto_completed_at). */
+  realCompletedAt?: string | null;
   fallbackDays?: number;
+  /** Override env flag for tests. */
+  fromRealCompletion?: boolean;
 }): number | null {
   const days = opts.fallbackDays ?? REVIEW_REMINDER_FALLBACK_DAYS;
   const dayMs = days * 24 * 60 * 60 * 1000;
+  const realOnly =
+    opts.fromRealCompletion ?? isReviewFromRealCompletionEnabled();
+
+  if (realOnly) {
+    const real = opts.realCompletedAt ? new Date(opts.realCompletedAt).getTime() : NaN;
+    if (!Number.isFinite(real)) return null;
+    return real + dayMs;
+  }
 
   const fromDeadline = publishDeadlineDueMs(opts.publishDeadline);
   if (fromDeadline != null) return fromDeadline + dayMs;
@@ -60,15 +80,19 @@ export function shouldSendReviewReminder(opts: {
   reviewReminderSentAt?: string | null;
   publishDeadline?: string | null;
   agreementAcceptedAt?: string | null;
+  realCompletedAt?: string | null;
   nowMs?: number;
   fallbackDays?: number;
+  fromRealCompletion?: boolean;
 }): boolean {
   if ((opts.status || "").toLowerCase() !== "completed") return false;
   if (opts.reviewReminderSentAt) return false;
   const due = reviewReminderDueMs({
     publishDeadline: opts.publishDeadline,
     agreementAcceptedAt: opts.agreementAcceptedAt,
+    realCompletedAt: opts.realCompletedAt,
     fallbackDays: opts.fallbackDays,
+    fromRealCompletion: opts.fromRealCompletion,
   });
   if (due == null) return false;
   const now = opts.nowMs ?? Date.now();

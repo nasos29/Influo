@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { auditGenderBucket } from "@/lib/auditGemini";
 import { BRAND_REVIEW_MARKER, CREATOR_TARGET_REVIEW_FILTER } from "@/lib/brandReview";
+import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
+import { realCompletionAt } from "@/lib/deliveryCompletion";
 import {
   allowRemindersEmail,
   loadNotificationPreferences,
@@ -11,12 +13,13 @@ import { influencerContact } from "@/lib/proposalAccess";
 import { mailBrandReviewReminder, mailCreatorReviewReminder, siteUrl } from "@/lib/proposalMail";
 import { publicProfilePath } from "@/lib/profileSlug";
 import {
+  isReviewFromRealCompletionEnabled,
   isSecondReviewReminderWaveEnabled,
   shouldSendReviewReminder,
   shouldSendSecondReviewReminder,
 } from "@/lib/reviewReminder";
 
-export { isSecondReviewReminderWaveEnabled };
+export { isSecondReviewReminderWaveEnabled, isReviewFromRealCompletionEnabled };
 
 export type ReviewReminderRow = {
   id: string | number;
@@ -30,6 +33,8 @@ export type ReviewReminderRow = {
   selected_extras?: unknown;
   publish_deadline?: string | null;
   agreement_accepted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
   review_reminder_sent_at?: string | null;
   review_reminder_second_sent_at?: string | null;
   brand_review_prompts_declined_at?: string | null;
@@ -38,6 +43,9 @@ export type ReviewReminderRow = {
 };
 
 const SELECT_COLS =
+  "id, influencer_id, brand_name, brand_email, service_type, budget, counter_proposal_budget, counter_proposal_status, selected_extras, publish_deadline, agreement_accepted_at, delivery_confirmed_at, auto_completed_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, status";
+
+const SELECT_COLS_LEGACY =
   "id, influencer_id, brand_name, brand_email, service_type, budget, counter_proposal_budget, counter_proposal_status, selected_extras, publish_deadline, agreement_accepted_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, status";
 
 function dealAmount(row: ReviewReminderRow): string {
@@ -298,6 +306,7 @@ export async function runReviewReminders(
   const nowMs = opts?.nowMs ?? Date.now();
   const errors: string[] = [];
   const secondWaveEnabled = isSecondReviewReminderWaveEnabled();
+  const fromRealCompletion = isReviewFromRealCompletionEnabled();
 
   let scanned = 0;
   let due = 0;
@@ -309,23 +318,36 @@ export async function runReviewReminders(
   // ——— First wave ———
   {
     let rows: ReviewReminderRow[] = [];
-    const { data, error } = await admin
+    let query = admin
       .from("proposals")
       .select(SELECT_COLS)
       .eq("status", "completed")
       .is("review_reminder_sent_at", null)
-      .not("agreement_accepted_at", "is", null)
-      .order("agreement_accepted_at", { ascending: true })
       .limit(200);
 
+    if (fromRealCompletion) {
+      // Real completion only — skip legacy completed-without-confirmation (no spam).
+      query = query
+        .or("delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null")
+        .order("delivery_confirmed_at", { ascending: true, nullsFirst: false });
+    } else {
+      query = query
+        .not("agreement_accepted_at", "is", null)
+        .order("agreement_accepted_at", { ascending: true });
+    }
+
+    const { data, error } = await query;
+
     if (error) {
-      // Older DBs without new columns — retry with legacy select.
-      if (/review_reminder_second|review_prompts_declined|schema cache|column|PGRST204|42703/i.test(error.message)) {
+      // Older DBs without new columns — retry with legacy select (and disable real-completion filter).
+      if (
+        /delivery_confirmed|auto_completed|review_reminder_second|review_prompts_declined|schema cache|column|PGRST204|42703/i.test(
+          error.message
+        )
+      ) {
         const legacy = await admin
           .from("proposals")
-          .select(
-            "id, influencer_id, brand_name, brand_email, service_type, budget, counter_proposal_budget, counter_proposal_status, selected_extras, publish_deadline, agreement_accepted_at, review_reminder_sent_at, status"
-          )
+          .select(SELECT_COLS_LEGACY)
           .eq("status", "completed")
           .is("review_reminder_sent_at", null)
           .not("agreement_accepted_at", "is", null)
@@ -364,13 +386,20 @@ export async function runReviewReminders(
 
     for (const row of rows) {
       if (sent + skipped >= limit) break;
+      if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
+        skipped += 1;
+        continue;
+      }
+      const realAt = realCompletionAt(row);
       if (
         !shouldSendReviewReminder({
           status: row.status,
           reviewReminderSentAt: row.review_reminder_sent_at,
           publishDeadline: row.publish_deadline,
           agreementAcceptedAt: row.agreement_accepted_at,
+          realCompletedAt: realAt,
           nowMs,
+          fromRealCompletion,
         })
       ) {
         continue;
@@ -424,6 +453,7 @@ export async function runReviewReminders(
 
     for (const row of secondRows) {
       if (secondSent >= limit) break;
+      if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
       if (
         !shouldSendSecondReviewReminder({
           status: row.status,

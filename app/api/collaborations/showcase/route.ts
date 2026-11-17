@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
-import { loadProposal, partyOf, requireActor } from "@/lib/proposalAccess";
+import { asDeliveryMode } from "@/lib/deliveryCompletion";
+import { mailBrandDeliverySubmitted, mailCreatorDeliveryConfirmed, siteUrl } from "@/lib/deliveryMail";
+import { loadProposal, partyOf, requireActor, influencerContact } from "@/lib/proposalAccess";
+import { deferAfterResponse } from "@/lib/proposalNotify";
 import {
   parseSelfReportedCount,
   parseSocialPostUrl,
@@ -92,7 +95,29 @@ export async function PATCH(request: Request) {
       }
 
       if (party === "influencer") {
-        if ("publishedPostUrl" in body) {
+        const mode = asDeliveryMode(body.deliveryMode) || (body.eventDelivery === true ? "event" : null);
+
+        if (mode === "event" || body.eventDelivery === true) {
+          const note = String(body.deliveryNote || body.note || "").trim();
+          const proofRaw = body.deliveryProofUrl ?? body.proofUrl;
+          const proof =
+            proofRaw == null || proofRaw === ""
+              ? null
+              : String(proofRaw).trim().startsWith("https://")
+                ? String(proofRaw).trim()
+                : null;
+          if (proofRaw && !proof) {
+            return NextResponse.json({ error: "proof_url_https_required" }, { status: 400 });
+          }
+          const submittedAt = new Date().toISOString();
+          update.delivery_mode = "event";
+          update.delivery_note = note || null;
+          update.delivery_proof_url = proof;
+          update.delivery_submitted_at = submittedAt;
+          update.published_post_pending_approval = true;
+          // Event deliveries are not public video posts by default.
+          update.published_post_url = null;
+        } else if ("publishedPostUrl" in body) {
           const raw = body.publishedPostUrl;
           if (raw == null || raw === "") {
             update.published_post_url = null;
@@ -105,9 +130,14 @@ export async function PATCH(request: Request) {
                 { status: 400 }
               );
             }
+            const submittedAt = new Date().toISOString();
             update.published_post_url = parsed.url;
             update.published_post_pending_approval = true;
-            update.showcase_post_url_updated_at = new Date().toISOString();
+            update.delivery_mode = "link";
+            update.delivery_submitted_at = submittedAt;
+            update.delivery_note = null;
+            update.delivery_proof_url = null;
+            update.showcase_post_url_updated_at = submittedAt;
             update.showcase_post_url_updated_by = `influencer:${session.user.email || session.user.id}`;
           }
         }
@@ -119,19 +149,27 @@ export async function PATCH(request: Request) {
         }
       }
 
-      // Brand can approve a pending published post URL.
-      if (party === "brand" && body.approvePublishedPost === true) {
+      // Brand can approve a pending published post URL or confirm event presence.
+      const brandConfirm =
+        party === "brand" &&
+        (body.approvePublishedPost === true || body.confirmEventDelivery === true);
+      if (brandConfirm) {
         update.published_post_pending_approval = false;
+        update.delivery_confirmed_at = new Date().toISOString();
       }
 
       if (Object.keys(update).length === 0) {
         return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
       }
 
+      const submittedNow = typeof update.delivery_submitted_at === "string";
+      const confirmedNow = typeof update.delivery_confirmed_at === "string";
+      const deliveryMode = String(update.delivery_mode || proposal.delivery_mode || "link");
+
       let { error } = await admin.from("proposals").update(update).eq("id", id);
       if (
         error &&
-        /showcase_opted_out|published_post_pending_approval|showcase_post_url_updated|schema cache|column|PGRST204|42703/i.test(
+        /showcase_opted_out|published_post_pending_approval|showcase_post_url_updated|delivery_|schema cache|column|PGRST204|42703/i.test(
           error.message || ""
         )
       ) {
@@ -141,9 +179,47 @@ export async function PATCH(request: Request) {
         delete soft.published_post_pending_approval;
         delete soft.showcase_post_url_updated_at;
         delete soft.showcase_post_url_updated_by;
+        delete soft.delivery_mode;
+        delete soft.delivery_note;
+        delete soft.delivery_proof_url;
+        delete soft.delivery_submitted_at;
+        delete soft.delivery_confirmed_at;
         ({ error } = await admin.from("proposals").update(soft).eq("id", id));
       }
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+      if (submittedNow || confirmedNow) {
+        deferAfterResponse(async () => {
+          try {
+            const contact = await influencerContact(proposal.influencer_id);
+            const brandName = proposal.brand_name || "Επιχείρηση";
+            const brandEmail = (proposal.brand_email || "").trim();
+            if (submittedNow && brandEmail) {
+              await mailBrandDeliverySubmitted({
+                to: brandEmail,
+                brandName,
+                creatorName: contact.name,
+                mode: deliveryMode === "event" ? "event" : "link",
+                url: typeof update.published_post_url === "string" ? update.published_post_url : null,
+                note: typeof update.delivery_note === "string" ? update.delivery_note : null,
+                dashboardUrl: `${siteUrl()}/brand/dashboard?tab=proposals`,
+              });
+            }
+            if (confirmedNow && contact.email) {
+              await mailCreatorDeliveryConfirmed({
+                to: contact.email,
+                creatorName: contact.name,
+                brandName,
+                mode: deliveryMode,
+                dashboardUrl: `${siteUrl()}/dashboard?tab=proposals`,
+              });
+            }
+          } catch (err) {
+            console.error("[showcase delivery notify]", err instanceof Error ? err.message : err);
+          }
+        });
+      }
+
       return NextResponse.json({ ok: true });
     }
 

@@ -7,6 +7,8 @@ import { ensureProposalThread } from "@/lib/proposalChat";
 import { creatorContact, notifyApplicationStatus } from "@/lib/campaignNotify";
 import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCreator } from "@/lib/campaignMail";
 import { enqueueAdminApplicationDigest } from "@/lib/adminApplicationDigest";
+import { enqueueAdminDigestItem } from "@/lib/adminDailyDigest";
+import { enqueueOrSendBrandApplicationEmail } from "@/lib/brandApplicationDigest";
 import { mailAdminEvent, send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushAdminNewCampaignApplication, sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
@@ -68,17 +70,45 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
       const row = app as { message?: string | null; proposed_price?: number | null; work_links?: string | null };
       const jobs: Promise<unknown>[] = [];
       if (brandEmail) {
-        const toBrand = applicationToBrand({
+        const campaignId = String(bc?.id || "");
+        let hasPriorApplications = false;
+        if (campaignId) {
+          const { count } = await admin
+            .from("campaign_applications")
+            .select("id", { count: "exact", head: true })
+            .eq("campaign_id", campaignId)
+            .neq("id", applicationId);
+          hasPriorApplications = (count ?? 0) > 0;
+        }
+        const brandMailMode = await enqueueOrSendBrandApplicationEmail(admin, {
           brandEmail,
-          brandName,
-          campaignTitle,
-          influencerName,
-          message: row.message ?? null,
-          proposedPrice: row.proposed_price ?? null,
-          workLinks: row.work_links ?? null,
-          brandHasAccount: true,
+          brandId: bc?.brand_id ? String(bc.brand_id) : null,
+          hasPriorApplications,
+          payload: {
+            applicationId,
+            campaignId,
+            campaignTitle,
+            brandName,
+            influencerName,
+            message: row.message ?? null,
+            proposedPrice: row.proposed_price ?? null,
+            workLinks: row.work_links ?? null,
+          },
         });
-        jobs.push(send("campaign_application_brand", brandEmail, toBrand.subject, toBrand.html));
+        if (brandMailMode === "instant") {
+          const toBrand = applicationToBrand({
+            brandEmail,
+            brandName,
+            campaignTitle,
+            influencerName,
+            message: row.message ?? null,
+            proposedPrice: row.proposed_price ?? null,
+            workLinks: row.work_links ?? null,
+            brandHasAccount: true,
+          });
+          jobs.push(send("campaign_application_brand", brandEmail, toBrand.subject, toBrand.html));
+        }
+        // In-app + push stay instant regardless of digest.
         jobs.push(
           sendPushBrandNewCampaignApplication({ brandEmail, campaignTitle, influencerName, applicationId }).catch((err) =>
             console.error("[campaign application] brand push", err)
@@ -122,13 +152,21 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
       {
         const priceLabel =
           row.proposed_price != null ? `${Math.round(Number(row.proposed_price))} €` : null;
-        const queuedDigest = enqueueAdminApplicationDigest({
+        const queuedDb = await enqueueAdminDigestItem(admin, "campaign_application", {
           campaignTitle,
           brandName,
           influencerName,
           proposedPrice: priceLabel,
         });
-        if (!queuedDigest) {
+        const queuedFile =
+          !queuedDb &&
+          enqueueAdminApplicationDigest({
+            campaignTitle,
+            brandName,
+            influencerName,
+            proposedPrice: priceLabel,
+          });
+        if (!queuedDb && !queuedFile) {
           jobs.push(
             mailAdminEvent(
               "campaign_application_admin",

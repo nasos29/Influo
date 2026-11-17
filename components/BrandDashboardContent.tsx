@@ -113,6 +113,12 @@ interface Proposal {
   brand_showcase_consent?: boolean | null;
   published_post_url?: string | null;
   published_post_pending_approval?: boolean | null;
+  delivery_mode?: string | null;
+  delivery_note?: string | null;
+  delivery_proof_url?: string | null;
+  delivery_submitted_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 }
 
 interface Influencer {
@@ -3235,7 +3241,24 @@ export default function BrandDashboardContent() {
                                 lang={lang}
                                 readOnly
                                 canApprove
-                                pendingApproval={!!proposal.published_post_pending_approval}
+                                showStepLabel={
+                                  proposal.status === "completed" &&
+                                  !!proposal.delivery_submitted_at &&
+                                  !proposal.delivery_confirmed_at &&
+                                  !proposal.auto_completed_at
+                                }
+                                pendingApproval={
+                                  !!proposal.published_post_pending_approval ||
+                                  (!!proposal.delivery_submitted_at &&
+                                    !proposal.delivery_confirmed_at &&
+                                    !proposal.auto_completed_at)
+                                }
+                                initialMode={proposal.delivery_mode || "link"}
+                                initialNote={proposal.delivery_note}
+                                initialProofUrl={proposal.delivery_proof_url}
+                                deliveryConfirmed={
+                                  !!proposal.delivery_confirmed_at || !!proposal.auto_completed_at
+                                }
                                 autoFocus={
                                   searchParams?.get("focus") === "deliverable" &&
                                   searchParams?.get("proposalId") === String(proposal.id)

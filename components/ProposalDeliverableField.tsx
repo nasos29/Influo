@@ -6,31 +6,52 @@ import { showcaseHelperText } from "@/lib/showcaseCopy";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
 type Lang = "el" | "en";
+type Mode = "link" | "event";
 
 const COPY = {
   el: {
     label: "Παραδοτέο",
+    step: "Βήμα: ανέβασε το παραδοτέο",
     hint: "Επικόλλησε το δημοσιευμένο reel / TikTok / post (https). Εκεί εγκρίνει το brand — όχι μόνο στο chat.",
     placeholder: "https://instagram.com/reel/… ή TikTok",
     save: "Αποθήκευση",
     saving: "Αποθήκευση…",
     saved: "Αποθηκεύτηκε.",
     approve: "Έγκριση link",
+    confirmEvent: "Επιβεβαίωση ότι έγινε",
     approving: "Έγκριση…",
     approved: "Εγκρίθηκε.",
     pending: "Αναμονή έγκρισης από το brand.",
+    pendingEvent: "Αναμονή επιβεβαίωσης παρουσίας από το brand.",
+    noLink: "Δεν υπάρχει link (event / παρουσία)",
+    useLink: "Έχω link παραδοτέου",
+    eventHint: "Για event / in-person: προαιρετική φωτο/story (https) + σύντομη σημείωση.",
+    notePlaceholder: "Σύντομη σημείωση (π.χ. «ήμουν στο event 15/11»)",
+    proofPlaceholder: "https://… (προαιρετικό proof)",
+    submitEvent: "Υποβολή επιβεβαίωσης",
+    brandApproveStep: "Βήμα: έγκρινε / επιβεβαίωσε",
   },
   en: {
     label: "Deliverable",
+    step: "Step: upload the deliverable",
     hint: "Paste the published reel / TikTok / post (https). That’s where the brand approves — not only in chat.",
     placeholder: "https://instagram.com/reel/… or TikTok",
     save: "Save",
     saving: "Saving…",
     saved: "Saved.",
     approve: "Approve link",
+    confirmEvent: "Confirm it happened",
     approving: "Approving…",
     approved: "Approved.",
     pending: "Waiting for brand approval.",
+    pendingEvent: "Waiting for brand to confirm attendance.",
+    noLink: "No link (event / in-person)",
+    useLink: "I have a deliverable link",
+    eventHint: "For event / in-person: optional photo/story (https) + short note.",
+    notePlaceholder: "Short note (e.g. “attended the event on 15/11”)",
+    proofPlaceholder: "https://… (optional proof)",
+    submitEvent: "Submit confirmation",
+    brandApproveStep: "Step: approve / confirm",
   },
 } as const;
 
@@ -44,6 +65,11 @@ export default function ProposalDeliverableField({
   className = "",
   pendingApproval = false,
   canApprove = false,
+  initialMode = "link",
+  initialNote = "",
+  initialProofUrl = "",
+  deliveryConfirmed = false,
+  showStepLabel = false,
 }: {
   proposalId: string;
   initialUrl?: string | null;
@@ -55,19 +81,32 @@ export default function ProposalDeliverableField({
   pendingApproval?: boolean;
   /** Brand can clear pending approval. */
   canApprove?: boolean;
+  initialMode?: Mode | string | null;
+  initialNote?: string | null;
+  initialProofUrl?: string | null;
+  deliveryConfirmed?: boolean;
+  showStepLabel?: boolean;
 }) {
   const txt = COPY[lang];
+  const [mode, setMode] = useState<Mode>(initialMode === "event" ? "event" : "link");
   const [url, setUrl] = useState(prefill || initialUrl || "");
+  const [note, setNote] = useState(initialNote || "");
+  const [proofUrl, setProofUrl] = useState(initialProofUrl || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState(false);
   const [pending, setPending] = useState(!!pendingApproval);
+  const [confirmed, setConfirmed] = useState(!!deliveryConfirmed);
   const [approving, setApproving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setPending(!!pendingApproval);
   }, [pendingApproval]);
+
+  useEffect(() => {
+    setConfirmed(!!deliveryConfirmed);
+  }, [deliveryConfirmed]);
 
   useEffect(() => {
     if (prefill) setUrl(prefill);
@@ -81,7 +120,7 @@ export default function ProposalDeliverableField({
     });
   }, [autoFocus]);
 
-  const save = async () => {
+  const saveLink = async () => {
     const parsed = parseSocialPostUrl(url);
     if (!parsed.ok) {
       setError(socialPostUrlErrorMessage(parsed.error, lang));
@@ -98,6 +137,7 @@ export default function ProposalDeliverableField({
         body: JSON.stringify({
           source: "proposal",
           id: proposalId,
+          deliveryMode: "link",
           publishedPostUrl: parsed.url,
         }),
       });
@@ -107,6 +147,44 @@ export default function ProposalDeliverableField({
         return;
       }
       setUrl(parsed.url);
+      setMode("link");
+      setPending(true);
+      setOk(true);
+    } catch {
+      setError(lang === "el" ? "Δεν αποθηκεύτηκε." : "Could not save.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveEvent = async () => {
+    const proof = proofUrl.trim();
+    if (proof && !proof.startsWith("https://")) {
+      setError(lang === "el" ? "Το proof πρέπει να είναι https://…" : "Proof must be an https:// URL.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setOk(false);
+    try {
+      const res = await sessionFetch("/api/collaborations/showcase", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "proposal",
+          id: proposalId,
+          deliveryMode: "event",
+          eventDelivery: true,
+          deliveryNote: note.trim() || null,
+          deliveryProofUrl: proof || null,
+        }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error || (lang === "el" ? "Δεν αποθηκεύτηκε." : "Could not save."));
+        return;
+      }
+      setMode("event");
       setPending(true);
       setOk(true);
     } catch {
@@ -126,7 +204,8 @@ export default function ProposalDeliverableField({
         body: JSON.stringify({
           source: "proposal",
           id: proposalId,
-          approvePublishedPost: true,
+          approvePublishedPost: mode !== "event",
+          confirmEventDelivery: mode === "event",
         }),
       });
       if (!res.ok) {
@@ -135,6 +214,7 @@ export default function ProposalDeliverableField({
         return;
       }
       setPending(false);
+      setConfirmed(true);
       setOk(true);
     } catch {
       setError(lang === "el" ? "Δεν εγκρίθηκε." : "Could not approve.");
@@ -143,61 +223,145 @@ export default function ProposalDeliverableField({
     }
   };
 
+  const stepLabel = canApprove ? txt.brandApproveStep : txt.step;
+
   return (
     <div
       id={`deliverable-proposal-${proposalId}`}
       className={`rounded-lg border border-slate-200 bg-white p-3 space-y-2 scroll-mt-24 ${className}`}
     >
+      {showStepLabel ? (
+        <p className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-100 rounded-md px-2 py-1">
+          {stepLabel}
+        </p>
+      ) : null}
       <p className="text-xs font-semibold text-slate-700">{txt.label}</p>
-      <p className="text-[11px] text-slate-500">{txt.hint}</p>
+      {mode === "link" ? (
+        <p className="text-[11px] text-slate-500">{txt.hint}</p>
+      ) : (
+        <p className="text-[11px] text-slate-500">{txt.eventHint}</p>
+      )}
       <p className="text-[11px] leading-relaxed text-slate-400">
         {showcaseHelperText(readOnly || canApprove ? "brand" : "influencer", lang)}
       </p>
       {readOnly ? (
-        url ? (
-          <>
+        <>
+          {mode === "event" ? (
+            <>
+              <p className="text-xs text-slate-700">
+                {lang === "el" ? "Event / παρουσία" : "Event / in-person"}
+                {note ? ` — ${note}` : ""}
+              </p>
+              {proofUrl ? (
+                <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline break-all">
+                  {proofUrl}
+                </a>
+              ) : null}
+            </>
+          ) : url ? (
             <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline break-all">
               {url}
             </a>
-            {pending ? <p className="text-[11px] text-amber-700">{txt.pending}</p> : null}
-            {canApprove && pending ? (
-              <button
-                type="button"
-                disabled={approving}
-                onClick={() => void approve()}
-                className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50"
-              >
-                {approving ? txt.approving : txt.approve}
-              </button>
-            ) : null}
-            {ok && !pending ? <p className="text-xs text-emerald-700">{txt.approved}</p> : null}
-          </>
-        ) : (
-          <p className="text-xs text-slate-500">{lang === "el" ? "Δεν έχει υποβληθεί ακόμα." : "Not submitted yet."}</p>
-        )
+          ) : (
+            <p className="text-xs text-slate-500">{lang === "el" ? "Δεν έχει υποβληθεί ακόμα." : "Not submitted yet."}</p>
+          )}
+          {pending && !confirmed ? (
+            <p className="text-[11px] text-amber-700">{mode === "event" ? txt.pendingEvent : txt.pending}</p>
+          ) : null}
+          {canApprove && pending && !confirmed ? (
+            <button
+              type="button"
+              disabled={approving}
+              onClick={() => void approve()}
+              className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50"
+            >
+              {approving ? txt.approving : mode === "event" ? txt.confirmEvent : txt.approve}
+            </button>
+          ) : null}
+          {(ok && !pending) || confirmed ? <p className="text-xs text-emerald-700">{txt.approved}</p> : null}
+        </>
       ) : (
         <>
-          <input
-            ref={inputRef}
-            type="url"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              setOk(false);
-              setError(null);
-            }}
-            placeholder={txt.placeholder}
-            className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
-          />
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void save()}
-            className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? txt.saving : txt.save}
-          </button>
-          {pending ? <p className="text-[11px] text-amber-700">{txt.pending}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setMode("link")}
+              className={`text-xs px-3 py-1.5 rounded-md border ${
+                mode === "link" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
+              }`}
+            >
+              {txt.useLink}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("event")}
+              className={`text-xs px-3 py-1.5 rounded-md border ${
+                mode === "event" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
+              }`}
+            >
+              {txt.noLink}
+            </button>
+          </div>
+          {mode === "link" ? (
+            <>
+              <input
+                ref={inputRef}
+                type="url"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setOk(false);
+                  setError(null);
+                }}
+                placeholder={txt.placeholder}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
+              />
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveLink()}
+                className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? txt.saving : txt.save}
+              </button>
+            </>
+          ) : (
+            <>
+              <textarea
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value);
+                  setOk(false);
+                  setError(null);
+                }}
+                placeholder={txt.notePlaceholder}
+                rows={2}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
+              />
+              <input
+                type="url"
+                value={proofUrl}
+                onChange={(e) => {
+                  setProofUrl(e.target.value);
+                  setOk(false);
+                  setError(null);
+                }}
+                placeholder={txt.proofPlaceholder}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
+              />
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void saveEvent()}
+                className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {saving ? txt.saving : txt.submitEvent}
+              </button>
+            </>
+          )}
+          {pending ? (
+            <p className="text-[11px] text-amber-700">{mode === "event" ? txt.pendingEvent : txt.pending}</p>
+          ) : null}
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
           {ok ? <p className="text-xs text-emerald-700">{txt.saved}</p> : null}
         </>

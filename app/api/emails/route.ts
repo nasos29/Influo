@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { applicationToBrand, closedToBrand, closingSoonToBrand, notSelectedToCreator, publishedToAdmin } from "@/lib/campaignMail";
 import { NextResponse } from 'next/server';
+import { enqueueAdminDigestItem, type AdminDigestKind } from '@/lib/adminDailyDigest';
 import { emailNextSteps } from '@/lib/emailNextSteps';
 import { showcaseInlineNoticeHtml, showcaseMissingPostHtml } from '@/lib/showcaseMail';
 import { showcaseHelperEmailHtml } from '@/lib/showcaseCopy';
@@ -9,6 +10,13 @@ import { rejectUnlessAdmin, supabaseService, userFromBearer } from '@/lib/apiAut
 import { formatEuroAmount } from '@/lib/formatEuro';
 import { formatDisplayDate, formatDisplayDateTime } from '@/lib/formatDate';
 import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
+
+const ADMIN_DIGEST_EMAIL_TYPES: Record<string, AdminDigestKind> = {
+  signup_admin: 'signup_creator',
+  signup_brand_admin: 'signup_brand',
+  profile_edit_admin: 'profile_edit',
+  proposal_admin_notification: 'proposal',
+};
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -145,6 +153,22 @@ export async function POST(req: Request) {
         { success: false, error: `Invalid email type: ${type}` },
         { status: 400 }
       );
+    }
+
+    // Queue admin digest items instead of 1:1 when ADMIN_DAILY_DIGEST_ENABLED is on.
+    const digestKind = ADMIN_DIGEST_EMAIL_TYPES[type];
+    if (digestKind) {
+      const queued = await enqueueAdminDigestItem(supabaseService(), digestKind, {
+        name: name || brandName || null,
+        email: email || null,
+        brandName: brandName || null,
+        creatorName: influencerName || null,
+        service: proposalType || null,
+        location: location || null,
+      });
+      if (queued) {
+        return NextResponse.json({ success: true, queued: true, digest: digestKind });
+      }
     }
 
     // Some email types don't require email field (admin notifications)

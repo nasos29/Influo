@@ -208,15 +208,30 @@ export async function mailNewProposal(input: DealInfo & {
        ])}`
     )
   ),
-  send(
-    "proposal_admin",
-    adminEmail(),
-    campaignTitle
-      ? `Πρόσκληση σε καμπάνια: ${input.brandName} προς ${input.influencerName} (${campaignTitle})`
-      : `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
-    shell(
-      campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση",
-      `${campaignTitle ? `<p><strong>Καμπάνια:</strong> ${escapeHtml(campaignTitle)}</p>` : ""}<p><strong>Brand:</strong> ${brandName}<br/>
+  (async () => {
+    try {
+      const { enqueueAdminDigestItem } = await import("@/lib/adminDailyDigest");
+      const { supabaseService } = await import("@/lib/apiAuth");
+      const queued = await enqueueAdminDigestItem(supabaseService(), "proposal", {
+        brandName: input.brandName,
+        creatorName: input.influencerName,
+        service: input.service,
+        campaignTitle: campaignTitle || null,
+        budget: input.budget,
+      });
+      if (queued) return;
+    } catch (err) {
+      console.error("[proposal_admin digest]", err instanceof Error ? err.message : err);
+    }
+    await send(
+      "proposal_admin",
+      adminEmail(),
+      campaignTitle
+        ? `Πρόσκληση σε καμπάνια: ${input.brandName} προς ${input.influencerName} (${campaignTitle})`
+        : `Νέα πρόταση από ${input.brandName} προς ${input.influencerName}`,
+      shell(
+        campaignTitle ? "Πρόσκληση σε καμπάνια" : "Νέα πρόταση",
+        `${campaignTitle ? `<p><strong>Καμπάνια:</strong> ${escapeHtml(campaignTitle)}</p>` : ""}<p><strong>Brand:</strong> ${brandName}<br/>
         <strong>Email:</strong> ${escapeHtml(input.brandEmail)}<br/>
         <strong>Influencer:</strong> ${influencerName}<br/>
         <strong>Υπηρεσία:</strong> ${service}<br/>
@@ -224,8 +239,9 @@ export async function mailNewProposal(input: DealInfo & {
        ${note}
        <p><a href="${siteUrl()}/admin">Admin</a></p>
        ${emailNextSteps("admin_event")}`
-    )
-  ),
+      )
+    );
+  })(),
   ]);
 }
 
