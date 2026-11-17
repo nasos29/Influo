@@ -13,6 +13,7 @@ type Item = {
   source: Source;
   brandName: string;
   influencerId: string;
+  influencerName: string;
   postUrl: string | null;
   completedAt: string | null;
   hidden: boolean;
@@ -52,6 +53,10 @@ const COPY = {
     audit: "Τελευταία αλλαγή URL",
     pinnedBy: "Επιλογή αρχικής από",
     noVideoBadge: "Χωρίς βίντεο — δεν εμφανίζεται",
+    consentMissingBoth: "Λείπει συγκατάθεση brand & influencer",
+    consentMissingBrand: "Λείπει συγκατάθεση brand",
+    consentMissingInfluencer: "Λείπει συγκατάθεση influencer",
+    consentMissingTitle: "Χωρίς συγκατάθεση δεν εμφανίζεται στην αρχική",
     filterAll: "Όλες",
     filterEventPending: "Εκκρεμεί επιβεβαίωση",
     eventPendingBadge: "Εκκρεμεί επιβεβαίωση",
@@ -75,6 +80,10 @@ const COPY = {
     audit: "Last URL change",
     pinnedBy: "Homepage pick by",
     noVideoBadge: "No video — not shown publicly",
+    consentMissingBoth: "Missing brand & influencer consent",
+    consentMissingBrand: "Missing brand consent",
+    consentMissingInfluencer: "Missing influencer consent",
+    consentMissingTitle: "Without consent it does not appear on the homepage",
     filterAll: "All",
     filterEventPending: "Pending confirmation",
     eventPendingBadge: "Pending confirmation",
@@ -104,7 +113,15 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
         setItems([]);
         return;
       }
-      const next = Array.isArray(body.items) ? (body.items as Item[]) : [];
+      const next = Array.isArray(body.items)
+        ? (body.items as Item[]).map((row) => ({
+            ...row,
+            influencerName:
+              typeof row.influencerName === "string" && row.influencerName.trim()
+                ? row.influencerName.trim()
+                : "",
+          }))
+        : [];
       setItems(next);
       const drafts: Record<string, string> = {};
       for (const row of next) {
@@ -249,18 +266,27 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
             const draft = draftUrls[key] ?? item.postUrl ?? "";
             const videoOk = hasPublicVideo(item.postUrl);
             const eventPending = !!item.eventConfirmPending;
+            const brandConsentMissing = !item.brandConsent;
+            const influencerConsentMissing = !item.influencerConsent;
+            const consentMissing = brandConsentMissing || influencerConsentMissing;
+            const consentBadgeLabel =
+              brandConsentMissing && influencerConsentMissing
+                ? txt.consentMissingBoth
+                : brandConsentMissing
+                  ? txt.consentMissingBrand
+                  : txt.consentMissingInfluencer;
             return (
               <li key={key} className="flex flex-col gap-3 px-4 py-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900">
-                      {item.brandName}{" "}
+                      {item.brandName}
+                      {item.influencerName ? ` × ${item.influencerName}` : ""}{" "}
                       <span className="text-xs font-normal text-slate-500">
                         · {item.source}
                         {item.pinned ? " · homepage" : ""}
                         {item.hidden ? " · hidden" : ""}
                         {item.pendingApproval ? " · pending approval" : ""}
-                        {!item.brandConsent || !item.influencerConsent ? " · consent incomplete" : ""}
                       </span>
                     </p>
                     {item.deliveryState ? (
@@ -272,6 +298,14 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                     {eventPending ? (
                       <span className="mt-1 mr-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-amber-200/80">
                         {txt.eventPendingBadge}
+                      </span>
+                    ) : null}
+                    {consentMissing ? (
+                      <span
+                        title={txt.consentMissingTitle}
+                        className="mt-1 mr-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-amber-200/80"
+                      >
+                        {consentBadgeLabel}
                       </span>
                     ) : null}
                     {!videoOk ? (
