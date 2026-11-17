@@ -27,7 +27,7 @@ export type NotifyCollaborationCompleteInput = {
   brandEmail?: string | null;
   creatorName: string;
   creatorEmail?: string | null;
-  mode: "confirmed" | "auto";
+  mode: "confirmed" | "auto" | "admin";
   deliveryMode?: "link" | "event" | string | null;
   /** Stamp review_reminder_sent_at on proposals to avoid a second review email. */
   claimProposalReviewReminder?: boolean;

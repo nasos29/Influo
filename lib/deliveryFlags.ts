@@ -21,14 +21,18 @@ export function isBrandApproveRemindersEnabled(
   return envOn(env.BRAND_APPROVE_REMINDERS_ENABLED);
 }
 
-/** 7-day auto-complete when brand ignores a submitted deliverable. Default OFF. */
+/**
+ * 7-day safety net cron. Default OFF.
+ * Auto-complete fires only for link-mode (published link) submissions.
+ * Event mode past 7 days notifies admin instead (no auto-complete).
+ */
 export function isDeliveryAutoCompleteEnabled(
   env: NodeJS.ProcessEnv = process.env
 ): boolean {
   return envOn(env.DELIVERY_AUTO_COMPLETE_ENABLED);
 }
 
-/** Email both parties when auto-complete fires. Default OFF. */
+/** Email both parties when link-mode auto-complete fires. Default OFF. */
 export function isDeliveryAutoCompleteEmailEnabled(
   env: NodeJS.ProcessEnv = process.env
 ): boolean {
@@ -54,5 +58,5 @@ export const DELIVERABLE_REMINDER_AFTER_1_DAYS = 1;
 export const DELIVERABLE_REMINDER_AFTER_5_DAYS = 5;
 /** Days after submission before brand approve reminder. */
 export const BRAND_APPROVE_REMINDER_DAYS = 2;
-/** Days after submission before auto-complete. */
+/** Days after submission before link auto-complete / event admin notify. */
 export const DELIVERY_AUTO_COMPLETE_DAYS = 7;

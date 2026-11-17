@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { showcasePostFields } from "@/lib/showcasePostUrl";
 
 type Lang = "el" | "en";
 type Source = "proposal" | "campaign";
+type Filter = "all" | "event_pending";
 
 type Item = {
   id: string;
@@ -25,6 +26,9 @@ type Item = {
   deliveryState?: string | null;
   deliveryMode?: string | null;
   eventAdminAllowed?: boolean;
+  eventConfirmPending?: boolean;
+  deliveryConfirmedAt?: string | null;
+  autoCompletedAt?: string | null;
 };
 
 function hasPublicVideo(url: string | null | undefined): boolean {
@@ -35,34 +39,48 @@ const COPY = {
   el: {
     title: "Πρόσφατες συνεργασίες (admin)",
     empty: "Δεν υπάρχουν ολοκληρωμένες συνεργασίες ακόμα.",
+    emptyFilter: "Καμία συνεργασία με εκκρεμή επιβεβαίωση event.",
     pin: "Εμφάνιση στην αρχική",
     unpin: "Αφαίρεση από αρχική",
     hide: "Απόκρυψη",
     show: "Εμφάνιση",
     loadError: "Αποτυχία φόρτωσης.",
     publicNote:
-      "Δημόσια εμφανίζονται μόνο συνεργασίες με έγκυρο video/post link, διπλή συναίνεση και χωρίς απόκρυψη. Η αρχική δείχνει όσες έχουν «Εμφάνιση στην αρχική»· αν καμία δεν είναι επιλεγμένη, εμφανίζονται οι πιο πρόσφατες με βίντεο. Το /collaborations δείχνει όλες τις επιλέξιμες με βίντεο.",
+      "Δημόσια εμφανίζονται μόνο συνεργασίες με έγκυρο video/post link, διπλή συναίνεση και χωρίς απόκρυψη. Η αρχική δείχνει όσες έχουν «Εμφάνιση στην αρχική»· αν καμία δεν είναι επιλεγμένη, εμφανίζονται οι πιο πρόσφατες με βίντεο. Το /collaborations δείχνει όλες τις επιλέξιμες με βίντεο. Auto-complete 7 ημερών ισχύει μόνο για link· τα event μένουν εκκρεμή μέχρι brand ή «Ολοκλήρωση από admin».",
     saveUrl: "Αποθήκευση URL",
     urlPlaceholder: "https://instagram.com/reel/… ή TikTok / YouTube",
     audit: "Τελευταία αλλαγή URL",
     pinnedBy: "Επιλογή αρχικής από",
     noVideoBadge: "Χωρίς βίντεο — δεν εμφανίζεται",
+    filterAll: "Όλες",
+    filterEventPending: "Εκκρεμεί επιβεβαίωση",
+    eventPendingBadge: "Εκκρεμεί επιβεβαίωση",
+    adminComplete: "Ολοκλήρωση από admin",
+    adminCompleteConfirm:
+      "Να ολοκληρωθεί η συνεργασία από admin; Θα σταλεί το κανονικό email «Η συνεργασία ολοκληρώθηκε» (με αξιολόγηση, όπου επιτρέπεται).",
   },
   en: {
     title: "Recent collaborations (admin)",
     empty: "No completed collaborations yet.",
+    emptyFilter: "No event collaborations pending confirmation.",
     pin: "Show on homepage",
     unpin: "Remove from homepage",
     hide: "Hide",
     show: "Show",
     loadError: "Failed to load.",
     publicNote:
-      "Public listing requires a valid video/post link, both consents, and not being hidden. Homepage shows items marked «Show on homepage»; if none are marked, it falls back to the latest with video. /collaborations lists all eligible with video.",
+      "Public listing requires a valid video/post link, both consents, and not being hidden. Homepage shows items marked «Show on homepage»; if none are marked, it falls back to the latest with video. /collaborations lists all eligible with video. 7-day auto-complete is link-only; events stay pending until brand or «Complete as admin».",
     saveUrl: "Save URL",
     urlPlaceholder: "https://instagram.com/reel/… or TikTok / YouTube",
     audit: "Last URL change",
     pinnedBy: "Homepage pick by",
     noVideoBadge: "No video — not shown publicly",
+    filterAll: "All",
+    filterEventPending: "Pending confirmation",
+    eventPendingBadge: "Pending confirmation",
+    adminComplete: "Complete as admin",
+    adminCompleteConfirm:
+      "Complete this collaboration as admin? This sends the normal «collaboration completed» email (with review where allowed).",
   },
 } as const;
 
@@ -73,6 +91,7 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [draftUrls, setDraftUrls] = useState<Record<string, string>>({});
+  const [filter, setFilter] = useState<Filter>("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,9 +123,26 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
     void load();
   }, [load]);
 
+  const pendingCount = useMemo(
+    () => items.filter((row) => row.eventConfirmPending).length,
+    [items]
+  );
+
+  const visible = useMemo(() => {
+    if (filter === "event_pending") {
+      return items.filter((row) => row.eventConfirmPending);
+    }
+    return items;
+  }, [filter, items]);
+
   const patch = async (
     item: Item,
-    patchBody: { hidden?: boolean; pinned?: boolean; postUrl?: string | null }
+    patchBody: {
+      hidden?: boolean;
+      pinned?: boolean;
+      postUrl?: string | null;
+      adminComplete?: boolean;
+    }
   ) => {
     const key = `${item.source}:${item.id}`;
     setBusyId(key);
@@ -144,6 +180,18 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                     : typeof patchBody.pinned === "boolean"
                       ? body.pinnedBy || row.pinnedBy
                       : row.pinnedBy,
+                eventConfirmPending:
+                  patchBody.adminComplete === true ? false : row.eventConfirmPending,
+                deliveryConfirmedAt:
+                  patchBody.adminComplete === true
+                    ? typeof body.deliveryConfirmedAt === "string"
+                      ? body.deliveryConfirmedAt
+                      : row.deliveryConfirmedAt
+                    : row.deliveryConfirmedAt,
+                deliveryState:
+                  patchBody.adminComplete === true && typeof body.deliveryState === "string"
+                    ? body.deliveryState
+                    : row.deliveryState,
               }
             : row
         )
@@ -162,17 +210,45 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
         <h2 className="text-xl font-bold text-slate-900">{txt.title}</h2>
         <p className="mt-1 text-sm text-slate-600">{txt.publicNote}</p>
       </div>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setFilter("all")}
+          className={`inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-medium ${
+            filter === "all"
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-200 text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          {txt.filterAll}
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilter("event_pending")}
+          className={`inline-flex min-h-9 items-center rounded-lg border px-3 text-xs font-medium ${
+            filter === "event_pending"
+              ? "border-amber-700 bg-amber-700 text-white"
+              : "border-amber-200 text-amber-900 hover:bg-amber-50"
+          }`}
+        >
+          {txt.filterEventPending}
+          {pendingCount > 0 ? ` (${pendingCount})` : ""}
+        </button>
+      </div>
       {loading ? <p className="text-sm text-slate-500">…</p> : null}
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      {!loading && items.length === 0 ? (
-        <p className="text-sm text-slate-500">{txt.empty}</p>
+      {!loading && visible.length === 0 ? (
+        <p className="text-sm text-slate-500">
+          {filter === "event_pending" ? txt.emptyFilter : txt.empty}
+        </p>
       ) : (
         <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-          {items.map((item) => {
+          {visible.map((item) => {
             const key = `${item.source}:${item.id}`;
             const busy = busyId === key;
             const draft = draftUrls[key] ?? item.postUrl ?? "";
             const videoOk = hasPublicVideo(item.postUrl);
+            const eventPending = !!item.eventConfirmPending;
             return (
               <li key={key} className="flex flex-col gap-3 px-4 py-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -193,6 +269,11 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                         {item.deliveryMode === "event" ? " · event" : ""}
                       </p>
                     ) : null}
+                    {eventPending ? (
+                      <span className="mt-1 mr-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-amber-200/80">
+                        {txt.eventPendingBadge}
+                      </span>
+                    ) : null}
                     {!videoOk ? (
                       <span className="mt-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-amber-200/80">
                         {txt.noVideoBadge}
@@ -211,6 +292,19 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {eventPending ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          if (!window.confirm(txt.adminCompleteConfirm)) return;
+                          void patch(item, { adminComplete: true });
+                        }}
+                        className="inline-flex min-h-10 items-center rounded-lg border border-amber-300 bg-amber-50 px-3 text-xs font-medium text-amber-950 hover:bg-amber-100 disabled:opacity-50"
+                      >
+                        {txt.adminComplete}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       disabled={busy}

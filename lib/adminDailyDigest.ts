@@ -26,7 +26,8 @@ export type AdminDigestKind =
   | "profile_edit"
   | "unapproved"
   | "proposal"
-  | "collaboration_completed";
+  | "collaboration_completed"
+  | "event_confirm_pending";
 
 const KIND_TO_TYPE: Record<AdminDigestKind, DigestType> = {
   campaign_application: "admin_campaign_application",
@@ -36,6 +37,7 @@ const KIND_TO_TYPE: Record<AdminDigestKind, DigestType> = {
   unapproved: "admin_alert_unapproved",
   proposal: "admin_proposal",
   collaboration_completed: "admin_collaboration_completed",
+  event_confirm_pending: "admin_event_confirm_pending",
 };
 
 /** True when admin should queue this kind instead of sending 1:1. */
@@ -81,6 +83,8 @@ function sectionTitle(kind: string): string {
       return "Νέες προτάσεις";
     case "collaboration_completed":
       return "Συνεργασίες που ολοκληρώθηκαν";
+    case "event_confirm_pending":
+      return "Εκκρεμεί επιβεβαίωση (event)";
     default:
       return kind;
   }
@@ -109,11 +113,16 @@ function lineFor(payload: Record<string, unknown>): string {
   if (kind === "collaboration_completed") {
     const how =
       payload.mode === "auto"
-        ? "αυτόματα"
-        : payload.deliveryMode === "event"
-          ? "event"
-          : "έγκριση";
+        ? "αυτόματα (link)"
+        : payload.mode === "admin"
+          ? "admin"
+          : payload.deliveryMode === "event"
+            ? "event"
+            : "έγκριση";
     return `<li><strong>${escapeHtml(String(payload.brandName || ""))}</strong> / ${escapeHtml(String(payload.creatorName || ""))} · ${escapeHtml(String(payload.source || ""))} ${escapeHtml(String(payload.id || ""))} · ${escapeHtml(how)} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
+  }
+  if (kind === "event_confirm_pending") {
+    return `<li><strong>${escapeHtml(String(payload.brandName || ""))}</strong> / ${escapeHtml(String(payload.creatorName || ""))} · ${escapeHtml(String(payload.source || ""))} ${escapeHtml(String(payload.id || ""))} · event χωρίς απάντηση 7+ ημερών — ολοκλήρωσε χειροκίνητα στο admin <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
   }
   return `<li>${escapeHtml(JSON.stringify(payload).slice(0, 200))}</li>`;
 }
@@ -197,6 +206,7 @@ export async function flushAdminDailyDigest(
         "admin_alert_unapproved",
         "admin_proposal",
         "admin_collaboration_completed",
+        "admin_event_confirm_pending",
       ]
     : ["admin_campaign_application"];
 

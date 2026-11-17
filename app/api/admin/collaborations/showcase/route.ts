@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, supabaseService } from "@/lib/apiAuth";
-import { deliveryStateLabel } from "@/lib/deliveryCompletion";
+import {
+  deliveryStateLabel,
+  isEventConfirmPending,
+  isRealDeliveryComplete,
+} from "@/lib/deliveryCompletion";
+import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
+import { influencerContact } from "@/lib/proposalAccess";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
 type Source = "proposal" | "campaign";
@@ -75,6 +81,7 @@ export async function GET(request: Request) {
     deliveryNote?: string | null;
     deliveryProofUrl?: string | null;
     eventAdminAllowed?: boolean;
+    eventConfirmPending?: boolean;
     deliveryState?: string;
   }> = [];
 
@@ -135,6 +142,15 @@ export async function GET(request: Request) {
           deliveryProofUrl:
             typeof row.delivery_proof_url === "string" ? row.delivery_proof_url : null,
           eventAdminAllowed: !!row.showcase_event_admin_allowed,
+          eventConfirmPending: isEventConfirmPending({
+            delivery_mode: typeof row.delivery_mode === "string" ? row.delivery_mode : null,
+            delivery_submitted_at:
+              typeof row.delivery_submitted_at === "string" ? row.delivery_submitted_at : null,
+            delivery_confirmed_at:
+              typeof row.delivery_confirmed_at === "string" ? row.delivery_confirmed_at : null,
+            auto_completed_at:
+              typeof row.auto_completed_at === "string" ? row.auto_completed_at : null,
+          }),
           deliveryState: deliveryStateLabel(
             {
               status: "completed",
@@ -172,7 +188,7 @@ export async function GET(request: Request) {
     let q = admin
       .from("campaign_applications")
       .select(
-        "id, influencer_id, deliverable_url, reviewed_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, brand_campaigns ( brands ( brand_name ) )"
+        "id, influencer_id, deliverable_url, reviewed_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_proof_url, showcase_event_admin_allowed, brand_campaigns ( brands ( brand_name ) )"
       )
       .in("deliverable_status", ["approved", "submitted", "changes_requested"])
       .order("reviewed_at", { ascending: false })
@@ -185,7 +201,7 @@ export async function GET(request: Request) {
         .eq("influencer_showcase_consent", true);
     }
     let { data, error } = await q;
-    if (error && /showcase_post_url_updated|showcase_admin_pinned_by|PGRST204|42703/i.test(error.message || "")) {
+    if (error && /showcase_post_url_updated|showcase_admin_pinned_by|delivery_|showcase_event_admin|PGRST204|42703/i.test(error.message || "")) {
       let q2 = admin
         .from("campaign_applications")
         .select(
@@ -213,6 +229,13 @@ export async function GET(request: Request) {
           brands?: { brand_name?: string } | { brand_name?: string }[] | null;
         } | null;
         const brandRow = Array.isArray(campaign?.brands) ? campaign?.brands[0] : campaign?.brands;
+        const deliveryMode = typeof row.delivery_mode === "string" ? row.delivery_mode : null;
+        const deliverySubmittedAt =
+          typeof row.delivery_submitted_at === "string" ? row.delivery_submitted_at : null;
+        const deliveryConfirmedAt =
+          typeof row.delivery_confirmed_at === "string" ? row.delivery_confirmed_at : null;
+        const autoCompletedAt =
+          typeof row.auto_completed_at === "string" ? row.auto_completed_at : null;
         items.push({
           id: String(row.id),
           source: "campaign",
@@ -225,6 +248,29 @@ export async function GET(request: Request) {
           brandConsent: !!row.brand_showcase_consent,
           influencerConsent: !!row.influencer_showcase_consent,
           pendingApproval: false,
+          deliveryMode,
+          deliverySubmittedAt,
+          deliveryConfirmedAt,
+          autoCompletedAt,
+          deliveryProofUrl:
+            typeof row.delivery_proof_url === "string" ? row.delivery_proof_url : null,
+          eventAdminAllowed: !!row.showcase_event_admin_allowed,
+          eventConfirmPending: isEventConfirmPending({
+            delivery_mode: deliveryMode,
+            delivery_submitted_at: deliverySubmittedAt,
+            delivery_confirmed_at: deliveryConfirmedAt,
+            auto_completed_at: autoCompletedAt,
+          }),
+          deliveryState: deliveryStateLabel(
+            {
+              delivery_mode: deliveryMode,
+              delivery_submitted_at: deliverySubmittedAt,
+              delivery_confirmed_at: deliveryConfirmedAt,
+              auto_completed_at: autoCompletedAt,
+              deliverable_status: undefined,
+            },
+            "el"
+          ),
           postUrlUpdatedBy:
             typeof row.showcase_post_url_updated_by === "string"
               ? row.showcase_post_url_updated_by
@@ -247,7 +293,7 @@ export async function GET(request: Request) {
   return NextResponse.json({ items, publicPreview });
 }
 
-/** PATCH: admin hide / pin / set post URL (audited). */
+/** PATCH: admin hide / pin / set post URL / complete delivery (audited). */
 export async function PATCH(request: Request) {
   const adminUser = await requireAdmin(request);
   if (!adminUser) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -259,8 +305,144 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "source and id required" }, { status: 400 });
   }
 
+  const admin = supabaseService();
   const adminEmail = (adminUser.email || adminUser.id || "admin").trim();
   const now = new Date().toISOString();
+
+  // Admin manual completion («Ολοκλήρωση από admin») — real completion + email.
+  if (body.adminComplete === true) {
+    if (source === "proposal") {
+      const { data: row, error: loadErr } = await admin
+        .from("proposals")
+        .select(
+          "id, influencer_id, brand_name, brand_email, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, status"
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (loadErr || !row) {
+        return NextResponse.json({ error: loadErr?.message || "Not found" }, { status: 404 });
+      }
+      if (isRealDeliveryComplete(row)) {
+        return NextResponse.json({ ok: true, alreadyComplete: true });
+      }
+      if (!row.delivery_submitted_at) {
+        return NextResponse.json(
+          { error: "No delivery submitted — cannot complete abandoned deal" },
+          { status: 400 }
+        );
+      }
+      const update = {
+        delivery_confirmed_at: now,
+        published_post_pending_approval: false,
+      };
+      let { error } = await admin.from("proposals").update(update).eq("id", id);
+      if (error && /delivery_confirmed|published_post_pending|PGRST204|42703/i.test(error.message || "")) {
+        ({ error } = await admin
+          .from("proposals")
+          .update({ delivery_confirmed_at: now })
+          .eq("id", id));
+      }
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+      const contact = await influencerContact(String(row.influencer_id));
+      await notifyRealCollaborationComplete(admin, {
+        source: "proposal",
+        id: row.id,
+        influencerId: String(row.influencer_id),
+        brandName: row.brand_name || "Επιχείρηση",
+        brandEmail: row.brand_email,
+        creatorName: contact.name,
+        creatorEmail: contact.email,
+        mode: "admin",
+        deliveryMode: typeof row.delivery_mode === "string" ? row.delivery_mode : null,
+      });
+      await writeAudit(
+        adminEmail,
+        "delivery_admin_complete",
+        source,
+        id,
+        { deliveryMode: row.delivery_mode || null },
+        request
+      );
+      return NextResponse.json({
+        ok: true,
+        deliveryConfirmedAt: now,
+        deliveryState: deliveryStateLabel(
+          { delivery_confirmed_at: now, delivery_mode: row.delivery_mode },
+          "el"
+        ),
+        eventConfirmPending: false,
+      });
+    }
+
+    const { data: row, error: loadErr } = await admin
+      .from("campaign_applications")
+      .select(
+        "id, influencer_id, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, deliverable_status, brand_campaigns ( brands ( brand_name, contact_email ) )"
+      )
+      .eq("id", id)
+      .maybeSingle();
+    if (loadErr || !row) {
+      return NextResponse.json({ error: loadErr?.message || "Not found" }, { status: 404 });
+    }
+    if (isRealDeliveryComplete(row)) {
+      return NextResponse.json({ ok: true, alreadyComplete: true });
+    }
+    if (!row.delivery_submitted_at) {
+      return NextResponse.json(
+        { error: "No delivery submitted — cannot complete abandoned deal" },
+        { status: 400 }
+      );
+    }
+    const update = {
+      delivery_confirmed_at: now,
+      deliverable_status: "approved",
+      reviewed_at: now,
+    };
+    let { error } = await admin.from("campaign_applications").update(update).eq("id", id);
+    if (error && /delivery_confirmed|PGRST204|42703/i.test(error.message || "")) {
+      const soft = { ...update };
+      delete (soft as { delivery_confirmed_at?: string }).delivery_confirmed_at;
+      ({ error } = await admin.from("campaign_applications").update(soft).eq("id", id));
+    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    const campaignRaw = (row as { brand_campaigns?: unknown }).brand_campaigns;
+    const campaign = (Array.isArray(campaignRaw) ? campaignRaw[0] : campaignRaw) as {
+      brands?: { brand_name?: string; contact_email?: string } | { brand_name?: string; contact_email?: string }[] | null;
+    } | null;
+    const brandRow = Array.isArray(campaign?.brands) ? campaign?.brands[0] : campaign?.brands;
+    const contact = await influencerContact(String(row.influencer_id));
+    await notifyRealCollaborationComplete(admin, {
+      source: "campaign",
+      id: row.id,
+      influencerId: String(row.influencer_id),
+      brandName: brandRow?.brand_name || "Επιχείρηση",
+      brandEmail: brandRow?.contact_email || null,
+      creatorName: contact.name,
+      creatorEmail: contact.email,
+      mode: "admin",
+      deliveryMode: typeof row.delivery_mode === "string" ? row.delivery_mode : null,
+    });
+    await writeAudit(
+      adminEmail,
+      "delivery_admin_complete",
+      source,
+      id,
+      { deliveryMode: row.delivery_mode || null },
+      request
+    );
+    return NextResponse.json({
+      ok: true,
+      deliveryConfirmedAt: now,
+      deliveryState: deliveryStateLabel(
+        { delivery_confirmed_at: now, delivery_mode: row.delivery_mode },
+        "el"
+      ),
+      eventConfirmPending: false,
+    });
+  }
+
   const update: Record<string, unknown> = {};
   const auditDetails: Record<string, unknown> = {};
 
@@ -312,7 +494,7 @@ export async function PATCH(request: Request) {
   }
 
   const table = source === "proposal" ? "proposals" : "campaign_applications";
-  let { error } = await supabaseService().from(table).update(update).eq("id", id);
+  let { error } = await admin.from(table).update(update).eq("id", id);
   if (
     error &&
     /showcase_post_url_updated|showcase_admin_pinned_by|published_post_pending_approval|PGRST204|42703/i.test(
@@ -324,7 +506,7 @@ export async function PATCH(request: Request) {
     delete soft.showcase_post_url_updated_at;
     delete soft.showcase_admin_pinned_by;
     delete soft.published_post_pending_approval;
-    ({ error } = await supabaseService().from(table).update(soft).eq("id", id));
+    ({ error } = await admin.from(table).update(soft).eq("id", id));
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

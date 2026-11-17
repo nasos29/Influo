@@ -45,6 +45,7 @@ Additive migrations:
 
 - `AdminRecentCollaborationsPanel` can set/edit post URL and pin/unpin for any completed/approved collab.
 - Audit: `admin_audit_log` + columns `showcase_post_url_updated_by/at`, `showcase_admin_pinned_by`.
+- **Delivery completion:** 7-day auto-complete (`DELIVERY_AUTO_COMPLETE_ENABLED`) applies **only to link mode** (published post URL). Event mode never auto-completes; after 7 days without brand response the admin daily digest gets an «Εκκρεμεί επιβεβαίωση (event)» line, and the panel shows a filter/badge plus **«Ολοκλήρωση από admin»** (sends the normal completion + review email). Unsubmitted deals stay «Σε εξέλιξη».
 
 ## Backfill (past collaborations)
 
