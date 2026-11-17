@@ -70,6 +70,7 @@ export async function mailBrandApproveReminder(input: {
   );
 }
 
+/** @deprecated Prefer notifyRealCollaborationComplete (completion + review merged). */
 export async function mailDeliveryAutoCompleted(input: {
   to: string | null | undefined;
   party: "creator" | "brand";
@@ -77,23 +78,18 @@ export async function mailDeliveryAutoCompleted(input: {
   brandName: string;
   dashboardUrl: string;
 }): Promise<void> {
-  const isCreator = input.party === "creator";
-  await send(
-    `delivery_auto_completed_${input.party}`,
-    input.to,
-    "Η συνεργασία ολοκληρώθηκε αυτόματα",
-    shell(
-      "Αυτόματη ολοκλήρωση",
-      `<p>Γεια ${isCreator ? escapeHtml(input.creatorName) : `σας ${escapeHtml(input.brandName)}`},</p>
-       <p>Το παραδοτέο υποβλήθηκε και δεν υπήρξε απάντηση εντός 7 ημερών, οπότε η συνεργασία με ${
-         isCreator
-           ? `<strong>${escapeHtml(input.brandName)}</strong>`
-           : `<strong>${escapeHtml(input.creatorName)}</strong>`
-       } σημειώθηκε ως ολοκληρωμένη αυτόματα.</p>
-       ${button(input.dashboardUrl, "Άνοιξε το dashboard")}
-       <p style="font-size:12px;color:#64748b;">Μπορείτε ακόμα να αφήσετε αξιολόγηση.</p>`
-    )
-  );
+  const { mailCollaborationCompleted } = await import("@/lib/collaborationCompleteMail");
+  await mailCollaborationCompleted({
+    to: input.to,
+    party: input.party,
+    creatorName: input.creatorName,
+    brandName: input.brandName,
+    mode: "auto",
+    dashboardUrl: input.dashboardUrl,
+    reviewUrl: input.dashboardUrl,
+    reviewCtaLabel: "Άνοιξε το dashboard",
+    includeReview: false,
+  });
 }
 
 export async function mailBrandDeliverySubmitted(input: {
@@ -128,6 +124,7 @@ export async function mailBrandDeliverySubmitted(input: {
   );
 }
 
+/** @deprecated Prefer notifyRealCollaborationComplete (completion + review merged). */
 export async function mailCreatorDeliveryConfirmed(input: {
   to: string | null | undefined;
   creatorName: string;
@@ -135,20 +132,19 @@ export async function mailCreatorDeliveryConfirmed(input: {
   mode: "link" | "event" | string;
   dashboardUrl: string;
 }): Promise<void> {
-  await send(
-    "delivery_confirmed_creator",
-    input.to,
-    `Η ${input.brandName} επιβεβαίωσε την παράδοση`,
-    shell(
-      "Παράδοση επιβεβαιωμένη",
-      `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>
-       <p>Η <strong>${escapeHtml(input.brandName)}</strong> επιβεβαίωσε ${
-         input.mode === "event" ? "την παρουσία / το event" : "το παραδοτέο"
-       }. Η συνεργασία ολοκληρώθηκε.</p>
-       ${button(input.dashboardUrl, "Άνοιξε το dashboard")}
-       <p style="font-size:12px;color:#64748b;">Σύντομα μπορείς να αφήσεις αξιολόγηση.</p>`
-    )
-  );
+  const { mailCollaborationCompleted } = await import("@/lib/collaborationCompleteMail");
+  await mailCollaborationCompleted({
+    to: input.to,
+    party: "creator",
+    creatorName: input.creatorName,
+    brandName: input.brandName,
+    mode: "confirmed",
+    deliveryMode: input.mode,
+    dashboardUrl: input.dashboardUrl,
+    reviewUrl: input.dashboardUrl,
+    reviewCtaLabel: "Άνοιξε το dashboard",
+    includeReview: false,
+  });
 }
 
 export { siteUrl };

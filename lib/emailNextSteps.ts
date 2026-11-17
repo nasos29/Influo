@@ -38,6 +38,8 @@ export type EmailNextStepsKey =
   | "collaboration_complete_creator"
   | "deal_complete_creator"
   | "deal_complete_brand"
+  | "collaboration_completed_creator"
+  | "collaboration_completed_brand"
   | "review_reminder_brand"
   | "review_reminder_creator"
   | "agreement_complete_admin"
@@ -206,18 +208,27 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
     { el: "Αν θέλεις αλλαγές, γράψε στην άλλη πλευρά από τα Μηνύματα του Influo.", en: "If you want changes, message the other side in Influo Chat." },
   ],
   collaboration_complete_creator: [
-    { el: "Δες τη συνεργασία στο προφίλ/dashboard σου.", en: "View the collaboration on your profile/dashboard." },
-    { el: "Συντόνισε παράδοση και ημερομηνίες στο chat.", en: "Coordinate delivery and dates in chat." },
+    { el: "Η συνεργασία ξεκίνησε — συντόνισε brief και ημερομηνίες στο chat.", en: "The collaboration has started — align brief and dates in chat." },
+    { el: "Όταν είσαι έτοιμος, ανέβασε το παραδοτέο από το πεδίο Παραδοτέο (ή επιβεβαίωσε event).", en: "When ready, upload the deliverable via the Deliverable field (or confirm the event)." },
   ],
   deal_complete_creator: [
     { el: "Συντόνισε brief, υλικό και ημερομηνία δημοσίευσης στο chat.", en: "Align brief, assets, and publish date in chat." },
-    { el: "Όταν δημοσιεύσεις, βάλε το link στο πεδίο Παραδοτέο στο dashboard (όχι μόνο στο chat).", en: "When you publish, paste the link in the Deliverable field on the dashboard (not only in chat)." },
+    { el: "Επόμενο βήμα: ανέβασε το παραδοτέο από το πεδίο Παραδοτέο στο dashboard (ή επιβεβαίωσε event/παρουσία).", en: "Next step: upload the deliverable via the Deliverable field on the dashboard (or confirm event/presence)." },
     { el: "Ζήτησε προκαταβολή πριν ξεκινήσεις — το Influo δεν μεσολαβεί στην πληρωμή.", en: "Ask for a deposit before you start — Influo does not handle payment." },
     { el: "Κράτα αυτό το email ως αντίγραφο της συμφωνίας.", en: "Keep this email as a copy of the agreement." },
   ],
   deal_complete_brand: [
     { el: "Στείλε brief και υλικό από τα Μηνύματα του Influo.", en: "Send the brief and assets via Influo Messages." },
+    { el: "Όταν ο δημιουργός ανεβάσει παραδοτέο (Παραδοτέο) ή δηλώσει event, έγκρινε / επιβεβαίωσε από το dashboard.", en: "When the creator uploads a deliverable (Deliverable) or marks an event, approve / confirm from the dashboard." },
     { el: "Συμφωνήστε ημερομηνία παράδοσης/δημοσίευσης με τον δημιουργό.", en: "Agree a delivery/publish date with the creator." },
+  ],
+  collaboration_completed_creator: [
+    { el: "Πάτα τα αστέρια ή το κουμπί για να αξιολογήσεις την επιχείρηση.", en: "Tap the stars or the button to rate the brand." },
+    { el: "Αν σου άρεσε η εμπειρία, tag @influo.gr σε story ή video.", en: "If you enjoyed it, tag @influo.gr in a story or video." },
+  ],
+  collaboration_completed_brand: [
+    { el: "Πάτα τα αστέρια ή το κουμπί για να αξιολογήσετε τον δημιουργό.", en: "Tap the stars or the button to rate the creator." },
+    { el: "Αν σας άρεσε, αναφέρετε το Influo (@influo.gr) στην ανάρτηση.", en: "If you liked it, mention Influo (@influo.gr) in the post." },
   ],
   review_reminder_brand: [
     { el: "Πάτα το κουμπί → ανοίγει το modal αξιολόγησης (αστέρια + κείμενο).", en: "Tap the button → the review modal opens (stars + text)." },
@@ -228,7 +239,7 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
     { el: "Αν σου άρεσε η εμπειρία, tag @influo.gr σε story ή video.", en: "If you enjoyed it, tag @influo.gr in a story or video." },
   ],
   agreement_complete_admin: [
-    { el: "Άνοιξε τη διαχείριση και έλεγξε τη συμφωνία.", en: "Open admin and review the agreement." },
+    { el: "Η συνεργασία ξεκίνησε — άνοιξε τη διαχείριση αν χρειάζεται έλεγχος.", en: "The collaboration has started — open admin if you need to review." },
   ],
   admin_event: [
     { el: "Άνοιξε τη διαχείριση (/admin) για λεπτομέρειες.", en: "Open admin (/admin) for details." },

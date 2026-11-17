@@ -54,25 +54,46 @@ export function deliveryStateLabel(
   lang: "el" | "en" = "el"
 ): string {
   if (row.auto_completed_at) {
-    return lang === "el" ? "Αυτόματη ολοκλήρωση" : "Auto-completed";
+    return lang === "el" ? "Ολοκληρώθηκε (αυτόματα)" : "Completed (auto)";
   }
   if (row.delivery_confirmed_at) {
-    return lang === "el" ? "Παράδοση επιβεβαιωμένη" : "Delivery confirmed";
+    return lang === "el" ? "Ολοκληρώθηκε" : "Completed";
   }
   if (row.delivery_submitted_at || row.published_post_pending_approval) {
     if (row.delivery_mode === "event") {
-      return lang === "el" ? "Αναμονή επιβεβαίωσης event" : "Awaiting event confirmation";
+      return lang === "el" ? "Σε εξέλιξη · αναμονή επιβεβαίωσης event" : "In progress · awaiting event confirmation";
     }
-    return lang === "el" ? "Αναμονή έγκρισης link" : "Awaiting link approval";
+    return lang === "el" ? "Σε εξέλιξη · αναμονή έγκρισης link" : "In progress · awaiting link approval";
   }
   if ((row.status || "").toLowerCase() === "completed") {
-    return lang === "el" ? "Συμφωνία · εκκρεμεί παράδοση" : "Agreement · deliverable pending";
+    return lang === "el" ? "Σε εξέλιξη" : "In progress";
   }
   if (row.deliverable_status === "submitted") {
     return lang === "el" ? "Αναμονή έγκρισης" : "Awaiting approval";
   }
   if (row.deliverable_status === "approved") {
     return lang === "el" ? "Εγκεκριμένο παραδοτέο" : "Deliverable approved";
+  }
+  return lang === "el" ? "—" : "—";
+}
+
+/**
+ * Dashboard badge after agreement lock:
+ * «Σε εξέλιξη» until real delivery completion, then «Ολοκληρώθηκε».
+ */
+export function collaborationProgressLabel(
+  row: {
+    status?: string | null;
+    delivery_confirmed_at?: string | null;
+    auto_completed_at?: string | null;
+  },
+  lang: "el" | "en" = "el"
+): string {
+  if (isRealDeliveryComplete(row)) {
+    return lang === "el" ? "Ολοκληρώθηκε" : "Completed";
+  }
+  if ((row.status || "").toLowerCase() === "completed") {
+    return lang === "el" ? "Σε εξέλιξη" : "In progress";
   }
   return lang === "el" ? "—" : "—";
 }

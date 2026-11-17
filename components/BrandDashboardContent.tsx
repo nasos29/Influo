@@ -3214,14 +3214,24 @@ export default function BrandDashboardContent() {
                           {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
                             <p className="mt-2 text-sm text-slate-700">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
                           ) : null}
-                          <p className={`mt-3 text-sm font-medium ${completed ? "text-green-700" : "text-amber-800"}`}>
-                            {completed
+                          <p className={`mt-3 text-sm font-medium ${
+                            proposal.delivery_confirmed_at || proposal.auto_completed_at
+                              ? "text-green-700"
+                              : completed
+                                ? "text-blue-700"
+                                : "text-amber-800"
+                          }`}>
+                            {proposal.delivery_confirmed_at || proposal.auto_completed_at
                               ? lang === "el"
                                 ? "Ολοκληρώθηκε"
                                 : "Completed"
-                              : lang === "el"
-                                ? "Αναμονή του δημιουργού"
-                                : "Waiting for the creator"}
+                              : completed
+                                ? lang === "el"
+                                  ? "Σε εξέλιξη"
+                                  : "In progress"
+                                : lang === "el"
+                                  ? "Αναμονή του δημιουργού"
+                                  : "Waiting for the creator"}
                           </p>
                           {(proposal.status === "completed" || !!proposal.influencer_agreement_accepted) &&
                           proposal.brand_agreement_accepted ? (

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { creatorContact } from "@/lib/campaignNotify";
 import {
-  deliverableApprovedToBrand,
   deliverableReviewToCreator,
   deliverableSubmittedToBrand,
 } from "@/lib/campaignMail";
+import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
@@ -14,8 +14,6 @@ import {
   parseSocialPostUrl,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
-import { showcaseOptOutUrl } from "@/lib/showcaseOptOut";
-
 type Action = "submit" | "approve" | "request_changes";
 
 /**
@@ -80,9 +78,6 @@ export async function POST(request: NextRequest) {
   const brandName = brandRow?.brand_name || "Brand";
   const brandEmail = (brandRow?.contact_email || "").trim().toLowerCase();
   const campaignTitle = campaign.title || "Καμπάνια";
-  const existingInfluencerConsent = !!(app as { influencer_showcase_consent?: boolean | null })
-    .influencer_showcase_consent;
-
   if (action === "submit") {
     const { data: influencer } = await admin
       .from("influencers")
@@ -243,60 +238,56 @@ export async function POST(request: NextRequest) {
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const existingBrandConsent = !!(app as { brand_showcase_consent?: boolean | null }).brand_showcase_consent;
-  const creatorConsentTrue = existingInfluencerConsent;
-  const brandConsentTrue =
-    brandShowcaseConsent === true || (brandShowcaseConsent === undefined && existingBrandConsent);
-
   deferAfterResponse(async () => {
     try {
       const person = await creatorContact(String(app.influencer_id));
       if (!person) return;
-      const creatorOptOut =
-        nextStatus === "approved" && creatorConsentTrue
-          ? showcaseOptOutUrl("campaign", applicationId, "influencer", "el")
-          : null;
+
+      if (nextStatus === "approved") {
+        // Real completion: one «Η συνεργασία ολοκληρώθηκε» + review (no separate approve/review mails).
+        await notifyRealCollaborationComplete(admin, {
+          source: "campaign",
+          id: applicationId,
+          influencerId: String(app.influencer_id),
+          brandName,
+          brandEmail,
+          creatorName: person.name,
+          creatorEmail: person.email,
+          mode: "confirmed",
+          deliveryMode:
+            (app as { delivery_mode?: string | null }).delivery_mode || "link",
+        });
+        await sendPushToInfluencer(person.id, {
+          title: "Η συνεργασία ολοκληρώθηκε",
+          body: `${brandName}: ${campaignTitle}`.slice(0, 120),
+          url: "/dashboard?tab=campaigns",
+          tag: `deliverable-approved-${applicationId}`,
+        }).catch((err) => console.error("[deliverable] creator push", err));
+        return;
+      }
+
       const mail = deliverableReviewToCreator({
         influencerName: person.name,
         brandName,
         campaignTitle,
         status: nextStatus,
         reviewNote: reviewNote || null,
-        showcaseOptOutUrl: creatorOptOut,
+        showcaseOptOutUrl: null,
       });
       if (person.email) {
         await send(
-          nextStatus === "approved" ? "campaign_deliverable_approved_creator" : "campaign_deliverable_changes_creator",
+          "campaign_deliverable_changes_creator",
           person.email,
           mail.subject,
           mail.html
         );
       }
       await sendPushToInfluencer(person.id, {
-        title: nextStatus === "approved" ? "Η παράδοσή σου εγκρίθηκε" : "Ζητήθηκαν αλλαγές",
+        title: "Ζητήθηκαν αλλαγές",
         body: `${brandName}: ${campaignTitle}`.slice(0, 120),
         url: "/dashboard?tab=campaigns",
         tag: `deliverable-${nextStatus}-${applicationId}`,
       }).catch((err) => console.error("[deliverable] creator push", err));
-
-      if (nextStatus === "approved" && brandEmail) {
-        const brandOptOut = brandConsentTrue
-          ? showcaseOptOutUrl("campaign", applicationId, "brand", "el")
-          : null;
-        const brandMail = deliverableApprovedToBrand({
-          brandEmail,
-          brandName,
-          campaignTitle,
-          influencerName: person.name,
-          showcaseOptOutUrl: brandOptOut,
-        });
-        await send(
-          "campaign_deliverable_approved_brand",
-          brandEmail,
-          brandMail.subject,
-          brandMail.html
-        ).catch((err) => console.error("[deliverable] brand approve mail", err));
-      }
     } catch (err) {
       console.error("[deliverable] review notify", err);
     }

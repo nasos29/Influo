@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { isCollabEmailExcludedInfluencer, PALLI_INFLUENCER_ID } from "../lib/collabEmailExclusion.ts";
 import {
+  collaborationProgressLabel,
   deliveryStateLabel,
   isDeliveryPendingBrand,
   isRealDeliveryComplete,
@@ -72,7 +73,17 @@ test("real completion helpers", () => {
     }),
     true
   );
-  assert.match(deliveryStateLabel({ status: "completed" }, "el"), /παράδοση/i);
+  assert.match(deliveryStateLabel({ status: "completed" }, "el"), /εξέλιξη/i);
+  assert.match(deliveryStateLabel({ delivery_confirmed_at: "2026-11-01T00:00:00.000Z" }, "el"), /Ολοκληρώθηκε/);
+});
+
+test("collaboration progress labels", () => {
+  assert.equal(collaborationProgressLabel({ status: "completed" }, "el"), "Σε εξέλιξη");
+  assert.equal(
+    collaborationProgressLabel({ status: "completed", delivery_confirmed_at: "2026-11-01T00:00:00.000Z" }, "el"),
+    "Ολοκληρώθηκε"
+  );
+  assert.equal(collaborationProgressLabel({ status: "completed" }, "en"), "In progress");
 });
 
 test("event collabs stay private unless admin allows", () => {

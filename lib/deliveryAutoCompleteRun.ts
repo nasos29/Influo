@@ -10,7 +10,7 @@ import {
   isDeliveryAutoCompleteEmailEnabled,
   isDeliveryAutoCompleteEnabled,
 } from "@/lib/deliveryFlags";
-import { mailDeliveryAutoCompleted, siteUrl } from "@/lib/deliveryMail";
+import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { influencerContact } from "@/lib/proposalAccess";
 
 type ProposalRow = {
@@ -101,26 +101,18 @@ export async function runDeliveryAutoComplete(
         if (emailOn) {
           try {
             const contact = await influencerContact(row.influencer_id);
-            const brandEmail = (row.brand_email || "").trim();
-            await Promise.all([
-              mailDeliveryAutoCompleted({
-                to: contact.email,
-                party: "creator",
-                creatorName: contact.name,
-                brandName: row.brand_name || "Επιχείρηση",
-                dashboardUrl: `${siteUrl()}/dashboard?tab=proposals`,
-              }),
-              brandEmail
-                ? mailDeliveryAutoCompleted({
-                    to: brandEmail,
-                    party: "brand",
-                    creatorName: contact.name,
-                    brandName: row.brand_name || "Επιχείρηση",
-                    dashboardUrl: `${siteUrl()}/brand/dashboard?tab=proposals`,
-                  })
-                : Promise.resolve(),
-            ]);
-            emailed += 1;
+            const result = await notifyRealCollaborationComplete(admin, {
+              source: "proposal",
+              id: row.id,
+              influencerId: row.influencer_id,
+              brandName: row.brand_name || "Επιχείρηση",
+              brandEmail: row.brand_email,
+              creatorName: contact.name,
+              creatorEmail: contact.email,
+              mode: "auto",
+              deliveryMode: null,
+            });
+            if (result.emailed > 0) emailed += 1;
           } catch (err) {
             errors.push(`proposal mail ${row.id}: ${err instanceof Error ? err.message : "fail"}`);
           }
@@ -181,25 +173,18 @@ export async function runDeliveryAutoComplete(
             const brandEmail = (brandRow?.contact_email || "").trim();
             const brandName = brandRow?.brand_name || "Επιχείρηση";
             const contact = await influencerContact(row.influencer_id);
-            await Promise.all([
-              mailDeliveryAutoCompleted({
-                to: contact.email,
-                party: "creator",
-                creatorName: contact.name,
-                brandName,
-                dashboardUrl: `${siteUrl()}/dashboard?tab=campaigns`,
-              }),
-              brandEmail
-                ? mailDeliveryAutoCompleted({
-                    to: brandEmail,
-                    party: "brand",
-                    creatorName: contact.name,
-                    brandName,
-                    dashboardUrl: `${siteUrl()}/brand/dashboard?tab=campaigns`,
-                  })
-                : Promise.resolve(),
-            ]);
-            emailed += 1;
+            const result = await notifyRealCollaborationComplete(admin, {
+              source: "campaign",
+              id: row.id,
+              influencerId: row.influencer_id,
+              brandName,
+              brandEmail,
+              creatorName: contact.name,
+              creatorEmail: contact.email,
+              mode: "auto",
+              deliveryMode: null,
+            });
+            if (result.emailed > 0) emailed += 1;
           } catch (err) {
             errors.push(`campaign mail ${row.id}: ${err instanceof Error ? err.message : "fail"}`);
           }

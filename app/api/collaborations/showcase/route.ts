@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { asDeliveryMode } from "@/lib/deliveryCompletion";
-import { mailBrandDeliverySubmitted, mailCreatorDeliveryConfirmed, siteUrl } from "@/lib/deliveryMail";
+import { mailBrandDeliverySubmitted, siteUrl } from "@/lib/deliveryMail";
+import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { loadProposal, partyOf, requireActor, influencerContact } from "@/lib/proposalAccess";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import {
@@ -205,13 +206,17 @@ export async function PATCH(request: Request) {
                 dashboardUrl: `${siteUrl()}/brand/dashboard?tab=proposals`,
               });
             }
-            if (confirmedNow && contact.email) {
-              await mailCreatorDeliveryConfirmed({
-                to: contact.email,
-                creatorName: contact.name,
+            if (confirmedNow) {
+              await notifyRealCollaborationComplete(admin, {
+                source: "proposal",
+                id: proposal.id,
+                influencerId: proposal.influencer_id,
                 brandName,
-                mode: deliveryMode,
-                dashboardUrl: `${siteUrl()}/dashboard?tab=proposals`,
+                brandEmail,
+                creatorName: contact.name,
+                creatorEmail: contact.email,
+                mode: "confirmed",
+                deliveryMode,
               });
             }
           } catch (err) {

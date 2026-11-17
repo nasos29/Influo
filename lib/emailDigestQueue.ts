@@ -12,7 +12,8 @@ export type DigestType =
   | "admin_signup_brand"
   | "admin_profile_edit"
   | "admin_alert_unapproved"
-  | "admin_proposal";
+  | "admin_proposal"
+  | "admin_collaboration_completed";
 
 export type DigestRecipientKind = "brand" | "admin";
 
