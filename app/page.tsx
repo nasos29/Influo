@@ -16,8 +16,8 @@ const cachedHomeTrust = unstable_cache(
 );
 
 const cachedRecentCollaborations = unstable_cache(
-  () => loadRecentCollaborations(12),
-  ["home-recent-collaborations"],
+  () => loadRecentCollaborations(12, { surface: "homepage" }),
+  ["home-recent-collaborations", "homepage-surface"],
   { revalidate: 3600, tags: ["recent-collaborations"] }
 );
 

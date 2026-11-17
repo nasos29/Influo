@@ -15,8 +15,8 @@ const cachedOpenCampaigns = unstable_cache(
 );
 
 const cachedRecentCollaborations = unstable_cache(
-  () => loadRecentCollaborations(12),
-  ["campaigns-recent-collaborations"],
+  () => loadRecentCollaborations(12, { surface: "listing" }),
+  ["campaigns-recent-collaborations", "listing-surface"],
   { revalidate: 3600, tags: ["recent-collaborations"] }
 );
 

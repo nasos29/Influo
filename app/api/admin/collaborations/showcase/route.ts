@@ -207,7 +207,7 @@ export async function GET(request: Request) {
     console.error("admin showcase campaigns", error);
   }
 
-  const publicPreview = await loadRecentCollaborations(8).catch(() => []);
+  const publicPreview = await loadRecentCollaborations(8, { surface: "homepage" }).catch(() => []);
 
   return NextResponse.json({ items, publicPreview });
 }

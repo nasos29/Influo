@@ -9,8 +9,8 @@ import { unstable_cache } from "next/cache";
 export const revalidate = 3600;
 
 const cachedRecentCollaborations = unstable_cache(
-  () => loadRecentCollaborations(12),
-  ["en-campaigns-recent-collaborations"],
+  () => loadRecentCollaborations(12, { surface: "listing" }),
+  ["en-campaigns-recent-collaborations", "listing-surface"],
   { revalidate: 3600, tags: ["recent-collaborations"] }
 );
 
