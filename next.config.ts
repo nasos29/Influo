@@ -24,6 +24,13 @@ const nextConfig: NextConfig = {
     formats: ["image/webp"],
     deviceSizes: [640, 1080, 1920],
     imageSizes: [32, 64, 128, 256],
+    // Next 16 defaults to [{ pathname: '**', search: '' }] which rejects any
+    // local src with a query string. Allow /api/image-proxy?url=… and keep
+    // other local paths working (omit search = any/no query allowed).
+    localPatterns: [
+      { pathname: "/api/image-proxy" },
+      { pathname: "/**" },
+    ],
     remotePatterns: [
       {
         protocol: "https",

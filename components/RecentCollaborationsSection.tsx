@@ -78,6 +78,7 @@ function Avatar({
         height={size}
         className={`h-full w-full object-cover ${radius}`}
         loading="lazy"
+        unoptimized={proxied.startsWith("/api/image-proxy")}
       />
     );
   }
