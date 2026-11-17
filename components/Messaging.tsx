@@ -1266,15 +1266,17 @@ export default function Messaging({
           if (match) setSelectedConversation(match.id);
         } else if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
           setSelectedConversation(enriched[0].id);
-          if (mode === 'influencer' && enriched[0]?.brand_email) {
-            setTimeout(() => checkBrandStatus(enriched[0].brand_email), 200);
+          const firstBrandEmail = enriched[0]?.brand_email;
+          if (mode === 'influencer' && firstBrandEmail) {
+            setTimeout(() => checkBrandStatus(firstBrandEmail), 200);
           }
         }
       } else if (mode === 'influencer' && enriched.length > 0 && selectedConversation) {
         const currentConv = enriched.find(c => c.id === selectedConversation);
-        if (currentConv?.brand_email) {
+        const currentBrandEmail = currentConv?.brand_email;
+        if (currentBrandEmail) {
           setTimeout(() => {
-            checkBrandStatus(currentConv.brand_email);
+            checkBrandStatus(currentBrandEmail);
           }, 200);
         }
       }
