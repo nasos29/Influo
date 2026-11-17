@@ -617,7 +617,9 @@ export default function VideoThumbnail({
         height={fill ? undefined : height}
         sizes={fill ? undefined : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
         className={fill ? "object-cover" : className}
-        unoptimized
+        unoptimized={
+          thumbnail.startsWith("/api/image-proxy") || true
+        }
         onError={handleImgError}
         style={
           fill

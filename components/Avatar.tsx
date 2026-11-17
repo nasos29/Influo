@@ -44,8 +44,9 @@ export default function Avatar({
   }
 
   // Avatars are ≤128 CSS px almost always — never send through /_next/image.
-  const isProxy = displaySrc.startsWith("/api/image-proxy");
-  const unoptimized = true;
+  // Always unoptimized; critical when displaySrc is /api/image-proxy?url=…
+  const unoptimized =
+    displaySrc.startsWith("/api/image-proxy") || true;
 
   return (
     <div
@@ -59,7 +60,7 @@ export default function Avatar({
         sizes={`${size}px`}
         className="object-cover"
         quality={75}
-        unoptimized={unoptimized || isProxy}
+        unoptimized={unoptimized}
         priority={priority}
         loading={priority ? undefined : "lazy"}
       />

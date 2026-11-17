@@ -127,6 +127,8 @@ export default function FastImage({
     );
   }
 
+  const isProxy = resolved.startsWith("/api/image-proxy");
+
   return (
     <Image
       src={resolved}
@@ -140,6 +142,7 @@ export default function FastImage({
       quality={q}
       onError={onError}
       {...rest}
+      unoptimized={isProxy || Boolean(rest.unoptimized)}
     />
   );
 }
