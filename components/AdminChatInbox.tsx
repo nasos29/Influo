@@ -216,6 +216,7 @@ export default function AdminChatInbox({
                 key={c.id}
                 type="button"
                 onClick={() => {
+                  linkedRef.current = c.id;
                   setSelectedId(c.id);
                   setSelected(c);
                   setDrawer(false);
