@@ -13,6 +13,7 @@ type Item = {
   source: Source;
   brandName: string;
   influencerId: string;
+  influencerName: string;
   postUrl: string | null;
   completedAt: string | null;
   hidden: boolean;
@@ -112,7 +113,15 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
         setItems([]);
         return;
       }
-      const next = Array.isArray(body.items) ? (body.items as Item[]) : [];
+      const next = Array.isArray(body.items)
+        ? (body.items as Item[]).map((row) => ({
+            ...row,
+            influencerName:
+              typeof row.influencerName === "string" && row.influencerName.trim()
+                ? row.influencerName.trim()
+                : "",
+          }))
+        : [];
       setItems(next);
       const drafts: Record<string, string> = {};
       for (const row of next) {
@@ -271,7 +280,8 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900">
-                      {item.brandName}{" "}
+                      {item.brandName}
+                      {item.influencerName ? ` × ${item.influencerName}` : ""}{" "}
                       <span className="text-xs font-normal text-slate-500">
                         · {item.source}
                         {item.pinned ? " · homepage" : ""}

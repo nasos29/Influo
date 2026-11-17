@@ -64,6 +64,7 @@ export async function GET(request: Request) {
     source: Source;
     brandName: string;
     influencerId: string;
+    influencerName: string;
     postUrl: string | null;
     completedAt: string | null;
     hidden: boolean;
@@ -124,6 +125,7 @@ export async function GET(request: Request) {
           source: "proposal",
           brandName: (typeof row.brand_name === "string" && row.brand_name) || "Brand",
           influencerId: String(row.influencer_id || ""),
+          influencerName: "",
           postUrl: typeof row.published_post_url === "string" ? row.published_post_url : null,
           completedAt:
             typeof row.agreement_accepted_at === "string" ? row.agreement_accepted_at : null,
@@ -241,6 +243,7 @@ export async function GET(request: Request) {
           source: "campaign",
           brandName: (typeof brandRow?.brand_name === "string" && brandRow.brand_name) || "Brand",
           influencerId: String(row.influencer_id || ""),
+          influencerName: "",
           postUrl: typeof row.deliverable_url === "string" ? row.deliverable_url : null,
           completedAt: typeof row.reviewed_at === "string" ? row.reviewed_at : null,
           hidden: !!row.showcase_admin_hidden,
@@ -286,6 +289,33 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error("admin showcase campaigns", error);
+  }
+
+  // Batch-resolve creator display names from influencers (no emails).
+  const influencerIds = [
+    ...new Set(items.map((row) => row.influencerId).filter((id) => !!id)),
+  ];
+  const nameById = new Map<string, string>();
+  if (influencerIds.length > 0) {
+    try {
+      const { data, error } = await admin
+        .from("influencers")
+        .select("id, display_name")
+        .in("id", influencerIds);
+      if (error) console.error("admin showcase influencers", error);
+      else if (Array.isArray(data)) {
+        for (const row of data as { id?: string; display_name?: string | null }[]) {
+          if (typeof row.id !== "string") continue;
+          const name = typeof row.display_name === "string" ? row.display_name.trim() : "";
+          if (name) nameById.set(row.id, name);
+        }
+      }
+    } catch (error) {
+      console.error("admin showcase influencers", error);
+    }
+  }
+  for (const row of items) {
+    row.influencerName = nameById.get(row.influencerId) || "Creator";
   }
 
   const publicPreview = await loadRecentCollaborations(8, { surface: "homepage" }).catch(() => []);
