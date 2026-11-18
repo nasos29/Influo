@@ -72,13 +72,30 @@ if [ -d .next/cache/images ]; then
   echo "Preserved .next/cache/images from live"
 fi
 if [ "$LIVE_LOCK" != "$LOCKSUM" ]; then cp -a "$BUILD/node_modules" node_modules-new; fi
+
+# Keep exactly one previous generation of hashed /_next/static files so tabs
+# opened before this deploy can still load old chunks instead of 404 / ChunkLoadError.
+rm -rf .next-static-prev-new
+if [ -d "$BUILD/.next/static" ]; then
+  cp -a "$BUILD/.next/static" .next-static-prev-new
+fi
+if [ -d .next-static-prev ]; then
+  cp -an .next-static-prev/. .next-new/static/
+  echo "Preserved previous .next/static chunks for in-flight clients"
+fi
+
 mv .next .next-old && mv .next-new .next
 if [ -d node_modules-new ]; then mv node_modules node_modules-old && mv node_modules-new node_modules; echo "$LOCKSUM" > .lock.sha; fi
 echo "Deploying $(git log -1 --oneline)"
 docker restart influo
 for i in $(seq 1 60); do
   code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3100/ || true)
-  [ "$code" = "200" ] && { echo "OK: app healthy"; rm -rf .next-old node_modules-old; exit 0; }
+  [ "$code" = "200" ] && {
+    echo "OK: app healthy"
+    rm -rf .next-old node_modules-old .next-static-prev
+    if [ -d .next-static-prev-new ]; then mv .next-static-prev-new .next-static-prev; fi
+    exit 0
+  }
   sleep 1
 done
 echo "WARN: app not healthy after restart (old build kept in .next-old)"; docker logs --tail 50 influo; exit 1
