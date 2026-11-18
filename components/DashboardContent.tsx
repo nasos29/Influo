@@ -2416,7 +2416,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                             const needsAgreement = (prop.status === 'accepted' || prop.status === 'completed') 
                                                 && !prop.influencer_agreement_accepted;
                                             const hasAgreement = prop.influencer_agreement_accepted && prop.brand_agreement_accepted;
-                                            const displayStatus = deriveProposalDisplayStatus(prop, lang, 'party');
+                                            const displayStatus = deriveProposalDisplayStatus(prop, lang, 'creator');
                                             
                                             return (
                                                 <div key={prop.id} className={`border rounded-lg p-4 ${needsAgreement ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md' : hasAgreement ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white'}`}>

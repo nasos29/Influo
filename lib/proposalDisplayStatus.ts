@@ -23,7 +23,7 @@ export const PROPOSAL_DISPLAY_STATUS_KEYS = [
 
 export type ProposalDisplayStatusKey = (typeof PROPOSAL_DISPLAY_STATUS_KEYS)[number];
 
-export type ProposalDisplayStatusAudience = "admin" | "party";
+export type ProposalDisplayStatusAudience = "admin" | "brand" | "creator" | "party";
 
 const PARTY_COLLABORATION_STARTED_KEYS = new Set<ProposalDisplayStatusKey>([
   "awaiting_agreement",
@@ -130,12 +130,24 @@ export function deriveProposalDisplayStatusKey(
   return "unknown";
 }
 
+type PartySide = "brand" | "creator";
+
+function partySideFromAudience(audience: ProposalDisplayStatusAudience): PartySide | null {
+  if (audience === "admin") return null;
+  if (audience === "brand") return "brand";
+  return "creator";
+}
+
 function partyDisplayStatusLabel(
   key: ProposalDisplayStatusKey | "unknown",
-  lang: "el" | "en"
+  lang: "el" | "en",
+  side: PartySide
 ): string {
   if (key === "unknown") return LABELS.unknown[lang];
-  if (key === "pending") return lang === "el" ? "Πρόταση" : "Proposal";
+  if (key === "pending") {
+    if (side === "brand") return lang === "el" ? "Αναμονή απάντησης" : "Awaiting reply";
+    return lang === "el" ? "Πρόταση" : "Proposal";
+  }
   if (PARTY_COLLABORATION_STARTED_KEYS.has(key)) {
     return lang === "el" ? "Ξεκίνησε συνεργασία" : "Collaboration started";
   }
@@ -147,7 +159,8 @@ export function proposalDisplayStatusLabel(
   lang: "el" | "en" = "el",
   audience: ProposalDisplayStatusAudience = "admin"
 ): string {
-  if (audience === "party") return partyDisplayStatusLabel(key, lang);
+  const side = partySideFromAudience(audience);
+  if (side) return partyDisplayStatusLabel(key, lang, side);
   return LABELS[key][lang];
 }
 

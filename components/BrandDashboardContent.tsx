@@ -3080,7 +3080,7 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {sentPendingProposals.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
-                  const display = deriveProposalDisplayStatus(proposal, lang, "party");
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3130,7 +3130,7 @@ export default function BrandDashboardContent() {
                 {pendingCounterProposals.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
                   const isProcessing = processingCounterProposal === proposal.id;
-                  const display = deriveProposalDisplayStatus(proposal, lang, "party");
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3206,7 +3206,7 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {pendingAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
-                  const display = deriveProposalDisplayStatus(proposal, lang, "party");
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3262,7 +3262,7 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {awaitingInfluencerAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
-                  const display = deriveProposalDisplayStatus(proposal, lang, "party");
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3315,7 +3315,7 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {brandSignedAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
-                  const display = deriveProposalDisplayStatus(proposal, lang, "party");
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}

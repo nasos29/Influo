@@ -104,7 +104,22 @@ test("real completion stamps -> completed", () => {
   );
 });
 
-test("party labels: pending and collaboration-started keys (el + en)", () => {
+test("brand pending: awaiting reply (el + en)", () => {
+  assert.equal(proposalDisplayStatusLabel("pending", "el", "brand"), "Αναμονή απάντησης");
+  assert.equal(proposalDisplayStatusLabel("pending", "en", "brand"), "Awaiting reply");
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "pending" }, "el", "brand").label,
+    "Αναμονή απάντησης"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "pending" }, "en", "brand").label,
+    "Awaiting reply"
+  );
+});
+
+test("creator/party labels: pending and collaboration-started keys (el + en)", () => {
+  assert.equal(proposalDisplayStatusLabel("pending", "el", "creator"), "Πρόταση");
+  assert.equal(proposalDisplayStatusLabel("pending", "en", "creator"), "Proposal");
   assert.equal(proposalDisplayStatusLabel("pending", "el", "party"), "Πρόταση");
   assert.equal(proposalDisplayStatusLabel("pending", "en", "party"), "Proposal");
   assert.equal(
