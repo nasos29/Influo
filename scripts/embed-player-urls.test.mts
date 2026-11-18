@@ -7,6 +7,8 @@ import {
   extractTikTokVideoId,
   isTikTokPlayerIframeSrc,
   isTikTokShortLink,
+  allowTikTokEmbedFallbackFromUA,
+  isTikTokMobileUa,
   preferTikTokEmbedPlayerFromUA,
   TIKTOK_EMBED_IFRAME_SANDBOX,
   TIKTOK_IFRAME_ALLOW,
@@ -127,6 +129,25 @@ test("TikTok iframe allow tokens and desktop-only embed sandbox", () => {
   assert.equal(tikTokEmbedIframeSandboxFromUA(mobileChrome), undefined);
   assert.equal(tikTokEmbedIframeSandboxFromUA(desktopChrome), TIKTOK_EMBED_IFRAME_SANDBOX);
   assert.equal(tikTokEmbedIframeSandboxFromUA(mobileFirefox), TIKTOK_EMBED_IFRAME_SANDBOX);
+});
+
+test("mobile UAs do not start on or fall back to embed/v2; desktop still may", () => {
+  const mobileChrome =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
+  const mobileFirefox =
+    "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0";
+  const desktopChrome =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  const iPhoneChrome =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.0.0 Mobile/15E148 Safari/604.1";
+  assert.equal(isTikTokMobileUa(mobileChrome), true);
+  assert.equal(isTikTokMobileUa(mobileFirefox), true);
+  assert.equal(isTikTokMobileUa(iPhoneChrome), true);
+  assert.equal(isTikTokMobileUa(desktopChrome), false);
+  assert.equal(allowTikTokEmbedFallbackFromUA(mobileChrome), false);
+  assert.equal(allowTikTokEmbedFallbackFromUA(mobileFirefox), false);
+  assert.equal(allowTikTokEmbedFallbackFromUA(iPhoneChrome), false);
+  assert.equal(allowTikTokEmbedFallbackFromUA(desktopChrome), true);
 });
 
 test("preferTikTokEmbedPlayerFromUA is true only for mobile Chromium, not Firefox or desktop", () => {

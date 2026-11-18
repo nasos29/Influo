@@ -523,7 +523,7 @@ export default function VideoThumbnail({
             isTikTokPlayer
               ? {
                   ...(tikTokIframeScale || {}),
-                  ...(tikTokIframeScale ? { pointerEvents: "none" as const } : {}),
+                  ...(isTikTokPlayer ? { pointerEvents: "none" as const } : {}),
                 }
               : undefined
           }

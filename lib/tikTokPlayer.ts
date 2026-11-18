@@ -152,9 +152,18 @@ export function postTikTokPlayer(
 }
 
 /**
- * Mobile Chrome (and other Chromium mobiles, not Firefox) often fail
- * player/v1 with 3001 PLAYBACK_ERROR / 1004 player_sdk_error. Start
- * those browsers on the classic embed/v2 iframe instead.
+ * Mobile browser (phone / Android / iPhone). Mobile must use the same
+ * player/v1 path as desktop; embed/v2 is not used as a first path or as a
+ * failure fallback on these UAs (cover + retry instead).
+ */
+export function isTikTokMobileUa(ua: string): boolean {
+  return /Mobile|Android|iPhone|iPod/i.test(String(ua || ""));
+}
+
+/**
+ * @deprecated No longer selects the first player. Kept as a UA helper for
+ * historical tests and desktop-only embed sandbox. Use isTikTokMobileUa /
+ * allowTikTokEmbedFallbackFromUA instead.
  */
 export function preferTikTokEmbedPlayerFromUA(ua: string): boolean {
   const s = String(ua || "");
@@ -167,6 +176,16 @@ export function preferTikTokEmbedPlayerFromUA(ua: string): boolean {
 export function preferTikTokEmbedPlayer(): boolean {
   if (typeof navigator === "undefined") return false;
   return preferTikTokEmbedPlayerFromUA(navigator.userAgent);
+}
+
+/** Desktop may still switch to embed/v2 after a player/v1 error. Mobile must not. */
+export function allowTikTokEmbedFallbackFromUA(ua: string): boolean {
+  return !isTikTokMobileUa(ua);
+}
+
+export function allowTikTokEmbedFallback(): boolean {
+  if (typeof navigator === "undefined") return true;
+  return allowTikTokEmbedFallbackFromUA(navigator.userAgent);
 }
 
 /**
