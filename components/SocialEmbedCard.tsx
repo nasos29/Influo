@@ -9,13 +9,13 @@ import {
   buildTikTokPlayerUrl,
   cachedTikTokVideoId,
   extractTikTokVideoId,
-  allowTikTokEmbedFallback,
   rememberTikTokVideoId,
   TIKTOK_IFRAME_ALLOW,
   disposeTikTokIframe,
   tikTokEmbedIframeSandbox,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import { confirmTikTokInvalidVideo } from "@/lib/tikTokInvalidVideo";
 import { tikTokIframeVariantFromSrc, useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
 import {
   claimTikTokPlayerSession,
@@ -40,7 +40,11 @@ interface SocialEmbedCardProps {
   thumbnailUrl?: string;
   width?: number;
   height?: number;
-  /** Called once when the embed fails to load (used to hide broken top posts). */
+  /**
+   * Called when a post should be swapped or hidden. For TikTok this fires
+   * only on 1001 INVALID_VIDEO confirmed via oEmbed. Playback errors never
+   * call it. Other providers still report a hard load failure.
+   */
   onUnavailable?: () => void;
 }
 
@@ -184,8 +188,9 @@ export default function SocialEmbedCard({
   const onUnavailableRef = useRef(onUnavailable);
   onUnavailableRef.current = onUnavailable;
   useEffect(() => {
-    if (error) onUnavailableRef.current?.();
-  }, [error]);
+    // TikTok: never swap/hide on a generic playback or load error.
+    if (error && provider !== "tiktok") onUnavailableRef.current?.();
+  }, [error, provider]);
   const [igKind, setIgKind] = useState<InstagramEmbedKind | null>(
     isIgReel ? "video" : null
   );
@@ -262,8 +267,10 @@ export default function SocialEmbedCard({
     onTapForSound: onTikTokTapForSound,
     onIframeLoad: onTikTokIframeLoad,
     unplayable: tikTokUnplayable,
+    invalidVideo: tikTokInvalidVideo,
     playbackFailed: tikTokPlaybackFailed,
     fallbackToEmbed: tikTokFallbackToEmbed,
+    playerReloadNonce: tikTokPlayerReloadNonce,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
   // Measure the card while the cover is visible so the first Play tap can
   // mount player/v1 or embed/v2 already sized to object-cover the cover box.
@@ -301,7 +308,8 @@ export default function SocialEmbedCard({
     return () => window.removeEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
   }, [isTikTokIframe, releaseTikTokPlayer, tikTokSessionId]);
 
-  // Rate-limit / server errors: drop the iframe back to the cover + Retry.
+  // After player/v1 and embed/v2 are both exhausted: cover + Retry only.
+  // Never swap or hide the post for a playback / timeout failure.
   useEffect(() => {
     if (tikTokPlaybackFailed) {
       releaseTikTokPlayer();
@@ -309,16 +317,24 @@ export default function SocialEmbedCard({
     }
   }, [releaseTikTokPlayer, tikTokPlaybackFailed]);
 
-  // Desktop: 3001 / 1004 (and similar) may switch to embed/v2.
-  // Mobile: never mount embed/v2 — return to the cover with Retry so a
-  // player/v1 failure is visible (embed/v2's "Unable to load player" is not).
+  // Silent player/v1 remount after a backoff wait (temporary TikTok limits).
+  useEffect(() => {
+    if (!tikTokPlayerReloadNonce) return;
+    const id = extractTikTokVideoId(iframeSrc || originalUrl);
+    if (!id) return;
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+    requestAnimationFrame(() => {
+      setError(false);
+      setIframeSrc(buildTikTokPlayerUrl(id, { muted: false }));
+      setActivated(true);
+      setLoading(false);
+    });
+  }, [iframeSrc, originalUrl, mediaIframeRef, tikTokIframeRef, tikTokPlayerReloadNonce]);
+
+  // Silent player/v1 → embed/v2 fallback (mobile and desktop). No error UI.
   useEffect(() => {
     if (!tikTokFallbackToEmbed || tikTokEmbedFallbackUsed.current) return;
-    if (!allowTikTokEmbedFallback()) {
-      releaseTikTokPlayer();
-      setError(true);
-      return;
-    }
     const id = extractTikTokVideoId(iframeSrc || originalUrl);
     if (!id) {
       releaseTikTokPlayer();
@@ -329,6 +345,7 @@ export default function SocialEmbedCard({
     disposeTikTokIframe(mediaIframeRef.current);
     disposeTikTokIframe(tikTokIframeRef.current);
     requestAnimationFrame(() => {
+      setError(false);
       setIframeSrc(buildTikTokEmbedUrl(id));
       setActivated(true);
       setLoading(false);
@@ -343,9 +360,28 @@ export default function SocialEmbedCard({
     (!isIgPost || igKind === "video");
   const showPhotoBadge = isTikTokPhoto && !iframeSrc;
 
+  // 1001 may replace the item only after oEmbed confirms it is gone.
+  // 1002/1005 or an unconfirmed 1001: cover + Retry, never swap/hide.
   useEffect(() => {
-    if (tikTokUnplayable) setError(true);
-  }, [tikTokUnplayable]);
+    if (!tikTokUnplayable) return;
+    let cancelled = false;
+    (async () => {
+      if (tikTokInvalidVideo) {
+        const confirmed = await confirmTikTokInvalidVideo(originalUrl);
+        if (cancelled) return;
+        if (confirmed) {
+          onUnavailableRef.current?.();
+          return;
+        }
+      }
+      if (cancelled) return;
+      releaseTikTokPlayer();
+      setError(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [originalUrl, releaseTikTokPlayer, tikTokInvalidVideo, tikTokUnplayable]);
 
   useEffect(() => {
     const node = rootRef.current;
@@ -678,6 +714,7 @@ export default function SocialEmbedCard({
                     }
                   >
                   <iframe
+                    key={isTikTokIframe ? `${iframeSrc}-${tikTokPlayerReloadNonce}` : iframeSrc || "media"}
                     ref={
                       portfolioKind === "tiktok" || portfolioKind === "youtube"
                         ? mediaIframeRef
@@ -715,14 +752,18 @@ export default function SocialEmbedCard({
                       if (isTikTokPlayer) onTikTokIframeLoad();
                     }}
                     onError={() => {
-                      // Desktop may try embed/v2 once. Mobile returns to the cover + Retry.
-                      if (isTikTokPlayer && !tikTokEmbedFallbackUsed.current && allowTikTokEmbedFallback()) {
+                      if (
+                        provider === "tiktok" &&
+                        isTikTokPlayer &&
+                        !tikTokEmbedFallbackUsed.current
+                      ) {
                         const id = extractTikTokVideoId(iframeSrc || originalUrl);
                         if (id) {
                           tikTokEmbedFallbackUsed.current = true;
                           disposeTikTokIframe(mediaIframeRef.current);
                           disposeTikTokIframe(tikTokIframeRef.current);
                           requestAnimationFrame(() => {
+                            setError(false);
                             setIframeSrc(buildTikTokEmbedUrl(id));
                             setActivated(true);
                             setLoading(false);
@@ -734,6 +775,23 @@ export default function SocialEmbedCard({
                       setError(true);
                     }}
                   />
+                  {isTikTokEmbed ? (
+                    <>
+                      {/* Block off-site chrome; leave the 9:16 video area tappable. */}
+                      <div
+                        className="pointer-events-auto absolute inset-x-0 top-0 z-[16] h-14"
+                        aria-hidden="true"
+                      />
+                      <div
+                        className="pointer-events-auto absolute top-14 bottom-20 right-0 z-[16] w-14"
+                        aria-hidden="true"
+                      />
+                      <div
+                        className="pointer-events-auto absolute inset-x-0 bottom-0 z-[16] h-12"
+                        aria-hidden="true"
+                      />
+                    </>
+                  ) : null}
                   {showTikTokSoundPrompt ? (
                     <TikTokSoundPromptButton
                       label={TIKTOK_SOUND_COPY[uiLang]}
