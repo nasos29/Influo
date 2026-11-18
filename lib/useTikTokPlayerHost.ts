@@ -23,8 +23,9 @@ export const TIKTOK_SOUND_COPY = {
 
 function tikTokPlayerErrorCode(value: unknown): number | null {
   if (typeof value === "number") return value;
-  if (value && typeof value === "object" && "code" in value) {
-    const code = (value as { code: unknown }).code;
+  if (value && typeof value === "object") {
+    const rec = value as { code?: unknown; errorCode?: unknown };
+    const code = rec.errorCode ?? rec.code;
     if (typeof code === "number") return code;
   }
   return null;
