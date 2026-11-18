@@ -65,11 +65,15 @@ type Job = { key: string; emailKey?: string; to: string; subject: string; html: 
 type State = { sent: Set<string>; queue: Job[]; running: boolean; loaded: boolean; day: string; sentToday: number; pausedDay: string };
 
 /**
- * Bulk emails share the provider's daily quota (Resend free: 100/day) with transactional mail,
- * so the queue sends at most CAMPAIGN_BULK_DAILY_LIMIT per Athens day (default 70) and continues
- * the next day. A quota error stops the queue until the next day.
+ * Optional Athens-day cap for the Resend fallback pump only.
+ * Unset or 0 = unlimited (default). A positive CAMPAIGN_BULK_DAILY_LIMIT still caps Resend.
+ * A provider quota error still pauses the queue until the next Athens day.
  */
-const DAILY_LIMIT = Math.max(0, Number(process.env.CAMPAIGN_BULK_DAILY_LIMIT ?? 70) || 0);
+const DAILY_LIMIT = (() => {
+  const n = Number(process.env.CAMPAIGN_BULK_DAILY_LIMIT);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.floor(n);
+})();
 
 function athensDay(d = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Athens", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
@@ -327,7 +331,7 @@ function pump(): void {
       state.running = false;
       return;
     }
-    if (state.pausedDay === state.day || state.sentToday >= DAILY_LIMIT) {
+    if (state.pausedDay === state.day || (DAILY_LIMIT > 0 && state.sentToday >= DAILY_LIMIT)) {
       save();
       console.log("[campaign category email] daily cap/quota reached, continuing tomorrow", { pending: state.queue.length, sentToday: state.sentToday, limit: DAILY_LIMIT });
       setTimeout(tick, msUntilNextDay());

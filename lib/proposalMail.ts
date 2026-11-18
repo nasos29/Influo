@@ -282,6 +282,25 @@ export async function mailProposalDecision(input: DealInfo & {
       : `Ο/Η ${input.influencerName} απέρριψε την πρότασή σας`,
     shell(input.accepted ? "Η πρόταση έγινε αποδεκτή" : "Η πρόταση απορρίφθηκε", body)
   );
+  try {
+    const { enqueueAdminDigestItem } = await import("@/lib/adminDailyDigest");
+    const { supabaseService } = await import("@/lib/apiAuth");
+    const queued = await enqueueAdminDigestItem(
+      supabaseService(),
+      input.accepted ? "proposal_accepted" : "proposal_rejected",
+      {
+        brandName: input.brandName,
+        creatorName: input.influencerName,
+        service: displayServiceType(input.service, "el") || input.service,
+        budget: intEuro(input.budget),
+        proposalId: input.proposalId ?? null,
+        accepted: input.accepted,
+      }
+    );
+    if (queued) return;
+  } catch (err) {
+    console.error("[proposal_decision_admin digest]", err instanceof Error ? err.message : err);
+  }
   await mailAdminEvent(
     input.accepted ? "proposal_accepted_admin" : "proposal_rejected_admin",
     `Πρόταση ${input.accepted ? "αποδεκτή" : "απορρίφθηκε"}: ${input.influencerName} / ${input.brandName}`,

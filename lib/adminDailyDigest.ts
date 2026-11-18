@@ -1,6 +1,6 @@
 /**
  * Admin daily digest (~09:30 Europe/Athens): campaign applications, signups,
- * profile edits, unapproved alerts, new proposals.
+ * profile edits, unapproved alerts, new proposals, proposal accept/reject.
  * When ADMIN_DAILY_DIGEST_ENABLED is ON, callers should enqueue instead of 1:1 mail.
  * Also covers legacy ADMIN_APPLICATION_DIGEST_ENABLED for applications-only.
  */
@@ -27,7 +27,9 @@ export type AdminDigestKind =
   | "unapproved"
   | "proposal"
   | "collaboration_completed"
-  | "event_confirm_pending";
+  | "event_confirm_pending"
+  | "proposal_accepted"
+  | "proposal_rejected";
 
 const KIND_TO_TYPE: Record<AdminDigestKind, DigestType> = {
   campaign_application: "admin_campaign_application",
@@ -38,6 +40,8 @@ const KIND_TO_TYPE: Record<AdminDigestKind, DigestType> = {
   proposal: "admin_proposal",
   collaboration_completed: "admin_collaboration_completed",
   event_confirm_pending: "admin_event_confirm_pending",
+  proposal_accepted: "admin_proposal",
+  proposal_rejected: "admin_proposal",
 };
 
 /** True when admin should queue this kind instead of sending 1:1. */
@@ -85,6 +89,10 @@ function sectionTitle(kind: string): string {
       return "Συνεργασίες που ολοκληρώθηκαν";
     case "event_confirm_pending":
       return "Εκκρεμεί επιβεβαίωση (event)";
+    case "proposal_accepted":
+      return "Αποδοχές προτάσεων";
+    case "proposal_rejected":
+      return "Απορρίψεις προτάσεων";
     default:
       return kind;
   }
@@ -123,6 +131,12 @@ function lineFor(payload: Record<string, unknown>): string {
   }
   if (kind === "event_confirm_pending") {
     return `<li><strong>${escapeHtml(String(payload.brandName || ""))}</strong> / ${escapeHtml(String(payload.creatorName || ""))} · ${escapeHtml(String(payload.source || ""))} ${escapeHtml(String(payload.id || ""))} · event χωρίς απάντηση 7+ ημερών — ολοκλήρωσε χειροκίνητα στο admin <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
+  }
+  if (kind === "proposal_accepted" || kind === "proposal_rejected") {
+    const verb = kind === "proposal_accepted" ? "αποδέχτηκε" : "απέρριψε";
+    const id = payload.proposalId ? ` · #${escapeHtml(String(payload.proposalId))}` : "";
+    const service = payload.service ? ` · ${escapeHtml(String(payload.service))}` : "";
+    return `<li><strong>${escapeHtml(String(payload.creatorName || ""))}</strong> ${verb} πρόταση της <strong>${escapeHtml(String(payload.brandName || ""))}</strong>${service}${id} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
   }
   return `<li>${escapeHtml(JSON.stringify(payload).slice(0, 200))}</li>`;
 }
