@@ -57,6 +57,24 @@ function tikTokPlayerErrorCode(value: unknown): number | null {
   return null;
 }
 
+/** Transient player errors worth one automatic play retry (CDN / init race). */
+export function isRetryableTikTokPlayerError(code: number | null): boolean {
+  return code === 3001 || code === 3002;
+}
+
+/**
+ * Fatal embed errors: the official player cannot load this item
+ * (e.g. 1001 INVALID_VIDEO / nil_core_data). Retry will not help.
+ */
+export function isFatalTikTokPlayerError(value: unknown): boolean {
+  if (value && typeof value === "object") {
+    const typ = String((value as { errorType?: unknown }).errorType || "").toUpperCase();
+    if (typ === "INVALID_VIDEO") return true;
+  }
+  const code = tikTokPlayerErrorCode(value);
+  return code === 1001;
+}
+
 /**
  * Host TikTok player/v1 iframe: after onPlayerReady (or first onStateChange),
  * send unMute + play. If still muted after ~1.5s, expose a Tap-for-sound prompt.
@@ -69,6 +87,7 @@ export function useTikTokPlayerHost(
   const iframeRef = externalIframeRef ?? localRef;
   const [showSoundPrompt, setShowSoundPrompt] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [unplayable, setUnplayable] = useState(false);
   const unmutedRef = useRef(false);
   const triedUnmuteRef = useRef(false);
   const errorRetriedRef = useRef(false);
@@ -114,6 +133,7 @@ export function useTikTokPlayerHost(
       iframeLoadedRef.current = false;
       setShowSoundPrompt(false);
       setIsPlaying(false);
+      setUnplayable(false);
       clearFallback();
     }
   }, [clearFallback, enabled]);
@@ -150,10 +170,13 @@ export function useTikTokPlayerHost(
 
       if (type === "onPlayerError") {
         const code = tikTokPlayerErrorCode(value);
-        if (
-          (code === 3001 || code === 3002) &&
-          !errorRetriedRef.current
-        ) {
+        if (isFatalTikTokPlayerError(value)) {
+          setUnplayable(true);
+          setShowSoundPrompt(false);
+          clearFallback();
+          return;
+        }
+        if (isRetryableTikTokPlayerError(code) && !errorRetriedRef.current) {
           errorRetriedRef.current = true;
           triedUnmuteRef.current = false;
           tryUnmuteAndPlay();
@@ -187,5 +210,5 @@ export function useTikTokPlayerHost(
     clearFallback();
   }, [clearFallback, iframeRef]);
 
-  return { iframeRef, showSoundPrompt, isPlaying, onTapForSound, onIframeLoad };
+  return { iframeRef, showSoundPrompt, isPlaying, unplayable, onTapForSound, onIframeLoad };
 }
