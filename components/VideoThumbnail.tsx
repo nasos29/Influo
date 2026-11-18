@@ -15,9 +15,10 @@ import {
   extractTikTokVideoId,
   rememberTikTokVideoId,
   TIKTOK_IFRAME_ALLOW,
+  disposeTikTokIframe,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
-import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
+import { tikTokIframeVariantFromSrc, useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
 import {
   usePortfolioMediaControls,
   type PortfolioMediaKind,
@@ -143,8 +144,13 @@ export default function VideoThumbnail({
   const { style: tikTokIframeScale, measured: tikTokBoxMeasured } = useTikTokIframeScale(
     isTikTok && !!embedSrc,
     playerBoxRef,
-    { freeze: isTikTokPlayer }
+    { freeze: isTikTokPlayer, variant: tikTokIframeVariantFromSrc(embedSrc) }
   );
+
+  const disposeMountedTikTok = useCallback(() => {
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+  }, [mediaIframeRef, tikTokIframeRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +161,7 @@ export default function VideoThumbnail({
 
     const fetchThumbnail = async () => {
       setFailed(false);
+      disposeMountedTikTok();
       setEmbedSrc(null);
       setNativeVideoUrl(null);
 
@@ -277,7 +284,7 @@ export default function VideoThumbnail({
     return () => {
       cancelled = true;
     };
-  }, [url, manualThumbnail, isImage, isInstagram, isTikTok, isIgPost, isIgReel]);
+  }, [disposeMountedTikTok, url, manualThumbnail, isImage, isInstagram, isTikTok, isIgPost, isIgReel]);
 
   const handleImgError = useCallback(() => {
     if (
@@ -431,12 +438,15 @@ export default function VideoThumbnail({
           }
         }
         if (!videoId) return;
-        setEmbedSrc(buildTikTokPlayerUrl(videoId));
+        disposeMountedTikTok();
+        requestAnimationFrame(() => {
+          setEmbedSrc(buildTikTokPlayerUrl(videoId));
+        });
       } catch {
         /* keep thumbnail */
       }
     })();
-  }, [embedSrc, isTikTok, nativeVideoUrl, url]);
+  }, [disposeMountedTikTok, embedSrc, isTikTok, nativeVideoUrl, url]);
 
   if (loading) {
     return (
