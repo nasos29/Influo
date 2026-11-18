@@ -42,7 +42,6 @@ const COPY = {
   loading: { el: "Φόρτωση", en: "Loading" },
   error: { el: "Αποτυχία φόρτωσης", en: "Failed to load" },
   retry: { el: "Δοκιμή ξανά", en: "Try again" },
-  openOnTikTok: { el: "Άνοιγμα στο TikTok", en: "Open on TikTok" },
 } as const;
 
 const NAMES: Record<Provider, string> = {
@@ -569,17 +568,6 @@ export default function SocialEmbedCard({
                   </span>
                   {error ? (
                     <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
-                  ) : null}
-                  {error && provider === "tiktok" ? (
-                    <a
-                      href={originalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="rounded-full bg-white/95 px-4 py-2 text-sm font-semibold text-slate-900 shadow-lg hover:bg-white"
-                    >
-                      {COPY.openOnTikTok[uiLang]}
-                    </a>
                   ) : null}
                 </button>
               ) : null}
