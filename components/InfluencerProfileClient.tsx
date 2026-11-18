@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use, Suspense, useRef, useCallback, type ReactNode } from "react";
+import { useEffect, useState, use, Suspense, useRef, useCallback, useMemo, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -19,6 +19,8 @@ import { sessionFetch } from "@/lib/sessionFetch";
 import { presenceOnline } from "@/lib/presenceStatus";
 import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
+import { collectTopPosts } from "@/lib/topPosts";
+import { pickReplacementPortfolioVideo, samePortfolioMediaUrl } from "@/lib/portfolioReplace";
 import { isFacebookVideoUrl } from "@/lib/videoLinks";
 import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
@@ -659,6 +661,45 @@ export default function InfluencerProfile(props: {
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);
+  const [portfolioVideoList, setPortfolioVideoList] = useState<string[] | null>(null);
+
+  const basePortfolioItems = useMemo(() => {
+    return (profile?.videos || [])
+      .map((vid: unknown) => String(vid || "").trim())
+      .filter((vid: string) => {
+        if (!vid) return false;
+        if (isFacebookVideoUrl(vid)) return false;
+        if (isDefinitelyImage(vid)) return true;
+        if (isEmbeddableVideoUrl(vid)) return true;
+        return !detectProvider(vid);
+      });
+  }, [profile?.videos]);
+
+  const portfolioItems = portfolioVideoList ?? basePortfolioItems;
+
+  const portfolioTikTokFallbacks = useMemo(() => {
+    return collectTopPosts(profile?.accounts, 24)
+      .filter((post) => post.type === "video" && /tiktok\.com/i.test(post.url))
+      .map((post) => post.url);
+  }, [profile?.accounts]);
+
+  useEffect(() => {
+    setPortfolioVideoList(null);
+  }, [profile?.videos]);
+
+  const handlePortfolioUnavailable = useCallback((failedUrl: string) => {
+    setPortfolioVideoList((prev) => {
+      const current = prev ?? basePortfolioItems;
+      const replacement = pickReplacementPortfolioVideo(
+        failedUrl,
+        current,
+        portfolioTikTokFallbacks
+      );
+      return current.flatMap((u) =>
+        samePortfolioMediaUrl(u, failedUrl) ? (replacement ? [replacement] : []) : [u]
+      );
+    });
+  }, [basePortfolioItems, portfolioTikTokFallbacks]);
 
   // Load language from localStorage on client-side
   useEffect(() => {
@@ -3154,17 +3195,6 @@ export default function InfluencerProfile(props: {
                             </div>
                         )}
                          {(() => {
-                              const portfolioItems = (profile.videos || [])
-                                .map((vid) => String(vid || "").trim())
-                                .filter((vid) => {
-                                  if (!vid) return false;
-                                  // Legacy Facebook links are not embeddable — hide without DB change.
-                                  if (isFacebookVideoUrl(vid)) return false;
-                                  if (isDefinitelyImage(vid)) return true;
-                                  if (isEmbeddableVideoUrl(vid)) return true;
-                                  // Skip profile/channel/stories links that are not embeddable videos.
-                                  return !detectProvider(vid);
-                                });
                               if (!portfolioItems.length) return null;
                               return (
                                 <div>
@@ -3278,6 +3308,7 @@ export default function InfluencerProfile(props: {
                                                         originalUrl={vid}
                                                         embedUrl={embedUrl}
                                                         lang={lang}
+                                                        onUnavailable={() => handlePortfolioUnavailable(vid)}
                                                     />
                                                 </div>
                                             );

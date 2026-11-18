@@ -45,7 +45,6 @@ const ARIA = {
   viewPhotos: { el: "Προβολή άλμπουμ", en: "View album" },
   pause: { el: "Παύση", en: "Pause" },
   resume: { el: "Συνέχεια", en: "Resume" },
-  openOnTikTok: { el: "Άνοιγμα στο TikTok", en: "Open on TikTok" },
 } as const;
 
 function proxyImageList(urls: string[] | null | undefined): string[] {
@@ -520,18 +519,6 @@ export default function VideoThumbnail({
             label={TIKTOK_SOUND_COPY[uiLang]}
             onClick={onTikTokTapForSound}
           />
-        ) : null}
-        {tikTokUnplayable ? (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 text-sm font-semibold text-white"
-          >
-            <span className="rounded-full bg-white/95 px-4 py-2 text-slate-900 shadow-lg">
-              {ARIA.openOnTikTok[uiLang]}
-            </span>
-          </a>
         ) : null}
         {portfolioActive ? (
           <button
