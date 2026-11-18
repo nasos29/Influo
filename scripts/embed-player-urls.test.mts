@@ -24,6 +24,7 @@ import {
 } from "../lib/useTikTokIframeScale.ts";
 import {
   isFatalTikTokPlayerError,
+  isInvalidTikTokVideoError,
   isRetryableTikTokPlayerError,
   isTikTokPlayerReadyEvent,
   TIKTOK_SOUND_PROMPT_MS,
@@ -32,7 +33,10 @@ import {
   isTikTokPlayerOverloadError,
   shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
+  nextTikTokSilentRetryDelay,
+  TIKTOK_LIMIT_RETRY_BACKOFF_MS,
   TIKTOK_PLAYER_ERROR,
+  TIKTOK_PLAYER_READY_TIMEOUT_MS,
 } from "../lib/tikTokPlayerErrors.ts";
 import {
   claimTikTokPlayerSession,
@@ -131,7 +135,7 @@ test("TikTok iframe allow tokens and desktop-only embed sandbox", () => {
   assert.equal(tikTokEmbedIframeSandboxFromUA(mobileFirefox), TIKTOK_EMBED_IFRAME_SANDBOX);
 });
 
-test("mobile UAs do not start on or fall back to embed/v2; desktop still may", () => {
+test("mobile UAs start on player/v1 like desktop, and may silently fall back to embed/v2", () => {
   const mobileChrome =
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
   const mobileFirefox =
@@ -144,9 +148,9 @@ test("mobile UAs do not start on or fall back to embed/v2; desktop still may", (
   assert.equal(isTikTokMobileUa(mobileFirefox), true);
   assert.equal(isTikTokMobileUa(iPhoneChrome), true);
   assert.equal(isTikTokMobileUa(desktopChrome), false);
-  assert.equal(allowTikTokEmbedFallbackFromUA(mobileChrome), false);
-  assert.equal(allowTikTokEmbedFallbackFromUA(mobileFirefox), false);
-  assert.equal(allowTikTokEmbedFallbackFromUA(iPhoneChrome), false);
+  assert.equal(allowTikTokEmbedFallbackFromUA(mobileChrome), true);
+  assert.equal(allowTikTokEmbedFallbackFromUA(mobileFirefox), true);
+  assert.equal(allowTikTokEmbedFallbackFromUA(iPhoneChrome), true);
   assert.equal(allowTikTokEmbedFallbackFromUA(desktopChrome), true);
 });
 
@@ -354,6 +358,17 @@ test("TikTok 1001/1002 are fatal; nothing is auto-retried; 3002 is not a load er
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 2001, errorType: "SERVER_ERROR" }, true), true);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3002 }, true), false);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 1001, errorType: "INVALID_VIDEO" }, true), false);
+
+  assert.equal(isInvalidTikTokVideoError({ errorCode: 1001, errorType: "INVALID_VIDEO" }), true);
+  assert.equal(isInvalidTikTokVideoError(1001), true);
+  assert.equal(isInvalidTikTokVideoError({ errorCode: 1002, errorType: "VIDEO_EMBED_BANNED" }), false);
+  assert.equal(isInvalidTikTokVideoError({ errorCode: 3001, errorType: "PLAYBACK_ERROR" }), false);
+  assert.equal(isInvalidTikTokVideoError({ errorCode: 2005, errorType: "TOO_MANY_REQUESTS" }), false);
+  assert.deepEqual([...TIKTOK_LIMIT_RETRY_BACKOFF_MS], [2000, 5000]);
+  assert.equal(nextTikTokSilentRetryDelay(0), 2000);
+  assert.equal(nextTikTokSilentRetryDelay(1), 5000);
+  assert.equal(nextTikTokSilentRetryDelay(2), null);
+  assert.ok(TIKTOK_PLAYER_READY_TIMEOUT_MS >= 5000);
 });
 
 test("claimTikTokPlayerSession notifies other cards to unload", () => {

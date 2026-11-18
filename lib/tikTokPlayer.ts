@@ -152,9 +152,9 @@ export function postTikTokPlayer(
 }
 
 /**
- * Mobile browser (phone / Android / iPhone). Mobile must use the same
- * player/v1 path as desktop; embed/v2 is not used as a first path or as a
- * failure fallback on these UAs (cover + retry instead).
+ * Mobile browser (phone / Android / iPhone). The first path is always
+ * player/v1 (same as desktop). embed/v2 is only a silent fallback after
+ * a player/v1 playback error.
  */
 export function isTikTokMobileUa(ua: string): boolean {
   return /Mobile|Android|iPhone|iPod/i.test(String(ua || ""));
@@ -178,9 +178,12 @@ export function preferTikTokEmbedPlayer(): boolean {
   return preferTikTokEmbedPlayerFromUA(navigator.userAgent);
 }
 
-/** Desktop may still switch to embed/v2 after a player/v1 error. Mobile must not. */
-export function allowTikTokEmbedFallbackFromUA(ua: string): boolean {
-  return !isTikTokMobileUa(ua);
+/**
+ * Silent embed/v2 fallback after a player/v1 error is allowed on every UA,
+ * including Android Chrome. The first path is still always player/v1.
+ */
+export function allowTikTokEmbedFallbackFromUA(_ua: string): boolean {
+  return true;
 }
 
 export function allowTikTokEmbedFallback(): boolean {

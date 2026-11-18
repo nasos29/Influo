@@ -31,8 +31,10 @@ export function tikTokPlayerErrorType(value: unknown): string {
 }
 
 /**
- * The official player cannot load this item (invalid or banned). Retry and
- * re-loading will not help; the card may hide or swap in another post.
+ * The official player cannot load this item (invalid or banned).
+ * Only 1001 INVALID_VIDEO may trigger a portfolio swap, and only after
+ * TikTok oEmbed confirms the item is gone. 1002/1005 stay on the cover
+ * with Retry and must never hide or replace the post.
  */
 export function isFatalTikTokPlayerError(value: unknown): boolean {
   const typ = tikTokPlayerErrorType(value);
@@ -51,9 +53,31 @@ export function isFatalTikTokPlayerError(value: unknown): boolean {
   );
 }
 
+/** 1001 INVALID_VIDEO only — the sole player error that may lead to a swap. */
+export function isInvalidTikTokVideoError(value: unknown): boolean {
+  if (tikTokPlayerErrorType(value) === "INVALID_VIDEO") return true;
+  return tikTokPlayerErrorCode(value) === TIKTOK_PLAYER_ERROR.INVALID_VIDEO;
+}
+
 /**
- * Rate-limit / server refusal. Retrying or loading a replacement iframe
- * makes this worse. Unload the player back to the facade instead.
+ * Silent player/v1 remount delays after a temporary playback or rate-limit
+ * error (3001/2001/2005/1004). After these waits are exhausted, fall back
+ * to embed/v2. Do not swap or hide the post, and do not show an error.
+ */
+export const TIKTOK_LIMIT_RETRY_BACKOFF_MS = [2000, 5000] as const;
+
+export function nextTikTokSilentRetryDelay(attempt: number): number | null {
+  if (attempt < 0 || attempt >= TIKTOK_LIMIT_RETRY_BACKOFF_MS.length) return null;
+  return TIKTOK_LIMIT_RETRY_BACKOFF_MS[attempt];
+}
+
+/** If player/v1 never sends onPlayerReady, silently fall back to embed/v2. */
+export const TIKTOK_PLAYER_READY_TIMEOUT_MS = 8000;
+
+/**
+ * Rate-limit / server refusal (2005/2001). The host silently remounts
+ * player/v1 with TIKTOK_LIMIT_RETRY_BACKOFF_MS, then falls back to embed/v2.
+ * Do not swap or hide the post.
  */
 export function isTikTokPlayerOverloadError(value: unknown): boolean {
   const typ = tikTokPlayerErrorType(value);
@@ -92,10 +116,10 @@ export function isTikTokPlayerSdkOrPlaybackError(value: unknown): boolean {
 }
 
 /**
- * Switch from player/v1 to embed/v2 after any non-fatal player failure,
- * including 2005/2001 rate-limits. Autoplay blocks (3002) stay on player/v1
- * muted with a play/sound prompt — never treated as a load error. 3001
- * switches to embed/v2 immediately (no play() retry).
+ * After silent player/v1 remounts are exhausted, switch to embed/v2.
+ * True for 3001 / 1004 / 2005 / 2001 and any other non-fatal, non-3002
+ * error. The host applies TIKTOK_LIMIT_RETRY_BACKOFF_MS before remounting
+ * and only then falls back. Autoplay blocks (3002) stay on player/v1 muted.
  */
 export function shouldFallbackToTikTokEmbed(value: unknown, _alreadyRetried = false): boolean {
   if (isFatalTikTokPlayerError(value)) return false;

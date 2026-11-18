@@ -16,19 +16,26 @@ import {
 } from "@/lib/tikTokPlayer";
 import {
   isFatalTikTokPlayerError,
+  isInvalidTikTokVideoError,
   isTikTokPlayerOverloadError,
   logTikTokPlayerMessage,
   shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
+  nextTikTokSilentRetryDelay,
+  TIKTOK_PLAYER_READY_TIMEOUT_MS,
 } from "@/lib/tikTokPlayerErrors";
 
 export {
   isFatalTikTokPlayerError,
+  isInvalidTikTokVideoError,
   isRetryableTikTokPlayerError,
   isTikTokPlayerOverloadError,
   shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
   tikTokPlayerErrorCode,
+  nextTikTokSilentRetryDelay,
+  TIKTOK_LIMIT_RETRY_BACKOFF_MS,
+  TIKTOK_PLAYER_READY_TIMEOUT_MS,
 } from "@/lib/tikTokPlayerErrors";
 
 /** Show "tap for sound" if unmute is not confirmed. Do not send a second play(). */
@@ -64,11 +71,13 @@ export const TIKTOK_SOUND_COPY = {
  * play first (muted=0 URL + unMute/play on ready). If the browser blocks it,
  * fall back to muted playback and the existing Tap-for-sound button.
  *
- * 3001/1004/2005/2001: desktop may fall back to embed/v2 once; mobile
- * returns to the cover with Retry (see SocialEmbedCard). There is no
- * automatic play() retry. 3002 stays muted with the play/sound prompt
- * rather than an error. TikTok emits onPlayerReady with 2005 — we must
- * not treat that as a cue to play() again.
+ * Temporary 3001/1004/2005/2001: silently remount player/v1 with
+ * backoff (2s, then 5s), then fall back to embed/v2 with no error UI.
+ * Do not send a second play() on a failing iframe. If player/v1 never
+ * becomes ready, fall back after TIKTOK_PLAYER_READY_TIMEOUT_MS. No
+ * pre-warm. 3002 stays muted with the play/sound prompt. 1001 is
+ * reported as invalidVideo so the card can confirm via oEmbed before
+ * any swap. Playback errors never hide or replace the post.
  */
 export function useTikTokPlayerHost(
   enabled: boolean,
@@ -79,17 +88,36 @@ export function useTikTokPlayerHost(
   const [showSoundPrompt, setShowSoundPrompt] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [unplayable, setUnplayable] = useState(false);
+  const [invalidVideo, setInvalidVideo] = useState(false);
   const [playbackFailed, setPlaybackFailed] = useState(false);
   const [fallbackToEmbed, setFallbackToEmbed] = useState(false);
+  const [playerReloadNonce, setPlayerReloadNonce] = useState(0);
   const unmutedRef = useRef(false);
   const triedUnmuteRef = useRef(false);
   const errorRetriedRef = useRef(false);
   const playbackFailedRef = useRef(false);
   const fallbackToEmbedRef = useRef(false);
+  const silentRetryCountRef = useRef(0);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const limitRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeLoadedRef = useRef(false);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
+
+  const clearLimitRetry = useCallback(() => {
+    if (limitRetryTimerRef.current) {
+      clearTimeout(limitRetryTimerRef.current);
+      limitRetryTimerRef.current = null;
+    }
+  }, []);
+
+  const clearReadyTimeout = useCallback(() => {
+    if (readyTimeoutRef.current) {
+      clearTimeout(readyTimeoutRef.current);
+      readyTimeoutRef.current = null;
+    }
+  }, []);
 
   const clearFallback = useCallback(() => {
     if (fallbackTimerRef.current) {
@@ -104,14 +132,48 @@ export function useTikTokPlayerHost(
     setShowSoundPrompt(false);
     setIsPlaying(false);
     clearFallback();
-  }, [clearFallback]);
+    clearLimitRetry();
+    clearReadyTimeout();
+  }, [clearFallback, clearLimitRetry, clearReadyTimeout]);
 
   const markFallbackToEmbed = useCallback(() => {
     fallbackToEmbedRef.current = true;
     setFallbackToEmbed(true);
     setShowSoundPrompt(false);
     clearFallback();
-  }, [clearFallback]);
+    clearLimitRetry();
+    clearReadyTimeout();
+  }, [clearFallback, clearLimitRetry, clearReadyTimeout]);
+
+  const scheduleSilentRetryOrFallback = useCallback(() => {
+    if (fallbackToEmbedRef.current || playbackFailedRef.current) return;
+    if (limitRetryTimerRef.current) return;
+    const delay = nextTikTokSilentRetryDelay(silentRetryCountRef.current);
+    if (delay == null) {
+      markFallbackToEmbed();
+      return;
+    }
+    silentRetryCountRef.current += 1;
+    logTikTokPlayerMessage("silentRetryScheduled", {
+      attempt: silentRetryCountRef.current,
+      delayMs: delay,
+    });
+    clearReadyTimeout();
+    limitRetryTimerRef.current = setTimeout(() => {
+      limitRetryTimerRef.current = null;
+      if (!enabledRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) {
+        return;
+      }
+      // Remount player/v1. Do not send play() again on the failing iframe.
+      playerReadyRef.current = false;
+      iframeLoadedRef.current = false;
+      triedUnmuteRef.current = false;
+      unmutedRef.current = false;
+      setShowSoundPrompt(false);
+      logTikTokPlayerMessage("silentRetry", silentRetryCountRef.current);
+      setPlayerReloadNonce((n) => n + 1);
+    }, delay);
+  }, [clearReadyTimeout, markFallbackToEmbed]);
 
   const playerReadyRef = useRef(false);
 
@@ -144,16 +206,21 @@ export function useTikTokPlayerHost(
       errorRetriedRef.current = false;
       playbackFailedRef.current = false;
       fallbackToEmbedRef.current = false;
+      silentRetryCountRef.current = 0;
       iframeLoadedRef.current = false;
       playerReadyRef.current = false;
       setShowSoundPrompt(false);
       setIsPlaying(false);
       setUnplayable(false);
+      setInvalidVideo(false);
       setPlaybackFailed(false);
       setFallbackToEmbed(false);
+      setPlayerReloadNonce(0);
       clearFallback();
+      clearLimitRetry();
+      clearReadyTimeout();
     }
-  }, [clearFallback, enabled]);
+  }, [clearFallback, clearLimitRetry, clearReadyTimeout, enabled]);
 
   const onIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
@@ -161,8 +228,19 @@ export function useTikTokPlayerHost(
     const src = iframe.getAttribute("src") || iframe.src || "";
     if (isTikTokPlayerIframeSrc(src)) {
       iframeLoadedRef.current = true;
+      if (playerReadyRef.current || fallbackToEmbedRef.current || playbackFailedRef.current) {
+        return;
+      }
+      clearReadyTimeout();
+      readyTimeoutRef.current = setTimeout(() => {
+        if (playerReadyRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) {
+          return;
+        }
+        logTikTokPlayerMessage("onPlayerReadyTimeout");
+        markFallbackToEmbed();
+      }, TIKTOK_PLAYER_READY_TIMEOUT_MS);
     }
-  }, [iframeRef]);
+  }, [clearReadyTimeout, iframeRef, markFallbackToEmbed]);
 
   useLayoutEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -191,15 +269,17 @@ export function useTikTokPlayerHost(
 
       if (type === "onPlayerError") {
         if (isFatalTikTokPlayerError(value)) {
+          setInvalidVideo(isInvalidTikTokVideoError(value));
           setUnplayable(true);
           setShowSoundPrompt(false);
           clearFallback();
+          clearLimitRetry();
+          clearReadyTimeout();
           return;
         }
-        // Any player/v1 failure except 3002 (including 2005/2001/3001) tries
-        // embed/v2 once before we unload back to the cover. No play() retry.
+        // Temporary 3001/1004/2005/2001: backoff remount, then embed/v2.
         if (shouldFallbackToTikTokEmbed(value, errorRetriedRef.current)) {
-          markFallbackToEmbed();
+          scheduleSilentRetryOrFallback();
           return;
         }
         if (isTikTokPlayerOverloadError(value) || shouldUnloadTikTokPlayer(value, errorRetriedRef.current)) {
@@ -226,6 +306,7 @@ export function useTikTokPlayerHost(
         // cue that the SDK will accept play / unMute.
         iframeLoadedRef.current = true;
         playerReadyRef.current = true;
+        clearReadyTimeout();
         if (!triedUnmuteRef.current) tryUnmuteAndPlay();
       }
     };
@@ -234,8 +315,19 @@ export function useTikTokPlayerHost(
     return () => {
       window.removeEventListener("message", onMessage);
       clearFallback();
+      clearLimitRetry();
+      clearReadyTimeout();
     };
-  }, [clearFallback, iframeRef, markFallbackToEmbed, markPlaybackFailed, tryUnmuteAndPlay]);
+  }, [
+    clearFallback,
+    clearLimitRetry,
+    clearReadyTimeout,
+    iframeRef,
+    markFallbackToEmbed,
+    markPlaybackFailed,
+    scheduleSilentRetryOrFallback,
+    tryUnmuteAndPlay,
+  ]);
 
   const onTapForSound = useCallback(() => {
     if (playbackFailedRef.current || fallbackToEmbedRef.current) return;
@@ -251,8 +343,10 @@ export function useTikTokPlayerHost(
     showSoundPrompt,
     isPlaying,
     unplayable,
+    invalidVideo,
     playbackFailed,
     fallbackToEmbed,
+    playerReloadNonce,
     onTapForSound,
     onIframeLoad,
   };
