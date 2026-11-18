@@ -8,6 +8,7 @@ import {
   isTikTokPlayerIframeSrc,
   isTikTokShortLink,
   preferTikTokEmbedPlayerFromUA,
+  TIKTOK_EMBED_IFRAME_SANDBOX,
 } from "../lib/tikTokPlayer.ts";
 import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
 import {
@@ -79,6 +80,17 @@ test("buildTikTokEmbedUrl points at embed/v2", () => {
     true
   );
   assert.throws(() => buildTikTokEmbedUrl("not-a-number"));
+});
+
+test("TikTok embed/v2 sandbox allows playback tokens but not off-site navigation", () => {
+  const tokens = TIKTOK_EMBED_IFRAME_SANDBOX.split(/\s+/);
+  for (const need of ["allow-scripts", "allow-same-origin", "allow-presentation"]) {
+    assert.ok(tokens.includes(need), need);
+  }
+  assert.equal(tokens.includes("allow-popups"), false);
+  assert.equal(tokens.includes("allow-popups-to-escape-sandbox"), false);
+  assert.equal(tokens.includes("allow-top-navigation"), false);
+  assert.equal(tokens.includes("allow-top-navigation-by-user-activation"), false);
 });
 
 test("preferTikTokEmbedPlayerFromUA is true only for mobile Chromium, not Firefox or desktop", () => {

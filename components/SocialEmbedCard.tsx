@@ -9,6 +9,7 @@ import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
   preferTikTokEmbedPlayer,
+  TIKTOK_EMBED_IFRAME_SANDBOX,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
@@ -693,6 +694,7 @@ export default function SocialEmbedCard({
                         ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
                         : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     }
+                    sandbox={isTikTokEmbed ? TIKTOK_EMBED_IFRAME_SANDBOX : undefined}
                     allowFullScreen
                     referrerPolicy="strict-origin-when-cross-origin"
                     onLoad={() => {
