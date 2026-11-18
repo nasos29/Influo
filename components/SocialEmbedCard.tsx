@@ -8,6 +8,8 @@ import {
   buildTikTokEmbedUrl,
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
+  preferTikTokEmbedPlayer,
+  TIKTOK_EMBED_IFRAME_SANDBOX,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
@@ -458,9 +460,15 @@ export default function SocialEmbedCard({
         }
         if (!videoId) throw new Error("Missing TikTok video id");
         tikTokEmbedFallbackUsed.current = false;
-        // User tapped Play — start unmuted. If the browser blocks it, the
-        // host falls back to muted + the existing Tap-for-sound button.
-        setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
+        // Mobile Chrome: go straight to embed/v2 (player/v1 often errors with
+        // 3001/1004 and then unloads). Desktop / Firefox keep the official player.
+        // A Play tap is a user gesture — start player/v1 unmuted when we use it.
+        if (preferTikTokEmbedPlayer()) {
+          tikTokEmbedFallbackUsed.current = true;
+          setIframeSrc(buildTikTokEmbedUrl(videoId));
+        } else {
+          setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
+        }
         setLoading(false);
         return;
       }
@@ -686,6 +694,7 @@ export default function SocialEmbedCard({
                         ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
                         : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     }
+                    sandbox={isTikTokEmbed ? TIKTOK_EMBED_IFRAME_SANDBOX : undefined}
                     allowFullScreen
                     referrerPolicy="strict-origin-when-cross-origin"
                     onLoad={() => {
@@ -693,6 +702,17 @@ export default function SocialEmbedCard({
                       if (isTikTokPlayer) onTikTokIframeLoad();
                     }}
                     onError={() => {
+                      // player/v1 failed to load: try embed/v2 once, do not bounce to cover yet.
+                      if (isTikTokPlayer && !tikTokEmbedFallbackUsed.current) {
+                        const id = extractTikTokVideoId(iframeSrc || originalUrl);
+                        if (id) {
+                          tikTokEmbedFallbackUsed.current = true;
+                          setIframeSrc(buildTikTokEmbedUrl(id));
+                          setActivated(true);
+                          setLoading(false);
+                          return;
+                        }
+                      }
                       setError(true);
                     }}
                   />

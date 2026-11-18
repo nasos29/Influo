@@ -51,6 +51,14 @@ export function buildTikTokPlayerUrl(videoId: string, opts?: TikTokPlayerOpts): 
 }
 
 /** Classic TikTok embed iframe (no official player API). Used as a Chrome fallback. */
+/**
+ * Sandbox for embed/v2 iframes: scripts/origin/presentation so the player can
+ * run, but no allow-popups or allow-top-navigation so author/logo clicks
+ * cannot take the user off-site.
+ */
+export const TIKTOK_EMBED_IFRAME_SANDBOX =
+  "allow-scripts allow-same-origin allow-presentation";
+
 export function buildTikTokEmbedUrl(videoId: string): string {
   const id = String(videoId || "").trim();
   if (!/^\d+$/.test(id)) {
@@ -104,4 +112,22 @@ export function postTikTokPlayer(
   } catch {
     /* cross-origin recipient mismatch */
   }
+}
+
+/**
+ * Mobile Chrome (and other Chromium mobiles, not Firefox) often fail
+ * player/v1 with 3001 PLAYBACK_ERROR / 1004 player_sdk_error. Start
+ * those browsers on the classic embed/v2 iframe instead.
+ */
+export function preferTikTokEmbedPlayerFromUA(ua: string): boolean {
+  const s = String(ua || "");
+  if (/Firefox|FxiOS/i.test(s)) return false;
+  const chromium = /Chrome|CriOS|Chromium|EdgA|EdgiOS|SamsungBrowser/i.test(s);
+  const mobile = /Mobile|Android|iPhone|iPod/i.test(s);
+  return chromium && mobile;
+}
+
+export function preferTikTokEmbedPlayer(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return preferTikTokEmbedPlayerFromUA(navigator.userAgent);
 }
