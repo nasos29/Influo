@@ -61,6 +61,7 @@ import ProfileOffersPanel from "@/components/ProfileOffersPanel";
 import ProfileHireCard from "@/components/ProfileHireCard";
 import CampaignInviteButton from "@/components/CampaignInviteButton";
 import ProfileShareButton from "@/components/ProfileShareButton";
+import { ReportUserButton } from "@/components/ReportUserModal";
 import { showCampaignInviteButton } from "@/lib/gateAvatars";
 import BrandGateModal from "@/components/BrandGateModal";
 import {
@@ -2389,6 +2390,15 @@ export default function InfluencerProfile(props: {
                   title={displayNameForLang(profile.name, lang)}
                   path={publicPath}
                 />
+                {sessionChecked && hasSession && !isOwnProfile && id ? (
+                  <ReportUserButton
+                    lang={lang}
+                    targetType="creator"
+                    targetId={String(id)}
+                    context="profile"
+                    onNeedAuth={() => setShowRegistrationRequiredModal(true)}
+                  />
+                ) : null}
                 <BrandSaveInfluencerButton
                   variant="quiet"
                   lang={lang}
