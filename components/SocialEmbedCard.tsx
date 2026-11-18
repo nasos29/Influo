@@ -9,6 +9,7 @@ import {
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
 import { usePortfolioMediaControls } from "@/lib/usePortfolioMediaControls";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
@@ -179,6 +180,7 @@ export default function SocialEmbedCard({
   const isIgPost = igMedia?.kind === "p";
   const isIgReel = igMedia?.kind === "reel" || igMedia?.kind === "tv";
   const rootRef = useRef<HTMLDivElement>(null);
+  const playerBoxRef = useRef<HTMLDivElement>(null);
   const [nearViewport, setNearViewport] = useState(false);
 
   const [activated, setActivated] = useState(false);
@@ -262,7 +264,9 @@ export default function SocialEmbedCard({
     iframeRef: tikTokIframeRef,
     showSoundPrompt: showTikTokSoundPrompt,
     onTapForSound: onTikTokTapForSound,
+    onIframeLoad: onTikTokIframeLoad,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
+  const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
@@ -461,6 +465,7 @@ export default function SocialEmbedCard({
     <div className="w-full max-w-full" ref={rootRef}>
       <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
         <div
+          ref={playerBoxRef}
           className={`relative w-full bg-slate-100 ${
             showStaticPhoto || showCarousel ? "cursor-default" : ""
           }`}
@@ -603,7 +608,10 @@ export default function SocialEmbedCard({
                     }
                     src={iframeSrc}
                     title={`${NAMES[provider]} media`}
-                    className="absolute top-0 left-0 z-[5] h-full w-full border-0 opacity-100"
+                    className={`absolute top-0 left-0 z-[5] border-0 opacity-100 ${
+                      isTikTokPlayer && tikTokIframeScale ? "" : "h-full w-full"
+                    }`}
+                    style={isTikTokPlayer ? tikTokIframeScale : undefined}
                     allow={
                       provider === "tiktok"
                         ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
@@ -613,6 +621,7 @@ export default function SocialEmbedCard({
                     referrerPolicy="strict-origin-when-cross-origin"
                     onLoad={() => {
                       setLoading(false);
+                      if (isTikTokPlayer) onTikTokIframeLoad();
                     }}
                     onError={() => {
                       setError(true);

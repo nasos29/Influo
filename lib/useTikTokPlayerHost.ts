@@ -10,6 +10,7 @@ import {
 } from "react";
 import {
   isTikTokPlayerMessage,
+  isTikTokPlayerIframeSrc,
   postTikTokPlayer,
   TIKTOK_PLAYER_ORIGIN,
 } from "@/lib/tikTokPlayer";
@@ -46,6 +47,7 @@ export function useTikTokPlayerHost(
   const triedUnmuteRef = useRef(false);
   const errorRetriedRef = useRef(false);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const iframeLoadedRef = useRef(false);
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
@@ -58,9 +60,13 @@ export function useTikTokPlayerHost(
 
   const tryUnmuteAndPlay = useCallback(() => {
     if (unmutedRef.current) return;
+    const iframe = iframeRef.current;
+    if (!iframe || !iframeLoadedRef.current) return;
+    const src = iframe.getAttribute("src") || iframe.src || "";
+    if (!isTikTokPlayerIframeSrc(src)) return;
     triedUnmuteRef.current = true;
-    postTikTokPlayer(iframeRef.current, "unMute");
-    postTikTokPlayer(iframeRef.current, "play");
+    postTikTokPlayer(iframe, "unMute");
+    postTikTokPlayer(iframe, "play");
     clearFallback();
     fallbackTimerRef.current = setTimeout(() => {
       if (!unmutedRef.current) setShowSoundPrompt(true);
@@ -72,16 +78,30 @@ export function useTikTokPlayerHost(
       unmutedRef.current = false;
       triedUnmuteRef.current = false;
       errorRetriedRef.current = false;
+      iframeLoadedRef.current = false;
       setShowSoundPrompt(false);
       clearFallback();
     }
   }, [clearFallback, enabled]);
+
+  const onIframeLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    const src = iframe.getAttribute("src") || iframe.src || "";
+    if (isTikTokPlayerIframeSrc(src)) {
+      iframeLoadedRef.current = true;
+    }
+  }, [iframeRef]);
 
   useLayoutEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== TIKTOK_PLAYER_ORIGIN) return;
       if (!isTikTokPlayerMessage(event.data)) return;
       if (!enabledRef.current) return;
+
+      const iframe = iframeRef.current;
+      const frameWin = iframe?.contentWindow;
+      if (!frameWin || event.source !== frameWin) return;
 
       const { type, value } = event.data;
 
@@ -107,11 +127,9 @@ export function useTikTokPlayerHost(
         return;
       }
 
-      if (
-        (type === "onPlayerReady" || type === "onStateChange") &&
-        !triedUnmuteRef.current
-      ) {
-        tryUnmuteAndPlay();
+      if (type === "onPlayerReady" || type === "onStateChange") {
+        iframeLoadedRef.current = true;
+        if (!triedUnmuteRef.current) tryUnmuteAndPlay();
       }
     };
 
@@ -130,5 +148,5 @@ export function useTikTokPlayerHost(
     clearFallback();
   }, [clearFallback, iframeRef]);
 
-  return { iframeRef, showSoundPrompt, onTapForSound };
+  return { iframeRef, showSoundPrompt, onTapForSound, onIframeLoad };
 }
