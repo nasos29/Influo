@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import BrandSignupForm from "@/components/BrandSignupForm";
 import InfluencerSignupForm from "@/components/InfluencerSignupForm";
 
@@ -94,6 +95,8 @@ function RoleCard({
 
 /**
  * Signup from the header and the login page: choose a role, then the existing form.
+ * Rendered via a portal to document.body so it is not clipped by the sticky header
+ * (contain: paint + backdrop-filter) or stacked under page content on non-home pages.
  */
 export default function SignupChoiceModal({
   open,
@@ -116,9 +119,11 @@ export default function SignupChoiceModal({
   }, [open, initialType]);
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
-  return (
-    <div className={`fixed inset-0 z-50 overflow-y-auto bg-slate-900/50 p-3 sm:p-6 ${picked ? "max-sm:overflow-hidden max-sm:p-0" : ""}`}>
+  return createPortal(
+    (
+    <div className={`fixed inset-0 z-[100] overflow-y-auto bg-slate-900/50 p-3 sm:p-6 ${picked ? "max-sm:overflow-hidden max-sm:p-0" : ""}`}>
       <div
         className={`relative mx-auto my-2 w-full max-w-4xl sm:my-6 ${picked ? "max-sm:my-0 max-sm:h-dvh" : ""}`}
         role="dialog"
@@ -187,5 +192,7 @@ export default function SignupChoiceModal({
         </div>
       </div>
     </div>
+    ),
+    document.body,
   );
 }
