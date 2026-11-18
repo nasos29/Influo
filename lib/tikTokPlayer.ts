@@ -52,11 +52,13 @@ export function buildTikTokPlayerUrl(videoId: string, opts?: TikTokPlayerOpts): 
 
 /**
  * Permissions policy for every TikTok iframe (player/v1 and embed/v2).
- * Docs list allow="fullscreen"; autoplay and encrypted-media are required to play.
- * @see https://developers.tiktok.com/doc/embed-player
+ * Matches the official oEmbed iframe (updated 23 Oct 2026), plus storage-access
+ * so the player can request unpartitioned cookies if Chrome blocks them.
+ * @see https://developers.tiktok.com/doc/embed-videos
+ * @see https://developers.tiktok.com/docs/en/embed-player
  */
 export const TIKTOK_IFRAME_ALLOW =
-  "autoplay; fullscreen; encrypted-media; picture-in-picture";
+  "accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share; storage-access";
 
 /**
  * Sandbox for desktop embed/v2 iframes: scripts/origin/presentation so the

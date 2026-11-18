@@ -268,7 +268,8 @@ export default function SocialEmbedCard({
   // mount player/v1 or embed/v2 already at ≥325px layout width.
   const { style: tikTokIframeScale, measured: tikTokBoxMeasured } = useTikTokIframeScale(
     provider === "tiktok",
-    playerBoxRef
+    playerBoxRef,
+    { freeze: !!iframeSrc }
   );
   const tikTokEmbedFallbackUsed = useRef(false);
 

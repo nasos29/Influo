@@ -16,6 +16,8 @@ import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/u
 import {
   isFatalTikTokPlayerError,
   isRetryableTikTokPlayerError,
+  isTikTokPlayerReadyEvent,
+  TIKTOK_SOUND_PROMPT_MS,
 } from "../lib/useTikTokPlayerHost.ts";
 import {
   isTikTokPlayerOverloadError,
@@ -96,10 +98,19 @@ test("TikTok embed/v2 sandbox allows playback tokens but not off-site navigation
 });
 
 test("TikTok iframe allow tokens and desktop-only embed sandbox", () => {
-  assert.equal(
-    TIKTOK_IFRAME_ALLOW,
-    "autoplay; fullscreen; encrypted-media; picture-in-picture"
-  );
+  for (const need of [
+    "accelerometer",
+    "autoplay",
+    "clipboard-write",
+    "encrypted-media",
+    "fullscreen",
+    "gyroscope",
+    "picture-in-picture",
+    "web-share",
+    "storage-access",
+  ]) {
+    assert.ok(TIKTOK_IFRAME_ALLOW.includes(need), need);
+  }
   const mobileChrome =
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
   const desktopChrome =
@@ -293,3 +304,10 @@ test("claimTikTokPlayerSession notifies other cards to unload", () => {
   assert.deepEqual(seen, ["card-a", "card-b", null]);
 });
 
+test("host commands wait for onPlayerReady and do not treat onStateChange as ready", () => {
+  assert.equal(isTikTokPlayerReadyEvent("onPlayerReady"), true);
+  assert.equal(isTikTokPlayerReadyEvent("onStateChange"), false);
+  assert.equal(isTikTokPlayerReadyEvent("onLoad"), false);
+  assert.equal(isTikTokPlayerReadyEvent("onMute"), false);
+  assert.ok(TIKTOK_SOUND_PROMPT_MS >= 4000);
+});

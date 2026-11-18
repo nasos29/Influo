@@ -31,7 +31,13 @@ export {
   tikTokPlayerErrorCode,
 } from "@/lib/tikTokPlayerErrors";
 
-const UNMUTE_FALLBACK_MS = 1500;
+/** Show "tap for sound" if unmute is not confirmed. Do not send a second play(). */
+export const TIKTOK_SOUND_PROMPT_MS = 4000;
+
+/** Official host→player commands must wait for this event. */
+export function isTikTokPlayerReadyEvent(type: string): boolean {
+  return type === "onPlayerReady";
+}
 
 function tikTokPlayingState(value: unknown): boolean | null {
   const raw =
@@ -106,24 +112,28 @@ export function useTikTokPlayerHost(
     clearFallback();
   }, [clearFallback]);
 
+  const playerReadyRef = useRef(false);
+
   const tryUnmuteAndPlay = useCallback(() => {
     if (unmutedRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) return;
+    // iframe onLoad is not enough — wait for the official onPlayerReady message.
+    if (!playerReadyRef.current) return;
     const iframe = iframeRef.current;
-    if (!iframe || !iframeLoadedRef.current) return;
+    if (!iframe) return;
     const src = iframe.getAttribute("src") || iframe.src || "";
     if (!isTikTokPlayerIframeSrc(src)) return;
+    if (triedUnmuteRef.current) return;
     triedUnmuteRef.current = true;
-    // Play was a user tap — try unmuted first. If the browser blocks it,
-    // the mute fallback below keeps the existing Tap-for-sound button.
+    // Play was a user tap — try unmuted first. If sound never confirms,
+    // show the existing Tap-for-sound button. Do not send play() again:
+    // a second command on a slow mobile CPU often lands mid-init (3001).
     postTikTokPlayer(iframe, "unMute");
     postTikTokPlayer(iframe, "play");
     clearFallback();
     fallbackTimerRef.current = setTimeout(() => {
       if (unmutedRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) return;
-      postTikTokPlayer(iframe, "mute");
-      postTikTokPlayer(iframe, "play");
       setShowSoundPrompt(true);
-    }, UNMUTE_FALLBACK_MS);
+    }, TIKTOK_SOUND_PROMPT_MS);
   }, [clearFallback, iframeRef]);
 
   useEffect(() => {
@@ -134,6 +144,7 @@ export function useTikTokPlayerHost(
       playbackFailedRef.current = false;
       fallbackToEmbedRef.current = false;
       iframeLoadedRef.current = false;
+      playerReadyRef.current = false;
       setShowSoundPrompt(false);
       setIsPlaying(false);
       setUnplayable(false);
@@ -205,11 +216,15 @@ export function useTikTokPlayerHost(
       if (type === "onStateChange") {
         const playing = tikTokPlayingState(value);
         if (playing != null) setIsPlaying(playing);
+        return;
       }
 
-      if (type === "onPlayerReady" || type === "onStateChange") {
+      if (isTikTokPlayerReadyEvent(type)) {
         if (playbackFailedRef.current || fallbackToEmbedRef.current) return;
+        // onPlayerReady (not iframe load, not onStateChange) is the official
+        // cue that the SDK will accept play / unMute.
         iframeLoadedRef.current = true;
+        playerReadyRef.current = true;
         if (!triedUnmuteRef.current) tryUnmuteAndPlay();
       }
     };
