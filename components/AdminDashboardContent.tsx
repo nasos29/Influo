@@ -5143,7 +5143,16 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   ))}
                 </div>
                 <div className="hidden md:block overflow-x-auto min-w-0 w-full">
-                <table className="w-full min-w-max">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    <col className="w-[3%]" />
+                    <col className="w-[24%]" />
+                    <col className="w-[16%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[10%]" />
+                    <col className="w-[15%]" />
+                    <col className="w-[22%]" />
+                  </colgroup>
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3 text-left">
@@ -5178,10 +5187,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               className="rounded border-slate-300"
                             />
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
+                          <td className="px-4 py-3 min-w-0">
+                            <div className="flex items-center gap-3 min-w-0">
                               {u.avatar_url ? (
-                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200">
+                                <div className="w-10 h-10 shrink-0 rounded-full overflow-hidden bg-slate-200">
                                   <Image 
                                     src={getCachedImageUrl(u.avatar_url) ?? u.avatar_url} 
                                     alt={u.display_name} 
@@ -5192,10 +5201,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   />
                                 </div>
                               ) : (
-                                <div className="w-10 h-10 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">{lang === "el" ? "Χωρίς φωτό" : "No Photo"}</div>
+                                <div className="w-10 h-10 shrink-0 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">{lang === "el" ? "Χωρίς φωτό" : "No Photo"}</div>
                               )}
-                              <div>
-                                <div className="font-medium text-slate-900">{u.display_name} <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} /></div>
+                              <div className="min-w-0 max-w-full">
+                                <div className="font-medium text-slate-900 break-words">{u.display_name} <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} /></div>
                                 {u.created_at && (
                                   <div
                                     className="text-[10px] text-slate-400 mt-0.5 tabular-nums"
@@ -5206,7 +5215,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                   </div>
                                 )}
                                 {u.category && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
+                                  <div className="flex flex-wrap gap-1 mt-1 max-w-full">
                                     {parseStoredCategories(u.category).map((cat: string, idx: number) => (
                                       <span
                                         key={idx}
@@ -5220,9 +5229,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-900 break-all">{u.contact_email || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-900">{u.location || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-slate-900">
+                          <td className="px-4 py-3 text-sm text-slate-900 break-all min-w-0">{u.contact_email || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900 break-words min-w-0">{u.location || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900 min-w-0">
                             {u.accounts && u.accounts.length > 0 ? (
                               <div className="flex flex-col gap-1">
                                 {u.accounts.map((acc, idx) => (
@@ -5241,8 +5250,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               <span className="text-slate-400">-</span>
                             )}
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col gap-1">
+                          <td className="px-4 py-3 min-w-0">
+                            <div className="flex flex-col gap-1 min-w-0">
                               {u.approved ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">{txt.approved}</span>
                               ) : (
@@ -5266,7 +5275,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-4 py-3 align-top whitespace-normal min-w-[18rem]">{influencerActions(u)}</td>
+                          <td className="px-4 py-3 align-top whitespace-normal min-w-0">{influencerActions(u)}</td>
                         </tr>
                       ))
                     )}
