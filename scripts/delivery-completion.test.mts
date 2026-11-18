@@ -196,10 +196,14 @@ test("review reminders use real completion when flag on", () => {
 test("admin digest queue gate", () => {
   const env = {} as NodeJS.ProcessEnv;
   assert.equal(shouldQueueAdminDigest("proposal", env), false);
+  assert.equal(shouldQueueAdminDigest("proposal_accepted", env), false);
+  assert.equal(shouldQueueAdminDigest("proposal_rejected", env), false);
   env.ADMIN_DAILY_DIGEST_ENABLED = "1";
   assert.equal(shouldQueueAdminDigest("proposal", env), true);
   assert.equal(shouldQueueAdminDigest("campaign_application", env), true);
   assert.equal(shouldQueueAdminDigest("event_confirm_pending", env), true);
+  assert.equal(shouldQueueAdminDigest("proposal_accepted", env), true);
+  assert.equal(shouldQueueAdminDigest("proposal_rejected", env), true);
 });
 
 test("athens admin digest window helper is boolean", () => {
