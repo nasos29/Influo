@@ -4594,7 +4594,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   return (
     <div className={`admin-shell min-h-screen bg-slate-50${darkMode ? " admin-shell--dark" : ""}`}>
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+        <div className="w-full max-w-none px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h1 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
@@ -4705,7 +4705,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-8">
         <AdminNoticesPanel lang={lang} />
         <div className="@container relative bg-white rounded-xl border border-slate-200 mb-6 overflow-hidden">
           <nav
@@ -4949,7 +4949,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         )}
 
         {activeTab !== "overview" && (
-        <div className="bg-white rounded-xl border border-slate-200 mb-4 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 mb-4 overflow-x-auto">
           {activeTab === "influencers" && (
             <>
               {/* Search & Filters (server-side) */}
@@ -5142,8 +5142,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     </article>
                   ))}
                 </div>
-                <div className="hidden md:block overflow-x-auto">
-                <table className="w-full">
+                <div className="hidden md:block overflow-x-auto min-w-0 w-full">
+                <table className="w-full min-w-max">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-4 py-3 text-left">
@@ -5220,7 +5220,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-sm text-slate-900">{u.contact_email || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-900 break-all">{u.contact_email || '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-900">{u.location || '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-900">
                             {u.accounts && u.accounts.length > 0 ? (
@@ -5266,7 +5266,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : null}
                             </div>
                           </td>
-                          <td className="px-4 py-3 align-top">{influencerActions(u)}</td>
+                          <td className="px-4 py-3 align-top whitespace-normal min-w-[18rem]">{influencerActions(u)}</td>
                         </tr>
                       ))
                     )}
@@ -5384,7 +5384,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       );
                     })}
                   </div>
-                  <div className="hidden md:block overflow-x-auto">
+                  <div className="hidden md:block overflow-x-auto min-w-0 w-full">
                     <table className="w-full">
                       <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
@@ -5549,7 +5549,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                   );
                 })}
               </div>
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto min-w-0 w-full">
                 <table className="w-full">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -5795,7 +5795,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
                 return (
                   <>
-                    <div className="hidden md:block overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto min-w-0 w-full">
                       <table className="w-full">
                         <thead className="bg-slate-50 border-b border-slate-200">
                           <tr>
