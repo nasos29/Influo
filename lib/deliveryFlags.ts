@@ -55,6 +55,16 @@ export function isDealCancelEmailsEnabled(env: NodeJS.ProcessEnv = process.env):
   return envOn(env.DEAL_CANCEL_EMAILS_ENABLED);
 }
 
+/**
+ * Email when a started campaign deal is cancelled.
+ * CAMPAIGN_DEAL_CANCEL_EMAILS_ENABLED overrides; otherwise falls back to DEAL_CANCEL_EMAILS_ENABLED. Default OFF.
+ */
+export function isCampaignDealCancelEmailsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const explicit = (env.CAMPAIGN_DEAL_CANCEL_EMAILS_ENABLED || "").trim();
+  if (explicit) return envOn(explicit);
+  return isDealCancelEmailsEnabled(env);
+}
+
 /** Cron: auto-cancel stale pending proposals. Default OFF. */
 export function isPendingProposalExpireEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
   return envOn(env.PENDING_PROPOSAL_EXPIRE_ENABLED);

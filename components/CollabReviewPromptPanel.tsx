@@ -17,6 +17,8 @@ import {
 
 export type PendingCollabReview = {
   proposalId: string;
+  source?: "proposal" | "campaign";
+  applicationId?: string;
   brandName: string;
   creatorName?: string | null;
   profileUrl?: string | null;
@@ -99,7 +101,12 @@ export default function CollabReviewPromptPanel({
       const res = await sessionFetch("/api/reviews/decline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposalId: item.proposalId, party }),
+        body: JSON.stringify({
+          proposalId: item.proposalId,
+          applicationId: item.applicationId || item.proposalId,
+          source: item.source || "proposal",
+          party,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.ok) {

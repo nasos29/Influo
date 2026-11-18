@@ -30,15 +30,30 @@ export {
   type DealCancelGate,
 } from "@/lib/dealCancelEligibility";
 
-export type DealCancelledHookArgs = {
-  proposal: ProposalRow & {
-    cancelled_by: CancelledBy;
-    cancel_reason: string;
-    cancelled_at: string;
-  };
-  cancelledBy: CancelledBy;
-  reason: string;
-};
+export type DealCancelledHookArgs =
+  | {
+      source?: "proposal";
+      proposal: ProposalRow & {
+        cancelled_by: CancelledBy;
+        cancel_reason: string;
+        cancelled_at: string;
+      };
+      cancelledBy: CancelledBy;
+      reason: string;
+    }
+  | {
+      source: "campaign";
+      application: {
+        id: string;
+        influencer_id: string;
+        campaign_id?: string;
+        cancelled_by: CancelledBy;
+        cancel_reason: string;
+        cancelled_at: string;
+      };
+      cancelledBy: CancelledBy;
+      reason: string;
+    };
 
 /**
  * Post-cancel hook for payments, fees, and ledger updates.
@@ -380,7 +395,8 @@ export async function cancelDeal(args: {
     await notifyParties(args.proposal, args.cancelledBy, validated.reason);
     await emailParties(args.proposal, args.cancelledBy, validated.reason);
     await onDealCancelled({
-      proposal: updated as DealCancelledHookArgs["proposal"],
+      source: "proposal",
+      proposal: updated as Extract<DealCancelledHookArgs, { proposal: unknown }>["proposal"],
       cancelledBy: args.cancelledBy,
       reason: validated.reason,
     });

@@ -20,13 +20,10 @@ export async function applyReviewDecline(
   payload: ReviewDeclinePayload,
   declinedAt = new Date().toISOString()
 ): Promise<ApplyReviewDeclineResult> {
-  if (payload.source !== "proposal") {
-    // Campaign review prompts are proposal-centric today; decline is proposal-only.
-    return { ok: false, reason: "not_found" };
-  }
+  const table = payload.source === "campaign" ? "campaign_applications" : "proposals";
   const col = declineColumn(payload.party);
   const { data, error } = await admin
-    .from("proposals")
+    .from(table)
     .update({ [col]: declinedAt })
     .eq("id", payload.id)
     .select("id")
