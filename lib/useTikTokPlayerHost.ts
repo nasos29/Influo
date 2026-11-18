@@ -61,7 +61,7 @@ export const TIKTOK_SOUND_COPY = {
  * play first (muted=0 URL + unMute/play on ready). If the browser blocks it,
  * fall back to muted playback and the existing Tap-for-sound button.
  *
- * 3001/1004 fall back to embed/v2 (see SocialEmbedCard). 2005/2001 unload.
+ * 3001/1004/2005/2001 fall back to embed/v2 (see SocialEmbedCard).
  * Automatic retries are limited to one delayed play() for 3001. 3002 stays
  * muted with the sound prompt. TikTok emits onPlayerReady with 2005 — we
  * must not treat that as a cue to play() again.
@@ -199,13 +199,14 @@ export function useTikTokPlayerHost(
           clearRetry();
           return;
         }
-        // 2005 also emits onPlayerReady; latch failure first so we never play().
-        if (isTikTokPlayerOverloadError(value) || shouldUnloadTikTokPlayer(value, errorRetriedRef.current)) {
-          markPlaybackFailed();
-          return;
-        }
+        // Any player/v1 failure (including 2005/2001) tries embed/v2 once
+        // before we unload back to the cover.
         if (shouldFallbackToTikTokEmbed(value, errorRetriedRef.current)) {
           markFallbackToEmbed();
+          return;
+        }
+        if (isTikTokPlayerOverloadError(value) || shouldUnloadTikTokPlayer(value, errorRetriedRef.current)) {
+          markPlaybackFailed();
           return;
         }
         if (isRetryableTikTokPlayerError(tikTokPlayerErrorCode(value)) && !errorRetriedRef.current) {

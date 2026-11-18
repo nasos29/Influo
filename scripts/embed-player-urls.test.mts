@@ -7,6 +7,7 @@ import {
   extractTikTokVideoId,
   isTikTokPlayerIframeSrc,
   isTikTokShortLink,
+  preferTikTokEmbedPlayerFromUA,
 } from "../lib/tikTokPlayer.ts";
 import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
 import {
@@ -78,6 +79,33 @@ test("buildTikTokEmbedUrl points at embed/v2", () => {
     true
   );
   assert.throws(() => buildTikTokEmbedUrl("not-a-number"));
+});
+
+test("preferTikTokEmbedPlayerFromUA is true only for mobile Chromium, not Firefox or desktop", () => {
+  assert.equal(
+    preferTikTokEmbedPlayerFromUA(
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+    ),
+    true
+  );
+  assert.equal(
+    preferTikTokEmbedPlayerFromUA(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.0.0 Mobile/15E148 Safari/604.1"
+    ),
+    true
+  );
+  assert.equal(
+    preferTikTokEmbedPlayerFromUA(
+      "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0"
+    ),
+    false
+  );
+  assert.equal(
+    preferTikTokEmbedPlayerFromUA(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    ),
+    false
+  );
 });
 
 test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
@@ -196,7 +224,8 @@ test("TikTok 1001/1002 are fatal; only 3001 is auto-retried once; overload unloa
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001 }, false), false);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001, errorType: "PLAYBACK_ERROR" }, true), true);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 1004, errorType: "PLAYER_SDK_ERROR" }, false), true);
-  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 2005 }, true), false);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 2005, errorType: "TOO_MANY_REQUESTS" }, false), true);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 2001, errorType: "SERVER_ERROR" }, true), true);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3002 }, true), false);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 1001, errorType: "INVALID_VIDEO" }, true), false);
 });

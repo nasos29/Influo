@@ -92,14 +92,17 @@ export function isTikTokPlayerSdkOrPlaybackError(value: unknown): boolean {
 }
 
 /**
- * Switch from player/v1 to embed/v2 after a non-fatal, non-overload failure
- * (Chrome often reports 3001 PLAYBACK_ERROR then a 1004 player_sdk_error).
+ * Switch from player/v1 to embed/v2 after any non-fatal player failure,
+ * including 2005/2001 rate-limits. Autoplay blocks (3002) stay on player/v1
+ * so the user can tap for sound. 3001 falls back after one play() retry
+ * (or immediately if two 3001s arrive together, alreadyRetried=true).
  */
 export function shouldFallbackToTikTokEmbed(value: unknown, alreadyRetried: boolean): boolean {
-  if (isFatalTikTokPlayerError(value) || isTikTokPlayerOverloadError(value)) return false;
+  if (isFatalTikTokPlayerError(value)) return false;
   const code = tikTokPlayerErrorCode(value);
   if (code === TIKTOK_PLAYER_ERROR.AUTOPLAY_ERROR) return false;
   if (code === TIKTOK_PLAYER_ERROR.PLAYBACK_ERROR) return alreadyRetried;
+  if (isTikTokPlayerOverloadError(value)) return true;
   if (code === TIKTOK_PLAYER_ERROR.PLAYER_SDK_ERROR) return true;
   return code != null;
 }

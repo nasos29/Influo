@@ -105,3 +105,21 @@ export function postTikTokPlayer(
     /* cross-origin recipient mismatch */
   }
 }
+
+/**
+ * Mobile Chrome (and other Chromium mobiles, not Firefox) often fail
+ * player/v1 with 3001 PLAYBACK_ERROR / 1004 player_sdk_error. Start
+ * those browsers on the classic embed/v2 iframe instead.
+ */
+export function preferTikTokEmbedPlayerFromUA(ua: string): boolean {
+  const s = String(ua || "");
+  if (/Firefox|FxiOS/i.test(s)) return false;
+  const chromium = /Chrome|CriOS|Chromium|EdgA|EdgiOS|SamsungBrowser/i.test(s);
+  const mobile = /Mobile|Android|iPhone|iPod/i.test(s);
+  return chromium && mobile;
+}
+
+export function preferTikTokEmbedPlayer(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return preferTikTokEmbedPlayerFromUA(navigator.userAgent);
+}
