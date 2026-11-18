@@ -52,7 +52,7 @@ import { formatFromPriceLabel, lowestListedPrice } from "@/lib/publicInfluencer"
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { parseHttpsUrl } from "@/lib/brandProfile";
 import DealCancelDialog from "@/components/DealCancelDialog";
-import { canCancelDeal } from "@/lib/dealCancelEligibility";
+import { canCancelDeal, canWithdrawPendingProposal } from "@/lib/dealCancelEligibility";
 import { deriveProposalDisplayStatus } from "@/lib/proposalDisplayStatus";
 import {
   addBrandShortlist,
@@ -849,6 +849,8 @@ export default function BrandDashboardContent() {
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [cancelDealProposal, setCancelDealProposal] = useState<Proposal | null>(null);
   const [cancelDealSaving, setCancelDealSaving] = useState(false);
+  const [withdrawProposal, setWithdrawProposal] = useState<Proposal | null>(null);
+  const [withdrawSaving, setWithdrawSaving] = useState(false);
   const [recommendationSource, setRecommendationSource] = useState<{
     brand: BrandProfile;
     profiles: InfluencerProfile[];
@@ -1938,6 +1940,34 @@ export default function BrandDashboardContent() {
     }
   };
 
+  const submitWithdrawProposal = async () => {
+    if (!withdrawProposal) return;
+    setWithdrawSaving(true);
+    try {
+      const response = await sessionFetch("/api/proposals/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proposalId: withdrawProposal.id,
+          userType: "brand",
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || (lang === "el" ? "Δεν ήταν δυνατή η απόσυρση" : "Could not withdraw"));
+      }
+      const patch = (result.proposal || {}) as Partial<Proposal>;
+      patchProposalAfterCancel(String(withdrawProposal.id), patch);
+      setWithdrawProposal(null);
+      notify(lang === "el" ? "Η πρόταση αποσύρθηκε." : "The proposal was withdrawn.", "success");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      notify((lang === "el" ? "Σφάλμα: " : "Error: ") + message, "error");
+    } finally {
+      setWithdrawSaving(false);
+    }
+  };
+
   const cancelDealButton = (proposal: Proposal) =>
     canCancelDeal(proposal) ? (
       <button
@@ -1946,6 +1976,17 @@ export default function BrandDashboardContent() {
         className="inline-flex min-h-11 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 hover:bg-red-100"
       >
         {lang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+      </button>
+    ) : null;
+
+  const withdrawProposalButton = (proposal: Proposal) =>
+    canWithdrawPendingProposal(proposal) ? (
+      <button
+        type="button"
+        onClick={() => setWithdrawProposal(proposal)}
+        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
+      >
+        {lang === "el" ? "Απόσυρση πρότασης" : "Withdraw proposal"}
       </button>
     ) : null;
 
@@ -3093,6 +3134,7 @@ export default function BrandDashboardContent() {
                         <span className={`rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
                           {display.label}
                         </span>
+                        {withdrawProposalButton(proposal)}
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -3493,6 +3535,27 @@ export default function BrandDashboardContent() {
         saving={cancelDealSaving}
         onCancel={() => !cancelDealSaving && setCancelDealProposal(null)}
         onConfirm={(reason) => void submitCancelDeal(reason)}
+      />
+      <ConfirmDialog
+        open={!!withdrawProposal}
+        title={lang === "el" ? "Απόσυρση πρότασης" : "Withdraw proposal"}
+        body={
+          lang === "el"
+            ? "Η πρόταση θα ακυρωθεί. Ο δημιουργός θα ενημερωθεί εντός της πλατφόρμας."
+            : "The proposal will be cancelled. The creator will be notified in-app."
+        }
+        confirmLabel={
+          withdrawSaving
+            ? lang === "el"
+              ? "Απόσυρση…"
+              : "Withdrawing…"
+            : lang === "el"
+              ? "Απόσυρση"
+              : "Withdraw"
+        }
+        cancelLabel={lang === "el" ? "Πίσω" : "Back"}
+        onCancel={() => !withdrawSaving && setWithdrawProposal(null)}
+        onConfirm={() => void submitWithdrawProposal()}
       />
       <ConfirmDialog
         open={!!confirmRejectId}

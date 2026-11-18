@@ -7,7 +7,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseService } from "@/lib/apiAuth";
 import {
   canCancelDeal,
+  canWithdrawPendingProposal,
   validateCancelReason,
+  validateWithdrawReason,
   type CancelledBy,
   type DealCancelGate,
 } from "@/lib/dealCancelEligibility";
@@ -19,7 +21,9 @@ import { deferAfterResponse, conversationIdForParties, pushParty } from "@/lib/p
 
 export {
   canCancelDeal,
+  canWithdrawPendingProposal,
   validateCancelReason,
+  validateWithdrawReason,
   CANCEL_REASON_MIN,
   CANCEL_REASON_MAX,
   type CancelledBy,
@@ -262,6 +266,71 @@ async function emailParties(proposal: ProposalRow, cancelledBy: CancelledBy, rea
   }
 
   await Promise.all(tasks.map((p) => p.catch((e) => console.error("[deal-cancel mail]", e))));
+}
+
+async function notifyWithdrawInApp(proposal: ProposalRow, reason: string | null): Promise<void> {
+  const influencer = await influencerContact(proposal.influencer_id);
+  const brandName = proposal.brand_name || "Επιχείρηση";
+  const email = proposal.brand_email;
+  const snippet = reason ? (reason.length > 120 ? `${reason.slice(0, 117)}…` : reason) : "";
+
+  await pushParty({
+    type: "proposal_withdrawn",
+    side: "influencer",
+    influencerId: proposal.influencer_id,
+    brandEmail: email,
+    payload: {
+      title: "Απόσυρση πρότασης",
+      body: snippet
+        ? `${brandName} απέσυρε την πρόταση. ${snippet}`
+        : `${brandName} απέσυρε την πρόταση.`,
+      url: "/dashboard?tab=proposals",
+      tag: `proposal-withdrawn-${proposal.id}`,
+    },
+  });
+}
+
+export async function withdrawPendingDeal(args: {
+  admin?: SupabaseClient;
+  proposal: ProposalRow;
+  reason?: unknown;
+}): Promise<{ ok: true; cancelledAt: string } | { ok: false; status: number; error: string }> {
+  const validated = validateWithdrawReason(args.reason);
+  if (!validated.ok) {
+    return { ok: false, status: 400, error: validated.error };
+  }
+  if (!canWithdrawPendingProposal(args.proposal)) {
+    return { ok: false, status: 409, error: "proposal_not_withdrawable" };
+  }
+
+  const cancelledAt = new Date().toISOString();
+  const db = args.admin ?? supabaseService();
+  const cancelReason = validated.reason;
+  const { data, error } = await db
+    .from("proposals")
+    .update({
+      status: "cancelled",
+      cancelled_by: "brand",
+      cancel_reason: cancelReason,
+      cancelled_at: cancelledAt,
+    })
+    .eq("id", args.proposal.id)
+    .eq("status", "pending")
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return { ok: false, status: 500, error: error.message };
+  }
+  if (!data?.id) {
+    return { ok: false, status: 409, error: "proposal_not_withdrawable" };
+  }
+
+  deferAfterResponse(async () => {
+    await notifyWithdrawInApp(args.proposal, cancelReason);
+  });
+
+  return { ok: true, cancelledAt };
 }
 
 export async function cancelDeal(args: {

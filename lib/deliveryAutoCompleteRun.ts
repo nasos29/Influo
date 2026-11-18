@@ -161,7 +161,7 @@ export async function runDeliveryAutoComplete(
       .not("delivery_submitted_at", "is", null)
       .is("delivery_confirmed_at", null)
       .is("auto_completed_at", null)
-      .in("deliverable_status", ["submitted", "changes_requested"])
+      .eq("deliverable_status", "submitted")
       .lte("delivery_submitted_at", cutoff)
       .order("delivery_submitted_at", { ascending: true })
       .limit(200);

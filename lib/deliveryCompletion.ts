@@ -22,6 +22,13 @@ export function isRealDeliveryComplete(row: {
   return !!(row.delivery_confirmed_at || row.auto_completed_at);
 }
 
+/** Link-mode campaign auto-complete applies only while brand has not requested changes. */
+export function isCampaignLinkAutoCompleteDeliverable(
+  deliverable_status: string | null | undefined
+): boolean {
+  return deliverable_status === "submitted";
+}
+
 /**
  * Cron may auto-complete only link-mode submissions (published link).
  * Event mode and rows with no submission are never auto-completed.
