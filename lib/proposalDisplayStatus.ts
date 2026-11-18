@@ -23,6 +23,15 @@ export const PROPOSAL_DISPLAY_STATUS_KEYS = [
 
 export type ProposalDisplayStatusKey = (typeof PROPOSAL_DISPLAY_STATUS_KEYS)[number];
 
+export type ProposalDisplayStatusAudience = "admin" | "brand" | "creator" | "party";
+
+const PARTY_COLLABORATION_STARTED_KEYS = new Set<ProposalDisplayStatusKey>([
+  "awaiting_agreement",
+  "in_progress",
+  "awaiting_approval",
+  "needs_admin",
+]);
+
 export type ProposalDisplayStatusRow = {
   status?: string | null;
   influencer_agreement_accepted?: boolean | null;
@@ -121,16 +130,44 @@ export function deriveProposalDisplayStatusKey(
   return "unknown";
 }
 
+type PartySide = "brand" | "creator";
+
+function partySideFromAudience(audience: ProposalDisplayStatusAudience): PartySide | null {
+  if (audience === "admin") return null;
+  if (audience === "brand") return "brand";
+  return "creator";
+}
+
+function partyDisplayStatusLabel(
+  key: ProposalDisplayStatusKey | "unknown",
+  lang: "el" | "en",
+  side: PartySide
+): string {
+  if (key === "unknown") return LABELS.unknown[lang];
+  if (key === "pending") {
+    if (side === "brand") return lang === "el" ? "Αναμονή απάντησης" : "Awaiting reply";
+    return lang === "el" ? "Πρόταση" : "Proposal";
+  }
+  if (PARTY_COLLABORATION_STARTED_KEYS.has(key)) {
+    return lang === "el" ? "Ξεκίνησε συνεργασία" : "Collaboration started";
+  }
+  return LABELS[key][lang];
+}
+
 export function proposalDisplayStatusLabel(
   key: ProposalDisplayStatusKey | "unknown",
-  lang: "el" | "en" = "el"
+  lang: "el" | "en" = "el",
+  audience: ProposalDisplayStatusAudience = "admin"
 ): string {
+  const side = partySideFromAudience(audience);
+  if (side) return partyDisplayStatusLabel(key, lang, side);
   return LABELS[key][lang];
 }
 
 export function deriveProposalDisplayStatus(
   row: ProposalDisplayStatusRow,
-  lang: "el" | "en" = "el"
+  lang: "el" | "en" = "el",
+  audience: ProposalDisplayStatusAudience = "admin"
 ): {
   key: ProposalDisplayStatusKey | "unknown";
   label: string;
@@ -139,7 +176,7 @@ export function deriveProposalDisplayStatus(
   const key = deriveProposalDisplayStatusKey(row);
   return {
     key,
-    label: proposalDisplayStatusLabel(key, lang),
+    label: proposalDisplayStatusLabel(key, lang, audience),
     badgeClass: PROPOSAL_DISPLAY_STATUS_BADGE[key],
   };
 }

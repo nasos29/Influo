@@ -53,6 +53,7 @@ import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { parseHttpsUrl } from "@/lib/brandProfile";
 import DealCancelDialog from "@/components/DealCancelDialog";
 import { canCancelDeal } from "@/lib/dealCancelEligibility";
+import { deriveProposalDisplayStatus } from "@/lib/proposalDisplayStatus";
 import {
   addBrandShortlist,
   fetchBrandShortlist,
@@ -1952,6 +1953,10 @@ export default function BrandDashboardContent() {
   const pendingCounterProposals = proposals.filter(
     p => p.counter_proposal_status === 'pending' && p.counter_proposal_budget
   );
+  const pendingCounterIds = new Set(pendingCounterProposals.map((p) => p.id));
+  const sentPendingProposals = proposals.filter(
+    (p) => p.status === "pending" && !pendingCounterIds.has(p.id)
+  );
 
   const openBrandTab = (tab: BrandTab) => {
     setMenuOpen(false);
@@ -3067,6 +3072,54 @@ export default function BrandDashboardContent() {
             </div>
           ) : (
           <>
+          {sentPendingProposals.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 mb-4">
+                {lang === "el" ? "Προτάσεις που έχετε στείλει" : "Proposals you have sent"}
+              </h2>
+              <div className="space-y-4">
+                {sentPendingProposals.map((proposal) => {
+                  const influencer = influencers[proposal.influencer_id];
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
+                  return (
+                    <div
+                      key={proposal.id}
+                      className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
+                    >
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">
+                        {displayNameForLang(influencer?.display_name, lang) || "Unknown Influencer"}
+                      </h3>
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                          {display.label}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-slate-500">{txt.service}:</span>{" "}
+                          <span className="font-medium text-slate-900">
+                            {displayServiceType(proposal.service_type, lang)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500">{txt.budget}:</span>{" "}
+                          <span className="font-medium text-slate-900">
+                            {formatEuroAmount(proposal.budget, lang)}
+                          </span>
+                        </div>
+                      </div>
+                      {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
+                        <p className="mt-2 text-sm text-slate-700">
+                          {formatProposalExtrasLine(proposal.selected_extras, lang)}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Pending Counter Proposals */}
           {pendingCounterProposals.length > 0 && (
             <div>
@@ -3077,6 +3130,7 @@ export default function BrandDashboardContent() {
                 {pendingCounterProposals.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
                   const isProcessing = processingCounterProposal === proposal.id;
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3087,16 +3141,21 @@ export default function BrandDashboardContent() {
                           <div className="flex items-center gap-2 mb-2">
                             <span className="bg-amber-500 text-white text-xs font-bold px-2 py-1 rounded">ΝΕΑ</span>
                             <h3 className="text-lg font-bold text-slate-900">
-                              {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
+                              {displayNameForLang(influencer?.display_name, lang) || "Unknown Influencer"}
                             </h3>
+                          </div>
+                          <div className="mb-2 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                              {display.label}
+                            </span>
                           </div>
                           <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                             <div>
-                              <span className="text-slate-500">{txt.service}:</span>{' '}
+                              <span className="text-slate-500">{txt.service}:</span>{" "}
                               <span className="font-medium text-slate-900">{displayServiceType(proposal.service_type, lang)}</span>
                             </div>
                             <div>
-                              <span className="text-slate-500">{lang === 'el' ? 'Προσφερόμενη Τιμή:' : 'Original Price:'}</span>{' '}
+                              <span className="text-slate-500">{lang === "el" ? "Προσφερόμενη Τιμή:" : "Original Price:"}</span>{" "}
                               <span className="font-medium text-slate-600 line-through">{formatEuroAmount(proposal.budget, lang)}</span>
                             </div>
                           </div>
@@ -3105,12 +3164,12 @@ export default function BrandDashboardContent() {
                           ) : null}
                           <div className="bg-white rounded-lg p-4 mb-3 border border-amber-300">
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-600 text-sm font-medium">{lang === 'el' ? 'Αντιπρόταση:' : 'Counter Proposal:'}</span>
+                              <span className="text-slate-600 text-sm font-medium">{lang === "el" ? "Αντιπρόταση:" : "Counter Proposal:"}</span>
                               <span className="text-amber-700 text-xl font-bold">{formatEuroAmount(proposal.counter_proposal_budget, lang)}</span>
                             </div>
                             {proposal.counter_proposal_message && (
                               <div className="mt-3 pt-3 border-t border-amber-200">
-                                <p className="text-xs text-slate-500 mb-1">{lang === 'el' ? 'Σχόλιο:' : 'Comment:'}</p>
+                                <p className="text-xs text-slate-500 mb-1">{lang === "el" ? "Σχόλιο:" : "Comment:"}</p>
                                 <p className="text-sm text-slate-700 whitespace-pre-wrap">{proposal.counter_proposal_message}</p>
                               </div>
                             )}
@@ -3147,6 +3206,7 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {pendingAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3157,6 +3217,12 @@ export default function BrandDashboardContent() {
                           <h3 className="text-lg font-bold text-slate-900 mb-2">
                             {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
                           </h3>
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                              {display.label}
+                            </span>
+                            {cancelDealButton(proposal)}
+                          </div>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-slate-500">{txt.service}:</span>{' '}
@@ -3181,7 +3247,6 @@ export default function BrandDashboardContent() {
                         </div>
                         <div className="flex flex-col gap-2 items-stretch sm:items-end">
                           <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
-                          {cancelDealButton(proposal)}
                         </div>
                       </div>
                     </div>
@@ -3197,18 +3262,26 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {awaitingInfluencerAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
                       className="bg-white rounded-xl p-6 border border-slate-200 hover:shadow-md transition-shadow"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-4">
-                        <h3 className="text-lg font-bold text-slate-900 mb-2">
-                          {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
-                        </h3>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-bold text-slate-900 mb-2">
+                            {displayNameForLang(influencer?.display_name, lang) || "Unknown Influencer"}
+                          </h3>
+                          <div className="mb-3 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                              {display.label}
+                            </span>
+                            {cancelDealButton(proposal)}
+                          </div>
+                        </div>
                         <div className="flex flex-col gap-2 items-stretch sm:items-end">
                           <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
-                          {cancelDealButton(proposal)}
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -3242,7 +3315,7 @@ export default function BrandDashboardContent() {
               <div className="space-y-4">
                 {brandSignedAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
-                  const completed = proposal.status === "completed" || !!proposal.influencer_agreement_accepted;
+                  const display = deriveProposalDisplayStatus(proposal, lang, "brand");
                   return (
                     <div
                       key={proposal.id}
@@ -3268,25 +3341,12 @@ export default function BrandDashboardContent() {
                           {formatProposalExtrasLine(proposal.selected_extras, lang) ? (
                             <p className="mt-2 text-sm text-slate-700">{formatProposalExtrasLine(proposal.selected_extras, lang)}</p>
                           ) : null}
-                          <p className={`mt-3 text-sm font-medium ${
-                            proposal.delivery_confirmed_at || proposal.auto_completed_at
-                              ? "text-green-700"
-                              : completed
-                                ? "text-blue-700"
-                                : "text-amber-800"
-                          }`}>
-                            {proposal.delivery_confirmed_at || proposal.auto_completed_at
-                              ? lang === "el"
-                                ? "Ολοκληρώθηκε"
-                                : "Completed"
-                              : completed
-                                ? lang === "el"
-                                  ? "Σε εξέλιξη"
-                                  : "In progress"
-                                : lang === "el"
-                                  ? "Αναμονή του δημιουργού"
-                                  : "Waiting for the creator"}
-                          </p>
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
+                              {display.label}
+                            </span>
+                            {cancelDealButton(proposal)}
+                          </div>
                           {(proposal.status === "completed" || !!proposal.influencer_agreement_accepted) &&
                           proposal.brand_agreement_accepted ? (
                             <div className="mt-3 max-w-md space-y-2">
@@ -3342,7 +3402,6 @@ export default function BrandDashboardContent() {
                         </div>
                         <div className="flex flex-col gap-2 items-stretch sm:items-end">
                           <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
-                          {cancelDealButton(proposal)}
                         </div>
                       </div>
                     </div>
@@ -3353,7 +3412,10 @@ export default function BrandDashboardContent() {
           )}
 
           {/* No Pending Items */}
-          {openAgreements === 0 && pendingCounterProposals.length === 0 && brandSignedAgreements.length === 0 && (
+          {openAgreements === 0 &&
+            pendingCounterProposals.length === 0 &&
+            brandSignedAgreements.length === 0 &&
+            sentPendingProposals.length === 0 && (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200">
               <p className="text-slate-600">{txt.no_pending}</p>
             </div>
