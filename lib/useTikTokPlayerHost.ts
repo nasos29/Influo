@@ -18,6 +18,8 @@ import {
   isFatalTikTokPlayerError,
   isRetryableTikTokPlayerError,
   isTikTokPlayerOverloadError,
+  logTikTokPlayerMessage,
+  shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
   tikTokPlayerErrorCode,
 } from "@/lib/tikTokPlayerErrors";
@@ -26,22 +28,13 @@ export {
   isFatalTikTokPlayerError,
   isRetryableTikTokPlayerError,
   isTikTokPlayerOverloadError,
+  shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
   tikTokPlayerErrorCode,
 } from "@/lib/tikTokPlayerErrors";
 
 const UNMUTE_FALLBACK_MS = 1500;
 const PLAYBACK_RETRY_MS = 400;
-
-/** iOS / coarse pointers typically block unmute without a fresh user gesture. */
-function isTouchLikePlayback(): boolean {
-  if (typeof window === "undefined") return false;
-  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
-  const touch = "ontouchstart" in window || (navigator.maxTouchPoints ?? 0) > 0;
-  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) ||
-    (navigator.platform === "MacIntel" && (navigator.maxTouchPoints ?? 0) > 1);
-  return Boolean(coarse || touch || ios);
-}
 
 function tikTokPlayingState(value: unknown): boolean | null {
   const raw =
@@ -64,14 +57,14 @@ export const TIKTOK_SOUND_COPY = {
 } as const;
 
 /**
- * Host TikTok player/v1 iframe: after onPlayerReady (or first onStateChange),
- * send unMute + play. If still muted after ~1.5s, expose a Tap-for-sound prompt.
+ * Host TikTok player/v1 iframe. A user tap on Play is a gesture: try unmuted
+ * play first (muted=0 URL + unMute/play on ready). If the browser blocks it,
+ * fall back to muted playback and the existing Tap-for-sound button.
  *
+ * 3001/1004 fall back to embed/v2 (see SocialEmbedCard). 2005/2001 unload.
  * Automatic retries are limited to one delayed play() for 3001. 3002 stays
- * on the sound prompt (needs a user gesture). Overload / SDK errors unload
- * the iframe instead of leaving TikTok's "Player error" UI or hammering
- * the player. TikTok emits onPlayerReady together with 2005 — we must not
- * treat that as a cue to play() again.
+ * muted with the sound prompt. TikTok emits onPlayerReady with 2005 — we
+ * must not treat that as a cue to play() again.
  */
 export function useTikTokPlayerHost(
   enabled: boolean,
@@ -83,10 +76,12 @@ export function useTikTokPlayerHost(
   const [isPlaying, setIsPlaying] = useState(false);
   const [unplayable, setUnplayable] = useState(false);
   const [playbackFailed, setPlaybackFailed] = useState(false);
+  const [fallbackToEmbed, setFallbackToEmbed] = useState(false);
   const unmutedRef = useRef(false);
   const triedUnmuteRef = useRef(false);
   const errorRetriedRef = useRef(false);
   const playbackFailedRef = useRef(false);
+  const fallbackToEmbedRef = useRef(false);
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeLoadedRef = useRef(false);
@@ -116,25 +111,31 @@ export function useTikTokPlayerHost(
     clearRetry();
   }, [clearFallback, clearRetry]);
 
+  const markFallbackToEmbed = useCallback(() => {
+    fallbackToEmbedRef.current = true;
+    setFallbackToEmbed(true);
+    setShowSoundPrompt(false);
+    clearFallback();
+    clearRetry();
+  }, [clearFallback, clearRetry]);
+
   const tryUnmuteAndPlay = useCallback(() => {
-    if (unmutedRef.current || playbackFailedRef.current) return;
+    if (unmutedRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) return;
     const iframe = iframeRef.current;
     if (!iframe || !iframeLoadedRef.current) return;
     const src = iframe.getAttribute("src") || iframe.src || "";
     if (!isTikTokPlayerIframeSrc(src)) return;
     triedUnmuteRef.current = true;
-    // On touch, keep the embed muted and wait for a real tap to unmute.
-    // Auto-unmute here is async (after onPlayerReady) and often pauses iOS playback.
-    if (isTouchLikePlayback()) {
-      postTikTokPlayer(iframe, "play");
-      setShowSoundPrompt(true);
-      return;
-    }
+    // Play was a user tap — try unmuted first. If the browser blocks it,
+    // the mute fallback below keeps the existing Tap-for-sound button.
     postTikTokPlayer(iframe, "unMute");
     postTikTokPlayer(iframe, "play");
     clearFallback();
     fallbackTimerRef.current = setTimeout(() => {
-      if (!unmutedRef.current && !playbackFailedRef.current) setShowSoundPrompt(true);
+      if (unmutedRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) return;
+      postTikTokPlayer(iframe, "mute");
+      postTikTokPlayer(iframe, "play");
+      setShowSoundPrompt(true);
     }, UNMUTE_FALLBACK_MS);
   }, [clearFallback, iframeRef]);
 
@@ -144,11 +145,13 @@ export function useTikTokPlayerHost(
       triedUnmuteRef.current = false;
       errorRetriedRef.current = false;
       playbackFailedRef.current = false;
+      fallbackToEmbedRef.current = false;
       iframeLoadedRef.current = false;
       setShowSoundPrompt(false);
       setIsPlaying(false);
       setUnplayable(false);
       setPlaybackFailed(false);
+      setFallbackToEmbed(false);
       clearFallback();
       clearRetry();
     }
@@ -175,6 +178,10 @@ export function useTikTokPlayerHost(
 
       const { type, value } = event.data;
 
+      if (type === "onPlayerError" || type === "onError") {
+        logTikTokPlayerMessage(type, value);
+      }
+
       if (type === "onMute") {
         if (value === false) {
           unmutedRef.current = true;
@@ -197,6 +204,10 @@ export function useTikTokPlayerHost(
           markPlaybackFailed();
           return;
         }
+        if (shouldFallbackToTikTokEmbed(value, errorRetriedRef.current)) {
+          markFallbackToEmbed();
+          return;
+        }
         if (isRetryableTikTokPlayerError(tikTokPlayerErrorCode(value)) && !errorRetriedRef.current) {
           errorRetriedRef.current = true;
           triedUnmuteRef.current = false;
@@ -206,7 +217,9 @@ export function useTikTokPlayerHost(
           }, PLAYBACK_RETRY_MS);
           return;
         }
-        // 3002 AUTOPLAY_ERROR: keep the iframe, wait for a real tap.
+        // 3002 AUTOPLAY_ERROR: keep the iframe, play muted, wait for a real tap.
+        postTikTokPlayer(iframe, "mute");
+        postTikTokPlayer(iframe, "play");
         setShowSoundPrompt(true);
         return;
       }
@@ -217,7 +230,7 @@ export function useTikTokPlayerHost(
       }
 
       if (type === "onPlayerReady" || type === "onStateChange") {
-        if (playbackFailedRef.current) return;
+        if (playbackFailedRef.current || fallbackToEmbedRef.current) return;
         iframeLoadedRef.current = true;
         if (!triedUnmuteRef.current) tryUnmuteAndPlay();
       }
@@ -229,10 +242,10 @@ export function useTikTokPlayerHost(
       clearFallback();
       clearRetry();
     };
-  }, [clearFallback, clearRetry, iframeRef, markPlaybackFailed, tryUnmuteAndPlay]);
+  }, [clearFallback, clearRetry, iframeRef, markFallbackToEmbed, markPlaybackFailed, tryUnmuteAndPlay]);
 
   const onTapForSound = useCallback(() => {
-    if (playbackFailedRef.current) return;
+    if (playbackFailedRef.current || fallbackToEmbedRef.current) return;
     postTikTokPlayer(iframeRef.current, "unMute");
     postTikTokPlayer(iframeRef.current, "play");
     unmutedRef.current = true;
@@ -246,6 +259,7 @@ export function useTikTokPlayerHost(
     isPlaying,
     unplayable,
     playbackFailed,
+    fallbackToEmbed,
     onTapForSound,
     onIframeLoad,
   };

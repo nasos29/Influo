@@ -73,16 +73,41 @@ export function isRetryableTikTokPlayerError(code: number | null): boolean {
 }
 
 /**
- * After a non-fatal error, tear down the iframe so TikTok's "Player error"
- * UI is not left on screen, and so we stop talking to their player.
- * Autoplay blocks (3002) stay mounted — the user can tap for sound.
+ * Tear the iframe down only for rate-limit / server refusals. Playback and
+ * SDK errors should fall back to embed/v2 instead of returning to the cover.
  */
-export function shouldUnloadTikTokPlayer(value: unknown, alreadyRetried: boolean): boolean {
+export function shouldUnloadTikTokPlayer(value: unknown, _alreadyRetried = false): boolean {
   if (isFatalTikTokPlayerError(value)) return false;
-  if (isTikTokPlayerOverloadError(value)) return true;
+  return isTikTokPlayerOverloadError(value);
+}
+
+export function isTikTokPlayerSdkOrPlaybackError(value: unknown): boolean {
+  const typ = tikTokPlayerErrorType(value);
+  if (typ === "PLAYBACK_ERROR" || typ === "PLAYER_SDK_ERROR") return true;
+  const code = tikTokPlayerErrorCode(value);
+  return (
+    code === TIKTOK_PLAYER_ERROR.PLAYBACK_ERROR ||
+    code === TIKTOK_PLAYER_ERROR.PLAYER_SDK_ERROR
+  );
+}
+
+/**
+ * Switch from player/v1 to embed/v2 after a non-fatal, non-overload failure
+ * (Chrome often reports 3001 PLAYBACK_ERROR then a 1004 player_sdk_error).
+ */
+export function shouldFallbackToTikTokEmbed(value: unknown, alreadyRetried: boolean): boolean {
+  if (isFatalTikTokPlayerError(value) || isTikTokPlayerOverloadError(value)) return false;
   const code = tikTokPlayerErrorCode(value);
   if (code === TIKTOK_PLAYER_ERROR.AUTOPLAY_ERROR) return false;
   if (code === TIKTOK_PLAYER_ERROR.PLAYBACK_ERROR) return alreadyRetried;
-  // 1004 player_sdk_error and any other unknown code: unload, do not retry-storm.
+  if (code === TIKTOK_PLAYER_ERROR.PLAYER_SDK_ERROR) return true;
   return code != null;
+}
+
+export function logTikTokPlayerMessage(type: string, value?: unknown): void {
+  try {
+    console.info("[influo:tiktok]", type, value ?? "");
+  } catch {
+    /* ignore */
+  }
 }

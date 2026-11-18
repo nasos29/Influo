@@ -50,6 +50,15 @@ export function buildTikTokPlayerUrl(videoId: string, opts?: TikTokPlayerOpts): 
   return `https://www.tiktok.com/player/v1/${id}?${params.toString()}`;
 }
 
+/** Classic TikTok embed iframe (no official player API). Used as a Chrome fallback. */
+export function buildTikTokEmbedUrl(videoId: string): string {
+  const id = String(videoId || "").trim();
+  if (!/^\d+$/.test(id)) {
+    throw new Error("Invalid TikTok video id");
+  }
+  return `https://www.tiktok.com/embed/v2/${id}`;
+}
+
 export type TikTokPlayerMessage = {
   "x-tiktok-player": true;
   type: string;
