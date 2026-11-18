@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { buildOfficialEmbedUrl } from "@/lib/videoThumbnail";
 import { useLazyVideoThumbnail } from "@/lib/useVideoThumbnail";
 import { toDisplayThumbnailSrc } from "@/lib/videoThumbnailExtract";
@@ -10,6 +10,11 @@ import {
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
+import {
+  claimTikTokPlayerSession,
+  TIKTOK_PLAYER_SESSION_EVENT,
+  type TikTokPlayerSessionDetail,
+} from "@/lib/tikTokPlayerSession";
 import { usePortfolioMediaControls } from "@/lib/usePortfolioMediaControls";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
@@ -260,14 +265,41 @@ export default function SocialEmbedCard({
     playing: mediaPlaying,
     toggle: toggleMediaPlayback,
   } = usePortfolioMediaControls(portfolioKind, portfolioActive);
+  const tikTokSessionId = useId();
   const {
     iframeRef: tikTokIframeRef,
     showSoundPrompt: showTikTokSoundPrompt,
     onTapForSound: onTikTokTapForSound,
     onIframeLoad: onTikTokIframeLoad,
     unplayable: tikTokUnplayable,
+    playbackFailed: tikTokPlaybackFailed,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
   const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
+
+  const releaseTikTokPlayer = useCallback(() => {
+    setIframeSrc(null);
+    setActivated(false);
+    setLoading(false);
+    // Do not set error — that would hide/replace the post and load another iframe.
+  }, []);
+
+  // Only one official player/v1 iframe may stay mounted at a time.
+  useEffect(() => {
+    if (!isTikTokPlayer) return;
+    claimTikTokPlayerSession(tikTokSessionId);
+    const onClaim = (event: Event) => {
+      const detail = (event as CustomEvent<TikTokPlayerSessionDetail>).detail;
+      if (!detail || detail.id === tikTokSessionId) return;
+      releaseTikTokPlayer();
+    };
+    window.addEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
+    return () => window.removeEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
+  }, [isTikTokPlayer, releaseTikTokPlayer, tikTokSessionId]);
+
+  // Overload / SDK errors: drop the iframe so "Player error" is not left on screen.
+  useEffect(() => {
+    if (tikTokPlaybackFailed) releaseTikTokPlayer();
+  }, [releaseTikTokPlayer, tikTokPlaybackFailed]);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
