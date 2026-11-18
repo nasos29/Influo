@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const preferred =
       body.userType === "influencer" || body.userType === "brand" ? body.userType : null;
     const guarded = await guardCampaignApplicationCancel(request, body.applicationId, preferred);
-    if (!("ok" in guarded) || !guarded.ok) return guarded;
+    if (!("party" in guarded) || !("application" in guarded)) return guarded;
 
     const cancelledBy = partyToCancelledBy(guarded.party);
     const result = await cancelCampaignDeal({
