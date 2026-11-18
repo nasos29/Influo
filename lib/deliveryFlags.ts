@@ -55,6 +55,22 @@ export function isDealCancelEmailsEnabled(env: NodeJS.ProcessEnv = process.env):
   return envOn(env.DEAL_CANCEL_EMAILS_ENABLED);
 }
 
+/** Cron: auto-cancel stale pending proposals. Default OFF. */
+export function isPendingProposalExpireEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return envOn(env.PENDING_PROPOSAL_EXPIRE_ENABLED);
+}
+
+/** Stable cancel_reason token when cron expires a pending proposal. */
+export const PENDING_EXPIRED_CANCEL_REASON = "pending_expired";
+
+/** Days after created_at before a pending proposal expires. Default 14. */
+export function pendingProposalExpireDays(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = String(env.PENDING_PROPOSAL_EXPIRE_DAYS ?? "").trim();
+  if (!raw) return 14;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n > 0 ? n : 14;
+}
+
 /** Days before publish_deadline for the creator submit reminder. */
 export const DELIVERABLE_REMINDER_BEFORE_DAYS = 2;
 /** Days after publish_deadline for first overdue reminder. */

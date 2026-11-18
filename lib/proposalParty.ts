@@ -1,4 +1,4 @@
-import { canCancelDeal } from "@/lib/dealCancelEligibility";
+import { canCancelDeal, canWithdrawPendingProposal } from "@/lib/dealCancelEligibility";
 
 export type ProposalParty = "influencer" | "brand";
 
@@ -9,7 +9,8 @@ export type ProposalAction =
   | "accept_counter"
   | "reject_counter"
   | "agree"
-  | "cancel";
+  | "cancel"
+  | "withdraw";
 
 export type ProposalActor = {
   influencerId: string | null;
@@ -107,6 +108,9 @@ export function actionAllowed(party: ProposalParty | null, action: ProposalActio
   }
   if (action === "cancel") {
     return (party === "brand" || party === "influencer") && canCancelDeal(row);
+  }
+  if (action === "withdraw") {
+    return party === "brand" && canWithdrawPendingProposal(row);
   }
   return false;
 }

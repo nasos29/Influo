@@ -153,14 +153,21 @@ export async function POST(request: NextRequest) {
     if (error && /deliverable_seen_at|delivery_|schema cache|column/i.test(error.message || "")) {
       const soft = { ...updatePayload };
       delete soft.deliverable_seen_at;
-      delete soft.delivery_mode;
-      delete soft.delivery_proof_url;
-      delete soft.delivery_submitted_at;
       ({ error } = await admin
         .from("campaign_applications")
         .update(soft)
         .eq("id", applicationId)
         .eq("influencer_id", influencer.id));
+      if (error && /delivery_mode|delivery_proof|delivery_submitted|schema cache|column|42703|PGRST204/i.test(error.message || "")) {
+        delete soft.delivery_mode;
+        delete soft.delivery_proof_url;
+        delete soft.delivery_submitted_at;
+        ({ error } = await admin
+          .from("campaign_applications")
+          .update(soft)
+          .eq("id", applicationId)
+          .eq("influencer_id", influencer.id));
+      }
     }
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

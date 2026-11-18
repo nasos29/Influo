@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { BRAND_REVIEW_MARKER, CREATOR_TARGET_REVIEW_FILTER } from "@/lib/brandReview";
 import { loadChatActor } from "@/lib/chatActor";
+import { isRealDeliveryComplete } from "@/lib/deliveryCompletion";
 import { publicProfilePath } from "@/lib/profileSlug";
 
 export const runtime = "nodejs";
@@ -37,12 +38,13 @@ export async function GET(req: Request) {
     let query = admin
       .from("proposals")
       .select(
-        "id, brand_name, brand_email, influencer_id, status, influencer_agreement_accepted, brand_agreement_accepted, published_post_url, brand_review_prompts_declined_at, influencer_review_prompts_declined_at"
+        "id, brand_name, brand_email, influencer_id, status, influencer_agreement_accepted, brand_agreement_accepted, published_post_url, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, delivery_confirmed_at, auto_completed_at"
       )
       .eq("status", "completed")
       .eq("influencer_agreement_accepted", true)
       .eq("brand_agreement_accepted", true)
-      .order("agreement_accepted_at", { ascending: false })
+      .or("delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null")
+      .order("delivery_confirmed_at", { ascending: false, nullsFirst: false })
       .limit(40);
 
     if (party === "influencer") {
@@ -56,10 +58,10 @@ export async function GET(req: Request) {
       }
     }
 
-    const { data: rows, error } = await query;
+    let { data: rows, error } = await query;
     if (error) {
-      // Soft-fail when decline columns are not migrated yet.
-      if (/review_prompts_declined|PGRST204|42703/i.test(error.message || "")) {
+      // Soft-fail when decline or delivery columns are not migrated yet.
+      if (/review_prompts_declined|delivery_confirmed|auto_completed|PGRST204|42703/i.test(error.message || "")) {
         return NextResponse.json({ pending: [], migrationPending: true });
       }
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -76,6 +78,7 @@ export async function GET(req: Request) {
     }> = [];
 
     for (const row of rows || []) {
+      if (!isRealDeliveryComplete(row)) continue;
       const brandEmail = String(row.brand_email || "").trim();
       const influencerId = String(row.influencer_id || "");
       if (!brandEmail || !influencerId) continue;

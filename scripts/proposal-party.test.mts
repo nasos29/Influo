@@ -70,6 +70,16 @@ test("only the brand answers a pending counter", () => {
   assert.equal(actionAllowed("brand", "accept_counter", { ...countered, status: "rejected" }), false);
 });
 
+test("brand may withdraw only a direct pending proposal", () => {
+  assert.equal(actionAllowed("brand", "withdraw", pending), true);
+  assert.equal(actionAllowed("influencer", "withdraw", pending), false);
+  assert.equal(actionAllowed("brand", "withdraw", { ...pending, status: "accepted" }), false);
+  assert.equal(
+    actionAllowed("brand", "withdraw", { ...pending, counter_proposal_status: "pending" }),
+    false
+  );
+});
+
 test("agreement waits until the offer is accepted and that side has not signed", () => {
   const accepted: ProposalGate = { ...pending, status: "accepted" };
   assert.equal(actionAllowed("influencer", "agree", accepted), true);

@@ -24,6 +24,34 @@ export function validateCancelReason(raw: unknown): { ok: true; reason: string }
 }
 
 /** Started deal (accepted/completed) that is not really finished and not already cancelled/rejected. */
+function counterIsPending(counter_proposal_status: string | null | undefined): boolean {
+  return (counter_proposal_status || "none").toLowerCase() === "pending";
+}
+
+/** Brand may withdraw a direct proposal that is still pending (not an open counter). */
+export function canWithdrawPendingProposal(
+  row: { status?: string | null; counter_proposal_status?: string | null } | null | undefined
+): boolean {
+  if (!row) return false;
+  const status = String(row.status || "").toLowerCase();
+  if (status !== "pending") return false;
+  if (counterIsPending(row.counter_proposal_status)) return false;
+  return true;
+}
+
+/** Optional note on withdraw (unlike deal cancel, no minimum length). */
+export function validateWithdrawReason(
+  raw: unknown
+): { ok: true; reason: string | null } | { ok: false; error: string } {
+  if (raw == null || raw === "") return { ok: true, reason: null };
+  const reason = typeof raw === "string" ? raw.trim() : "";
+  if (!reason) return { ok: true, reason: null };
+  if (reason.length > CANCEL_REASON_MAX) {
+    return { ok: false, error: "withdraw_reason_too_long" };
+  }
+  return { ok: true, reason };
+}
+
 export function canCancelDeal(row: DealCancelGate | null | undefined): boolean {
   if (!row) return false;
   const status = String(row.status || "").toLowerCase();
