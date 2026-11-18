@@ -1,3 +1,5 @@
+import { canCancelDeal } from "@/lib/dealCancelEligibility";
+
 export type ProposalParty = "influencer" | "brand";
 
 export type ProposalAction =
@@ -6,7 +8,8 @@ export type ProposalAction =
   | "counter"
   | "accept_counter"
   | "reject_counter"
-  | "agree";
+  | "agree"
+  | "cancel";
 
 export type ProposalActor = {
   influencerId: string | null;
@@ -25,6 +28,8 @@ export type ProposalGate = {
   counter_proposal_status?: string | null;
   influencer_agreement_accepted?: boolean | null;
   brand_agreement_accepted?: boolean | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 };
 
 export function normEmail(value: unknown): string {
@@ -100,6 +105,9 @@ export function actionAllowed(party: ProposalParty | null, action: ProposalActio
     const already = party === "influencer" ? row.influencer_agreement_accepted : row.brand_agreement_accepted;
     return open && !already;
   }
+  if (action === "cancel") {
+    return (party === "brand" || party === "influencer") && canCancelDeal(row);
+  }
   return false;
 }
 
@@ -131,6 +139,11 @@ const PARTY_FIELDS = [
   "brand_added_to_past_brands",
   "selected_extras",
   "publish_deadline",
+  "delivery_confirmed_at",
+  "auto_completed_at",
+  "cancelled_by",
+  "cancel_reason",
+  "cancelled_at",
 ] as const;
 
 export function partyProposalView(row: Record<string, unknown>): Record<string, unknown> {

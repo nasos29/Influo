@@ -565,6 +565,54 @@ export async function mailAdminAgreementComplete(input: {
   );
 }
 
+function cancelledByLabel(by: "brand" | "influencer" | "admin", lang: "el" | "en"): string {
+  if (by === "admin") return lang === "en" ? "Influo admin" : "Ομάδα Influo";
+  if (by === "brand") return lang === "en" ? "Brand" : "Επιχείρηση";
+  return lang === "en" ? "Creator" : "Δημιουργός";
+}
+
+/** Optional: gated by DEAL_CANCEL_EMAILS_ENABLED in dealCancel. */
+export async function mailDealCancelled(input: {
+  to: string | null | undefined;
+  toBrand: boolean;
+  recipientName: string;
+  proposalId: string | number;
+  service: string;
+  budget: string;
+  extras?: unknown;
+  publishDeadline?: string | null;
+  reason: string;
+  cancelledBy: "brand" | "influencer" | "admin";
+  brandName: string;
+  creatorName: string;
+  ctaUrl: string;
+}): Promise<void> {
+  const id = escapeHtml(String(input.proposalId));
+  const who = cancelledByLabel(input.cancelledBy, "el");
+  const other =
+    input.cancelledBy === "brand"
+      ? input.creatorName
+      : input.cancelledBy === "influencer"
+        ? input.brandName
+        : `${input.brandName} / ${input.creatorName}`;
+  const greeting = input.toBrand
+    ? `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>`
+    : `<p>Γεια σου ${escapeHtml(input.recipientName)},</p>`;
+  await send(
+    "deal_cancelled",
+    input.to,
+    `Ακύρωση συμφωνίας #${input.proposalId}`,
+    shell(
+      `Ακύρωση συμφωνίας #${id}`,
+      `${greeting}
+       <p>Η συμφωνία <strong>#${id}</strong> με <strong>${escapeHtml(other)}</strong> ακυρώθηκε από: <strong>${escapeHtml(who)}</strong>.</p>
+       ${summaryBlockHtml({ proposalId: input.proposalId, service: input.service, budget: input.budget, extras: input.extras, publishDeadline: input.publishDeadline })}
+       <p><strong>Λόγος:</strong> ${escapeHtml(input.reason)}</p>
+       ${buttonHtml(input.ctaUrl, input.toBrand ? "Άνοιξε τις προτάσεις" : "Άνοιξε το dashboard")}`
+    )
+  );
+}
+
 export function buttonHtml(href: string, label: string): string {
   return `<p style="margin: 20px 0;"><a href="${escapeHtml(href)}" style="display: inline-block; background: #2563eb; color: #ffffff; text-decoration: none; font-weight: 600; padding: 10px 18px; border-radius: 8px;">${escapeHtml(label)}</a></p>`;
 }

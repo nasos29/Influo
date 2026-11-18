@@ -62,6 +62,8 @@ import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import Avatar from "./Avatar";
 import ToastViewport, { useToasts, type ToastTone } from "@/components/ui/Toast";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import DealCancelDialog from "@/components/DealCancelDialog";
+import { canCancelDeal, cancelledByDisplay } from "@/lib/dealCancelEligibility";
 import { formatDate, formatTime } from "@/lib/formatDateTime";
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/formatDate";
 import DmyDateField from "@/components/DmyDateField";
@@ -259,6 +261,9 @@ interface Proposal {
   auto_completed_at?: string | null;
   published_post_url?: string | null;
   published_post_pending_approval?: boolean | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
+  cancelled_at?: string | null;
 }
 
 type ProposalStatusFilter = "all" | ProposalDisplayStatusKey;
@@ -2201,6 +2206,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [deletingBrand, setDeletingBrand] = useState<string | null>(null);
   const [deletingConversation, setDeletingConversation] = useState<string | null>(null);
   const [deletingProposal, setDeletingProposal] = useState<number | null>(null);
+  const [cancelDealProposal, setCancelDealProposal] = useState<Proposal | null>(null);
+  const [cancelDealSaving, setCancelDealSaving] = useState(false);
   const [adminCampaigns, setAdminCampaigns] = useState<AdminBrandCampaign[]>([]);
   const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [campaignsLoaded, setCampaignsLoaded] = useState(false);
@@ -4244,6 +4251,42 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   };
 
+  const submitAdminCancelDeal = async (reason: string) => {
+    if (!cancelDealProposal) return;
+    setCancelDealSaving(true);
+    try {
+      const response = await fetch("/api/admin/proposals/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await adminAuthHeaders()) },
+        body: JSON.stringify({ proposalId: cancelDealProposal.id, reason }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || "Could not cancel");
+      }
+      setProposals((prev) =>
+        prev.map((row) =>
+          row.id === cancelDealProposal.id
+            ? {
+                ...row,
+                status: "cancelled",
+                cancelled_by: "admin",
+                cancel_reason: reason,
+                cancelled_at: result.cancelledAt || new Date().toISOString(),
+              }
+            : row
+        )
+      );
+      setCancelDealProposal(null);
+      notify(lang === "el" ? "Η συμφωνία ακυρώθηκε." : "The agreement was cancelled.");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      notify(lang === "el" ? `Σφάλμα: ${message}` : `Error: ${message}`);
+    } finally {
+      setCancelDealSaving(false);
+    }
+  };
+
   const handleDeleteProposal = async (proposalId: number) => {
     const ok = await confirmAction({
       title: lang === "el" ? "Διαγραφή πρότασης" : "Delete proposal",
@@ -5311,10 +5354,32 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               </span>
                             </p>
                             <p className="text-xs text-slate-400">{formatDate(p.created_at, lang)} {formatTime(p.created_at, lang)}</p>
+                            {(p.status === "cancelled" || p.status === "canceled") && p.cancel_reason ? (
+                              <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                                <p>
+                                  {lang === "el" ? "Ακυρώθηκε από" : "Cancelled by"}:{" "}
+                                  <span className="font-medium text-slate-800">{cancelledByDisplay(p.cancelled_by, lang)}</span>
+                                </p>
+                                <p className="mt-1">
+                                  {lang === "el" ? "Λόγος" : "Reason"}: {p.cancel_reason}
+                                </p>
+                              </div>
+                            ) : null}
                           </div>
-                          <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
-                            {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : { el: "Διαγραφή πρότασης", en: "Delete proposal" }[lang]}
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            {canCancelDeal(p) ? (
+                              <button
+                                type="button"
+                                onClick={() => setCancelDealProposal(p)}
+                                className="inline-flex min-h-11 items-center rounded-lg border border-red-300 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                              >
+                                {lang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+                              </button>
+                            ) : null}
+                            <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
+                              {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : { el: "Διαγραφή πρότασης", en: "Delete proposal" }[lang]}
+                            </button>
+                          </div>
                         </article>
                       );
                     })}
@@ -5345,11 +5410,33 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${display.badgeClass}`}>
                                   {display.label}
                                 </span>
+                                {(p.status === "cancelled" || p.status === "canceled") && p.cancel_reason ? (
+                                  <div className="mt-1 max-w-xs text-xs text-slate-500">
+                                    <span className="font-medium text-slate-700">
+                                      {cancelledByDisplay(p.cancelled_by, lang)}
+                                    </span>
+                                    <span className="mx-1">·</span>
+                                    <span className="line-clamp-2" title={p.cancel_reason}>
+                                      {p.cancel_reason}
+                                    </span>
+                                  </div>
+                                ) : null}
                               </td>
                               <td className="px-4 py-3 text-right">
-                                <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
-                                  {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : txt.btn_delete}
-                                </button>
+                                <div className="flex flex-wrap justify-end gap-2">
+                                  {canCancelDeal(p) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setCancelDealProposal(p)}
+                                      className="inline-flex min-h-11 items-center rounded-lg border border-red-300 bg-white px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                                    >
+                                      {lang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+                                    </button>
+                                  ) : null}
+                                  <button type="button" onClick={() => handleDeleteProposal(p.id)} disabled={deletingProposal === p.id} className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 disabled:opacity-50">
+                                    {deletingProposal === p.id ? { el: "Διαγραφή…", en: "Deleting…" }[lang] : txt.btn_delete}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -6739,6 +6826,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         toasts={toasts}
         onDismiss={dismissToast}
         dismissLabel={{ el: "Κλείσιμο", en: "Dismiss" }[lang]}
+      />
+      <DealCancelDialog
+        open={!!cancelDealProposal}
+        lang={lang}
+        saving={cancelDealSaving}
+        onCancel={() => !cancelDealSaving && setCancelDealProposal(null)}
+        onConfirm={(reason) => void submitAdminCancelDeal(reason)}
       />
       <ConfirmDialog
         open={!!pendingConfirm}

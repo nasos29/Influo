@@ -7,7 +7,7 @@ import {
 } from "@/lib/proposalDisplayStatus";
 
 const LIST_COLUMNS =
-  "id, created_at, brand_name, budget, service_type, status, influencer_id, influencer_agreement_accepted, brand_agreement_accepted, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, published_post_url, published_post_pending_approval, influencers(display_name)";
+  "id, created_at, brand_name, budget, service_type, status, influencer_id, influencer_agreement_accepted, brand_agreement_accepted, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, published_post_url, published_post_pending_approval, cancelled_by, cancel_reason, cancelled_at, influencers(display_name)";
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;

@@ -51,6 +51,8 @@ import { CATEGORIES, categoryLabel, formatStoredCategories, parseStoredCategorie
 import { formatFromPriceLabel, lowestListedPrice } from "@/lib/publicInfluencer";
 import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { parseHttpsUrl } from "@/lib/brandProfile";
+import DealCancelDialog from "@/components/DealCancelDialog";
+import { canCancelDeal } from "@/lib/dealCancelEligibility";
 import {
   addBrandShortlist,
   fetchBrandShortlist,
@@ -844,6 +846,8 @@ export default function BrandDashboardContent() {
   const [showcaseConsent, setShowcaseConsent] = useState(true);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
+  const [cancelDealProposal, setCancelDealProposal] = useState<Proposal | null>(null);
+  const [cancelDealSaving, setCancelDealSaving] = useState(false);
   const [recommendationSource, setRecommendationSource] = useState<{
     brand: BrandProfile;
     profiles: InfluencerProfile[];
@@ -1899,6 +1903,50 @@ export default function BrandDashboardContent() {
     setAgreementAccepted(false);
     setShowAgreementModal(true);
   };
+
+  const patchProposalAfterCancel = (id: string, patch: Partial<Proposal>) => {
+    setProposals((prev) => prev.map((row) => (String(row.id) === String(id) ? { ...row, ...patch, status: "cancelled" } : row)));
+  };
+
+  const submitCancelDeal = async (reason: string) => {
+    if (!cancelDealProposal) return;
+    setCancelDealSaving(true);
+    try {
+      const response = await sessionFetch("/api/proposals/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          proposalId: cancelDealProposal.id,
+          reason,
+          userType: "brand",
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || (lang === "el" ? "Δεν ήταν δυνατή η ακύρωση" : "Could not cancel"));
+      }
+      const patch = (result.proposal || {}) as Partial<Proposal>;
+      patchProposalAfterCancel(String(cancelDealProposal.id), patch);
+      setCancelDealProposal(null);
+      notify(lang === "el" ? "Η συμφωνία ακυρώθηκε." : "The agreement was cancelled.", "success");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      notify((lang === "el" ? "Σφάλμα: " : "Error: ") + message, "error");
+    } finally {
+      setCancelDealSaving(false);
+    }
+  };
+
+  const cancelDealButton = (proposal: Proposal) =>
+    canCancelDeal(proposal) ? (
+      <button
+        type="button"
+        onClick={() => setCancelDealProposal(proposal)}
+        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 hover:bg-red-100"
+      >
+        {lang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+      </button>
+    ) : null;
 
   // Get pending counter proposals (where influencer sent counter proposal and brand hasn't responded)
   const pendingCounterProposals = proposals.filter(
@@ -3131,7 +3179,10 @@ export default function BrandDashboardContent() {
                             </div>
                           )}
                         </div>
-                        <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                        <div className="flex flex-col gap-2 items-stretch sm:items-end">
+                          <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                          {cancelDealButton(proposal)}
+                        </div>
                       </div>
                     </div>
                   );
@@ -3155,7 +3206,10 @@ export default function BrandDashboardContent() {
                         <h3 className="text-lg font-bold text-slate-900 mb-2">
                           {displayNameForLang(influencer?.display_name, lang) || 'Unknown Influencer'}
                         </h3>
-                        <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                        <div className="flex flex-col gap-2 items-stretch sm:items-end">
+                          <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                          {cancelDealButton(proposal)}
+                        </div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
@@ -3286,7 +3340,10 @@ export default function BrandDashboardContent() {
                             </div>
                           ) : null}
                         </div>
-                        <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                        <div className="flex flex-col gap-2 items-stretch sm:items-end">
+                          <AgreementOpenButton lang={lang} onClick={() => openProposalAgreement(proposal)} />
+                          {cancelDealButton(proposal)}
+                        </div>
                       </div>
                     </div>
                   );
@@ -3367,6 +3424,13 @@ export default function BrandDashboardContent() {
         toasts={toasts}
         onDismiss={dismissToast}
         dismissLabel={lang === 'el' ? 'Κλείσιμο' : 'Close'}
+      />
+      <DealCancelDialog
+        open={!!cancelDealProposal}
+        lang={lang}
+        saving={cancelDealSaving}
+        onCancel={() => !cancelDealSaving && setCancelDealProposal(null)}
+        onConfirm={(reason) => void submitCancelDeal(reason)}
       />
       <ConfirmDialog
         open={!!confirmRejectId}

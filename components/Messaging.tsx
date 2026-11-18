@@ -25,6 +25,8 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalThread } from '@/lib/proposalThreadCopy';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
+import DealCancelDialog from '@/components/DealCancelDialog';
+import { canCancelDeal } from '@/lib/dealCancelEligibility';
 import dynamic from 'next/dynamic';
 import ChatAvatar from '@/components/ChatAvatar';
 import ImageLightbox from '@/components/ImageLightbox';
@@ -132,6 +134,8 @@ interface ProposalInfo {
   selected_extras?: unknown;
   publish_deadline?: string | null;
   published_post_url?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 }
 
 interface MessagingProps {
@@ -199,6 +203,7 @@ const t = {
     back: "Πίσω",
     loading: "Φόρτωση...",
     moreActions: "Ενέργειες",
+    cancelAgreement: "Ακύρωση συμφωνίας",
     brandFallback: "Επιχείρηση",
     attach: "Επισύναψη",
     attachHint: "Εικόνα ή PDF (έως 10MB)",
@@ -253,6 +258,7 @@ const t = {
     back: "Back",
     loading: "Loading...",
     moreActions: "Actions",
+    cancelAgreement: "Cancel agreement",
     brandFallback: "Brand",
     attach: "Attach",
     attachHint: "Image or PDF (up to 10MB)",
@@ -383,6 +389,8 @@ export default function Messaging({
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
+  const [showCancelDeal, setShowCancelDeal] = useState(false);
+  const [cancelDealSaving, setCancelDealSaving] = useState(false);
   useEffect(() => {
     if (!showActionsMenu) return;
     const closeIfOutside = (event: Event) => {
@@ -1455,6 +1463,40 @@ export default function Messaging({
     }
   };
 
+  const submitCancelDeal = async (reason: string) => {
+    const activeProposalId = activeProposalIdRef.current || proposalInfo?.id || proposalId;
+    if (!activeProposalId) return;
+    setCancelDealSaving(true);
+    try {
+      const response = await sessionFetch('/api/proposals/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proposalId: activeProposalId,
+          reason,
+          userType: mode,
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(result.error || (lang === 'el' ? 'Δεν ήταν δυνατή η ακύρωση' : 'Could not cancel'));
+      }
+      if (result.proposal) {
+        setProposalInfo(result.proposal as ProposalInfo);
+      } else {
+        setProposalInfo((prev) => (prev ? { ...prev, status: 'cancelled' } : prev));
+      }
+      setShowCancelDeal(false);
+      setShowActionsMenu(false);
+      notify(lang === 'el' ? 'Η συμφωνία ακυρώθηκε.' : 'The agreement was cancelled.', 'success');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      notify((lang === 'el' ? 'Σφάλμα: ' : 'Error: ') + message, 'error');
+    } finally {
+      setCancelDealSaving(false);
+    }
+  };
+
   const loadReactions = async (ids: string[]) => {
     if (!ids.length) {
       setReactions({});
@@ -2340,6 +2382,19 @@ export default function Messaging({
                         {proposalInfo && bothAccepted && (
                           <div className="px-3 py-2.5 text-xs text-green-700">{txt.agreementAccepted}</div>
                         )}
+                        {proposalInfo && canCancelDeal(proposalInfo) && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="w-full text-left px-3 min-h-11 py-2.5 text-sm text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              setShowCancelDeal(true);
+                              setShowActionsMenu(false);
+                            }}
+                          >
+                            {txt.cancelAgreement}
+                          </button>
+                        )}
                         {!conversationClosed && (
                           <button
                             type="button"
@@ -2923,6 +2978,13 @@ export default function Messaging({
       </div>
 
       {/* Agreement Modal */}
+      <DealCancelDialog
+        open={showCancelDeal}
+        lang={lang === 'en' ? 'en' : 'el'}
+        saving={cancelDealSaving}
+        onCancel={() => !cancelDealSaving && setShowCancelDeal(false)}
+        onConfirm={(reason) => void submitCancelDeal(reason)}
+      />
       {showAgreementModal && proposalInfo && (
         <AgreementTerms
           lang={lang === 'en' ? 'en' : 'el'}
