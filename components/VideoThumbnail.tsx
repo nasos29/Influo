@@ -14,6 +14,7 @@ import {
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
+import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
 import {
   usePortfolioMediaControls,
   type PortfolioMediaKind,
@@ -95,6 +96,7 @@ export default function VideoThumbnail({
   const [nativeVideoUrl, setNativeVideoUrl] = useState<string | null>(null);
   const proxiedRef = useRef(false);
   const refreshUsedRef = useRef(false);
+  const playerBoxRef = useRef<HTMLDivElement>(null);
   const isImage = url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
   const isVideo = isVideoUrl(url);
   const isInstagram = /instagram\.com\/(?:(?:[A-Za-z0-9._]+)\/)?(p|reel|tv)\//i.test(url);
@@ -132,7 +134,9 @@ export default function VideoThumbnail({
     iframeRef: tikTokIframeRef,
     showSoundPrompt: showTikTokSoundPrompt,
     onTapForSound: onTikTokTapForSound,
+    onIframeLoad: onTikTokIframeLoad,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
+  const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -473,6 +477,7 @@ export default function VideoThumbnail({
   if (embedSrc) {
     return (
       <div
+        ref={playerBoxRef}
         className={`relative overflow-hidden bg-slate-100 ${className}`}
         style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
       >
@@ -486,7 +491,10 @@ export default function VideoThumbnail({
           }
           src={embedSrc}
           title={isTikTokPlayer ? "TikTok" : isYouTubePlayer ? "YouTube" : "Instagram"}
-          className="absolute inset-0 h-full w-full border-0"
+          className={`absolute top-0 left-0 border-0 ${
+            isTikTokPlayer && tikTokIframeScale ? "" : "inset-0 h-full w-full"
+          }`}
+          style={isTikTokPlayer ? tikTokIframeScale : undefined}
           allow={
             isTikTokPlayer
               ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
@@ -494,6 +502,9 @@ export default function VideoThumbnail({
           }
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
+          onLoad={() => {
+            if (isTikTokPlayer) onTikTokIframeLoad();
+          }}
         />
         {showTikTokSoundPrompt ? (
           <TikTokSoundPromptButton

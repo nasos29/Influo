@@ -63,6 +63,18 @@ export function isTikTokPlayerMessage(data: unknown): data is TikTokPlayerMessag
   return rec["x-tiktok-player"] === true && typeof rec.type === "string";
 }
 
+/** True when the iframe is pointed at TikTok's player or embed document (not about:blank). */
+export function isTikTokPlayerIframeSrc(src: string | null | undefined): boolean {
+  if (!src || src === "about:blank") return false;
+  try {
+    const u = new URL(src, TIKTOK_PLAYER_ORIGIN);
+    if (!u.hostname.endsWith("tiktok.com")) return false;
+    return /\/player\/v1\/\d+/i.test(u.pathname) || /\/embed\/v2\/\d+/i.test(u.pathname);
+  } catch {
+    return /tiktok\.com\/player\/v1\//i.test(src) || /tiktok\.com\/embed\/v2\//i.test(src);
+  }
+}
+
 /**
  * Send a host→player command to the TikTok embed iframe.
  * @see https://developers.tiktok.com/doc/embed-player
@@ -73,8 +85,14 @@ export function postTikTokPlayer(
   value?: unknown
 ): void {
   const win = iframe?.contentWindow;
-  if (!win) return;
+  if (!win || !iframe) return;
+  const src = iframe.getAttribute("src") || iframe.src || "";
+  if (!isTikTokPlayerIframeSrc(src)) return;
   const msg: TikTokPlayerMessage = { "x-tiktok-player": true, type };
   if (arguments.length >= 3) msg.value = value;
-  win.postMessage(msg, TIKTOK_PLAYER_ORIGIN);
+  try {
+    win.postMessage(msg, TIKTOK_PLAYER_ORIGIN);
+  } catch {
+    /* cross-origin recipient mismatch */
+  }
 }

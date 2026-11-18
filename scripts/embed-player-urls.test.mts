@@ -4,8 +4,10 @@ import test from "node:test";
 import {
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
+  isTikTokPlayerIframeSrc,
   isTikTokShortLink,
 } from "../lib/tikTokPlayer.ts";
+import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
 import {
   extractInstagramShortcode,
   instagramThumbnailProxySrc,
@@ -57,7 +59,20 @@ test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
   assert.equal(isTikTokPlayerMessage(null), false);
 
   const posted: unknown[] = [];
+  assert.equal(isTikTokPlayerIframeSrc("about:blank"), false);
+  assert.equal(
+    isTikTokPlayerIframeSrc(
+      "https://www.tiktok.com/player/v1/7123456789012345678?autoplay=1"
+    ),
+    true
+  );
+
+  const playerSrc = buildTikTokPlayerUrl("7123456789012345678");
   const fakeIframe = {
+    src: playerSrc,
+    getAttribute(name: string) {
+      return name === "src" ? playerSrc : null;
+    },
     contentWindow: {
       postMessage(data: unknown, origin: string) {
         posted.push({ data, origin });
@@ -74,6 +89,18 @@ test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
       origin: TIKTOK_PLAYER_ORIGIN,
     },
   ]);
+  postTikTokPlayer(
+    { contentWindow: fakeIframe.contentWindow, src: "about:blank", getAttribute: () => "about:blank" } as unknown as HTMLIFrameElement,
+    "play"
+  );
+  assert.equal(posted.length, 2);
+});
+
+test("tikTokIframeScaleStyle scales narrow boxes to 325px layout width", () => {
+  assert.equal(tikTokIframeScaleStyle(TIKTOK_PLAYER_MIN_IFRAME_WIDTH), undefined);
+  const narrow = tikTokIframeScaleStyle(170);
+  assert.ok(narrow);
+  assert.match(String(narrow!.transform), /scale\(0\.523/);
 });
 
 test("isValidInstagramShortcode and extractInstagramShortcode", () => {
