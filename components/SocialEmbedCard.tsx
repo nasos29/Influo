@@ -7,9 +7,12 @@ import { toDisplayThumbnailSrc } from "@/lib/videoThumbnailExtract";
 import {
   buildTikTokEmbedUrl,
   buildTikTokPlayerUrl,
+  cachedTikTokVideoId,
   extractTikTokVideoId,
   preferTikTokEmbedPlayer,
-  TIKTOK_EMBED_IFRAME_SANDBOX,
+  rememberTikTokVideoId,
+  TIKTOK_IFRAME_ALLOW,
+  tikTokEmbedIframeSandbox,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
@@ -70,10 +73,6 @@ const DEFAULT_DIMENSIONS: Record<Provider, { width: number; height: number }> = 
   youtube: { width: 560, height: 315 },
 };
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 function proxyImageList(urls: string[] | null | undefined): string[] {
   if (!urls?.length) return [];
   const out: string[] = [];
@@ -88,29 +87,13 @@ function proxyImageList(urls: string[] | null | undefined): string[] {
 }
 
 async function fetchTikTokEmbedUrl(originalUrl: string): Promise<string> {
+  // One request only — do not retry 429/5xx; TikTok/domain limits make that worse.
   const apiUrl = `/api/video-embed?url=${encodeURIComponent(originalUrl)}`;
-  const attempt = async () => {
-    const res = await fetch(apiUrl);
-    if (res.status === 429 || res.status >= 500) {
-      const err = new Error(`HTTP ${res.status}`);
-      (err as Error & { retryable?: boolean }).retryable = true;
-      throw err;
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = (await res.json()) as { embed_url?: string };
-    if (!data.embed_url) throw new Error("Missing embed_url");
-    return String(data.embed_url);
-  };
-
-  try {
-    return await attempt();
-  } catch (err) {
-    if ((err as { retryable?: boolean })?.retryable) {
-      await sleep(1500);
-      return attempt();
-    }
-    throw err;
-  }
+  const res = await fetch(apiUrl);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = (await res.json()) as { embed_url?: string };
+  if (!data.embed_url) throw new Error("Missing embed_url");
+  return String(data.embed_url);
 }
 
 async function fetchInstagramMeta(originalUrl: string): Promise<{
@@ -281,8 +264,12 @@ export default function SocialEmbedCard({
     playbackFailed: tikTokPlaybackFailed,
     fallbackToEmbed: tikTokFallbackToEmbed,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
-  // CSS-scale only the official player/v1 (it needs ≥325px). embed/v2 is not scaled.
-  const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
+  // Measure the card while the cover is visible so the first Play tap can
+  // mount player/v1 or embed/v2 already at ≥325px layout width.
+  const { style: tikTokIframeScale, measured: tikTokBoxMeasured } = useTikTokIframeScale(
+    provider === "tiktok",
+    playerBoxRef
+  );
   const tikTokEmbedFallbackUsed = useRef(false);
 
   const releaseTikTokPlayer = useCallback(() => {
@@ -453,10 +440,11 @@ export default function SocialEmbedCard({
       }
 
       if (provider === "tiktok") {
-        let videoId = extractTikTokVideoId(originalUrl);
+        let videoId = cachedTikTokVideoId(originalUrl);
         if (!videoId) {
           const embedOrResolved = await fetchTikTokEmbedUrl(originalUrl);
           videoId = extractTikTokVideoId(embedOrResolved);
+          if (videoId) rememberTikTokVideoId(originalUrl, videoId);
         }
         if (!videoId) throw new Error("Missing TikTok video id");
         tikTokEmbedFallbackUsed.current = false;
@@ -665,7 +653,7 @@ export default function SocialEmbedCard({
                 />
               ) : null}
 
-              {iframeSrc ? (
+              {iframeSrc && (!isTikTokIframe || tikTokBoxMeasured) ? (
                 <>
                   <iframe
                     ref={
@@ -678,23 +666,27 @@ export default function SocialEmbedCard({
                     src={iframeSrc}
                     title={`${NAMES[provider]} media`}
                     className={`absolute top-0 left-0 z-[5] border-0 opacity-100 ${
-                      isTikTokPlayer && tikTokIframeScale ? "" : "h-full w-full"
+                      isTikTokIframe && tikTokIframeScale ? "" : "h-full w-full"
                     }`}
                     style={
-                      isTikTokPlayer
+                      isTikTokIframe
                         ? {
                             ...(tikTokIframeScale || {}),
-                            // CSS scale breaks hit-testing on iOS; route taps through the overlay.
-                            ...(tikTokIframeScale ? { pointerEvents: "none" as const } : {}),
+                            // CSS scale breaks hit-testing on iOS; player/v1 routes
+                            // taps through the overlay. embed/v2 must receive the
+                            // Play tap itself, so do not disable pointer events.
+                            ...(isTikTokPlayer && tikTokIframeScale
+                              ? { pointerEvents: "none" as const }
+                              : {}),
                           }
                         : undefined
                     }
                     allow={
                       provider === "tiktok"
-                        ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
+                        ? TIKTOK_IFRAME_ALLOW
                         : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     }
-                    sandbox={isTikTokEmbed ? TIKTOK_EMBED_IFRAME_SANDBOX : undefined}
+                    sandbox={isTikTokEmbed ? tikTokEmbedIframeSandbox() : undefined}
                     allowFullScreen
                     referrerPolicy="strict-origin-when-cross-origin"
                     onLoad={() => {
