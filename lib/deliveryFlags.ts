@@ -50,6 +50,11 @@ export function isReviewFromRealCompletionEnabled(
   return envOn(env.REVIEW_FROM_REAL_COMPLETION_ENABLED);
 }
 
+/** Email both parties when a started deal is cancelled. Default OFF. */
+export function isDealCancelEmailsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return envOn(env.DEAL_CANCEL_EMAILS_ENABLED);
+}
+
 /** Days before publish_deadline for the creator submit reminder. */
 export const DELIVERABLE_REMINDER_BEFORE_DAYS = 2;
 /** Days after publish_deadline for first overdue reminder. */

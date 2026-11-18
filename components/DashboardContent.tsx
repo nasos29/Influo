@@ -54,6 +54,8 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { displayProposalMessage } from '@/lib/proposalThreadCopy';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
+import DealCancelDialog from '@/components/DealCancelDialog';
+import { canCancelDeal } from '@/lib/dealCancelEligibility';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
@@ -1326,6 +1328,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
     const notify = (message: string, tone: 'success' | 'error' | 'info' = 'info') => pushToast(message, tone);
     const [rejectProposalId, setRejectProposalId] = useState<number | null>(null);
+    const [cancelDealProposal, setCancelDealProposal] = useState<Proposal | null>(null);
+    const [cancelDealSaving, setCancelDealSaving] = useState(false);
     const [lang, setLang] = useState<'el' | 'en'>(() => getStoredLanguage());
     const ui = lang === 'en'
       ? {
@@ -1940,6 +1944,39 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         }
     };
 
+    const submitCancelDeal = async (reason: string) => {
+        if (!cancelDealProposal) return;
+        setCancelDealSaving(true);
+        try {
+            const response = await sessionFetch('/api/proposals/cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    proposalId: cancelDealProposal.id,
+                    reason,
+                    userType: 'influencer',
+                }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.error || T('Δεν ήταν δυνατή η ακύρωση', 'Could not cancel'));
+            }
+            const patch = (result.proposal || {}) as Partial<Proposal>;
+            setProposals((prev) =>
+                prev.map((row) =>
+                    row.id === cancelDealProposal.id ? { ...row, ...patch, status: 'cancelled' } : row
+                )
+            );
+            setCancelDealProposal(null);
+            notify(T('Η συμφωνία ακυρώθηκε.', 'The agreement was cancelled.'), 'success');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            notify(T('Σφάλμα: ', 'Error: ') + message, 'error');
+        } finally {
+            setCancelDealSaving(false);
+        }
+    };
+
     const handleAcceptAgreement = async () => {
         if (!selectedProposal || !agreementAccepted) {
             notify(T('Διάβασε και αποδέξου τους όρους της συμφωνίας.', 'Read and accept the agreement terms.'), 'error');
@@ -2095,6 +2132,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 cancelLabel={T('Ακύρωση', 'Cancel')}
                 onConfirm={() => { void confirmRejectProposal(); }}
                 onCancel={() => setRejectProposalId(null)}
+            />
+            <DealCancelDialog
+                open={!!cancelDealProposal}
+                lang={lang}
+                saving={cancelDealSaving}
+                onCancel={() => !cancelDealSaving && setCancelDealProposal(null)}
+                onConfirm={(reason) => void submitCancelDeal(reason)}
             />
             <PushNotificationPrompt userType="influencer" userIdentifier={profile?.id || ''} lang={lang} />
             <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
@@ -2379,7 +2423,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                             <div className="flex items-center gap-3 mb-2">
                                                                 <h3 className="font-bold text-slate-900">{prop.brand_name}</h3>
                                                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                                    prop.status === 'completed' && (prop.delivery_confirmed_at || prop.auto_completed_at)
+                                                                    prop.status === 'cancelled' || prop.status === 'canceled'
+                                                                        ? 'bg-slate-100 text-slate-700'
+                                                                        : prop.status === 'completed' && (prop.delivery_confirmed_at || prop.auto_completed_at)
                                                                         ? 'bg-green-100 text-green-700'
                                                                         : prop.status === 'accepted' || prop.status === 'completed'
                                                                         ? 'bg-blue-100 text-blue-700'
@@ -2387,7 +2433,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         ? 'bg-red-100 text-red-700'
                                                                         : 'bg-blue-100 text-blue-700'
                                                                 }`}>
-                                                                    {prop.status === 'pending' ? T("Εκκρεμεί", "Pending") : 
+                                                                    {prop.status === 'cancelled' || prop.status === 'canceled'
+                                                                      ? T("Ακυρώθηκε", "Cancelled")
+                                                                      : prop.status === 'pending' ? T("Εκκρεμεί", "Pending") : 
                                                                      prop.status === 'accepted' ? (hasAgreement ? T("✅ Συμφωνία Αποδεκτή", "✅ Agreement Accepted") : T("Αποδεκτή - Αναμένεται Συμφωνία", "Accepted - Awaiting Agreement")) :
                                                                      prop.status === 'completed' ? (hasAgreement
                                                                        ? ((prop.delivery_confirmed_at || prop.auto_completed_at)
@@ -2557,6 +2605,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         💬 {T("Συζήτησε το", "Discuss")}
                                                                     </button>
                                                                 </>
+                                                            )}
+                                                            {canCancelDeal(prop) && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setCancelDealProposal(prop)}
+                                                                    className="inline-flex min-h-11 items-center justify-center px-4 border border-red-200 bg-red-50 text-red-700 font-semibold rounded-lg transition-all text-sm whitespace-nowrap hover:bg-red-100"
+                                                                >
+                                                                    {T("Ακύρωση συμφωνίας", "Cancel agreement")}
+                                                                </button>
                                                             )}
                                                             {hasAgreement && (
                                                                 <div className="flex flex-col gap-2">
