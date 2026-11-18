@@ -13,6 +13,7 @@ import {
   tikTokEmbedIframeSandboxFromUA,
 } from "../lib/tikTokPlayer.ts";
 import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
+import { preferTikTokFullscreenModalFromEnv } from "../lib/preferTikTokFullscreenModal.ts";
 import {
   isFatalTikTokPlayerError,
   isRetryableTikTokPlayerError,
@@ -182,6 +183,29 @@ test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
     "play"
   );
   assert.equal(posted.length, 2);
+});
+
+test("preferTikTokFullscreenModalFromEnv is for narrow or touch-first viewports, not desktop", () => {
+  assert.equal(
+    preferTikTokFullscreenModalFromEnv({ width: 390, coarsePointer: true, hoverNone: true }),
+    true
+  );
+  assert.equal(
+    preferTikTokFullscreenModalFromEnv({ width: 767, coarsePointer: false, hoverNone: false }),
+    true
+  );
+  assert.equal(
+    preferTikTokFullscreenModalFromEnv({ width: 1280, coarsePointer: false, hoverNone: false }),
+    false
+  );
+  assert.equal(
+    preferTikTokFullscreenModalFromEnv({ width: 1024, coarsePointer: true, hoverNone: true }),
+    true
+  );
+  assert.equal(
+    preferTikTokFullscreenModalFromEnv({ width: 1280, coarsePointer: true, hoverNone: false }),
+    false
+  );
 });
 
 test("tikTokIframeScaleStyle scales narrow boxes to 325px layout width", () => {
