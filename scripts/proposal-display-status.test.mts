@@ -104,6 +104,89 @@ test("real completion stamps -> completed", () => {
   );
 });
 
+test("party labels: pending and collaboration-started keys (el + en)", () => {
+  assert.equal(proposalDisplayStatusLabel("pending", "el", "party"), "Πρόταση");
+  assert.equal(proposalDisplayStatusLabel("pending", "en", "party"), "Proposal");
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "pending" }, "el", "party").label,
+    "Πρόταση"
+  );
+
+  const startedKeys = [
+    "awaiting_agreement",
+    "in_progress",
+    "awaiting_approval",
+    "needs_admin",
+  ] as const;
+  for (const key of startedKeys) {
+    assert.equal(
+      proposalDisplayStatusLabel(key, "el", "party"),
+      "Ξεκίνησε συνεργασία",
+      key
+    );
+    assert.equal(
+      proposalDisplayStatusLabel(key, "en", "party"),
+      "Collaboration started",
+      key
+    );
+  }
+
+  assert.equal(
+    deriveProposalDisplayStatus(
+      { status: "accepted" },
+      "en",
+      "party"
+    ).label,
+    "Collaboration started"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus(
+      { status: "completed" },
+      "el",
+      "party"
+    ).label,
+    "Ξεκίνησε συνεργασία"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus(
+      {
+        status: "completed",
+        delivery_mode: "link",
+        delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+        published_post_url: "https://example.com/post",
+      },
+      "en",
+      "party"
+    ).label,
+    "Collaboration started"
+  );
+
+  assert.equal(
+    deriveProposalDisplayStatus(
+      { status: "completed", delivery_confirmed_at: "2026-11-02T00:00:00.000Z" },
+      "el",
+      "party"
+    ).label,
+    "Ολοκληρώθηκε"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "cancelled" }, "en", "party").label,
+    "Cancelled"
+  );
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "rejected" }, "el", "party").label,
+    "Απορρίφθηκε"
+  );
+});
+
+test("admin labels unchanged when audience omitted", () => {
+  assert.equal(proposalDisplayStatusLabel("pending", "el"), "Εκκρεμεί");
+  assert.equal(
+    deriveProposalDisplayStatus({ status: "accepted" }, "el").label,
+    "Αναμονή συμφωνίας"
+  );
+});
+
 test("badge classes cover waiting / progress / done / reject / cancel / admin", () => {
   const waiting = deriveProposalDisplayStatus({ status: "pending" }, "en");
   assert.match(waiting.badgeClass, /amber/);

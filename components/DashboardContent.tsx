@@ -56,6 +56,7 @@ import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import DealCancelDialog from '@/components/DealCancelDialog';
 import { canCancelDeal } from '@/lib/dealCancelEligibility';
+import { deriveProposalDisplayStatus } from '@/lib/proposalDisplayStatus';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
@@ -2415,60 +2416,29 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                             const needsAgreement = (prop.status === 'accepted' || prop.status === 'completed') 
                                                 && !prop.influencer_agreement_accepted;
                                             const hasAgreement = prop.influencer_agreement_accepted && prop.brand_agreement_accepted;
+                                            const displayStatus = deriveProposalDisplayStatus(prop, lang, 'party');
                                             
                                             return (
                                                 <div key={prop.id} className={`border rounded-lg p-4 ${needsAgreement ? 'border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 shadow-md' : hasAgreement ? 'border-green-200 bg-green-50' : 'border-slate-200 bg-white'}`}>
                                                     <div className="flex items-start justify-between">
                                                         <div className="flex-1">
-                                                            <div className="flex items-center gap-3 mb-2">
-                                                                <h3 className="font-bold text-slate-900">{prop.brand_name}</h3>
-                                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                                    prop.status === 'cancelled' || prop.status === 'canceled'
-                                                                        ? 'bg-slate-100 text-slate-700'
-                                                                        : prop.status === 'completed' && (prop.delivery_confirmed_at || prop.auto_completed_at)
-                                                                        ? 'bg-green-100 text-green-700'
-                                                                        : prop.status === 'accepted' || prop.status === 'completed'
-                                                                        ? 'bg-blue-100 text-blue-700'
-                                                                        : prop.status === 'rejected' 
-                                                                        ? 'bg-red-100 text-red-700'
-                                                                        : 'bg-blue-100 text-blue-700'
-                                                                }`}>
-                                                                    {prop.status === 'cancelled' || prop.status === 'canceled'
-                                                                      ? T("Ακυρώθηκε", "Cancelled")
-                                                                      : prop.status === 'pending' ? T("Εκκρεμεί", "Pending") : 
-                                                                     prop.status === 'accepted' ? (hasAgreement ? T("✅ Συμφωνία Αποδεκτή", "✅ Agreement Accepted") : T("Αποδεκτή - Αναμένεται Συμφωνία", "Accepted - Awaiting Agreement")) :
-                                                                     prop.status === 'completed' ? (hasAgreement
-                                                                       ? ((prop.delivery_confirmed_at || prop.auto_completed_at)
-                                                                         ? T("✅ Ολοκληρώθηκε", "✅ Completed")
-                                                                         : T("Σε εξέλιξη", "In progress"))
-                                                                       : T("Σε εξέλιξη - Αναμένεται Συμφωνία", "In progress - Awaiting Agreement")) :
-                                                                     prop.status === 'rejected' ? T("Απορρίφθηκε", "Rejected") : prop.status}
+                                                            <h3 className="font-bold text-slate-900 mb-2">{prop.brand_name}</h3>
+                                                            <div className="mb-2 flex flex-wrap items-center gap-2">
+                                                                <span className={`rounded-full px-2 py-1 text-xs font-medium ${displayStatus.badgeClass}`}>
+                                                                    {displayStatus.label}
                                                                 </span>
+                                                                {canCancelDeal(prop) && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setCancelDealProposal(prop)}
+                                                                        className="inline-flex min-h-11 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 text-sm font-semibold whitespace-nowrap text-red-700 transition-all hover:bg-red-100"
+                                                                    >
+                                                                        {T("Ακύρωση συμφωνίας", "Cancel agreement")}
+                                                                    </button>
+                                                                )}
                                                             </div>
-                                                            <p className="text-sm text-slate-600 mb-2">
-                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {displayServiceType(prop.service_type, lang)} • <strong>{T("Προϋπολογισμός:", "Budget:")}</strong> {formatEuroAmount(prop.budget, lang)}
-                                                            </p>
-                                                            {formatProposalExtrasLine(prop.selected_extras, lang) ? (
-                                                                <p className="text-sm text-slate-600 mb-2">{formatProposalExtrasLine(prop.selected_extras, lang)}</p>
-                                                            ) : null}
-                                                            {prop.message && (
-                                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{displayProposalMessage(prop.message, lang)}</p>
-                                                            )}
-                                                            {prop.counter_proposal_budget && prop.counter_proposal_status === 'pending' && (
-                                                                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                                    <p className="text-sm font-semibold text-blue-900 mb-1">💰 {T("Αντιπρόταση στάλθηκε", "Counter-offer sent")}</p>
-                                                                    <p className="text-xs text-blue-700">{T("Νέα προτεινόμενη τιμή:", "New proposed price:")} <strong>{formatEuroAmount(prop.counter_proposal_budget, lang)}</strong></p>
-                                                                    {prop.counter_proposal_message && (
-                                                                        <p className="text-xs text-blue-600 mt-1 italic">"{prop.counter_proposal_message}"</p>
-                                                                    )}
-                                                                    <p className="text-xs text-blue-500 mt-2">⏳ {T("Αναμένεται απάντηση από το brand", "Awaiting reply from the brand")}</p>
-                                                                </div>
-                                                            )}
-                                                            <p className="text-xs text-slate-500 mt-2">
-                                                                {formatDate(prop.created_at, lang)} {formatTime(prop.created_at, lang)}
-                                                            </p>
                                                             {hasAgreement ? (
-                                                              <div className="mt-3 space-y-2">
+                                                              <div className="mb-3 space-y-2">
                                                                 {prop.status === 'completed' &&
                                                                 !String(prop.published_post_url || '').trim() ? (
                                                                   <MissingPostLinkNotice
@@ -2523,6 +2493,28 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 ) : null}
                                                               </div>
                                                             ) : null}
+                                                            <p className="text-sm text-slate-600 mb-2">
+                                                                <strong>{T("Υπηρεσία:", "Service:")}</strong> {displayServiceType(prop.service_type, lang)} • <strong>{T("Προϋπολογισμός:", "Budget:")}</strong> {formatEuroAmount(prop.budget, lang)}
+                                                            </p>
+                                                            {formatProposalExtrasLine(prop.selected_extras, lang) ? (
+                                                                <p className="text-sm text-slate-600 mb-2">{formatProposalExtrasLine(prop.selected_extras, lang)}</p>
+                                                            ) : null}
+                                                            {prop.message && (
+                                                                <p className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg mt-2">{displayProposalMessage(prop.message, lang)}</p>
+                                                            )}
+                                                            {prop.counter_proposal_budget && prop.counter_proposal_status === 'pending' && (
+                                                                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                                    <p className="text-sm font-semibold text-blue-900 mb-1">💰 {T("Αντιπρόταση στάλθηκε", "Counter-offer sent")}</p>
+                                                                    <p className="text-xs text-blue-700">{T("Νέα προτεινόμενη τιμή:", "New proposed price:")} <strong>{formatEuroAmount(prop.counter_proposal_budget, lang)}</strong></p>
+                                                                    {prop.counter_proposal_message && (
+                                                                        <p className="text-xs text-blue-600 mt-1 italic">"{prop.counter_proposal_message}"</p>
+                                                                    )}
+                                                                    <p className="text-xs text-blue-500 mt-2">⏳ {T("Αναμένεται απάντηση από το brand", "Awaiting reply from the brand")}</p>
+                                                                </div>
+                                                            )}
+                                                            <p className="text-xs text-slate-500 mt-2">
+                                                                {formatDate(prop.created_at, lang)} {formatTime(prop.created_at, lang)}
+                                                            </p>
                                                         </div>
                                                         <div className="ml-4 flex flex-col gap-2">
                                                             {needsAgreement && (
@@ -2605,15 +2597,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                         💬 {T("Συζήτησε το", "Discuss")}
                                                                     </button>
                                                                 </>
-                                                            )}
-                                                            {canCancelDeal(prop) && (
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setCancelDealProposal(prop)}
-                                                                    className="inline-flex min-h-11 items-center justify-center px-4 border border-red-200 bg-red-50 text-red-700 font-semibold rounded-lg transition-all text-sm whitespace-nowrap hover:bg-red-100"
-                                                                >
-                                                                    {T("Ακύρωση συμφωνίας", "Cancel agreement")}
-                                                                </button>
                                                             )}
                                                             {hasAgreement && (
                                                                 <div className="flex flex-col gap-2">
