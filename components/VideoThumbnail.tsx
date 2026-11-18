@@ -494,7 +494,14 @@ export default function VideoThumbnail({
           className={`absolute top-0 left-0 border-0 ${
             isTikTokPlayer && tikTokIframeScale ? "" : "inset-0 h-full w-full"
           }`}
-          style={isTikTokPlayer ? tikTokIframeScale : undefined}
+          style={
+            isTikTokPlayer
+              ? {
+                  ...(tikTokIframeScale || {}),
+                  ...(tikTokIframeScale ? { pointerEvents: "none" as const } : {}),
+                }
+              : undefined
+          }
           allow={
             isTikTokPlayer
               ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
@@ -520,6 +527,10 @@ export default function VideoThumbnail({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (isTikTokPlayer && showTikTokSoundPrompt) {
+                onTikTokTapForSound();
+                return;
+              }
               toggleMediaPlayback();
             }}
           />

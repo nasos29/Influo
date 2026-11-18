@@ -17,6 +17,31 @@ import {
 
 const UNMUTE_FALLBACK_MS = 1500;
 
+/** iOS / coarse pointers typically block unmute without a fresh user gesture. */
+function isTouchLikePlayback(): boolean {
+  if (typeof window === "undefined") return false;
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+  const touch = "ontouchstart" in window || (navigator.maxTouchPoints ?? 0) > 0;
+  const ios = /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && (navigator.maxTouchPoints ?? 0) > 1);
+  return Boolean(coarse || touch || ios);
+}
+
+function tikTokPlayingState(value: unknown): boolean | null {
+  const raw =
+    typeof value === "number"
+      ? value
+      : value && typeof value === "object"
+        ? (value as { state?: unknown; value?: unknown; code?: unknown }).state ??
+          (value as { value?: unknown }).value
+        : null;
+  if (typeof raw !== "number") return null;
+  // TikTok embed-player: 1 playing, 3 buffering; 2 paused, 0 ended, -1 unstarted.
+  if (raw === 1 || raw === 3) return true;
+  if (raw === 2 || raw === 0 || raw === -1) return false;
+  return null;
+}
+
 export const TIKTOK_SOUND_COPY = {
   el: "Ενεργοποίηση ήχου",
   en: "Tap for sound",
@@ -43,6 +68,7 @@ export function useTikTokPlayerHost(
   const localRef = useRef<HTMLIFrameElement>(null);
   const iframeRef = externalIframeRef ?? localRef;
   const [showSoundPrompt, setShowSoundPrompt] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
   const unmutedRef = useRef(false);
   const triedUnmuteRef = useRef(false);
   const errorRetriedRef = useRef(false);
@@ -65,6 +91,13 @@ export function useTikTokPlayerHost(
     const src = iframe.getAttribute("src") || iframe.src || "";
     if (!isTikTokPlayerIframeSrc(src)) return;
     triedUnmuteRef.current = true;
+    // On touch, keep the embed muted and wait for a real tap to unmute.
+    // Auto-unmute here is async (after onPlayerReady) and often pauses iOS playback.
+    if (isTouchLikePlayback()) {
+      postTikTokPlayer(iframe, "play");
+      setShowSoundPrompt(true);
+      return;
+    }
     postTikTokPlayer(iframe, "unMute");
     postTikTokPlayer(iframe, "play");
     clearFallback();
@@ -80,6 +113,7 @@ export function useTikTokPlayerHost(
       errorRetriedRef.current = false;
       iframeLoadedRef.current = false;
       setShowSoundPrompt(false);
+      setIsPlaying(false);
       clearFallback();
     }
   }, [clearFallback, enabled]);
@@ -127,6 +161,11 @@ export function useTikTokPlayerHost(
         return;
       }
 
+      if (type === "onStateChange") {
+        const playing = tikTokPlayingState(value);
+        if (playing != null) setIsPlaying(playing);
+      }
+
       if (type === "onPlayerReady" || type === "onStateChange") {
         iframeLoadedRef.current = true;
         if (!triedUnmuteRef.current) tryUnmuteAndPlay();
@@ -148,5 +187,5 @@ export function useTikTokPlayerHost(
     clearFallback();
   }, [clearFallback, iframeRef]);
 
-  return { iframeRef, showSoundPrompt, onTapForSound, onIframeLoad };
+  return { iframeRef, showSoundPrompt, isPlaying, onTapForSound, onIframeLoad };
 }

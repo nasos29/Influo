@@ -611,7 +611,15 @@ export default function SocialEmbedCard({
                     className={`absolute top-0 left-0 z-[5] border-0 opacity-100 ${
                       isTikTokPlayer && tikTokIframeScale ? "" : "h-full w-full"
                     }`}
-                    style={isTikTokPlayer ? tikTokIframeScale : undefined}
+                    style={
+                      isTikTokPlayer
+                        ? {
+                            ...(tikTokIframeScale || {}),
+                            // CSS scale breaks hit-testing on iOS; route taps through the overlay.
+                            ...(tikTokIframeScale ? { pointerEvents: "none" as const } : {}),
+                          }
+                        : undefined
+                    }
                     allow={
                       provider === "tiktok"
                         ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
@@ -648,6 +656,11 @@ export default function SocialEmbedCard({
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
+                    // Prefer a user-gesture unmute+play when auto-unmute was blocked.
+                    if (isTikTokPlayer && showTikTokSoundPrompt) {
+                      onTikTokTapForSound();
+                      return;
+                    }
                     toggleMediaPlayback();
                   }}
                 />
