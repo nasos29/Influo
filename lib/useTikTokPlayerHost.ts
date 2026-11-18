@@ -64,10 +64,11 @@ export const TIKTOK_SOUND_COPY = {
  * play first (muted=0 URL + unMute/play on ready). If the browser blocks it,
  * fall back to muted playback and the existing Tap-for-sound button.
  *
- * 3001/1004/2005/2001 fall back to embed/v2 once (see SocialEmbedCard).
- * There is no automatic play() retry. 3002 stays muted with the play/sound
- * prompt rather than an error. TikTok emits onPlayerReady with 2005 — we
- * must not treat that as a cue to play() again.
+ * 3001/1004/2005/2001: desktop may fall back to embed/v2 once; mobile
+ * returns to the cover with Retry (see SocialEmbedCard). There is no
+ * automatic play() retry. 3002 stays muted with the play/sound prompt
+ * rather than an error. TikTok emits onPlayerReady with 2005 — we must
+ * not treat that as a cue to play() again.
  */
 export function useTikTokPlayerHost(
   enabled: boolean,

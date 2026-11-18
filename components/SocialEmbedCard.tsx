@@ -9,7 +9,7 @@ import {
   buildTikTokPlayerUrl,
   cachedTikTokVideoId,
   extractTikTokVideoId,
-  preferTikTokEmbedPlayer,
+  allowTikTokEmbedFallback,
   rememberTikTokVideoId,
   TIKTOK_IFRAME_ALLOW,
   disposeTikTokIframe,
@@ -301,17 +301,28 @@ export default function SocialEmbedCard({
     return () => window.removeEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
   }, [isTikTokIframe, releaseTikTokPlayer, tikTokSessionId]);
 
-  // Rate-limit / server errors: drop the iframe back to the cover.
+  // Rate-limit / server errors: drop the iframe back to the cover + Retry.
   useEffect(() => {
-    if (tikTokPlaybackFailed) releaseTikTokPlayer();
+    if (tikTokPlaybackFailed) {
+      releaseTikTokPlayer();
+      setError(true);
+    }
   }, [releaseTikTokPlayer, tikTokPlaybackFailed]);
 
-  // 3001 / 1004 (and similar SDK failures): stay on-site and switch to embed/v2.
+  // Desktop: 3001 / 1004 (and similar) may switch to embed/v2.
+  // Mobile: never mount embed/v2 — return to the cover with Retry so a
+  // player/v1 failure is visible (embed/v2's "Unable to load player" is not).
   useEffect(() => {
     if (!tikTokFallbackToEmbed || tikTokEmbedFallbackUsed.current) return;
+    if (!allowTikTokEmbedFallback()) {
+      releaseTikTokPlayer();
+      setError(true);
+      return;
+    }
     const id = extractTikTokVideoId(iframeSrc || originalUrl);
     if (!id) {
       releaseTikTokPlayer();
+      setError(true);
       return;
     }
     tikTokEmbedFallbackUsed.current = true;
@@ -460,15 +471,9 @@ export default function SocialEmbedCard({
         }
         if (!videoId) throw new Error("Missing TikTok video id");
         tikTokEmbedFallbackUsed.current = false;
-        // Mobile Chrome: go straight to embed/v2 (player/v1 often errors with
-        // 3001/1004 and then unloads). Desktop / Firefox keep the official player.
-        // A Play tap is a user gesture — start player/v1 unmuted when we use it.
-        if (preferTikTokEmbedPlayer()) {
-          tikTokEmbedFallbackUsed.current = true;
-          setIframeSrc(buildTikTokEmbedUrl(videoId));
-        } else {
-          setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
-        }
+        // Same path as desktop: official player/v1, unmuted first (user gesture).
+        // If the browser forces mute, the existing Tap-for-sound prompt appears.
+        setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
         setLoading(false);
         return;
       }
@@ -689,12 +694,11 @@ export default function SocialEmbedCard({
                       isTikTokIframe
                         ? {
                             ...(tikTokIframeScale || {}),
-                            // CSS scale breaks hit-testing on iOS; player/v1 routes
-                            // taps through the overlay. embed/v2 must receive the
-                            // Play tap itself, so do not disable pointer events.
-                            ...(isTikTokPlayer && tikTokIframeScale
-                              ? { pointerEvents: "none" as const }
-                              : {}),
+                            // Same as desktop: iframe is not clickable (creator,
+                            // hearts, TikTok's own play). Play/pause and sound
+                            // go through our overlay. CSS scale also breaks
+                            // hit-testing on iOS.
+                            ...(isTikTokPlayer ? { pointerEvents: "none" as const } : {}),
                           }
                         : undefined
                     }
@@ -711,8 +715,8 @@ export default function SocialEmbedCard({
                       if (isTikTokPlayer) onTikTokIframeLoad();
                     }}
                     onError={() => {
-                      // player/v1 failed to load: try embed/v2 once, do not bounce to cover yet.
-                      if (isTikTokPlayer && !tikTokEmbedFallbackUsed.current) {
+                      // Desktop may try embed/v2 once. Mobile returns to the cover + Retry.
+                      if (isTikTokPlayer && !tikTokEmbedFallbackUsed.current && allowTikTokEmbedFallback()) {
                         const id = extractTikTokVideoId(iframeSrc || originalUrl);
                         if (id) {
                           tikTokEmbedFallbackUsed.current = true;
@@ -726,6 +730,7 @@ export default function SocialEmbedCard({
                           return;
                         }
                       }
+                      releaseTikTokPlayer();
                       setError(true);
                     }}
                   />
