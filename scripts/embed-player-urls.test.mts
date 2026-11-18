@@ -41,7 +41,7 @@ test("buildTikTokPlayerUrl creates muted player/v1 by default", () => {
   const url = buildTikTokPlayerUrl("7123456789012345678");
   assert.equal(
     url,
-    "https://www.tiktok.com/player/v1/7123456789012345678?autoplay=1&muted=1&controls=1&description=0&music_info=0&rel=0"
+    "https://www.tiktok.com/player/v1/7123456789012345678?autoplay=1&muted=1&controls=1&description=0&music_info=0&rel=0&embed_from=oembed"
   );
   const unmuted = buildTikTokPlayerUrl("7123456789012345678", { muted: false });
   assert.match(unmuted, /muted=0/);

@@ -45,6 +45,7 @@ export function buildTikTokPlayerUrl(videoId: string, opts?: TikTokPlayerOpts): 
     description: "0",
     music_info: "0",
     rel: "0",
+    embed_from: "oembed",
   });
   return `https://www.tiktok.com/player/v1/${id}?${params.toString()}`;
 }
