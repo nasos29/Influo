@@ -16,8 +16,6 @@ import {
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
-import { usePreferTikTokFullscreenModal } from "@/lib/preferTikTokFullscreenModal";
-import TikTokPlayerModal from "@/components/TikTokPlayerModal";
 import {
   claimTikTokPlayerSession,
   TIKTOK_PLAYER_SESSION_EVENT,
@@ -272,13 +270,6 @@ export default function SocialEmbedCard({
     provider === "tiktok",
     playerBoxRef
   );
-  const preferFullscreenModal = usePreferTikTokFullscreenModal();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalVideoId, setModalVideoId] = useState<string | null>(null);
-  const closeTikTokModal = useCallback(() => {
-    setModalOpen(false);
-    setModalVideoId(null);
-  }, []);
   const tikTokEmbedFallbackUsed = useRef(false);
 
   const releaseTikTokPlayer = useCallback(() => {
@@ -437,16 +428,6 @@ export default function SocialEmbedCard({
     }
     setError(false);
 
-    // Mobile / touch-first: open an on-site fullscreen player (≥325px, no
-    // CSS scale) and leave the card cover unchanged so the user can return
-    // to the grid and pick another video.
-    if (provider === "tiktok" && preferFullscreenModal && !isTikTokPhoto) {
-      const known = cachedTikTokVideoId(originalUrl);
-      setModalVideoId(known);
-      setModalOpen(true);
-      return;
-    }
-
     setActivated(true);
     setLoading(true);
     try {
@@ -521,11 +502,9 @@ export default function SocialEmbedCard({
     iframeSrc,
     isInteractiveCarousel,
     isStaticImage,
-    isTikTokPhoto,
     loading,
     nativeVideoUrl,
     originalUrl,
-    preferFullscreenModal,
     provider,
   ]);
 
@@ -763,15 +742,6 @@ export default function SocialEmbedCard({
           ) : null}
         </div>
       </div>
-      {provider === "tiktok" ? (
-        <TikTokPlayerModal
-          open={modalOpen}
-          videoId={modalVideoId}
-          originalUrl={originalUrl}
-          lang={uiLang}
-          onClose={closeTikTokModal}
-        />
-      ) : null}
     </div>
   );
 }
