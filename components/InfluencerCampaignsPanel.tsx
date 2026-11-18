@@ -19,6 +19,9 @@ import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignField } from "@/lib/campaignLocalized";
 import ShowcaseConsentToggle from "@/components/ShowcaseConsentToggle";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
+import DealCancelDialog from "@/components/DealCancelDialog";
+import { canCancelCampaignDeal } from "@/lib/campaignDealCancelEligibility";
+import { cancelledByDisplay } from "@/lib/dealCancelEligibility";
 
 const CONTACT_BLOCKED = {
   el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
@@ -60,6 +63,10 @@ type MyApplication = {
   deliverable_seen_at?: string | null;
   initiated_by?: string | null;
   influencer_showcase_consent?: boolean | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  cancel_reason?: string | null;
+  cancelled_by?: string | null;
   brand_campaigns: {
     title: string;
     title_en?: string | null;
@@ -192,6 +199,8 @@ export default function InfluencerCampaignsPanel({
   const [loadError, setLoadError] = useState<null | "timeout" | "error">(null);
   const [schemaError, setSchemaError] = useState(false);
   const [withdrawId, setWithdrawId] = useState<string | null>(null);
+  const [cancelApplicationId, setCancelApplicationId] = useState<string | null>(null);
+  const [cancelDealSaving, setCancelDealSaving] = useState(false);
   const [applyCampaign, setApplyCampaign] = useState<CampaignWithBrand | null>(null);
   const [applyMessage, setApplyMessage] = useState("");
   const [proposedPrice, setProposedPrice] = useState("");
@@ -460,6 +469,27 @@ export default function InfluencerCampaignsPanel({
     }
   };
 
+  const submitCancelDeal = async (reason: string) => {
+    if (!cancelApplicationId) return;
+    setCancelDealSaving(true);
+    try {
+      const res = await sessionFetch("/api/campaigns/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: cancelApplicationId, userType: "influencer", reason }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Error");
+      notify(uiLang === "el" ? "Η συμφωνία ακυρώθηκε." : "The agreement was cancelled.", "success");
+      setCancelApplicationId(null);
+      await load();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Error", "error");
+    } finally {
+      setCancelDealSaving(false);
+    }
+  };
+
   const withdraw = async (appId: string) => {
     setWithdrawId(null);
     const { error } = await supabase
@@ -555,6 +585,13 @@ export default function InfluencerCampaignsPanel({
   return (
     <div className="space-y-8">
       <ToastViewport toasts={toasts} onDismiss={dismissToast} dismissLabel={uiLang === "el" ? "Κλείσιμο" : "Dismiss"} />
+      <DealCancelDialog
+        open={!!cancelApplicationId}
+        lang={uiLang}
+        saving={cancelDealSaving}
+        onCancel={() => !cancelDealSaving && setCancelApplicationId(null)}
+        onConfirm={(reason) => void submitCancelDeal(reason)}
+      />
       <ConfirmDialog
         open={!!withdrawId}
         title={uiLang === "el" ? "Απόσυρση αίτησης;" : "Withdraw this application?"}
@@ -823,16 +860,38 @@ export default function InfluencerCampaignsPanel({
                       </p>
                     )}
                   </div>
-                  {m.status === "pending" && (
-                    <button
-                      type="button"
-                      onClick={() => setWithdrawId(m.id)}
-                      className="inline-flex min-h-11 items-center text-sm font-medium text-red-600 hover:underline self-start sm:self-center"
-                    >
-                      {uiLang === "el" ? "Απόσυρση" : "Withdraw"}
-                    </button>
-                  )}
+                  <div className="flex flex-wrap gap-2 self-start sm:self-center">
+                    {m.status === "pending" && (
+                      <button
+                        type="button"
+                        onClick={() => setWithdrawId(m.id)}
+                        className="inline-flex min-h-11 items-center text-sm font-medium text-red-600 hover:underline"
+                      >
+                        {uiLang === "el" ? "Απόσυρση" : "Withdraw"}
+                      </button>
+                    )}
+                    {canCancelCampaignDeal(m) && (
+                      <button
+                        type="button"
+                        onClick={() => setCancelApplicationId(m.id)}
+                        className="inline-flex min-h-11 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-medium text-red-700 hover:bg-red-100"
+                      >
+                        {uiLang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {(m.status === "cancelled" || m.status === "canceled") && m.cancel_reason ? (
+                  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+                    <p>
+                      {uiLang === "el" ? "Ακυρώθηκε από" : "Cancelled by"}:{" "}
+                      <span className="font-medium text-slate-800">{cancelledByDisplay(m.cancelled_by, uiLang)}</span>
+                    </p>
+                    <p className="mt-1">
+                      {uiLang === "el" ? "Λόγος" : "Reason"}: {m.cancel_reason}
+                    </p>
+                  </div>
+                ) : null}
                 {showDeliver && dStatus !== "approved" && (
                   <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
                     <p className="text-xs font-semibold text-slate-700">

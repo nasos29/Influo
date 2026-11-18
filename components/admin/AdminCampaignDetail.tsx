@@ -19,6 +19,10 @@ import {
 } from "@/components/admin/adminCampaignTypes";
 import { publicProfileBrowserUrl } from "@/lib/profileSlug";
 import { handleOpenInBrowserClick } from "@/lib/openInBrowser";
+import DealCancelDialog from "@/components/DealCancelDialog";
+import { canCancelCampaignDeal } from "@/lib/campaignDealCancelEligibility";
+import { cancelledByDisplay } from "@/lib/dealCancelEligibility";
+import { sessionFetch } from "@/lib/sessionFetch";
 
 type Lang = "el" | "en";
 
@@ -266,6 +270,13 @@ export default function AdminCampaignDetail({
   const [form, setForm] = useState(() => toForm(campaign));
   const [baseline, setBaseline] = useState(() => JSON.stringify(toForm(campaign)));
   const [saving, setSaving] = useState(false);
+  const [applications, setApplications] = useState(campaign.applications || []);
+  const [cancelApplicationId, setCancelApplicationId] = useState<string | null>(null);
+  const [cancelSaving, setCancelSaving] = useState(false);
+
+  useEffect(() => {
+    setApplications(campaign.applications || []);
+  }, [campaign.applications, campaign.id]);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const coverCrop = useImageCrop();
@@ -305,7 +316,6 @@ export default function AdminCampaignDetail({
   const interactionRef = useRef(false);
   const brand = getCampaignBrandMeta(campaign);
   const dirty = JSON.stringify(form) !== baseline;
-  const applications = campaign.applications || [];
   const platformOptions = [
     ...PLATFORMS.map((item) => item.id),
     ...form.platforms.filter((id) => !PLATFORMS.some((item) => item.id === id)),
@@ -364,6 +374,38 @@ export default function AdminCampaignDetail({
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const submitAdminCancel = async (reason: string) => {
+    if (!cancelApplicationId) return;
+    setCancelSaving(true);
+    try {
+      const res = await sessionFetch("/api/admin/campaigns/applications/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: cancelApplicationId, reason }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Error");
+      setApplications((prev) =>
+        prev.map((row) =>
+          row.id === cancelApplicationId
+            ? {
+                ...row,
+                status: "cancelled",
+                cancelled_by: "admin",
+                cancel_reason: reason.trim().slice(0, 1000),
+              }
+            : row
+        )
+      );
+      onNotify(lang === "el" ? "Η συμφωνία ακυρώθηκε." : "The agreement was cancelled.", "success");
+      setCancelApplicationId(null);
+    } catch (err) {
+      onNotify(err instanceof Error ? err.message : "Error", "error");
+    } finally {
+      setCancelSaving(false);
+    }
   };
 
   const save = async () => {
@@ -744,7 +786,12 @@ export default function AdminCampaignDetail({
             ) : (
               <div className="mt-3 space-y-3">
                 {applications.map((app) => (
-                  <ApplicationCard key={app.id} app={app} lang={lang} />
+                  <ApplicationCard
+                    key={app.id}
+                    app={app}
+                    lang={lang}
+                    onCancel={() => setCancelApplicationId(app.id)}
+                  />
                 ))}
               </div>
             )}
@@ -769,11 +816,26 @@ export default function AdminCampaignDetail({
           </button>
         </footer>
       </div>
+      <DealCancelDialog
+        open={!!cancelApplicationId}
+        lang={lang}
+        saving={cancelSaving}
+        onCancel={() => !cancelSaving && setCancelApplicationId(null)}
+        onConfirm={(reason) => void submitAdminCancel(reason)}
+      />
     </div>
   );
 }
 
-function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: Lang }) {
+function ApplicationCard({
+  app,
+  lang,
+  onCancel,
+}: {
+  app: AdminCampaignApplication;
+  lang: Lang;
+  onCancel?: () => void;
+}) {
   const creator = getApplicationInfluencerMeta(app);
   const profileHref = publicProfileBrowserUrl(creator.profileSlug, app.influencer_id);
   const links = filterWorkLinks(app.work_links || "").ok;
@@ -818,6 +880,26 @@ function ApplicationCard({ app, lang }: { app: AdminCampaignApplication; lang: L
               </a>
             ))}
           </div>
+        ) : null}
+        {(app.status === "cancelled" || app.status === "canceled") && app.cancel_reason ? (
+          <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs text-slate-600">
+            <p>
+              {lang === "el" ? "Ακυρώθηκε από" : "Cancelled by"}:{" "}
+              <span className="font-medium text-slate-800">{cancelledByDisplay(app.cancelled_by, lang)}</span>
+            </p>
+            <p className="mt-0.5">
+              {lang === "el" ? "Λόγος" : "Reason"}: {app.cancel_reason}
+            </p>
+          </div>
+        ) : null}
+        {canCancelCampaignDeal(app) && onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="mt-2 inline-flex min-h-9 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-700 hover:bg-red-100"
+          >
+            {lang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+          </button>
         ) : null}
         {app.deliverable_url || app.deliverable_note || deliverableStatus ? (
           <div className="mt-2 text-xs text-slate-600">

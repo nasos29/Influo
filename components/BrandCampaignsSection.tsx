@@ -33,6 +33,9 @@ import { responseText } from "@/lib/bilingualError";
 import { campaignField } from "@/lib/campaignLocalized";
 import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { CAMPAIGN_DEFAULT_DAYS } from "@/lib/campaignLifecycle";
+import DealCancelDialog from "@/components/DealCancelDialog";
+import { canCancelCampaignDeal } from "@/lib/campaignDealCancelEligibility";
+import { cancelledByDisplay } from "@/lib/dealCancelEligibility";
 import {
   SLOT_PRESETS,
   applySlotsSelectChange,
@@ -103,6 +106,11 @@ type ApplicationRow = {
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
   deliverable_seen_at?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
+  cancelled_at?: string | null;
   initiated_by?: string | null;
   influencers: InfluencerBits;
   profile?: ApplicantFull | null;
@@ -621,6 +629,8 @@ export default function BrandCampaignsSection({
   const [invitingId, setInvitingId] = useState<string | null>(null);
   /** Application id while accept/reject/shortlist is in flight (blocks double submit). */
   const [decidingAppId, setDecidingAppId] = useState<string | null>(null);
+  const [cancelApplication, setCancelApplication] = useState<ApplicationRow | null>(null);
+  const [cancelApplicationSaving, setCancelApplicationSaving] = useState(false);
   /** Brand showcase consent at deliverable approval (UI default on). */
   const [approveShowcaseByApp, setApproveShowcaseByApp] = useState<Record<string, boolean>>({});
   /** Application ids whose deliverable details are expanded (marks seen on open). */
@@ -1440,6 +1450,28 @@ export default function BrandCampaignsSection({
     }
   };
 
+  const submitCancelApplication = async (reason: string) => {
+    if (!cancelApplication) return;
+    setCancelApplicationSaving(true);
+    try {
+      const res = await sessionFetch("/api/campaigns/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: cancelApplication.id, userType: "brand", reason }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof body.error === "string" ? body.error : "Error");
+      toastSuccess(lang === "el" ? "Η συμφωνία ακυρώθηκε." : "The agreement was cancelled.");
+      setCancelApplication(null);
+      if (expandedId) await loadApplications(expandedId);
+      onApplicationsUpdated?.();
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : "Error");
+    } finally {
+      setCancelApplicationSaving(false);
+    }
+  };
+
   const deliverableLabel = (status?: string | null) => {
     if (status === "submitted") return t.deliverable_submitted;
     if (status === "approved") return t.deliverable_approved;
@@ -1499,6 +1531,28 @@ export default function BrandCampaignsSection({
                               onMessage={() => onOpenInfluencerMessage?.({ influencerId: app.influencer_id, displayName: displayNameForLang(inf?.display_name || "Influencer", lang) })}
                               footer={
                                 <>
+                                  {(app.status === "cancelled" || app.status === "canceled") && app.cancel_reason ? (
+                                    <div className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-600">
+                                      <p>
+                                        {lang === "el" ? "Ακυρώθηκε από" : "Cancelled by"}:{" "}
+                                        <span className="font-medium text-slate-800">
+                                          {cancelledByDisplay(app.cancelled_by, lang)}
+                                        </span>
+                                      </p>
+                                      <p className="mt-1">
+                                        {lang === "el" ? "Λόγος" : "Reason"}: {app.cancel_reason}
+                                      </p>
+                                    </div>
+                                  ) : null}
+                                  {canCancelCampaignDeal(app) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setCancelApplication(app)}
+                                      className="inline-flex min-h-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 text-[11px] font-medium text-red-700 hover:bg-red-100"
+                                    >
+                                      {lang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
+                                    </button>
+                                  ) : null}
                                   {app.deliverable_status ? <span className="text-xs text-slate-500">{deliverableLabel(app.deliverable_status)}</span> : null}
                                   {app.deliverable_status === "submitted" && (
                                     <div className="flex w-full flex-col gap-2">
@@ -2258,6 +2312,13 @@ export default function BrandCampaignsSection({
         </>
         )}
       </div>
+      <DealCancelDialog
+        open={!!cancelApplication}
+        lang={lang}
+        saving={cancelApplicationSaving}
+        onCancel={() => !cancelApplicationSaving && setCancelApplication(null)}
+        onConfirm={(reason) => void submitCancelApplication(reason)}
+      />
     </div>
   );
 }

@@ -11,6 +11,10 @@ export type AdminCampaignApplication = {
   deliverable_note?: string | null;
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  cancelled_by?: string | null;
+  cancel_reason?: string | null;
   influencers:
     | { display_name: string | null; avatar_url: string | null; profile_slug?: string | null }
     | Array<{ display_name: string | null; avatar_url: string | null; profile_slug?: string | null }>
