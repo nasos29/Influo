@@ -19,11 +19,13 @@ const nextConfig: NextConfig = {
   images: {
     // Keep optimized variants warm longer (avatars/logos rarely change).
     minimumCacheTTL: 60 * 60 * 24 * 30,
-    // Narrow set → fewer Image Optimization transformations.
-    qualities: [70, 75],
+    // Allow 75–80 for visible photos; keep 70 for small decorative thumbs.
+    // Restore intermediate / 2× widths so srcset can serve retina without
+    // jumping to a 1920px fallback.
+    qualities: [70, 75, 80],
     formats: ["image/webp"],
-    deviceSizes: [640, 1080, 1920],
-    imageSizes: [32, 64, 128, 256],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [32, 48, 64, 96, 128, 160, 256, 384],
     // Next 16 defaults to [{ pathname: '**', search: '' }] which rejects any
     // local src with a query string. Allow /api/image-proxy?url=… and keep
     // other local paths working (omit search = any/no query allowed).

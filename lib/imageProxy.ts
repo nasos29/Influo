@@ -55,13 +55,15 @@ export const CREATOR_FULLSIZE_PHOTO_WIDTH = 1600;
  * width that yields a vertical center strip (e.g. 640×2048 from 1536×2048),
  * which CSS then zooms into an eye/wall crop inside the 4:5 card.
  *
- * @param quality JPEG/WebP quality 1–100. Cards use 50; lightbox uses higher.
+ * @param quality JPEG/WebP quality 1–100. Cards/avatars default 75; lightbox uses 80.
  */
+export const STORAGE_CARD_QUALITY = 75;
+
 export function getStorageCardUrl(
   url: string | null | undefined,
   width = 400,
   height?: number,
-  quality = 50
+  quality = STORAGE_CARD_QUALITY
 ): string | null | undefined {
   if (!url || typeof url !== "string" || url.trim() === "") return url;
   const trimmed = url.trim();

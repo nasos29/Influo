@@ -3,6 +3,7 @@
 import type { ReactElement } from "react";
 import { Badge, getImageOverlayBadgeStyles } from "../lib/badges";
 import Avatar from "./Avatar";
+import FastImage from "./FastImage";
 import { categoryTranslations } from "./categoryTranslations";
 import { displayNameForLang } from "@/lib/greeklish";
 import { getCachedImageUrl, getCreatorCardPhotoUrl } from "@/lib/imageProxy";
@@ -239,12 +240,12 @@ export default function InfluencerCard({
     <div className="group h-full flex flex-col cursor-pointer">
       <div className="creator-card-media">
         {photoSrc ? (
-          // eslint-disable-next-line @next/next/no-img-element -- Storage CDN + proxy URLs
-          <img
+          <FastImage
             src={photoSrc}
             alt={displayName}
-            loading="lazy"
-            decoding="async"
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+            quality={75}
             className="creator-card-media__img transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (

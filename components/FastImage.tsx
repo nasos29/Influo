@@ -21,47 +21,31 @@ function hostOf(url: string): string | null {
 
 function isExternalThumbnailHost(host: string): boolean {
   if (SKIP_OPTIMIZER_HOSTS.includes(host)) return true;
+  // TikTok / ByteDance thumbs are ephemeral and not worth the optimizer hop.
   if (host.includes("tiktokcdn") || host.includes("ibytedtos")) return true;
-  if (host.endsWith("supabase.co") || host.endsWith("supabase.in")) return true;
   return false;
 }
 
-function numericSize(value: ImageProps["width"] | ImageProps["height"]): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim()) {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-
-/** Skip Next Image Optimization for proxy / small avatars / external thumbs. */
+/** Skip Next Image Optimization for data URLs and ephemeral third-party thumbs. */
 export function shouldSkipImageOptimization(
   url: string,
-  dims?: { width?: ImageProps["width"]; height?: ImageProps["height"]; sizes?: string }
+  _dims?: { width?: ImageProps["width"]; height?: ImageProps["height"]; sizes?: string }
 ): boolean {
   if (!url || url.startsWith("data:") || url.startsWith("blob:")) return true;
-  if (url.startsWith("/api/image-proxy")) return true;
   const host = hostOf(url);
   if (host && isExternalThumbnailHost(host)) return true;
-  const w = numericSize(dims?.width);
-  const h = numericSize(dims?.height);
-  if ((w != null && w <= 128) || (h != null && h <= 128)) return true;
-  // sizes like "80px" / "64px" for avatars
-  const sizes = dims?.sizes?.trim() || "";
-  const px = sizes.match(/^(\d+)px$/);
-  if (px && Number(px[1]) <= 128) return true;
   return false;
 }
 
-/** Hosts where Next.js Image optimization is still worth the hop. */
+/** Local proxy + Supabase + Unsplash are worth /_next/image (disk cache on this host). */
 export function canOptimizeRemoteUrl(url: string): boolean {
   if (!url || url.startsWith("data:") || url.startsWith("blob:")) return false;
-  if (url.startsWith("/")) return !url.startsWith("/api/image-proxy");
+  if (url.startsWith("/")) return true;
   try {
     const host = new URL(url).hostname;
     if (isExternalThumbnailHost(host)) return false;
     if (host === "images.unsplash.com" || host === "plus.unsplash.com") return true;
+    if (host.endsWith("supabase.co") || host.endsWith("supabase.in")) return true;
     return false;
   } catch {
     return false;
@@ -73,9 +57,8 @@ type FastImageProps = Omit<ImageProps, "src"> & {
 };
 
 /**
- * Prefer next/image only when the optimizer helps.
- * Proxy / small / CDN thumbs use native <img> (or unoptimized Image) to cut
- * Image Optimization transformations — without changing layout.
+ * Prefer next/image (WebP + srcset, cached under .next/cache/images).
+ * Skip only data/blob URLs and ephemeral third-party thumbs (TikTok, etc.).
  */
 export default function FastImage({
   src,
@@ -92,7 +75,7 @@ export default function FastImage({
 }: FastImageProps) {
   const resolved = (getCachedImageUrl(src) ?? src).trim();
   const skip = shouldSkipImageOptimization(resolved, { width, height, sizes });
-  const q = quality === 70 || quality === 75 ? quality : 75;
+  const q = quality === 70 || quality === 75 || quality === 80 ? quality : 75;
 
   if (skip || !canOptimizeRemoteUrl(resolved)) {
     // eslint-disable-next-line @next/next/no-img-element -- proxy + thumbs + small avatars
@@ -127,8 +110,6 @@ export default function FastImage({
     );
   }
 
-  const isProxy = resolved.startsWith("/api/image-proxy");
-
   return (
     <Image
       src={resolved}
@@ -142,7 +123,7 @@ export default function FastImage({
       quality={q}
       onError={onError}
       {...rest}
-      unoptimized={isProxy || Boolean(rest.unoptimized)}
+      unoptimized={Boolean(rest.unoptimized)}
     />
   );
 }
