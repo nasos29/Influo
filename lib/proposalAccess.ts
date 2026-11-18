@@ -44,6 +44,8 @@ export type ProposalRow = {
   delivery_submitted_at?: string | null;
   delivery_confirmed_at?: string | null;
   auto_completed_at?: string | null;
+  deliverable_status?: string | null;
+  deliverable_review_note?: string | null;
   cancelled_by?: string | null;
   cancel_reason?: string | null;
   cancelled_at?: string | null;
@@ -52,7 +54,7 @@ export type ProposalRow = {
 };
 
 const LIST_COLUMNS =
-  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline, brand_showcase_consent, influencer_showcase_consent, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach, delivery_mode, delivery_note, delivery_proof_url, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, cancelled_by, cancel_reason, cancelled_at";
+  "id, influencer_id, brand_name, brand_email, brand_id, service_type, budget, message, status, created_at, counter_proposal_budget, counter_proposal_message, counter_proposal_status, counter_proposal_created_at, influencer_agreement_accepted, brand_agreement_accepted, agreement_accepted_at, influencer_agreement_accepted_at, brand_agreement_accepted_at, brand_added_to_past_brands, selected_extras, publish_deadline, brand_showcase_consent, influencer_showcase_consent, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach, delivery_mode, delivery_note, delivery_proof_url, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, deliverable_status, deliverable_review_note, cancelled_by, cancel_reason, cancelled_at";
 
 const SHOWCASE_COLUMNS =
   ", brand_showcase_consent, influencer_showcase_consent, published_post_url, published_post_pending_approval, self_reported_views, self_reported_reach";
@@ -70,7 +72,7 @@ async function selectProposals(
       continue;
     }
     if (
-      /showcase_consent|published_post_url|published_post_pending_approval|self_reported_|delivery_|cancelled_by|cancel_reason|cancelled_at/i.test(
+      /showcase_consent|published_post_url|published_post_pending_approval|self_reported_|delivery_|deliverable_|cancelled_by|cancel_reason|cancelled_at/i.test(
         msg
       ) &&
       (columns.includes("brand_showcase_consent") ||
@@ -79,6 +81,10 @@ async function selectProposals(
     ) {
       columns = columns
         .replace(SHOWCASE_COLUMNS, "")
+        .replace(
+          /, delivery_mode, delivery_note, delivery_proof_url, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, deliverable_status, deliverable_review_note/g,
+          ""
+        )
         .replace(
           /, delivery_mode, delivery_note, delivery_proof_url, delivery_submitted_at, delivery_confirmed_at, auto_completed_at/g,
           ""

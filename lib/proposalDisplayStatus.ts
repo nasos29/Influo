@@ -23,6 +23,34 @@ export const PROPOSAL_DISPLAY_STATUS_KEYS = [
 
 export type ProposalDisplayStatusKey = (typeof PROPOSAL_DISPLAY_STATUS_KEYS)[number];
 
+const ACTIVE_COLLABORATION_DISPLAY_KEYS = new Set<ProposalDisplayStatusKey>([
+  "awaiting_agreement",
+  "in_progress",
+  "awaiting_approval",
+  "needs_admin",
+]);
+
+export function isActiveCollaborationDisplayKey(key: ProposalDisplayStatusKey | "unknown"): boolean {
+  return key !== "unknown" && ACTIVE_COLLABORATION_DISPLAY_KEYS.has(key);
+}
+
+/** In-progress campaign deal (accepted application, not really complete, not approved deliverable). */
+export function isActiveCampaignDealRow(row: {
+  status?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  deliverable_status?: string | null;
+}): boolean {
+  const status = String(row.status || "").toLowerCase();
+  if (status === "rejected" || status === "cancelled" || status === "canceled" || status === "withdrawn") {
+    return false;
+  }
+  if (status !== "accepted") return false;
+  if (isRealDeliveryComplete(row)) return false;
+  if (row.deliverable_status === "approved") return false;
+  return true;
+}
+
 export type ProposalDisplayStatusAudience = "admin" | "brand" | "creator" | "party";
 
 const PARTY_COLLABORATION_STARTED_KEYS = new Set<ProposalDisplayStatusKey>([
@@ -43,6 +71,8 @@ export type ProposalDisplayStatusRow = {
   published_post_url?: string | null;
   published_post_pending_approval?: boolean | null;
   deliverable_url?: string | null;
+  deliverable_status?: string | null;
+  deliverable_review_note?: string | null;
 };
 
 const LABELS: Record<
@@ -103,6 +133,8 @@ export function deriveProposalDisplayStatusKey(
   if (status === "cancelled" || status === "canceled") return "cancelled";
 
   if (isRealDeliveryComplete(row)) return "completed";
+
+  if (row.deliverable_status === "changes_requested") return "in_progress";
 
   if (isEventConfirmPending(row)) return "needs_admin";
 

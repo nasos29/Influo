@@ -3,6 +3,8 @@ import { test } from "node:test";
 import {
   deriveProposalDisplayStatus,
   deriveProposalDisplayStatusKey,
+  isActiveCampaignDealRow,
+  isActiveCollaborationDisplayKey,
   normalizeProposalDisplayStatusFilter,
   proposalDisplayStatusLabel,
 } from "../lib/proposalDisplayStatus.ts";
@@ -47,6 +49,30 @@ test("completed without deliverable -> in progress", () => {
     "in_progress"
   );
   assert.equal(proposalDisplayStatusLabel("in_progress", "el"), "Σε εξέλιξη");
+});
+
+test("changes_requested on proposal -> in progress (not awaiting approval)", () => {
+  assert.equal(
+    deriveProposalDisplayStatusKey({
+      status: "completed",
+      delivery_mode: "link",
+      delivery_submitted_at: "2026-11-01T00:00:00.000Z",
+      published_post_url: "https://example.com/post",
+      published_post_pending_approval: false,
+      deliverable_status: "changes_requested",
+    }),
+    "in_progress"
+  );
+});
+
+test("active collaboration display keys", () => {
+  assert.equal(isActiveCollaborationDisplayKey("pending"), false);
+  assert.equal(isActiveCollaborationDisplayKey("in_progress"), true);
+  assert.equal(isActiveCollaborationDisplayKey("awaiting_approval"), true);
+  assert.equal(isActiveCollaborationDisplayKey("completed"), false);
+  assert.equal(isActiveCampaignDealRow({ status: "accepted" }), true);
+  assert.equal(isActiveCampaignDealRow({ status: "accepted", deliverable_status: "approved" }), false);
+  assert.equal(isActiveCampaignDealRow({ status: "pending" }), false);
 });
 
 test("link submitted awaiting brand -> awaiting approval", () => {
