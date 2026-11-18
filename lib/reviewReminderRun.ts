@@ -299,7 +299,7 @@ async function releaseCampaignSecondReviewReminderClaim(
 async function sendCampaignReminderWave(
   admin: SupabaseClient,
   row: CampaignReviewRow,
-  wave: SendWave
+  wave: "first" | "second"
 ): Promise<"sent" | "skipped" | "error"> {
   const meta = campaignMeta(row);
   const brandEmail = meta.brandEmail;
