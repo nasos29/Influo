@@ -50,14 +50,28 @@ export function buildTikTokPlayerUrl(videoId: string, opts?: TikTokPlayerOpts): 
   return `https://www.tiktok.com/player/v1/${id}?${params.toString()}`;
 }
 
-/** Classic TikTok embed iframe (no official player API). Used as a Chrome fallback. */
 /**
- * Sandbox for embed/v2 iframes: scripts/origin/presentation so the player can
- * run, but no allow-popups or allow-top-navigation so author/logo clicks
- * cannot take the user off-site.
+ * Permissions policy for every TikTok iframe (player/v1 and embed/v2).
+ * Docs list allow="fullscreen"; autoplay and encrypted-media are required to play.
+ * @see https://developers.tiktok.com/doc/embed-player
+ */
+export const TIKTOK_IFRAME_ALLOW =
+  "autoplay; fullscreen; encrypted-media; picture-in-picture";
+
+/**
+ * Sandbox for desktop embed/v2 iframes: scripts/origin/presentation so the
+ * player can run, but no allow-popups or allow-top-navigation so author/logo
+ * clicks cannot take the user off-site.
+ *
+ * Not applied on mobile Chromium. Sandbox can interfere with third-party
+ * storage (and, in some browsers, encrypted-media), and live #454 reports
+ * left doubt that it is safe for embed/v2 playback there. Off-site
+ * author/logo navigation is accepted on those browsers.
  */
 export const TIKTOK_EMBED_IFRAME_SANDBOX =
   "allow-scripts allow-same-origin allow-presentation";
+
+/** Classic TikTok embed iframe (no official player API). Used as a Chrome fallback. */
 
 export function buildTikTokEmbedUrl(videoId: string): string {
   const id = String(videoId || "").trim();
@@ -130,4 +144,30 @@ export function preferTikTokEmbedPlayerFromUA(ua: string): boolean {
 export function preferTikTokEmbedPlayer(): boolean {
   if (typeof navigator === "undefined") return false;
   return preferTikTokEmbedPlayerFromUA(navigator.userAgent);
+}
+
+/**
+ * Sandbox attr for an embed/v2 iframe. Undefined on mobile Chromium (and
+ * during SSR, when the iframe is not mounted).
+ */
+export function tikTokEmbedIframeSandboxFromUA(ua: string): string | undefined {
+  if (preferTikTokEmbedPlayerFromUA(ua)) return undefined;
+  return TIKTOK_EMBED_IFRAME_SANDBOX;
+}
+
+export function tikTokEmbedIframeSandbox(): string | undefined {
+  if (typeof navigator === "undefined") return undefined;
+  return tikTokEmbedIframeSandboxFromUA(navigator.userAgent);
+}
+
+const tikTokVideoIdCache = new Map<string, string>();
+
+/** Cached id from the watch URL, or a previous /api/video-embed resolution. */
+export function cachedTikTokVideoId(originalUrl: string): string | null {
+  return extractTikTokVideoId(originalUrl) || tikTokVideoIdCache.get(originalUrl) || null;
+}
+
+export function rememberTikTokVideoId(originalUrl: string, id: string): void {
+  const trimmed = String(id || "").trim();
+  if (/^\d+$/.test(trimmed)) tikTokVideoIdCache.set(originalUrl, trimmed);
 }

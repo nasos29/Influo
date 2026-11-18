@@ -9,6 +9,8 @@ import {
   isTikTokShortLink,
   preferTikTokEmbedPlayerFromUA,
   TIKTOK_EMBED_IFRAME_SANDBOX,
+  TIKTOK_IFRAME_ALLOW,
+  tikTokEmbedIframeSandboxFromUA,
 } from "../lib/tikTokPlayer.ts";
 import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
 import {
@@ -93,6 +95,22 @@ test("TikTok embed/v2 sandbox allows playback tokens but not off-site navigation
   assert.equal(tokens.includes("allow-top-navigation-by-user-activation"), false);
 });
 
+test("TikTok iframe allow tokens and desktop-only embed sandbox", () => {
+  assert.equal(
+    TIKTOK_IFRAME_ALLOW,
+    "autoplay; fullscreen; encrypted-media; picture-in-picture"
+  );
+  const mobileChrome =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
+  const desktopChrome =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+  const mobileFirefox =
+    "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0";
+  assert.equal(tikTokEmbedIframeSandboxFromUA(mobileChrome), undefined);
+  assert.equal(tikTokEmbedIframeSandboxFromUA(desktopChrome), TIKTOK_EMBED_IFRAME_SANDBOX);
+  assert.equal(tikTokEmbedIframeSandboxFromUA(mobileFirefox), TIKTOK_EMBED_IFRAME_SANDBOX);
+});
+
 test("preferTikTokEmbedPlayerFromUA is true only for mobile Chromium, not Firefox or desktop", () => {
   assert.equal(
     preferTikTokEmbedPlayerFromUA(
@@ -168,9 +186,17 @@ test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
 
 test("tikTokIframeScaleStyle scales narrow boxes to 325px layout width", () => {
   assert.equal(tikTokIframeScaleStyle(TIKTOK_PLAYER_MIN_IFRAME_WIDTH), undefined);
+  assert.equal(tikTokIframeScaleStyle(0), undefined);
   const narrow = tikTokIframeScaleStyle(170);
   assert.ok(narrow);
   assert.match(String(narrow!.transform), /scale\(0\.523/);
+  const invPct = `${(1 / (170 / 325)) * 100}%`;
+  assert.equal(narrow!.width, invPct);
+  assert.equal(narrow!.height, invPct);
+  assert.equal(narrow!.transformOrigin, "top left");
+  const typicalColumn = tikTokIframeScaleStyle(160);
+  assert.ok(typicalColumn);
+  assert.match(String(typicalColumn!.transform), /scale\(0\.492/);
 });
 
 test("isValidInstagramShortcode and extractInstagramShortcode", () => {
@@ -210,13 +236,13 @@ test("isValidInstagramShortcode and extractInstagramShortcode", () => {
   );
 });
 
-test("TikTok 1001/1002 are fatal; only 3001 is auto-retried once; overload unloads", () => {
+test("TikTok 1001/1002 are fatal; nothing is auto-retried; 3002 is not a load error", () => {
   assert.equal(isFatalTikTokPlayerError({ errorCode: 1001, errorType: "INVALID_VIDEO" }), true);
   assert.equal(isFatalTikTokPlayerError({ errorCode: 1001 }), true);
   assert.equal(isFatalTikTokPlayerError(1001), true);
   assert.equal(isFatalTikTokPlayerError({ errorCode: 1002, errorType: "VIDEO_EMBED_BANNED" }), true);
   assert.equal(isFatalTikTokPlayerError({ errorCode: 3001 }), false);
-  assert.equal(isRetryableTikTokPlayerError(3001), true);
+  assert.equal(isRetryableTikTokPlayerError(3001), false);
   assert.equal(isRetryableTikTokPlayerError(3002), false);
   assert.equal(isRetryableTikTokPlayerError(1001), false);
   assert.equal(isRetryableTikTokPlayerError(2005), false);
@@ -233,7 +259,7 @@ test("TikTok 1001/1002 are fatal; only 3001 is auto-retried once; overload unloa
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 3002 }, true), false);
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 1001, errorType: "INVALID_VIDEO" }, true), false);
 
-  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001 }, false), false);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001 }, false), true);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001, errorType: "PLAYBACK_ERROR" }, true), true);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 1004, errorType: "PLAYER_SDK_ERROR" }, false), true);
   assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 2005, errorType: "TOO_MANY_REQUESTS" }, false), true);

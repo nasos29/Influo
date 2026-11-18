@@ -11,7 +11,10 @@ import {
 } from "@/lib/videoThumbnailExtract";
 import {
   buildTikTokPlayerUrl,
+  cachedTikTokVideoId,
   extractTikTokVideoId,
+  rememberTikTokVideoId,
+  TIKTOK_IFRAME_ALLOW,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
@@ -137,7 +140,7 @@ export default function VideoThumbnail({
     onIframeLoad: onTikTokIframeLoad,
     unplayable: tikTokUnplayable,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
-  const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
+  const { style: tikTokIframeScale } = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
 
   useEffect(() => {
     let cancelled = false;
@@ -414,12 +417,13 @@ export default function VideoThumbnail({
     if (!isTikTok || embedSrc || nativeVideoUrl) return;
     void (async () => {
       try {
-        let videoId = extractTikTokVideoId(url);
+        let videoId = cachedTikTokVideoId(url);
         if (!videoId) {
           const res = await fetch(`/api/video-embed?url=${encodeURIComponent(url)}`);
           if (res.ok) {
             const data = (await res.json()) as { embed_url?: string };
             if (data.embed_url) videoId = extractTikTokVideoId(String(data.embed_url));
+            if (videoId) rememberTikTokVideoId(url, videoId);
           }
         }
         if (!videoId) return;
@@ -505,7 +509,7 @@ export default function VideoThumbnail({
           }
           allow={
             isTikTokPlayer
-              ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
+              ? TIKTOK_IFRAME_ALLOW
               : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           }
           allowFullScreen
