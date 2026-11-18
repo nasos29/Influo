@@ -9,12 +9,18 @@ export default function ResponsiveDialog({
   children,
   labelledBy,
   wide = false,
+  size,
+  frame = false,
 }: {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
   labelledBy?: string;
   wide?: boolean;
+  /** md = 28rem, lg = 42rem, wide = 56rem. `wide` still maps to the wide size. */
+  size?: "md" | "lg" | "wide";
+  /** Flex column, no outer scroll — children manage scrolling (sticky footers). */
+  frame?: boolean;
 }) {
   const onCloseRef = useRef(onClose);
   useEffect(() => {
@@ -48,8 +54,16 @@ export default function ResponsiveDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
-        className={`relative max-h-[calc(100dvh-0.5rem)] sm:max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl ${
-          wide ? "sm:max-w-4xl" : "sm:max-w-md"
+        className={`relative w-full rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl ${
+          frame
+            ? "flex max-h-[100dvh] flex-col overflow-hidden sm:max-h-[92vh]"
+            : "max-h-[calc(100dvh-0.5rem)] overflow-y-auto sm:max-h-[92vh]"
+        } ${
+          (size ?? (wide ? "wide" : "md")) === "wide"
+            ? "sm:max-w-4xl"
+            : (size ?? "md") === "lg"
+              ? "sm:max-w-2xl"
+              : "sm:max-w-md"
         }`}
       >
         {children}
