@@ -1,26 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-
-const RELOAD_KEY = "influo-chunk-reload";
-
-function isStaleChunk(message: string): boolean {
-  return /ChunkLoadError|Loading chunk [\w-]+ failed|Failed to fetch dynamically imported module|\/_next\/static\/chunks\//i.test(
-    message
-  );
-}
+import {
+  clearChunkReloadToken,
+  isStaleChunkError,
+  takeChunkReloadToken,
+} from "@/lib/chunkLoadError";
 
 /** One reload after a deploy leaves the browser asking for a chunk that no longer exists. */
 export default function ChunkErrorReload() {
   useEffect(() => {
+    // Successful mount: allow a later deploy in this tab to auto-reload again.
+    clearChunkReloadToken();
+
     const reload = (message: string) => {
-      if (!isStaleChunk(message)) return;
-      try {
-        if (sessionStorage.getItem(RELOAD_KEY)) return;
-        sessionStorage.setItem(RELOAD_KEY, "1");
-      } catch {
-        return;
-      }
+      if (!isStaleChunkError(message)) return;
+      if (!takeChunkReloadToken()) return;
       window.location.reload();
     };
     const onError = (event: ErrorEvent) => {
@@ -28,7 +23,8 @@ export default function ChunkErrorReload() {
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      const message = reason instanceof Error ? `${reason.name} ${reason.message}` : String(reason || "");
+      const message =
+        reason instanceof Error ? `${reason.name} ${reason.message}` : String(reason || "");
       reload(message);
     };
     window.addEventListener("error", onError);
