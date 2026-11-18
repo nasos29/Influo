@@ -524,7 +524,7 @@ export default function SocialEmbedCard({
       <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
         <div
           ref={playerBoxRef}
-          className={`relative w-full bg-slate-100 ${
+          className={`relative w-full overflow-hidden bg-slate-100 ${
             showStaticPhoto || showCarousel ? "cursor-default" : ""
           }`}
           style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
@@ -656,6 +656,11 @@ export default function SocialEmbedCard({
 
               {iframeSrc && (!isTikTokIframe || tikTokBoxMeasured) ? (
                 <>
+                  <div
+                    className={
+                      isTikTokIframe ? "absolute inset-0 overflow-hidden" : "contents"
+                    }
+                  >
                   <iframe
                     ref={
                       portfolioKind === "tiktok" || portfolioKind === "youtube"
@@ -715,6 +720,7 @@ export default function SocialEmbedCard({
                       onClick={onTikTokTapForSound}
                     />
                   ) : null}
+                  </div>
                 </>
               ) : null}
 
