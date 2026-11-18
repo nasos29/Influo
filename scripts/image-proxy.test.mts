@@ -9,6 +9,7 @@ import {
   getLightboxFallbackPhotoUrl,
   getLightboxPhotoUrl,
   getStorageCardUrl,
+  STORAGE_CARD_QUALITY,
 } from "../lib/imageProxy.ts";
 
 const SAMPLE =
@@ -60,6 +61,13 @@ describe("getStorageCardUrl", () => {
     assert.ok(!out?.includes("height="));
     assert.ok(out?.includes("resize=contain"), "width-only must contain — bare width+cover strips the photo");
   });
+
+  it("defaults to quality 75 for cards and thumbs", () => {
+    const out = getStorageCardUrl(SAMPLE, 640);
+    assert.equal(STORAGE_CARD_QUALITY, 75);
+    assert.ok(out?.includes("quality=75"));
+    assert.ok(!out?.includes("quality=50"));
+  });
 });
 
 describe("getCreatorCardPhotoUrl", () => {
@@ -68,6 +76,7 @@ describe("getCreatorCardPhotoUrl", () => {
     assert.ok(out?.includes(`width=${CREATOR_CARD_PHOTO_WIDTH}`));
     assert.ok(!out?.includes("height="));
     assert.ok(out?.includes("resize=contain"));
+    assert.ok(out?.includes("quality=75"));
   });
 });
 

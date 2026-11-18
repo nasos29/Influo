@@ -43,11 +43,9 @@ export default function Avatar({
     );
   }
 
-  // Avatars are ≤128 CSS px almost always — never send through /_next/image.
-  // Always unoptimized; critical when displaySrc is /api/image-proxy?url=…
-  const unoptimized =
-    displaySrc.startsWith("/api/image-proxy") || true;
-
+  // Route through /_next/image so variants land in .next/cache/images
+  // (preserved across deploys). /api/image-proxy query strings are allowed
+  // via images.localPatterns.
   return (
     <div
       className={`relative rounded-full overflow-hidden bg-slate-100 ${className}`}
@@ -60,7 +58,6 @@ export default function Avatar({
         sizes={`${size}px`}
         className="object-cover"
         quality={75}
-        unoptimized={unoptimized}
         priority={priority}
         loading={priority ? undefined : "lazy"}
       />
