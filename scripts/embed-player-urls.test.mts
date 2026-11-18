@@ -195,19 +195,26 @@ test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
   assert.equal(posted.length, 2);
 });
 
-test("tikTokIframeScaleStyle scales narrow boxes to 325px layout width", () => {
-  assert.equal(tikTokIframeScaleStyle(TIKTOK_PLAYER_MIN_IFRAME_WIDTH), undefined);
-  assert.equal(tikTokIframeScaleStyle(0), undefined);
-  const narrow = tikTokIframeScaleStyle(170);
+test("tikTokIframeScaleStyle scales narrow boxes to 325px and fills the cover height", () => {
+  assert.equal(tikTokIframeScaleStyle(TIKTOK_PLAYER_MIN_IFRAME_WIDTH, 400), undefined);
+  assert.equal(tikTokIframeScaleStyle(0, 200), undefined);
+  const boxW = 170;
+  const boxH = 255;
+  const narrow = tikTokIframeScaleStyle(boxW, boxH);
   assert.ok(narrow);
-  assert.match(String(narrow!.transform), /scale\(0\.523/);
-  const invPct = `${(1 / (170 / 325)) * 100}%`;
-  assert.equal(narrow!.width, invPct);
-  assert.equal(narrow!.height, invPct);
+  const scale = boxW / TIKTOK_PLAYER_MIN_IFRAME_WIDTH;
+  assert.equal(narrow!.width, TIKTOK_PLAYER_MIN_IFRAME_WIDTH);
+  assert.equal(narrow!.height, boxH / scale);
   assert.equal(narrow!.transformOrigin, "top left");
-  const typicalColumn = tikTokIframeScaleStyle(160);
+  assert.match(String(narrow!.transform), /scale\(0\.523/);
+  // After CSS scale, the visual size must equal the cover box exactly.
+  assert.equal(Number(narrow!.width) * scale, boxW);
+  assert.equal(Number(narrow!.height) * scale, boxH);
+  const typicalColumn = tikTokIframeScaleStyle(160, 240);
   assert.ok(typicalColumn);
   assert.match(String(typicalColumn!.transform), /scale\(0\.492/);
+  const typicalScale = 160 / TIKTOK_PLAYER_MIN_IFRAME_WIDTH;
+  assert.equal(Number(typicalColumn!.height) * typicalScale, 240);
 });
 
 test("isValidInstagramShortcode and extractInstagramShortcode", () => {

@@ -491,6 +491,11 @@ export default function VideoThumbnail({
         style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
       >
         {(!isTikTokPlayer || tikTokBoxMeasured) ? (
+        <div
+          className={
+            isTikTokPlayer ? "absolute inset-0 overflow-hidden" : "contents"
+          }
+        >
         <iframe
           ref={
             portfolioKind === "tiktok" || portfolioKind === "youtube"
@@ -523,6 +528,7 @@ export default function VideoThumbnail({
             if (isTikTokPlayer) onTikTokIframeLoad();
           }}
         />
+        </div>
         ) : null}
         {showTikTokSoundPrompt && !tikTokUnplayable ? (
           <TikTokSoundPromptButton
