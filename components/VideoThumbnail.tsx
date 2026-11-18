@@ -140,7 +140,11 @@ export default function VideoThumbnail({
     onIframeLoad: onTikTokIframeLoad,
     unplayable: tikTokUnplayable,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
-  const { style: tikTokIframeScale } = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
+  const { style: tikTokIframeScale, measured: tikTokBoxMeasured } = useTikTokIframeScale(
+    isTikTok && !!embedSrc,
+    playerBoxRef,
+    { freeze: isTikTokPlayer }
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -486,6 +490,7 @@ export default function VideoThumbnail({
         className={`relative overflow-hidden bg-slate-100 ${className}`}
         style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
       >
+        {(!isTikTokPlayer || tikTokBoxMeasured) ? (
         <iframe
           ref={
             portfolioKind === "tiktok" || portfolioKind === "youtube"
@@ -518,6 +523,7 @@ export default function VideoThumbnail({
             if (isTikTokPlayer) onTikTokIframeLoad();
           }}
         />
+        ) : null}
         {showTikTokSoundPrompt && !tikTokUnplayable ? (
           <TikTokSoundPromptButton
             label={TIKTOK_SOUND_COPY[uiLang]}
