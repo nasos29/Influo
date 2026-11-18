@@ -3544,7 +3544,9 @@ export default function InfluencerProfile(props: {
         platforms={Object.keys(profile.socials || {})}
         lang={lang}
       />
-      {showHireBar ? <ProfileHireCard variant="bar" {...hireCardProps} /> : null}
+      {showHireBar && activeTab !== "audience" ? (
+        <ProfileHireCard variant="bar" {...hireCardProps} />
+      ) : null}
     </div>
   );
 }

@@ -45,6 +45,7 @@ const ARIA = {
   viewPhotos: { el: "Προβολή άλμπουμ", en: "View album" },
   pause: { el: "Παύση", en: "Pause" },
   resume: { el: "Συνέχεια", en: "Resume" },
+  openOnTikTok: { el: "Άνοιγμα στο TikTok", en: "Open on TikTok" },
 } as const;
 
 function proxyImageList(urls: string[] | null | undefined): string[] {
@@ -135,6 +136,7 @@ export default function VideoThumbnail({
     showSoundPrompt: showTikTokSoundPrompt,
     onTapForSound: onTikTokTapForSound,
     onIframeLoad: onTikTokIframeLoad,
+    unplayable: tikTokUnplayable,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
   const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
 
@@ -494,7 +496,14 @@ export default function VideoThumbnail({
           className={`absolute top-0 left-0 border-0 ${
             isTikTokPlayer && tikTokIframeScale ? "" : "inset-0 h-full w-full"
           }`}
-          style={isTikTokPlayer ? tikTokIframeScale : undefined}
+          style={
+            isTikTokPlayer
+              ? {
+                  ...(tikTokIframeScale || {}),
+                  ...(tikTokIframeScale ? { pointerEvents: "none" as const } : {}),
+                }
+              : undefined
+          }
           allow={
             isTikTokPlayer
               ? "autoplay; encrypted-media; fullscreen; picture-in-picture"
@@ -506,11 +515,23 @@ export default function VideoThumbnail({
             if (isTikTokPlayer) onTikTokIframeLoad();
           }}
         />
-        {showTikTokSoundPrompt ? (
+        {showTikTokSoundPrompt && !tikTokUnplayable ? (
           <TikTokSoundPromptButton
             label={TIKTOK_SOUND_COPY[uiLang]}
             onClick={onTikTokTapForSound}
           />
+        ) : null}
+        {tikTokUnplayable ? (
+          <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="absolute inset-0 z-20 flex items-center justify-center bg-black/55 text-sm font-semibold text-white"
+          >
+            <span className="rounded-full bg-white/95 px-4 py-2 text-slate-900 shadow-lg">
+              {ARIA.openOnTikTok[uiLang]}
+            </span>
+          </a>
         ) : null}
         {portfolioActive ? (
           <button
@@ -520,6 +541,10 @@ export default function VideoThumbnail({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (isTikTokPlayer && showTikTokSoundPrompt) {
+                onTikTokTapForSound();
+                return;
+              }
               toggleMediaPlayback();
             }}
           />

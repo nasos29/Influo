@@ -8,6 +8,7 @@ import {
   isTikTokShortLink,
 } from "../lib/tikTokPlayer.ts";
 import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
+import { isFatalTikTokPlayerError, isRetryableTikTokPlayerError } from "../lib/useTikTokPlayerHost.ts";
 import {
   extractInstagramShortcode,
   instagramThumbnailProxySrc,
@@ -139,3 +140,14 @@ test("isValidInstagramShortcode and extractInstagramShortcode", () => {
     "/api/thumbnail-proxy?ig=AbC123xyz"
   );
 });
+
+test("TikTok 1001 INVALID_VIDEO is a fatal embed error, 3001/3002 are retryable", () => {
+  assert.equal(isFatalTikTokPlayerError({ errorCode: 1001, errorType: "INVALID_VIDEO" }), true);
+  assert.equal(isFatalTikTokPlayerError({ errorCode: 1001 }), true);
+  assert.equal(isFatalTikTokPlayerError(1001), true);
+  assert.equal(isFatalTikTokPlayerError({ errorCode: 3001 }), false);
+  assert.equal(isRetryableTikTokPlayerError(3001), true);
+  assert.equal(isRetryableTikTokPlayerError(3002), true);
+  assert.equal(isRetryableTikTokPlayerError(1001), false);
+});
+
