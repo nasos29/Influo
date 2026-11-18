@@ -51,6 +51,7 @@ import {
 } from '@/lib/deliverableChatTip';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import Link from 'next/link';
+import { ReportUserButton } from '@/components/ReportUserModal';
 
 const EmojiPicker = dynamic(() => import('@/components/EmojiPicker'), { ssr: false });
 
@@ -2395,6 +2396,27 @@ export default function Messaging({
                             {txt.cancelAgreement}
                           </button>
                         )}
+                        {selectedConversation &&
+                        !isAdminThread &&
+                        (mode === 'brand'
+                          ? currentConversation?.influencer_id
+                          : currentConversation?.brand_email) ? (
+                          <ReportUserButton
+                            lang={lang === 'en' ? 'en' : 'el'}
+                            variant="menu"
+                            targetType={mode === 'influencer' ? 'brand' : 'creator'}
+                            targetId={
+                              mode === 'brand' ? String(currentConversation?.influencer_id || '') : undefined
+                            }
+                            brandEmail={
+                              mode === 'influencer'
+                                ? String(currentConversation?.brand_email || '')
+                                : undefined
+                            }
+                            context="chat"
+                            conversationId={selectedConversation}
+                          />
+                        ) : null}
                         {!conversationClosed && (
                           <button
                             type="button"
