@@ -58,6 +58,8 @@ const TOC_GROUPS: DocsTocGroup[] = [
       { id: "badges", label: { el: "Badges", en: "Badges" } },
       { id: "agreement", label: { el: "Συμφωνία", en: "Agreement" } },
       { id: "messages", label: { el: "Μηνύματα", en: "Messages" } },
+      { id: "notifications", label: { el: "Ειδοποιήσεις", en: "Notifications" } },
+      { id: "report", label: { el: "Αναφορά χρήστη", en: "Report a user" } },
       { id: "reviews", label: { el: "Reviews", en: "Reviews" } },
       { id: "tips", label: { el: "Συμβουλές", en: "Tips" } },
       { id: "faq", label: { el: "FAQ", en: "FAQ" } },
@@ -175,6 +177,11 @@ const icons = {
   faq: (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
       <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  ),
+  report: (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 2H21l-3 6 3 6h-8.5l-1-2H5a2 2 0 00-2 2z" />
     </svg>
   ),
   support: (
@@ -436,6 +443,36 @@ const FAQ_ITEMS: FaqEntry[] = [
     a: {
       el: "Μετά την αποδοχή προσφοράς, εμφανίζονται όροι που πρέπει να αποδεχτούν και οι δύο πλευρές. Μόνο όταν γίνει αμοιβαία αποδοχή η συνεργασία καταγράφεται επίσημα (π.χ. Past Brands). Προστατεύει brand και influencer με κοινούς κανόνες.",
       en: "After a proposal is accepted, terms appear that both sides must accept. Only after mutual acceptance is the collaboration recorded officially (e.g. Past Brands). It protects both parties with shared rules.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς ακυρώνω μια συμφωνία;",
+      en: "How do I cancel an agreement?",
+    },
+    a: {
+      el: "Όσο η δουλειά δεν έχει ολοκληρωθεί, επιχείρηση ή δημιουργός πατά «Ακύρωση συμφωνίας» (στις Προσφορές, στις Καμπάνιες ή στη συνομιλία). Ο λόγος είναι υποχρεωτικός (τουλάχιστον 10 χαρακτήρες) και κοινοποιείται στην άλλη πλευρά, με μήνυμα και email. Αν την ακυρώσει η ομάδα Influo, φαίνεται ως ακύρωση από τη Διαχείριση. Μια εκκρεμή πρόταση την αποσύρει μόνο το brand με «Απόσυρση πρότασης», χωρίς υποχρεωτικό λόγο.",
+      en: "While the work is not yet finished, the brand or creator uses Cancel agreement (in Proposals, Campaigns, or the conversation). A reason is required (at least 10 characters) and is shared with the other party, in the thread and by email. If the Influo team cancels it, it is shown as cancelled by Admin. A pending proposal can be withdrawn only by the brand with Withdraw proposal, without a required reason.",
+    },
+  },
+  {
+    q: {
+      el: "Πώς κάνω αναφορά χρήστη;",
+      en: "How do I report a user?",
+    },
+    a: {
+      el: "Συνδεθείτε και πατήστε την κόκκινη σημαία στο προφίλ ενός creator (δίπλα στην κοινή χρήση), ή «Αναφορά» στο μενού της συνομιλίας — εκεί μπορείτε να αναφέρετε creator ή επιχείρηση. Διαλέγετε λόγο και, αν βάλετε «Άλλο», γράφετε υποχρεωτικά σχόλιο. Η αναφορά πηγαίνει στην ομάδα Influo· ο άλλος χρήστης δεν ειδοποιείται και το προφίλ δεν κρύβεται αυτόματα. Δεν μπορείτε να αναφέρετε τον εαυτό σας, και όσο μια αναφορά είναι ανοιχτή δεν υποβάλλετε δεύτερη για το ίδιο προφίλ.",
+      en: "Sign in and tap the red flag on a creator’s profile (next to Share), or Report in the conversation menu — there you can report a creator or a business. Choose a reason; if you pick Other, a comment is required. The report goes to the Influo team; the other user is not notified and the profile is not hidden automatically. You cannot report yourself, and while a report is still open you cannot submit another one for the same profile.",
+    },
+  },
+  {
+    q: {
+      el: "Πού αλλάζω τις ειδοποιήσεις μου;",
+      en: "Where do I change my notifications?",
+    },
+    a: {
+      el: "Στο Dashboard, στην καρτέλα «Ειδοποιήσεις» (και στη σελίδα /notifications/preferences). Μπορείτε να κλείσετε τα email για ταιριαστές καμπάνιες/προτάσεις, τις υπενθυμίσεις και τις ενημερώσεις Influo, καθώς και ορισμένες ειδοποιήσεις εντός πλατφόρμας. Τα απαραίτητα για τις συνεργασίες (μηνύματα, νέα πρόταση, αποδοχή συμφωνίας, παράδοση) μένουν πάντα ενεργά. Οι ανακοινώσεις στο καμπανάκι εμφανίζονται πάντα.",
+      en: "In the Dashboard, open the Notifications tab (or /notifications/preferences). You can turn off emails for matching campaigns/proposals, reminders, and Influo updates, plus some in-site alerts. Essential collaboration notices (messages, new proposals, agreement acceptance, deliverables) stay on. Bell announcements always appear.",
     },
   },
 ];
@@ -948,17 +985,67 @@ export default function DocsPage() {
               }
             />
 
-            <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-              <h4 className="font-bold text-green-900 mb-3">
-                {lang === 'el' ? 'Κατάσταση Προσφοράς' : 'Proposal Status'}
+            <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
+              {lang === 'el' ? 'Η ροή βήμα-βήμα' : 'The flow, step by step'}
+            </h3>
+            <NumberedSteps
+              steps={
+                lang === 'el'
+                  ? [
+                      'Στέλνετε την πρόταση από το προφίλ ή με πρόσκληση σε καμπάνια.',
+                      'Ο creator τη βλέπει στο Dashboard → Προσφορές και μπορεί να την αποδεχτεί, να την απορρίψει, να κάνει αντιπροσφορά ή να στείλει μήνυμα.',
+                      'Όσο είναι εκκρεμής και δεν υπάρχει ανοιχτή αντιπροσφορά, μπορείτε να την αποσύρετε με «Απόσυρση πρότασης». Ο δημιουργός ενημερώνεται στην πλατφόρμα· δεν ζητείται λόγος.',
+                      'Μετά την αποδοχή, και οι δύο αποδέχεστε τη συμφωνία συνεργασίας.',
+                      'Ο creator επικολλά το παραδοτέο στο σχετικό πεδίο. Εσείς εγκρίνετε ή ζητάτε αλλαγές· μπορεί να επανυποβάλει.',
+                      'Η συνεργασία ολοκληρώνεται όταν εγκρίνετε το δημοσιευμένο link, ή όταν επιβεβαιωθεί η παρουσία σε εκδήλωση (αν χρειαστεί, με βοήθεια της ομάδας Influo).',
+                    ]
+                  : [
+                      'You send the proposal from the profile or by inviting the creator to a campaign.',
+                      'The creator sees it in Dashboard → Proposals and can accept, reject, counter-propose, or send a message.',
+                      'While it is still pending and no counter-proposal is open, you can withdraw it with Withdraw proposal. The creator is notified in-app; no reason is required.',
+                      'After acceptance, both sides accept the collaboration agreement.',
+                      'The creator pastes the deliverable in the field. You approve or request changes; they can resubmit.',
+                      'The collaboration is completed when you approve the published link, or when event attendance is confirmed (the Influo team may help confirm an event).',
+                    ]
+              }
+            />
+
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-5 mb-6">
+              <h4 className="font-semibold text-slate-900 mb-3">
+                {lang === 'el' ? 'Τι δείχνουν οι καταστάσεις' : 'What the statuses mean'}
               </h4>
-              <ul className="space-y-2 text-slate-700">
-                <li><strong>Pending:</strong> {lang === 'el' ? 'Περιμένει απάντηση από τον influencer' : 'Waiting for influencer response'}</li>
-                <li><strong>Accepted:</strong> {lang === 'el' ? 'Ο influencer αποδέχθηκε' : 'Influencer accepted'}</li>
-                <li><strong>Counter-proposed:</strong> {lang === 'el' ? 'Ο influencer έκανε αντιπροσφορά' : 'Influencer made counter-proposal'}</li>
-                <li><strong>Rejected:</strong> {lang === 'el' ? 'Ο influencer απέρριψε' : 'Influencer rejected'}</li>
-                <li><strong>Completed:</strong> {lang === 'el' ? 'Η συνεργασία ολοκληρώθηκε' : 'Collaboration completed'}</li>
+              <ul className="space-y-3 list-none pl-0 mb-3">
+                <StatusPill
+                  label={lang === 'el' ? 'Εκκρεμεί / Αναμονή απάντησης / Πρόταση' : 'Pending / Awaiting reply / Proposal'}
+                  tone="bg-amber-100 text-amber-900"
+                  desc={lang === 'el' ? 'Η πρόταση περιμένει απάντηση. Στο dashboard, το brand βλέπει «Αναμονή απάντησης» και ο creator «Πρόταση».' : 'The proposal is waiting for a reply. On the dashboard, the brand sees “Awaiting reply” and the creator sees “Proposal”.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Αναμονή συμφωνίας / Ξεκίνησε συνεργασία' : 'Awaiting agreement / Collaboration started'}
+                  tone="bg-amber-100 text-amber-800"
+                  desc={lang === 'el' ? 'Η προσφορά έγινε αποδεκτή· εκκρεμεί η αποδοχή των όρων και από τις δύο πλευρές. Στο dashboard εμφανίζεται «Ξεκίνησε συνεργασία».' : 'The offer was accepted; both sides still need to accept the terms. The dashboard shows “Collaboration started”.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Σε εξέλιξη / Αναμονή έγκρισης' : 'In progress / Awaiting approval'}
+                  tone="bg-blue-100 text-blue-800"
+                  desc={lang === 'el' ? 'Η συμφωνία κλείδωσε και τρέχει η δουλειά, ή έχει υποβληθεί link και περιμένει έγκριση. Αν ζητήσετε αλλαγές, η συνεργασία μένει σε εξέλιξη μέχρι τη νέα υποβολή.' : 'The agreement is locked and work is underway, or a link was submitted and is waiting for approval. If you request changes, it stays in progress until a resubmission.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Ολοκληρώθηκε' : 'Completed'}
+                  tone="bg-emerald-100 text-emerald-800"
+                  desc={lang === 'el' ? 'Η παράδοση εγκρίθηκε ή επιβεβαιώθηκε.' : 'Delivery was approved or confirmed.'}
+                />
+                <StatusPill
+                  label={lang === 'el' ? 'Απορρίφθηκε / Ακυρώθηκε' : 'Rejected / Cancelled'}
+                  tone="bg-rose-100 text-rose-800"
+                  desc={lang === 'el' ? 'Απορρίφθηκε από τον creator (ή την αντιπροσφορά το brand), αποσύρθηκε όσο ήταν εκκρεμής, ή ακυρώθηκε η συμφωνία.' : 'Rejected by the creator (or the counter by the brand), withdrawn while pending, or the agreement was cancelled.'}
+                />
               </ul>
+              <p className="text-sm text-slate-600 mb-0">
+                {lang === 'el'
+                  ? 'Οι ενεργές συμφωνίες φαίνονται και ως κάρτες συνεργασίας στο dashboard, ώστε να παρακολουθείτε παράδοση και έγκριση χωρίς να ψάχνετε τη λίστα.'
+                  : 'Active agreements also appear as collaboration tiles on the dashboard, so you can follow delivery and approval without hunting through the list.'}
+              </p>
             </div>
           </section>
 
@@ -1021,6 +1108,11 @@ export default function DocsPage() {
                   desc={lang === 'el' ? 'Θετικό ενδιαφέρον για περαιτέρω συζήτηση ή συνεργασία.' : 'Positive interest for further discussion or collaboration.'}
                 />
                 <StatusPill
+                  label={lang === 'el' ? 'Αποδεκτή' : 'Accepted'}
+                  tone="bg-blue-100 text-blue-800"
+                  desc={lang === 'el' ? 'Η αίτηση έγινε αποδεκτή. Ανοίγει συνομιλία και συμφωνία, και πιάνεται μία θέση (αν υπάρχει όριο).' : 'The application was accepted. A conversation and agreement open, and one spot is taken (if there is a limit).'}
+                />
+                <StatusPill
                   label={lang === 'el' ? 'Απόρριψη' : 'Rejected'}
                   tone="bg-rose-100 text-rose-800"
                   desc={lang === 'el' ? 'Η αίτηση δεν προχωρά για αυτή την καμπάνια.' : 'The application will not proceed for this campaign.'}
@@ -1073,6 +1165,11 @@ export default function DocsPage() {
                   : 'Paste the published reel / TikTok / post link in the collaboration or campaign’s Deliverable field. That’s where the brand officially approves delivery — don’t rely only on WeTransfer or chat links. Once approved, it may appear in Recent collaborations.'}
               </p>
             </div>
+            <p className="text-slate-700 mb-6 max-w-prose">
+              {lang === 'el'
+                ? 'Αν η αίτηση έχει γίνει «Αποδεκτή» και η δουλειά δεν έχει ολοκληρωθεί, και οι δύο πλευρές μπορούν να πατήσουν «Ακύρωση συμφωνίας». Ισχύουν τα ίδια με τις προσφορές: υποχρεωτικός λόγος που κοινοποιείται στην άλλη πλευρά.'
+                : 'Once an application is Accepted and the work is not finished, either side can use Cancel agreement. The same rules as proposals apply: a required reason, shared with the other party.'}
+            </p>
 
             <h3 className="text-lg font-semibold text-slate-900 mt-8 mb-3">
               {lang === 'el' ? 'Δημιουργία καμπάνιας' : 'Creating a campaign'}
@@ -1485,8 +1582,47 @@ export default function DocsPage() {
               </h4>
               <p className="text-slate-700 mb-0">
                 {lang === 'el'
-                  ? 'Όταν δημοσιεύσεις το περιεχόμενο, επικόλλησε το δημόσιο link στο πεδίο «Παραδοτέο» (Dashboard → Καμπάνιες ή Προσφορές). Το brand εγκρίνει εκεί· αν συμφωνήσετε, η συνεργασία μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες». Links στο chat ή WeTransfer δεν αντικαθιστούν το πεδίο Παραδοτέο.'
-                  : 'When you publish, paste the public link in the Deliverable field (Dashboard → Campaigns or Proposals). The brand approves there; if you both agree, the collaboration may appear in Recent collaborations. Chat or WeTransfer links do not replace the Deliverable field.'}
+                  ? 'Όταν δημοσιεύσεις το περιεχόμενο, επικόλλησε το δημόσιο link στο πεδίο «Παραδοτέο» (Dashboard → Καμπάνιες ή Προσφορές). Το brand εγκρίνει ή ζητά αλλαγές εκεί· μπορείς να επανυποβάλεις. Για εκδήλωση, η ολοκλήρωση γίνεται με επιβεβαίωση (αν χρειαστεί, από την ομάδα Influo). Links στο chat ή WeTransfer δεν αντικαθιστούν το πεδίο Παραδοτέο.'
+                  : 'When you publish, paste the public link in the Deliverable field (Dashboard → Campaigns or Proposals). The brand approves or requests changes there; you can resubmit. For an event, completion happens with a confirmation (the Influo team may confirm if needed). Chat or WeTransfer links do not replace the Deliverable field.'}
+              </p>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6 mt-6" id="cancel">
+              <h3 className="font-bold text-red-900 mt-0 mb-3">
+                {lang === 'el' ? 'Ακύρωση συμφωνίας' : 'Cancel agreement'}
+              </h3>
+              <ul className="space-y-2 text-slate-700 text-sm list-disc list-inside mb-0">
+                <li>
+                  {lang === 'el'
+                    ? 'Διαθέσιμη σε επιχείρηση και δημιουργό όσο η συμφωνία έχει ξεκινήσει και η παράδοση δεν έχει ολοκληρωθεί. Το κουμπί «Ακύρωση συμφωνίας» είναι στις Προσφορές, στις Καμπάνιες και στη συνομιλία.'
+                    : 'Available to the brand and the creator once the agreement has started and delivery is not finished. The Cancel agreement button is in Proposals, Campaigns, and the conversation.'}
+                </li>
+                <li>
+                  {lang === 'el'
+                    ? 'Ο λόγος είναι υποχρεωτικός (τουλάχιστον 10 χαρακτήρες) και κοινοποιείται στην άλλη πλευρά, στο νήμα και με email.'
+                    : 'A reason is required (at least 10 characters) and is shared with the other party, in the thread and by email.'}
+                </li>
+                <li>
+                  {lang === 'el'
+                    ? 'Αν την ακυρώσει η ομάδα Influo, η άλλη πλευρά βλέπει ότι την ακύρωσε η Διαχείριση («Η ομάδα Influo ακύρωσε τη συμφωνία»).'
+                    : 'If the Influo team cancels it, the other party sees that Admin cancelled it (“The Influo team cancelled the agreement”).'}
+                </li>
+                <li>
+                  {lang === 'el'
+                    ? 'Μετά την ολοκλήρωση της παράδοσης η ακύρωση δεν είναι διαθέσιμη. Μια πρόταση που ακόμη εκκρεμεί την αποσύρει μόνο το brand με «Απόσυρση πρότασης», χωρίς υποχρεωτικό λόγο.'
+                    : 'After delivery is completed, cancellation is no longer available. A still-pending proposal can be withdrawn only by the brand with Withdraw proposal, without a required reason.'}
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mt-6" id="recent-collaborations">
+              <h3 className="font-bold text-slate-900 mt-0 mb-3">
+                {lang === 'el' ? 'Πρόσφατες συνεργασίες' : 'Recent collaborations'}
+              </h3>
+              <p className="text-slate-700 text-sm mb-0">
+                {lang === 'el'
+                  ? 'Μια ολοκληρωμένη συνεργασία μπορεί να εμφανιστεί δημόσια στις «Πρόσφατες συνεργασίες» όταν υπάρχει έγκυρο δημόσιο video ή post link και έχουν συναινέσει και οι δύο πλευρές. Η συναίνεση είναι προεπιλεγμένη στην παράδοση ή την έγκριση· μπορείτε να την απενεργοποιήσετε εκεί. Αργότερα μπορείτε να την αποσύρετε από τον σύνδεσμο «Δεν θέλω δημόσια προβολή» στο σχετικό email.'
+                  : 'A completed collaboration may appear publicly in Recent collaborations when there is a valid public video or post link and both sides have consented. Consent is selected by default at delivery or approval; you can turn it off there. Later you can withdraw it with the “I don’t want a public listing” link in the related email.'}
               </p>
             </div>
           </section>
@@ -1518,6 +1654,84 @@ export default function DocsPage() {
                 <li>{lang === 'el' ? 'Proposal linking: Μηνύματα συνδέονται με προσφορές όπου ισχύει' : 'Proposal linking: Messages linked to proposals where relevant'}</li>
               </ul>
             </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mt-6" id="notifications">
+              <h3 className="font-bold text-slate-900 mt-0 mb-3">
+                {lang === 'el' ? 'Προτιμήσεις ειδοποιήσεων' : 'Notification preferences'}
+              </h3>
+              <p className="text-slate-700 text-sm mb-0">
+                {lang === 'el'
+                  ? 'Στο Dashboard, ανοίξτε την καρτέλα «Ειδοποιήσεις» (ή τη σελίδα /notifications/preferences). Μπορείτε να κλείσετε τα email για ταιριαστές καμπάνιες ή προτάσεις, τις υπενθυμίσεις και τις ενημερώσεις Influo, καθώς και ορισμένες ειδοποιήσεις εντός πλατφόρμας. Τα απαραίτητα για τις συνεργασίες — νέα μηνύματα, νέα πρόταση, αποδοχή συμφωνίας και παράδοση — μένουν πάντα ενεργά. Οι ανακοινώσεις στο καμπανάκι εμφανίζονται πάντα.'
+                  : 'In the Dashboard, open the Notifications tab (or /notifications/preferences). You can turn off emails for matching campaigns or proposals, reminders, and Influo updates, plus some in-site alerts. Essential collaboration notices — new messages, new proposals, agreement acceptance, and deliverables — stay on. Bell announcements always appear.'}
+              </p>
+            </div>
+          </section>
+
+
+          <section className="mb-12 border-t border-slate-200 pt-12">
+            <SectionHeading id="report" icon={icons.report}>
+              {lang === 'el' ? 'Αναφορά χρήστη' : 'Report a user'}
+            </SectionHeading>
+            <p className="text-slate-600 mb-6 max-w-prose">
+              {lang === 'el'
+                ? 'Αν κάτι δεν πάει καλά με ένα προφίλ ή μια συνομιλία, μπορείτε να το αναφέρετε διακριτικά στην ομάδα Influo.'
+                : 'If something is wrong with a profile or a conversation, you can report it discreetly to the Influo team.'}
+            </p>
+            <div className="grid md:grid-cols-2 gap-4 my-6">
+              <div className="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Πού τη βρίσκω' : 'Where to find it'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-2 list-disc list-inside mb-0">
+                  <li>
+                    {lang === 'el'
+                      ? 'Στο προφίλ creator, δίπλα στην κοινή χρήση, εμφανίζεται μια διακριτική κόκκινη σημαία όταν είστε συνδεδεμένοι και δεν είναι το δικό σας προφίλ.'
+                      : 'On a creator profile, next to Share, a discreet red flag appears when you are signed in and it is not your own profile.'}
+                  </li>
+                  <li>
+                    {lang === 'el'
+                      ? 'Στη συνομιλία, από το μενού επιλέγετε «Αναφορά». Από εκεί μια επιχείρηση αναφέρει creator και ο creator αναφέρει επιχείρηση.'
+                      : 'In a conversation, choose Report from the menu. From there a brand reports a creator, and a creator reports a brand.'}
+                  </li>
+                </ul>
+              </div>
+              <div className="border border-slate-200 rounded-xl p-5 bg-white">
+                <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                  {lang === 'el' ? 'Λόγοι αναφοράς' : 'Report reasons'}
+                </h3>
+                <ul className="text-sm text-slate-700 space-y-1 list-disc list-inside mb-0">
+                  <li>{lang === 'el' ? 'Ψεύτικο προφίλ / πλαστοπροσωπία' : 'Fake profile / impersonation'}</li>
+                  <li>{lang === 'el' ? 'Ψεύτικοι followers ή στατιστικά' : 'Fake followers or stats'}</li>
+                  <li>{lang === 'el' ? 'Ανάρμοστο ή προσβλητικό περιεχόμενο' : 'Inappropriate or offensive content'}</li>
+                  <li>{lang === 'el' ? 'Spam ή απάτη' : 'Spam or fraud'}</li>
+                  <li>{lang === 'el' ? 'Παρενόχληση ή ενοχλητικά μηνύματα' : 'Harassment or unsolicited messages'}</li>
+                  <li>{lang === 'el' ? 'Δεν τήρησε τη συνεργασία' : 'Did not honor the collaboration'}</li>
+                  <li>{lang === 'el' ? 'Άλλο (με υποχρεωτικό σχόλιο)' : 'Other (a comment is required)'}</li>
+                </ul>
+              </div>
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+              <h4 className="font-semibold text-amber-900 mb-2">
+                {lang === 'el' ? 'Τι γίνεται μετά' : 'What happens next'}
+              </h4>
+              <ul className="space-y-2 text-slate-700 text-sm list-disc list-inside mb-0">
+                <li>
+                  {lang === 'el'
+                    ? 'Η αναφορά εξετάζεται από την ομάδα μας, στην καρτέλα «Αναφορές». Ο χρήστης που αναφέρατε δεν ενημερώνεται.'
+                    : 'Our team reviews the report in the Reports tab. The person you reported is not notified.'}
+                </li>
+                <li>
+                  {lang === 'el'
+                    ? 'Το προφίλ δεν κρύβεται αυτόματα. Χρειάζεστε λογαριασμό για να υποβάλετε αναφορά και δεν μπορείτε να αναφέρετε τον εαυτό σας.'
+                    : 'The profile is not hidden automatically. You need an account to submit a report, and you cannot report yourself.'}
+                </li>
+                <li>
+                  {lang === 'el'
+                    ? 'Το σχόλιο είναι προαιρετικό, εκτός αν επιλέξετε «Άλλο». Όσο μια αναφορά είναι ακόμη ανοιχτή, δεν μπορείτε να υποβάλετε δεύτερη για το ίδιο προφίλ.'
+                    : 'The comment is optional, unless you choose Other. While a report is still open, you cannot submit another one for the same profile.'}
+                </li>
+              </ul>
+            </div>
           </section>
 
           {/* Reviews Section */}
@@ -1533,13 +1747,13 @@ export default function DocsPage() {
                 </h3>
                 <p className="text-slate-700 text-sm mb-3">
                   {lang === 'el'
-                    ? 'Αξιολογεί μόνο brand που συνεργάστηκε μέσα από το Influo (συμφωνία συνεργασίας ή εγκεκριμένη παράδοση σε καμπάνια).'
-                    : 'Only a brand that collaborated through Influo can review (collaboration agreement or approved campaign deliverable).'}
+                    ? 'Αξιολογεί brand που συνεργάστηκε μέσα από το Influo (συμφωνία συνεργασίας ή εγκεκριμένη παράδοση σε καμπάνια), μετά την ολοκλήρωση.'
+                    : 'A brand that collaborated through Influo can review (collaboration agreement or approved campaign deliverable), after completion.'}
                 </p>
                 <ol className="list-decimal list-inside space-y-2 text-slate-700 text-sm">
-                  <li>{lang === 'el' ? 'Συνδεθείτε ως brand και ανοίξτε το profile του influencer' : 'Sign in as a brand and open the influencer profile'}</li>
-                  <li>{lang === 'el' ? 'Tab "Reviews" → "Αφήστε Review"' : 'Tab "Reviews" → "Leave Review"'}</li>
-                  <li>{lang === 'el' ? 'Συμπληρώστε: Rating (1-5), Review Text, Project Type' : 'Fill: Rating (1-5), Review Text, Project Type'}</li>
+                  <li>{lang === 'el' ? 'Συνδεθείτε ως brand και ανοίξτε το προφίλ του creator, καρτέλα Reviews — ή τον σύνδεσμο από το email υπενθύμισης.' : 'Sign in as a brand and open the creator profile, Reviews tab — or the link from the reminder email.'}</li>
+                  <li>{lang === 'el' ? 'Μετά την ολοκλήρωση μπορεί να εμφανιστεί και πλαίσιο υπενθύμισης στο dashboard.' : 'After completion, a reminder panel may also appear on the dashboard.'}</li>
+                  <li>{lang === 'el' ? 'Συμπληρώστε βαθμολογία (1-5) και κείμενο.' : 'Add a rating (1-5) and a written review.'}</li>
                 </ol>
               </div>
 
@@ -1548,8 +1762,8 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Για Influencers' : 'For Influencers'}
                 </h3>
                 <ul className="space-y-2 text-slate-700 text-sm list-disc list-inside">
-                  <li>{lang === 'el' ? 'Δείτε τα reviews σας στο profile page' : 'View your reviews on profile page'}</li>
-                  <li>{lang === 'el' ? 'Average Rating εμφανίζεται στα statistics' : 'Average Rating shown in statistics'}</li>
+                  <li>{lang === 'el' ? 'Αξιολογείτε την επιχείρηση από το Dashboard → Προσφορές, μετά την ολοκλήρωση.' : 'You review the brand from Dashboard → Proposals, after completion.'}</li>
+                  <li>{lang === 'el' ? 'Τα reviews σας φαίνονται στη σελίδα προφίλ και ο μέσος όρος στα στατιστικά.' : 'Your reviews appear on the profile page and the average is shown in statistics.'}</li>
                   <li>{lang === 'el' ? 'Καλά reviews = περισσότερες προσφορές' : 'Good reviews = more proposals'}</li>
                 </ul>
               </div>

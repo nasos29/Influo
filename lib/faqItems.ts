@@ -199,8 +199,8 @@ export const faqs: FAQItem[] = [
       en: "What happens after accepting a proposal?"
     },
     answer: {
-      el: "Εμφανίζεται modal με τους όρους χρήσης. Και οι δύο πλευρές πρέπει να αποδεχτούν. Μετά, το brand προστίθεται στο Past Brands του influencer.",
-      en: "A modal appears with terms of service. Both parties must accept. Then, the brand is added to the influencer's Past Brands."
+      el: "Εμφανίζονται όροι που πρέπει να αποδεχτούν και οι δύο πλευρές. Μόνο τότε η συνεργασία καταγράφεται επίσημα (π.χ. Past Brands). Ο δημιουργός παραδίδει στο πεδίο «Παραδοτέο»· το brand εγκρίνει ή ζητά αλλαγές. Η συνεργασία ολοκληρώνεται όταν εγκριθεί το δημοσιευμένο link ή επιβεβαιωθεί η εκδήλωση.",
+      en: "Terms appear that both sides must accept. Only then is the collaboration recorded officially (e.g. Past Brands). The creator submits work in the Deliverable field; the brand approves or requests changes. The collaboration is completed when the published link is approved or the event is confirmed."
     }
   },
   {
@@ -210,8 +210,19 @@ export const faqs: FAQItem[] = [
       en: "Can I cancel a collaboration?"
     },
     answer: {
-      el: "Ναι, αλλά συνιστούμε να συζητήσετε πρώτα με την άλλη πλευρά. Οι ακυρώσεις μπορεί να επηρεάσουν το completion rate.",
-      en: "Yes, but we recommend discussing first with the other party. Cancellations may affect completion rate."
+      el: "Όσο η παράδοση δεν έχει ολοκληρωθεί, επιχείρηση ή δημιουργός πατά «Ακύρωση συμφωνίας» (στις Προσφορές, στις Καμπάνιες ή στη συνομιλία). Ο λόγος είναι υποχρεωτικός (τουλάχιστον 10 χαρακτήρες) και κοινοποιείται στην άλλη πλευρά. Αν την ακυρώσει η ομάδα Influo, φαίνεται ως ακύρωση από τη Διαχείριση. Μια εκκρεμή πρόταση την αποσύρει μόνο το brand με «Απόσυρση πρότασης», χωρίς υποχρεωτικό λόγο.",
+      en: "While delivery is not finished, the brand or creator uses Cancel agreement (in Proposals, Campaigns, or the conversation). A reason is required (at least 10 characters) and is shared with the other party. If the Influo team cancels it, it is shown as cancelled by Admin. A pending proposal can be withdrawn only by the brand with Withdraw proposal, without a required reason."
+    }
+  },
+  {
+    category: { el: "Συνεργασίες", en: "Collaborations" },
+    question: {
+      el: "Πώς κάνω αναφορά χρήστη;",
+      en: "How do I report a user?"
+    },
+    answer: {
+      el: "Συνδεθείτε και πατήστε την κόκκινη σημαία στο προφίλ ενός creator (δίπλα στην κοινή χρήση), ή «Αναφορά» στο μενού της συνομιλίας — εκεί μπορείτε να αναφέρετε creator ή επιχείρηση. Διαλέγετε λόγο και, αν βάλετε «Άλλο», γράφετε υποχρεωτικά σχόλιο. Η αναφορά πηγαίνει στην ομάδα Influo· ο άλλος χρήστης δεν ειδοποιείται και το προφίλ δεν κρύβεται αυτόματα.",
+      en: "Sign in and tap the red flag on a creator’s profile (next to Share), or Report in the conversation menu — there you can report a creator or a business. Choose a reason; if you pick Other, a comment is required. The report goes to the Influo team; the other user is not notified and the profile is not hidden automatically."
     }
   }
 ];
