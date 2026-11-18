@@ -56,7 +56,12 @@ import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import DealCancelDialog from '@/components/DealCancelDialog';
 import { canCancelDeal } from '@/lib/dealCancelEligibility';
-import { deriveProposalDisplayStatus } from '@/lib/proposalDisplayStatus';
+import {
+  deriveProposalDisplayStatus,
+  deriveProposalDisplayStatusKey,
+  isActiveCampaignDealRow,
+  isActiveCollaborationDisplayKey,
+} from '@/lib/proposalDisplayStatus';
 import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
@@ -1304,7 +1309,16 @@ interface Proposal {
   delivery_submitted_at?: string | null;
   delivery_confirmed_at?: string | null;
   auto_completed_at?: string | null;
+  deliverable_status?: string | null;
+  deliverable_review_note?: string | null;
 }
+
+type CampaignDealCountRow = {
+  status: string;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  deliverable_status?: string | null;
+};
 
 function tabBadgeText(count: number): string {
   if (count > 99) return "99+";
@@ -1616,6 +1630,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [profileViewsAttempt, setProfileViewsAttempt] = useState(0);
     const [openCampaignIds, setOpenCampaignIds] = useState<string[]>([]);
     const [campaignsLoaded, setCampaignsLoaded] = useState(false);
+    const [campaignDealRows, setCampaignDealRows] = useState<CampaignDealCountRow[]>([]);
     const [changesRequestedCount, setChangesRequestedCount] = useState(0);
     const [unseenCampaignCount, setUnseenCampaignCount] = useState(0);
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
@@ -1744,9 +1759,17 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 .select('id', { count: 'exact', head: true })
                 .eq('influencer_id', profile.id)
                 .eq('deliverable_status', 'changes_requested');
+            const { data: dealRows, error: dealsErr } = await supabase
+                .from('campaign_applications')
+                .select('status, delivery_confirmed_at, auto_completed_at, deliverable_status')
+                .eq('influencer_id', profile.id);
             if (changeErr) {
                 console.error('Error loading deliverable changes for badge', changeErr);
-                return;
+            }
+            if (dealsErr) {
+                console.error('Error loading campaign deals for overview', dealsErr);
+            } else {
+                setCampaignDealRows((dealRows || []) as CampaignDealCountRow[]);
             }
             setOpenCampaignIds((openRows || []).map((row) => String(row.id)));
             setChangesRequestedCount(count ?? 0);
@@ -2052,7 +2075,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         }
     };
 
-    const activeCollaborations = proposals.filter((item) => item.status === 'accepted' || item.status === 'completed').length;
+    const activeCollaborations =
+        proposals.filter((item) =>
+            isActiveCollaborationDisplayKey(deriveProposalDisplayStatusKey(item))
+        ).length + campaignDealRows.filter(isActiveCampaignDealRow).length;
     const ratingValue = typeof profile.avg_rating === 'number' && profile.avg_rating > 0 ? profile.avg_rating : null;
     const profileIncomplete = !(profile.bio || '').trim() || !profile.avatar_url || !(profile.accounts || []).some((account) => String(account.username || '').trim());
     const missingPackages = packagesForSave(profile.service_packages || []).length < 1;
@@ -2458,10 +2484,12 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                     !prop.auto_completed_at
                                                                   }
                                                                   pendingApproval={
-                                                                    !!prop.published_post_pending_approval ||
-                                                                    (!!prop.delivery_submitted_at &&
-                                                                      !prop.delivery_confirmed_at &&
-                                                                      !prop.auto_completed_at)
+                                                                    prop.deliverable_status === 'changes_requested'
+                                                                      ? false
+                                                                      : !!prop.published_post_pending_approval ||
+                                                                        (!!prop.delivery_submitted_at &&
+                                                                          !prop.delivery_confirmed_at &&
+                                                                          !prop.auto_completed_at)
                                                                   }
                                                                   initialMode={prop.delivery_mode || 'link'}
                                                                   initialNote={prop.delivery_note}
@@ -2470,6 +2498,8 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                     !!prop.delivery_confirmed_at ||
                                                                     !!prop.auto_completed_at
                                                                   }
+                                                                  deliverableStatus={prop.deliverable_status}
+                                                                  deliverableReviewNote={prop.deliverable_review_note}
                                                                   autoFocus={
                                                                     (searchParams?.get('focus') === 'deliverable' ||
                                                                       searchParams?.get('deliverable') === '1') &&

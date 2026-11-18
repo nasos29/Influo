@@ -53,7 +53,12 @@ import CategoryCheckboxList from "@/components/CategoryCheckboxList";
 import { parseHttpsUrl } from "@/lib/brandProfile";
 import DealCancelDialog from "@/components/DealCancelDialog";
 import { canCancelDeal, canWithdrawPendingProposal } from "@/lib/dealCancelEligibility";
-import { deriveProposalDisplayStatus } from "@/lib/proposalDisplayStatus";
+import {
+  deriveProposalDisplayStatus,
+  deriveProposalDisplayStatusKey,
+  isActiveCampaignDealRow,
+  isActiveCollaborationDisplayKey,
+} from "@/lib/proposalDisplayStatus";
 import {
   addBrandShortlist,
   fetchBrandShortlist,
@@ -122,7 +127,16 @@ interface Proposal {
   delivery_submitted_at?: string | null;
   delivery_confirmed_at?: string | null;
   auto_completed_at?: string | null;
+  deliverable_status?: string | null;
+  deliverable_review_note?: string | null;
 }
+
+type CampaignDealCountRow = {
+  status: string;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
+  deliverable_status?: string | null;
+};
 
 interface Influencer {
   id: string;
@@ -1023,6 +1037,7 @@ export default function BrandDashboardContent() {
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [activeCampaignCount, setActiveCampaignCount] = useState(0);
+  const [campaignDealRows, setCampaignDealRows] = useState<CampaignDealCountRow[]>([]);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
   const [pendingApplicationsOldestDays, setPendingApplicationsOldestDays] = useState(0);
   const [pendingApplicationIds, setPendingApplicationIds] = useState<string[]>([]);
@@ -1310,6 +1325,22 @@ export default function BrandDashboardContent() {
           .eq("brand_id", brandData.id)
           .eq("status", "open");
         if (!cancelled && typeof count === "number") setActiveCampaignCount(count);
+        const { data: camps } = await supabase
+          .from("brand_campaigns")
+          .select("id")
+          .eq("brand_id", brandData.id);
+        if (camps?.length) {
+          const { data: apps, error: appsErr } = await supabase
+            .from("campaign_applications")
+            .select("status, delivery_confirmed_at, auto_completed_at, deliverable_status")
+            .in(
+              "campaign_id",
+              camps.map((c) => c.id)
+            );
+          if (!cancelled && !appsErr) setCampaignDealRows((apps || []) as CampaignDealCountRow[]);
+        } else if (!cancelled) {
+          setCampaignDealRows([]);
+        }
       } catch (error) {
         console.error("[Brand Dashboard] campaign snapshot", error);
       } finally {
@@ -2389,7 +2420,13 @@ export default function BrandDashboardContent() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {(
                 [
-                  { label: lang === 'el' ? 'Ενεργές προσφορές' : 'Active proposals', value: proposals.filter((p) => p.status === 'pending' || p.status === 'accepted').length, tab: 'proposals' as const },
+                  {
+                    label: lang === 'el' ? 'Ενεργές προσφορές' : 'Active proposals',
+                    value:
+                      proposals.filter((p) => isActiveCollaborationDisplayKey(deriveProposalDisplayStatusKey(p))).length +
+                      campaignDealRows.filter(isActiveCampaignDealRow).length,
+                    tab: 'proposals' as const,
+                  },
                   { label: lang === 'el' ? 'Αδιάβαστα μηνύματα' : 'Unread messages', value: unreadMessageCount, tab: 'messages' as const },
                   { label: lang === 'el' ? 'Ενεργές καμπάνιες' : 'Active campaigns', value: activeCampaignCount, tab: 'campaigns' as const },
                   { label: lang === 'el' ? 'Αποθηκευμένοι creators' : 'Saved creators', value: shortlist.length, tab: 'shortlist' as const },
@@ -3414,10 +3451,12 @@ export default function BrandDashboardContent() {
                                   !proposal.auto_completed_at
                                 }
                                 pendingApproval={
-                                  !!proposal.published_post_pending_approval ||
-                                  (!!proposal.delivery_submitted_at &&
-                                    !proposal.delivery_confirmed_at &&
-                                    !proposal.auto_completed_at)
+                                  proposal.deliverable_status === "changes_requested"
+                                    ? false
+                                    : !!proposal.published_post_pending_approval ||
+                                      (!!proposal.delivery_submitted_at &&
+                                        !proposal.delivery_confirmed_at &&
+                                        !proposal.auto_completed_at)
                                 }
                                 initialMode={proposal.delivery_mode || "link"}
                                 initialNote={proposal.delivery_note}
@@ -3425,6 +3464,8 @@ export default function BrandDashboardContent() {
                                 deliveryConfirmed={
                                   !!proposal.delivery_confirmed_at || !!proposal.auto_completed_at
                                 }
+                                deliverableStatus={proposal.deliverable_status}
+                                deliverableReviewNote={proposal.deliverable_review_note}
                                 autoFocus={
                                   searchParams?.get("focus") === "deliverable" &&
                                   searchParams?.get("proposalId") === String(proposal.id)

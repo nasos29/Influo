@@ -29,6 +29,14 @@ export function isCampaignLinkAutoCompleteDeliverable(
   return deliverable_status === "submitted";
 }
 
+/** Link-mode proposal auto-complete: submitted or legacy null only (not changes_requested). */
+export function isProposalLinkAutoCompleteDeliverable(
+  deliverable_status: string | null | undefined
+): boolean {
+  if (!deliverable_status) return true;
+  return deliverable_status === "submitted";
+}
+
 /**
  * Cron may auto-complete only link-mode submissions (published link).
  * Event mode and rows with no submission are never auto-completed.

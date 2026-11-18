@@ -4,6 +4,7 @@ import { asDeliveryMode } from "@/lib/deliveryCompletion";
 import { mailBrandDeliverySubmitted, siteUrl } from "@/lib/deliveryMail";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { loadProposal, partyOf, requireActor, influencerContact } from "@/lib/proposalAccess";
+import { notifyProposalDeliverableChangesRequested } from "@/lib/proposalDeliverableNotify";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import {
   parseSelfReportedCount,
@@ -116,6 +117,7 @@ export async function PATCH(request: Request) {
           update.delivery_proof_url = proof;
           update.delivery_submitted_at = submittedAt;
           update.published_post_pending_approval = true;
+          update.deliverable_status = "submitted";
           // Event deliveries are not public video posts by default.
           update.published_post_url = null;
         } else if ("publishedPostUrl" in body) {
@@ -134,6 +136,7 @@ export async function PATCH(request: Request) {
             const submittedAt = new Date().toISOString();
             update.published_post_url = parsed.url;
             update.published_post_pending_approval = true;
+            update.deliverable_status = "submitted";
             update.delivery_mode = "link";
             update.delivery_submitted_at = submittedAt;
             update.delivery_note = null;
@@ -156,7 +159,29 @@ export async function PATCH(request: Request) {
         (body.approvePublishedPost === true || body.confirmEventDelivery === true);
       if (brandConfirm) {
         update.published_post_pending_approval = false;
+        update.deliverable_status = "approved";
         update.delivery_confirmed_at = new Date().toISOString();
+      }
+
+      const requestChanges = party === "brand" && body.requestDeliverableChanges === true;
+      let changesRequestedNow = false;
+      let changesReviewNote = "";
+      if (requestChanges) {
+        const note = String(body.reviewNote ?? body.note ?? "").trim();
+        if (!note) {
+          return NextResponse.json({ error: "review_note_required" }, { status: 400 });
+        }
+        const pending =
+          !!proposal.published_post_pending_approval ||
+          String(proposal.deliverable_status || "").toLowerCase() === "submitted";
+        if (!pending || proposal.delivery_confirmed_at || proposal.auto_completed_at) {
+          return NextResponse.json({ error: "not_pending_review" }, { status: 400 });
+        }
+        changesReviewNote = note;
+        update.deliverable_status = "changes_requested";
+        update.deliverable_review_note = note;
+        update.published_post_pending_approval = false;
+        changesRequestedNow = true;
       }
 
       if (Object.keys(update).length === 0) {
@@ -185,9 +210,27 @@ export async function PATCH(request: Request) {
         delete soft.delivery_proof_url;
         delete soft.delivery_submitted_at;
         delete soft.delivery_confirmed_at;
+        delete soft.deliverable_status;
+        delete soft.deliverable_review_note;
         ({ error } = await admin.from("proposals").update(soft).eq("id", id));
       }
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+      if (changesRequestedNow) {
+        deferAfterResponse(async () => {
+          try {
+            await notifyProposalDeliverableChangesRequested({
+              proposalId: proposal.id,
+              influencerId: proposal.influencer_id,
+              brandEmail: proposal.brand_email,
+              brandName: proposal.brand_name || "Επιχείρηση",
+              reviewNote: changesReviewNote,
+            });
+          } catch (err) {
+            console.error("[showcase request changes]", err instanceof Error ? err.message : err);
+          }
+        });
+      }
 
       if (submittedNow || confirmedNow) {
         deferAfterResponse(async () => {

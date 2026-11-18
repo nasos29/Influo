@@ -16,6 +16,7 @@ import {
   isDeliveryAutoCompleteEnabled,
 } from "@/lib/deliveryFlags";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
+import { isProposalLinkAutoCompleteDeliverable } from "@/lib/deliveryCompletion";
 import { influencerContact } from "@/lib/proposalAccess";
 
 type ProposalRow = {
@@ -25,6 +26,7 @@ type ProposalRow = {
   brand_email: string | null;
   delivery_submitted_at: string | null;
   delivery_mode: string | null;
+  deliverable_status?: string | null;
 };
 
 type CampaignRow = {
@@ -95,7 +97,7 @@ export async function runDeliveryAutoComplete(
   {
     const { data, error } = await admin
       .from("proposals")
-      .select("id, influencer_id, brand_name, brand_email, delivery_submitted_at, delivery_mode")
+      .select("id, influencer_id, brand_name, brand_email, delivery_submitted_at, delivery_mode, deliverable_status")
       .eq("status", "completed")
       .eq("delivery_mode", "link")
       .not("delivery_submitted_at", "is", null)
@@ -109,14 +111,19 @@ export async function runDeliveryAutoComplete(
     } else {
       for (const row of (data || []) as ProposalRow[]) {
         if (proposals >= limit) break;
+        if (!isProposalLinkAutoCompleteDeliverable(row.deliverable_status)) {
+          skipped += 1;
+          continue;
+        }
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
           continue;
         }
         const at = new Date(nowMs).toISOString();
+        const claimFilter: Record<string, unknown> = { auto_completed_at: at };
         const { data: claimed, error: claimErr } = await admin
           .from("proposals")
-          .update({ auto_completed_at: at })
+          .update(claimFilter)
           .eq("id", row.id)
           .eq("delivery_mode", "link")
           .is("auto_completed_at", null)
