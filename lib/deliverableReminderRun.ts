@@ -21,7 +21,11 @@ import {
 } from "@/lib/notificationPreferences";
 import { influencerContact } from "@/lib/proposalAccess";
 import { isCampaignRealDeliveryComplete } from "@/lib/campaignDealCompletion";
-import { campaignPublishDeadline, publishDeadlineDueMsForCampaign } from "@/lib/campaignReviewReminder";
+import {
+  campaignPublishDeadline,
+  isCampaignReminderBacklog,
+  publishDeadlineDueMsForCampaign,
+} from "@/lib/campaignReviewReminder";
 import { publishDeadlineDueMs } from "@/lib/reviewReminder";
 
 type ProposalRow = {
@@ -59,20 +63,30 @@ type CampaignAppRow = {
   brand_approve_reminder_sent_at: string | null;
   brand_campaigns?: {
     deadline?: string | null;
+    opened_at?: string | null;
+    created_at?: string | null;
     brands?: { brand_name?: string | null; contact_email?: string | null } | Array<{
       brand_name?: string | null;
       contact_email?: string | null;
     }> | null;
   } | Array<{
     deadline?: string | null;
+    opened_at?: string | null;
+    created_at?: string | null;
     brands?: { brand_name?: string | null; contact_email?: string | null } | null;
   }> | null;
 };
 
 const CAMPAIGN_SELECT =
-  "id, influencer_id, status, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_mode, deliverable_status, deliverable_reminder_before_sent_at, deliverable_reminder_1d_after_sent_at, deliverable_reminder_5d_after_sent_at, brand_approve_reminder_sent_at, brand_campaigns ( deadline, brands ( brand_name, contact_email ) )";
+  "id, influencer_id, status, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_mode, deliverable_status, deliverable_reminder_before_sent_at, deliverable_reminder_1d_after_sent_at, deliverable_reminder_5d_after_sent_at, brand_approve_reminder_sent_at, brand_campaigns ( deadline, opened_at, created_at, brands ( brand_name, contact_email ) )";
 
-function campaignBrandBits(row: CampaignAppRow): { brandName: string; brandEmail: string; deadline: string | null } {
+function campaignBrandBits(row: CampaignAppRow): {
+  brandName: string;
+  brandEmail: string;
+  deadline: string | null;
+  opened_at: string | null;
+  created_at: string | null;
+} {
   const raw = row.brand_campaigns;
   const campaign = Array.isArray(raw) ? raw[0] : raw;
   const brandRaw = campaign?.brands;
@@ -81,6 +95,8 @@ function campaignBrandBits(row: CampaignAppRow): { brandName: string; brandEmail
     brandName: brand?.brand_name || "Επιχείρηση",
     brandEmail: (brand?.contact_email || "").trim(),
     deadline: campaign?.deadline || null,
+    opened_at: campaign?.opened_at ?? null,
+    created_at: campaign?.created_at ?? null,
   };
 }
 
@@ -143,10 +159,18 @@ export async function runDeliverableReminders(
         skipped += 1;
         continue;
       }
-      const { brandName, deadline } = campaignBrandBits(row);
+      const { brandName, deadline, opened_at, created_at } = campaignBrandBits(row);
       const publishDeadline = campaignPublishDeadline(null, deadline);
-      const deadlineEnd = publishDeadlineDueMsForCampaign(null, deadline);
+      const deadlineEnd = publishDeadlineDueMsForCampaign(null, deadline, {
+        deadline,
+        opened_at,
+        created_at,
+      });
       if (deadlineEnd == null) {
+        skipped += 1;
+        continue;
+      }
+      if (isCampaignReminderBacklog(deadlineEnd, { nowMs })) {
         skipped += 1;
         continue;
       }
@@ -240,6 +264,13 @@ export async function runDeliverableReminders(
         continue;
       }
       if (isCampaignRealDeliveryComplete(row)) {
+        skipped += 1;
+        continue;
+      }
+      const submittedMs = row.delivery_submitted_at
+        ? new Date(row.delivery_submitted_at).getTime()
+        : NaN;
+      if (!Number.isFinite(submittedMs) || isCampaignReminderBacklog(submittedMs, { nowMs })) {
         skipped += 1;
         continue;
       }

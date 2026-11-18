@@ -64,6 +64,15 @@ test("campaign review reminder gates", () => {
     false
   );
   assert.equal(
+    shouldSendCampaignReviewReminder({
+      status: "accepted",
+      realCompletedAt: "2025-12-01T00:00:00Z",
+      nowMs: now,
+      fromRealCompletion: true,
+    }),
+    false
+  );
+  assert.equal(
     shouldSendCampaignSecondReviewReminder({
       status: "accepted",
       reviewReminderSentAt: "2026-03-01T00:00:00Z",
