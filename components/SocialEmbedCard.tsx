@@ -12,10 +12,11 @@ import {
   preferTikTokEmbedPlayer,
   rememberTikTokVideoId,
   TIKTOK_IFRAME_ALLOW,
+  disposeTikTokIframe,
   tikTokEmbedIframeSandbox,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
-import { useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
+import { tikTokIframeVariantFromSrc, useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
 import {
   claimTikTokPlayerSession,
   TIKTOK_PLAYER_SESSION_EVENT,
@@ -265,21 +266,27 @@ export default function SocialEmbedCard({
     fallbackToEmbed: tikTokFallbackToEmbed,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
   // Measure the card while the cover is visible so the first Play tap can
-  // mount player/v1 or embed/v2 already at ≥325px layout width.
+  // mount player/v1 or embed/v2 already sized to object-cover the cover box.
+  const tikTokScaleVariant = tikTokIframeVariantFromSrc(iframeSrc);
   const { style: tikTokIframeScale, measured: tikTokBoxMeasured } = useTikTokIframeScale(
     provider === "tiktok",
     playerBoxRef,
-    { freeze: !!iframeSrc }
+    { freeze: !!iframeSrc, variant: tikTokScaleVariant }
   );
   const tikTokEmbedFallbackUsed = useRef(false);
 
   const releaseTikTokPlayer = useCallback(() => {
     tikTokEmbedFallbackUsed.current = false;
-    setIframeSrc(null);
-    setActivated(false);
-    setLoading(false);
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+    // about:blank first so Android MediaDrm sessions are dropped before unmount.
+    requestAnimationFrame(() => {
+      setIframeSrc(null);
+      setActivated(false);
+      setLoading(false);
+    });
     // Do not set error — that would hide/replace the post and load another iframe.
-  }, []);
+  }, [mediaIframeRef, tikTokIframeRef]);
 
   // Only one TikTok iframe (player/v1 or embed/v2) may stay mounted at a time.
   useEffect(() => {
@@ -308,10 +315,14 @@ export default function SocialEmbedCard({
       return;
     }
     tikTokEmbedFallbackUsed.current = true;
-    setIframeSrc(buildTikTokEmbedUrl(id));
-    setActivated(true);
-    setLoading(false);
-  }, [iframeSrc, originalUrl, releaseTikTokPlayer, tikTokFallbackToEmbed]);
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+    requestAnimationFrame(() => {
+      setIframeSrc(buildTikTokEmbedUrl(id));
+      setActivated(true);
+      setLoading(false);
+    });
+  }, [iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokFallbackToEmbed, tikTokIframeRef]);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
@@ -705,9 +716,13 @@ export default function SocialEmbedCard({
                         const id = extractTikTokVideoId(iframeSrc || originalUrl);
                         if (id) {
                           tikTokEmbedFallbackUsed.current = true;
-                          setIframeSrc(buildTikTokEmbedUrl(id));
-                          setActivated(true);
-                          setLoading(false);
+                          disposeTikTokIframe(mediaIframeRef.current);
+                          disposeTikTokIframe(tikTokIframeRef.current);
+                          requestAnimationFrame(() => {
+                            setIframeSrc(buildTikTokEmbedUrl(id));
+                            setActivated(true);
+                            setLoading(false);
+                          });
                           return;
                         }
                       }

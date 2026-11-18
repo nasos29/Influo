@@ -10,9 +10,16 @@ import {
   preferTikTokEmbedPlayerFromUA,
   TIKTOK_EMBED_IFRAME_SANDBOX,
   TIKTOK_IFRAME_ALLOW,
+  disposeTikTokIframe,
   tikTokEmbedIframeSandboxFromUA,
 } from "../lib/tikTokPlayer.ts";
-import { tikTokIframeScaleStyle, TIKTOK_PLAYER_MIN_IFRAME_WIDTH } from "../lib/useTikTokIframeScale.ts";
+import {
+  tikTokIframeScaleStyle,
+  tikTokIframeVariantFromSrc,
+  TIKTOK_EMBED_V2_IFRAME_HEIGHT,
+  TIKTOK_PLAYER_MIN_IFRAME_WIDTH,
+  TIKTOK_PLAYER_VIDEO_ASPECT,
+} from "../lib/useTikTokIframeScale.ts";
 import {
   isFatalTikTokPlayerError,
   isRetryableTikTokPlayerError,
@@ -102,7 +109,6 @@ test("TikTok iframe allow tokens and desktop-only embed sandbox", () => {
     "accelerometer",
     "autoplay",
     "clipboard-write",
-    "encrypted-media",
     "fullscreen",
     "gyroscope",
     "picture-in-picture",
@@ -111,6 +117,7 @@ test("TikTok iframe allow tokens and desktop-only embed sandbox", () => {
   ]) {
     assert.ok(TIKTOK_IFRAME_ALLOW.includes(need), need);
   }
+  assert.equal(TIKTOK_IFRAME_ALLOW.includes("encrypted-media"), false);
   const mobileChrome =
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36";
   const desktopChrome =
@@ -195,26 +202,68 @@ test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
   assert.equal(posted.length, 2);
 });
 
-test("tikTokIframeScaleStyle scales narrow boxes to 325px and fills the cover height", () => {
-  assert.equal(tikTokIframeScaleStyle(TIKTOK_PLAYER_MIN_IFRAME_WIDTH, 400), undefined);
+test("tikTokIframeScaleStyle object-covers a 9:16 video into the cover box", () => {
   assert.equal(tikTokIframeScaleStyle(0, 200), undefined);
-  const boxW = 170;
-  const boxH = 255;
-  const narrow = tikTokIframeScaleStyle(boxW, boxH);
-  assert.ok(narrow);
-  const scale = boxW / TIKTOK_PLAYER_MIN_IFRAME_WIDTH;
-  assert.equal(narrow!.width, TIKTOK_PLAYER_MIN_IFRAME_WIDTH);
-  assert.equal(narrow!.height, boxH / scale);
-  assert.equal(narrow!.transformOrigin, "top left");
-  assert.match(String(narrow!.transform), /scale\(0\.523/);
-  // After CSS scale, the visual size must equal the cover box exactly.
-  assert.equal(Number(narrow!.width) * scale, boxW);
-  assert.equal(Number(narrow!.height) * scale, boxH);
-  const typicalColumn = tikTokIframeScaleStyle(160, 240);
-  assert.ok(typicalColumn);
-  assert.match(String(typicalColumn!.transform), /scale\(0\.492/);
-  const typicalScale = 160 / TIKTOK_PLAYER_MIN_IFRAME_WIDTH;
-  assert.equal(Number(typicalColumn!.height) * typicalScale, 240);
+  assert.equal(tikTokIframeVariantFromSrc("https://www.tiktok.com/embed/v2/1"), "embed");
+  assert.equal(tikTokIframeVariantFromSrc("https://www.tiktok.com/player/v1/1"), "player");
+
+  // Narrow Top Posts column: 150x300 (minHeight 300). Video region covers the box.
+  const colW = 150;
+  const colH = 300;
+  const col = tikTokIframeScaleStyle(colW, colH, "player");
+  assert.ok(col);
+  assert.equal(col!.width, TIKTOK_PLAYER_MIN_IFRAME_WIDTH);
+  assert.equal(col!.height, TIKTOK_PLAYER_MIN_IFRAME_WIDTH * TIKTOK_PLAYER_VIDEO_ASPECT);
+  const colScale = Math.max(
+    colW / Number(col!.width),
+    colH / (TIKTOK_PLAYER_MIN_IFRAME_WIDTH * TIKTOK_PLAYER_VIDEO_ASPECT)
+  );
+  assert.match(String(col!.transform), new RegExp(`scale\\(${colScale.toString().slice(0, 7)}`));
+  assert.equal(col!.transformOrigin, "top left");
+  const visualVideoW = Number(col!.width) * colScale;
+  const visualVideoH = Number(col!.height) * colScale;
+  assert.ok(visualVideoW >= colW - 0.01);
+  assert.ok(visualVideoH >= colH - 0.01);
+  assert.equal(Number(col!.top) + visualVideoH / 2, colH / 2);
+  assert.equal(Number(col!.left) + visualVideoW / 2, colW / 2);
+
+  // embed/v2: iframe is taller than the video; scale still covers via the 9:16 region.
+  const embed = tikTokIframeScaleStyle(colW, colH, "embed");
+  assert.ok(embed);
+  assert.equal(embed!.width, TIKTOK_PLAYER_MIN_IFRAME_WIDTH);
+  assert.equal(embed!.height, TIKTOK_EMBED_V2_IFRAME_HEIGHT);
+  const embedScale = Math.max(
+    colW / TIKTOK_PLAYER_MIN_IFRAME_WIDTH,
+    colH / (TIKTOK_PLAYER_MIN_IFRAME_WIDTH * TIKTOK_PLAYER_VIDEO_ASPECT)
+  );
+  assert.equal(Number(embed!.width) * embedScale >= colW, true);
+  assert.equal(
+    TIKTOK_PLAYER_MIN_IFRAME_WIDTH * TIKTOK_PLAYER_VIDEO_ASPECT * embedScale >= colH - 0.01,
+    true
+  );
+  assert.equal(Number(embed!.height) > Number(col!.height), true);
+
+  // Wide overview card (>=325): layout width equals the box, 9:16 is taller, cropped.
+  const wide = tikTokIframeScaleStyle(356, 534, "player");
+  assert.ok(wide);
+  assert.equal(wide!.width, 356);
+  assert.equal(wide!.height, 356 * TIKTOK_PLAYER_VIDEO_ASPECT);
+  assert.equal(Number(wide!.height) > 534, true);
+  assert.equal(Number(wide!.top) < 0, true);
+});
+
+test("disposeTikTokIframe blanks a live src and ignores about:blank", () => {
+  const iframe = {
+    src: "https://www.tiktok.com/embed/v2/1",
+    getAttribute(name: string) {
+      return name === "src" ? this.src : null;
+    },
+  } as unknown as HTMLIFrameElement;
+  disposeTikTokIframe(iframe);
+  assert.equal(iframe.src, "about:blank");
+  disposeTikTokIframe(iframe);
+  assert.equal(iframe.src, "about:blank");
+  disposeTikTokIframe(null);
 });
 
 test("isValidInstagramShortcode and extractInstagramShortcode", () => {

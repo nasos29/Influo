@@ -52,13 +52,18 @@ export function buildTikTokPlayerUrl(videoId: string, opts?: TikTokPlayerOpts): 
 
 /**
  * Permissions policy for every TikTok iframe (player/v1 and embed/v2).
- * Matches the official oEmbed iframe (updated 23 Oct 2026), plus storage-access
- * so the player can request unpartitioned cookies if Chrome blocks them.
- * @see https://developers.tiktok.com/doc/embed-videos
+ * Official oEmbed lists encrypted-media, but that token lets a cross-origin
+ * iframe use EME / Widevine. On Android Chrome (Widevine L1) this:
+ *   - sets a secure output path, so the OS blocks screenshots of the page
+ *   - consumes limited MediaDrm hardware sessions; leaked sessions make later
+ *     players fail with "Unable to load player"
+ * Public embeds play without it (the Embed Player docs only list fullscreen).
+ * Omitted on every form factor so SSR/client allow attributes stay in sync.
  * @see https://developers.tiktok.com/docs/en/embed-player
+ * @see https://developer.android.com/reference/android/media/MediaDrm#openSession()
  */
 export const TIKTOK_IFRAME_ALLOW =
-  "accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share; storage-access";
+  "accelerometer; autoplay; clipboard-write; fullscreen; gyroscope; picture-in-picture; web-share; storage-access";
 
 /**
  * Sandbox for desktop embed/v2 iframes: scripts/origin/presentation so the
@@ -105,6 +110,22 @@ export function isTikTokPlayerIframeSrc(src: string | null | undefined): boolean
     return /\/player\/v1\/\d+/i.test(u.pathname) || /\/embed\/v2\/\d+/i.test(u.pathname);
   } catch {
     return /tiktok\.com\/player\/v1\//i.test(src) || /tiktok\.com\/embed\/v2\//i.test(src);
+  }
+}
+
+/**
+ * Navigate a TikTok iframe off tiktok.com so MediaDrm / EME sessions can be
+ * released before React unmounts the element. Call this, then unmount (or
+ * set a new src) on the next frame.
+ */
+export function disposeTikTokIframe(iframe: HTMLIFrameElement | null | undefined): void {
+  if (!iframe) return;
+  try {
+    const current = iframe.getAttribute("src") || iframe.src || "";
+    if (!current || current === "about:blank") return;
+    iframe.src = "about:blank";
+  } catch {
+    /* ignore */
   }
 }
 
