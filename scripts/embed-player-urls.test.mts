@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildTikTokEmbedUrl,
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
   isTikTokPlayerIframeSrc,
@@ -14,6 +15,7 @@ import {
 } from "../lib/useTikTokPlayerHost.ts";
 import {
   isTikTokPlayerOverloadError,
+  shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
   TIKTOK_PLAYER_ERROR,
 } from "../lib/tikTokPlayerErrors.ts";
@@ -62,7 +64,20 @@ test("buildTikTokPlayerUrl creates muted player/v1 by default", () => {
   );
   const unmuted = buildTikTokPlayerUrl("7123456789012345678", { muted: false });
   assert.match(unmuted, /muted=0/);
+  assert.match(unmuted, /autoplay=1/);
   assert.throws(() => buildTikTokPlayerUrl("not-a-number"));
+});
+
+test("buildTikTokEmbedUrl points at embed/v2", () => {
+  assert.equal(
+    buildTikTokEmbedUrl("7123456789012345678"),
+    "https://www.tiktok.com/embed/v2/7123456789012345678"
+  );
+  assert.equal(
+    isTikTokPlayerIframeSrc(buildTikTokEmbedUrl("7123456789012345678")),
+    true
+  );
+  assert.throws(() => buildTikTokEmbedUrl("not-a-number"));
 });
 
 test("isTikTokPlayerMessage and postTikTokPlayer shape", async () => {
@@ -172,11 +187,18 @@ test("TikTok 1001/1002 are fatal; only 3001 is auto-retried once; overload unloa
 
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 2005 }, false), true);
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 2001 }, false), true);
-  assert.equal(shouldUnloadTikTokPlayer({ errorCode: TIKTOK_PLAYER_ERROR.PLAYER_SDK_ERROR }, false), true);
+  assert.equal(shouldUnloadTikTokPlayer({ errorCode: TIKTOK_PLAYER_ERROR.PLAYER_SDK_ERROR }, false), false);
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 3001 }, false), false);
-  assert.equal(shouldUnloadTikTokPlayer({ errorCode: 3001 }, true), true);
+  assert.equal(shouldUnloadTikTokPlayer({ errorCode: 3001 }, true), false);
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 3002 }, true), false);
   assert.equal(shouldUnloadTikTokPlayer({ errorCode: 1001, errorType: "INVALID_VIDEO" }, true), false);
+
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001 }, false), false);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3001, errorType: "PLAYBACK_ERROR" }, true), true);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 1004, errorType: "PLAYER_SDK_ERROR" }, false), true);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 2005 }, true), false);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 3002 }, true), false);
+  assert.equal(shouldFallbackToTikTokEmbed({ errorCode: 1001, errorType: "INVALID_VIDEO" }, true), false);
 });
 
 test("claimTikTokPlayerSession notifies other cards to unload", () => {

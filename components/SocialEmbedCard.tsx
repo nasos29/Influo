@@ -5,6 +5,7 @@ import { buildOfficialEmbedUrl } from "@/lib/videoThumbnail";
 import { useLazyVideoThumbnail } from "@/lib/useVideoThumbnail";
 import { toDisplayThumbnailSrc } from "@/lib/videoThumbnailExtract";
 import {
+  buildTikTokEmbedUrl,
   buildTikTokPlayerUrl,
   extractTikTokVideoId,
 } from "@/lib/tikTokPlayer";
@@ -242,6 +243,9 @@ export default function SocialEmbedCard({
 
   const isTikTokPlayer =
     provider === "tiktok" && !!iframeSrc && /tiktok\.com\/player\/v1\//i.test(iframeSrc);
+  const isTikTokEmbed =
+    provider === "tiktok" && !!iframeSrc && /tiktok\.com\/embed\/v2\//i.test(iframeSrc);
+  const isTikTokIframe = isTikTokPlayer || isTikTokEmbed;
   const isYouTubePlayer =
     provider === "youtube" && !!iframeSrc && /youtube\.com\/embed\//i.test(iframeSrc);
   const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
@@ -273,19 +277,23 @@ export default function SocialEmbedCard({
     onIframeLoad: onTikTokIframeLoad,
     unplayable: tikTokUnplayable,
     playbackFailed: tikTokPlaybackFailed,
+    fallbackToEmbed: tikTokFallbackToEmbed,
   } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
+  // CSS-scale only the official player/v1 (it needs ≥325px). embed/v2 is not scaled.
   const tikTokIframeScale = useTikTokIframeScale(isTikTokPlayer, playerBoxRef);
+  const tikTokEmbedFallbackUsed = useRef(false);
 
   const releaseTikTokPlayer = useCallback(() => {
+    tikTokEmbedFallbackUsed.current = false;
     setIframeSrc(null);
     setActivated(false);
     setLoading(false);
     // Do not set error — that would hide/replace the post and load another iframe.
   }, []);
 
-  // Only one official player/v1 iframe may stay mounted at a time.
+  // Only one TikTok iframe (player/v1 or embed/v2) may stay mounted at a time.
   useEffect(() => {
-    if (!isTikTokPlayer) return;
+    if (!isTikTokIframe) return;
     claimTikTokPlayerSession(tikTokSessionId);
     const onClaim = (event: Event) => {
       const detail = (event as CustomEvent<TikTokPlayerSessionDetail>).detail;
@@ -294,12 +302,26 @@ export default function SocialEmbedCard({
     };
     window.addEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
     return () => window.removeEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
-  }, [isTikTokPlayer, releaseTikTokPlayer, tikTokSessionId]);
+  }, [isTikTokIframe, releaseTikTokPlayer, tikTokSessionId]);
 
-  // Overload / SDK errors: drop the iframe so "Player error" is not left on screen.
+  // Rate-limit / server errors: drop the iframe back to the cover.
   useEffect(() => {
     if (tikTokPlaybackFailed) releaseTikTokPlayer();
   }, [releaseTikTokPlayer, tikTokPlaybackFailed]);
+
+  // 3001 / 1004 (and similar SDK failures): stay on-site and switch to embed/v2.
+  useEffect(() => {
+    if (!tikTokFallbackToEmbed || tikTokEmbedFallbackUsed.current) return;
+    const id = extractTikTokVideoId(iframeSrc || originalUrl);
+    if (!id) {
+      releaseTikTokPlayer();
+      return;
+    }
+    tikTokEmbedFallbackUsed.current = true;
+    setIframeSrc(buildTikTokEmbedUrl(id));
+    setActivated(true);
+    setLoading(false);
+  }, [iframeSrc, originalUrl, releaseTikTokPlayer, tikTokFallbackToEmbed]);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
@@ -435,8 +457,10 @@ export default function SocialEmbedCard({
           videoId = extractTikTokVideoId(embedOrResolved);
         }
         if (!videoId) throw new Error("Missing TikTok video id");
-        // muted=1 so autoplay works; unmute via TikTok postMessage after ready.
-        setIframeSrc(buildTikTokPlayerUrl(videoId));
+        tikTokEmbedFallbackUsed.current = false;
+        // User tapped Play — start unmuted. If the browser blocks it, the
+        // host falls back to muted + the existing Tap-for-sound button.
+        setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
         setLoading(false);
         return;
       }
