@@ -332,7 +332,6 @@ def main() -> int:
     parser.add_argument("--cookies", default=os.environ.get("YTDLP_COOKIES") or "")
     parser.add_argument("--uploads-only", action="store_true")
     parser.add_argument("--links-only", action="store_true")
-    parser.add_argument("--lock", default=os.environ.get("MEDIA_WORKER_LOCK") or "/tmp/influo-media-worker.lock")
     args = parser.parse_args()
 
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
@@ -340,7 +339,9 @@ def main() -> int:
     if not url or not key:
         raise SystemExit("Need SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY")
 
-    lock_file = open(args.lock, "w")
+    # Lock lives in the repo root (not world-writable /tmp).
+    lock_path = Path(__file__).resolve().parent.parent / ".media-worker.lock"
+    lock_file = open(lock_path, "w")
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
