@@ -24,6 +24,11 @@ const supabaseEnvRemotePatterns = (() => {
   }
 })();
 
+const mediaEnvRemotePatterns = (() => {
+  const pattern = mediaPublicRemotePattern();
+  return pattern ? [pattern] : [];
+})();
+
 const nextConfig: NextConfig = {
   // heic-convert pulls libheif WASM; keep it external so webpack doesn't break it.
   serverExternalPackages: ["heic-convert", "sharp"],
@@ -78,10 +83,7 @@ const nextConfig: NextConfig = {
         pathname: "/storage/v1/render/image/public/**",
       },
       ...supabaseEnvRemotePatterns,
-      ...((): NonNullable<NextConfig["images"]>["remotePatterns"] => {
-        const pattern = mediaPublicRemotePattern();
-        return pattern ? [pattern] : [];
-      })(),
+      ...mediaEnvRemotePatterns,
       {
         protocol: "https",
         hostname: "*.tiktokcdn-us.com",
