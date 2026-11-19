@@ -224,6 +224,7 @@ interface DbInfluencer {
   manual_unapproved_at?: string | null;
   manual_unapproved_by?: string | null;
   last_social_refresh_at?: string | null;
+  social_refresh_profile_failed?: boolean;
   analytics_verified?: boolean;
   accounts: { platform: string; username: string; followers: string }[] | null; 
   avatar_url: string | null;
@@ -5266,6 +5267,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1 min-w-0 max-w-full">
                                   <AudienceMissingBadge kind={audienceMissingKind(u)} lang={lang} />
+                                  {u.social_refresh_profile_failed ? (
+                                    <span
+                                      className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900"
+                                      title={
+                                        lang === "el"
+                                          ? "Τελευταίο social refresh: μερική αποτυχία προφίλ"
+                                          : "Recent social refresh: partial profile failure"
+                                      }
+                                    >
+                                      {lang === "el" ? "Social refresh" : "Social refresh"}
+                                    </span>
+                                  ) : null}
                                 </div>
                                 {u.created_at && (
                                   <div

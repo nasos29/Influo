@@ -5,8 +5,8 @@ import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
 import { campaignRealCompletionAt } from "@/lib/campaignDealCompletion";
 import {
   campaignPublishDeadline,
-  shouldSendCampaignReviewReminder,
-  shouldSendCampaignSecondReviewReminder,
+  shouldSendSideCampaignReviewReminder,
+  shouldSendSideCampaignSecondReviewReminder,
 } from "@/lib/campaignReviewReminder";
 import { realCompletionAt } from "@/lib/deliveryCompletion";
 import {
@@ -92,6 +92,10 @@ type CampaignReviewRow = {
   reviewed_at?: string | null;
   review_reminder_sent_at?: string | null;
   review_reminder_second_sent_at?: string | null;
+  brand_review_reminder_sent_at?: string | null;
+  influencer_review_reminder_sent_at?: string | null;
+  brand_review_reminder_second_sent_at?: string | null;
+  influencer_review_reminder_second_sent_at?: string | null;
   brand_review_prompts_declined_at?: string | null;
   influencer_review_prompts_declined_at?: string | null;
   brand_campaigns?: {
@@ -105,7 +109,7 @@ type CampaignReviewRow = {
 };
 
 const CAMPAIGN_REVIEW_SELECT =
-  "id, influencer_id, status, proposed_price, delivery_confirmed_at, auto_completed_at, deliverable_status, reviewed_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, brand_campaigns ( title, deadline, brands ( brand_name, contact_email ) )";
+  "id, influencer_id, status, proposed_price, delivery_confirmed_at, auto_completed_at, deliverable_status, reviewed_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_reminder_sent_at, influencer_review_reminder_sent_at, brand_review_reminder_second_sent_at, influencer_review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, brand_campaigns ( title, deadline, brands ( brand_name, contact_email ) )";
 
 function helperHtml(party: "brand" | "influencer"): string {
   const text = party === "brand" ? REVIEW_HELPER_BRAND_EL : REVIEW_HELPER_CREATOR_EL;
@@ -374,13 +378,23 @@ async function sendCampaignReminderWave(
       isSecond: wave === "second",
     };
     const sentAt = new Date().toISOString();
-  const outcomes: Array<"ok" | "skipped" | "quota" | "error"> = [];
+    const outcomes: Array<"ok" | "skipped" | "quota" | "error"> = [];
+    const stampRow = row as ReminderStampRow;
     const creatorDone =
       creatorDeclined || (brandEmail ? await creatorAlreadyReviewedBrand(admin, row.influencer_id, brandEmail) : false);
     const brandDone =
       brandDeclined || (brandEmail ? await brandAlreadyReviewed(admin, row.influencer_id, brandEmail) : true);
 
-    if (!creatorDone) {
+  const creatorStamped =
+    wave === "first"
+      ? !!effectiveFirstReminderSentAt("influencer", stampRow)
+      : !!effectiveSecondReminderSentAt("influencer", stampRow);
+  const brandStamped =
+    wave === "first"
+      ? !!effectiveFirstReminderSentAt("brand", stampRow)
+      : !!effectiveSecondReminderSentAt("brand", stampRow);
+
+    if (!creatorDone && !creatorStamped) {
       const creatorPrefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
       if (allowRemindersEmail(creatorPrefs)) {
         const outcome = await mailCreatorReviewReminder({
@@ -402,7 +416,7 @@ async function sendCampaignReminderWave(
       }
     }
 
-    if (brandEmail && !brandDone) {
+    if (brandEmail && !brandDone && !brandStamped) {
       if (await brandAllowsRemindersEmail(admin, brandEmail)) {
         const outcome = await mailBrandReviewReminder({
           ...common,
@@ -582,9 +596,7 @@ export async function runReviewReminders(
       .from("proposals")
       .select(SELECT_COLS)
       .eq("status", "completed")
-      .or(
-        "brand_review_reminder_sent_at.is.null,influencer_review_reminder_sent_at.is.null,review_reminder_sent_at.is.null"
-      )
+      .or("brand_review_reminder_sent_at.is.null,influencer_review_reminder_sent_at.is.null")
       .limit(200);
 
     if (fromRealCompletion) {
@@ -692,7 +704,7 @@ export async function runReviewReminders(
     const { data, error } = await admin
       .from("campaign_applications")
       .select(CAMPAIGN_REVIEW_SELECT)
-      .is("review_reminder_sent_at", null)
+      .or("brand_review_reminder_sent_at.is.null,influencer_review_reminder_sent_at.is.null")
       .or(
         "delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null,deliverable_status.eq.approved"
       )
@@ -710,31 +722,33 @@ export async function runReviewReminders(
           continue;
         }
         const realAt = campaignRealCompletionAt(row);
-        if (
-          !shouldSendCampaignReviewReminder({
-            status: row.status,
-            reviewReminderSentAt: row.review_reminder_sent_at,
-            publishDeadline: campaignPublishDeadline(null, campaignMeta(row).deadline),
-            realCompletedAt: realAt,
-            nowMs,
-            fromRealCompletion: fromRealCompletion || true,
-          })
-        ) {
-          continue;
-        }
+        const stampRow = row as ReminderStampRow;
+        const publishDeadline = campaignPublishDeadline(null, campaignMeta(row).deadline);
+        const needsInfluencer = shouldSendSideCampaignReviewReminder("influencer", {
+          status: row.status,
+          row: stampRow,
+          publishDeadline,
+          realCompletedAt: realAt,
+          nowMs,
+          fromRealCompletion: fromRealCompletion || true,
+        });
+        const needsBrand = shouldSendSideCampaignReviewReminder("brand", {
+          status: row.status,
+          row: stampRow,
+          publishDeadline,
+          realCompletedAt: realAt,
+          nowMs,
+          fromRealCompletion: fromRealCompletion || true,
+        });
+        if (!needsInfluencer && !needsBrand) continue;
         scanned += 1;
         due += 1;
-        const claimed = await claimCampaignReviewReminder(admin, row.id);
-        if (!claimed) {
-          skipped += 1;
-          continue;
-        }
         try {
           const outcome = await sendCampaignReminderWave(admin, row, "first");
           if (outcome === "sent") sent += 1;
+          else if (outcome === "error") errors.push(`campaign #${row.id}: send failed`);
           else skipped += 1;
         } catch (err) {
-          await releaseCampaignReviewReminderClaim(admin, row.id);
           errors.push(`campaign #${row.id}: ${err instanceof Error ? err.message : "fail"}`);
         }
       }
@@ -751,9 +765,10 @@ export async function runReviewReminders(
       .from("proposals")
       .select(SELECT_COLS)
       .eq("status", "completed")
-      .not("review_reminder_sent_at", "is", null)
-      .is("review_reminder_second_sent_at", null)
-      .order("review_reminder_sent_at", { ascending: true })
+      .or(
+        "and(brand_review_reminder_sent_at.not.is.null,brand_review_reminder_second_sent_at.is.null),and(influencer_review_reminder_sent_at.not.is.null,influencer_review_reminder_second_sent_at.is.null)"
+      )
+      .order("delivery_confirmed_at", { ascending: true, nullsFirst: false })
       .limit(200);
 
     if (error) {
@@ -807,33 +822,34 @@ export async function runReviewReminders(
     const { data, error } = await admin
       .from("campaign_applications")
       .select(CAMPAIGN_REVIEW_SELECT)
-      .not("review_reminder_sent_at", "is", null)
-      .is("review_reminder_second_sent_at", null)
+      .or(
+        "and(brand_review_reminder_sent_at.not.is.null,brand_review_reminder_second_sent_at.is.null),and(influencer_review_reminder_sent_at.not.is.null,influencer_review_reminder_second_sent_at.is.null)"
+      )
       .neq("status", "cancelled")
       .limit(200);
     if (!error) {
       for (const row of (data || []) as CampaignReviewRow[]) {
         if (secondSent >= limit) break;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
-        if (
-          !shouldSendCampaignSecondReviewReminder({
-            status: row.status,
-            reviewReminderSentAt: row.review_reminder_sent_at,
-            reviewReminderSecondSentAt: row.review_reminder_second_sent_at,
-            nowMs,
-          })
-        ) {
-          continue;
-        }
+        const stampRow = row as ReminderStampRow;
+        const needsInfluencer = shouldSendSideCampaignSecondReviewReminder("influencer", {
+          status: row.status,
+          row: stampRow,
+          nowMs,
+        });
+        const needsBrand = shouldSendSideCampaignSecondReviewReminder("brand", {
+          status: row.status,
+          row: stampRow,
+          nowMs,
+        });
+        if (!needsInfluencer && !needsBrand) continue;
         scanned += 1;
         secondDue += 1;
-        const claimed = await claimCampaignSecondReviewReminder(admin, row.id);
-        if (!claimed) continue;
         try {
           const outcome = await sendCampaignReminderWave(admin, row, "second");
           if (outcome === "sent") secondSent += 1;
+          else if (outcome === "error") errors.push(`campaign #${row.id} second: send failed`);
         } catch (err) {
-          await releaseCampaignSecondReviewReminderClaim(admin, row.id);
           errors.push(`campaign #${row.id} second: ${err instanceof Error ? err.message : "fail"}`);
         }
       }

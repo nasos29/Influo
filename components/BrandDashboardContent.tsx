@@ -861,6 +861,7 @@ export default function BrandDashboardContent() {
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
   const [showcaseConsent, setShowcaseConsent] = useState(true);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
@@ -1600,6 +1601,13 @@ export default function BrandDashboardContent() {
         : 'Read and accept the agreement terms.', 'error');
       return;
     }
+    if (!selectedProposal.publish_deadline && !draftAgreementDeadline.trim()) {
+      notify(
+        lang === 'el' ? 'Επιλέξτε προθεσμία δημοσίευσης.' : 'Choose a publication deadline.',
+        'error'
+      );
+      return;
+    }
 
     setSavingAgreement(true);
     try {
@@ -1611,6 +1619,9 @@ export default function BrandDashboardContent() {
           userType: 'brand',
           accepted: true,
           showcaseConsent,
+          ...(selectedProposal.publish_deadline
+            ? {}
+            : { publishDeadline: draftAgreementDeadline.trim() }),
         })
       });
 
@@ -1632,6 +1643,7 @@ export default function BrandDashboardContent() {
         setShowAgreementModal(false);
         setSelectedProposal(null);
         setAgreementAccepted(false);
+        setDraftAgreementDeadline("");
         setShowcaseConsent(true);
         notify(lang === 'el'
           ? 'Η συμφωνία έγινε αποδεκτή.'
@@ -3533,6 +3545,8 @@ export default function BrandDashboardContent() {
           counterProposalStatus={selectedProposal.counter_proposal_status}
           selectedExtras={selectedProposal.selected_extras}
           publishDeadline={selectedProposal.publish_deadline}
+          draftPublishDeadline={draftAgreementDeadline}
+          onDraftPublishDeadlineChange={setDraftAgreementDeadline}
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
           showcaseConsent={showcaseConsent}
@@ -3551,6 +3565,7 @@ export default function BrandDashboardContent() {
             setShowAgreementModal(false);
             setSelectedProposal(null);
             setAgreementAccepted(false);
+            setDraftAgreementDeadline("");
             setShowcaseConsent(true);
           }}
           onAccept={handleAcceptAgreement}

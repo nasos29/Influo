@@ -1637,6 +1637,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
     const [showAgreementModal, setShowAgreementModal] = useState(false);
     const [agreementAccepted, setAgreementAccepted] = useState(false);
+    const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
     const [showcaseConsent, setShowcaseConsent] = useState(true);
     const [savingAgreement, setSavingAgreement] = useState(false);
     const [showCounterProposalModal, setShowCounterProposalModal] = useState(false);
@@ -2076,6 +2077,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             notify(T('Διάβασε και αποδέξου τους όρους της συμφωνίας.', 'Read and accept the agreement terms.'), 'error');
             return;
         }
+        if (!selectedProposal.publish_deadline && !draftAgreementDeadline.trim()) {
+            notify(T('Επιλέξτε προθεσμία δημοσίευσης.', 'Choose a publication deadline.'), 'error');
+            return;
+        }
 
         setSavingAgreement(true);
         try {
@@ -2087,6 +2092,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     userType: 'influencer',
                     accepted: true,
                     showcaseConsent,
+                    ...(selectedProposal.publish_deadline
+                        ? {}
+                        : { publishDeadline: draftAgreementDeadline.trim() }),
                 })
             });
 
@@ -2109,6 +2117,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 setShowAgreementModal(false);
                 setSelectedProposal(null);
                 setAgreementAccepted(false);
+                setDraftAgreementDeadline("");
                 setShowcaseConsent(true);
                 notify(T('Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
             } else {
@@ -3269,10 +3278,13 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     onShowcaseConsentChange={setShowcaseConsent}
                     showcaseParty="influencer"
                     saving={savingAgreement}
+                    draftPublishDeadline={draftAgreementDeadline}
+                    onDraftPublishDeadlineChange={setDraftAgreementDeadline}
                     onCancel={() => {
                         setShowAgreementModal(false);
                         setSelectedProposal(null);
                         setAgreementAccepted(false);
+                        setDraftAgreementDeadline("");
                         setShowcaseConsent(true);
                     }}
                     onAccept={handleAcceptAgreement}

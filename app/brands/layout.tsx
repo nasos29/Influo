@@ -1,3 +1,4 @@
+import BrandsListingJsonLd from "./BrandsListingJsonLd";
 import { pageMetadata } from "@/lib/pageMetadata";
 import { categorySeoKeywords } from "@/lib/categories";
 
@@ -10,5 +11,10 @@ export const metadata = pageMetadata({
 });
 
 export default function BrandsLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <BrandsListingJsonLd />
+      {children}
+    </>
+  );
 }

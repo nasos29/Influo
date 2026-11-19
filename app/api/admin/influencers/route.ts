@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import { sevenDaysAgoIso } from "@/lib/adminPaging";
+import { SOCIAL_REFRESH_LOG_RETENTION_DAYS } from "@/lib/socialRefreshLogs";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { findApprovedDuplicateIds } from "@/lib/socialAccountIdentity";
 import {
@@ -365,9 +366,29 @@ export async function GET(request: NextRequest) {
       for (const id of findApprovedDuplicateIds(approvedForDup)) duplicateIds.add(id);
     }
 
+    const pageIds = ((data || []) as Array<{ id?: string | number }>)
+      .map((row) => String(row.id ?? ""))
+      .filter(Boolean);
+    const socialRefreshProfileFailed = new Set<string>();
+    if (pageIds.length) {
+      const logSince = new Date();
+      logSince.setDate(logSince.getDate() - SOCIAL_REFRESH_LOG_RETENTION_DAYS);
+      const { data: failLogs } = await admin
+        .from("social_refresh_logs")
+        .select("influencer_id")
+        .eq("event", "profile_failed")
+        .gte("created_at", logSince.toISOString())
+        .in("influencer_id", pageIds);
+      for (const row of failLogs || []) {
+        const iid = row.influencer_id ? String(row.influencer_id) : "";
+        if (iid) socialRefreshProfileFailed.add(iid);
+      }
+    }
+
     const influencers = ((data || []) as unknown as Array<Record<string, unknown>>).map((row) => ({
       ...row,
       possible_duplicate: duplicateIds.has(String(row.id ?? "")),
+      social_refresh_profile_failed: socialRefreshProfileFailed.has(String(row.id ?? "")),
     }));
 
     const total = count ?? 0;

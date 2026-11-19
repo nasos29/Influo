@@ -4,7 +4,9 @@ import CampaignPublicView from "@/components/CampaignPublicView";
 import { loadCampaignApplicationsCount } from "@/lib/loadHomeOpenCampaigns";
 import { campaignSlotInfo } from "@/lib/campaignSlots";
 import { supabaseService } from "@/lib/apiAuth";
+import { brandReviewsJsonLdById } from "@/lib/loadPublicReviewsJsonLd";
 import { loadPublicCampaignById } from "@/lib/publicCampaignVisibility";
+import { absoluteUrl } from "@/lib/site";
 
 export const revalidate = 3600;
 
@@ -29,14 +31,26 @@ export default async function CampaignPage({ params }: { params: Params }) {
     campaignSlotInfo(supabaseService(), [id]).catch(() => ({} as Awaited<ReturnType<typeof campaignSlotInfo>>)),
   ]);
   const slot = slotMap[id];
+  const brandId = initialCampaign?.brand_id ? String(initialCampaign.brand_id) : "";
+  const reviewsLd = brandId
+    ? await brandReviewsJsonLdById(brandId, absoluteUrl(`/campaigns/${id}`))
+    : null;
   return (
-    <CampaignPublicView
-      id={id}
-      applicationsCount={applicationsCount}
-      slots={slot?.slots ?? null}
-      slotsFilled={slot?.filled ?? 0}
-      requiresPresence={slot?.requiresPresence === true}
-      initialCampaign={initialCampaign}
-    />
+    <>
+      {reviewsLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsLd).replace(/</g, "\\u003c") }}
+        />
+      ) : null}
+      <CampaignPublicView
+        id={id}
+        applicationsCount={applicationsCount}
+        slots={slot?.slots ?? null}
+        slotsFilled={slot?.filled ?? 0}
+        requiresPresence={slot?.requiresPresence === true}
+        initialCampaign={initialCampaign}
+      />
+    </>
   );
 }

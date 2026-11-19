@@ -28,6 +28,7 @@ import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { useHostedCreatorMedia, lookupHostedMedia } from "@/lib/useCreatorMedia";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
+import CreatorReviewsList from "@/components/CreatorReviewsList";
 import SiteHeader from "@/components/SiteHeader";
 import { getStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -3437,41 +3438,12 @@ export default function InfluencerProfile(props: {
                       </button>
                     </div>
                     
-                    {reviews.length === 0 ? (
-                      <div className="text-center py-12 text-slate-400">
-                        <p className="text-lg">{txt.reviews_empty}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4 sm:space-y-6 min-w-0">
-                        {reviews.map((review: any) => (
-                          <div key={review.id} className="min-w-0 border border-slate-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow overflow-hidden">
-                            <div className="mb-3 flex min-w-0 items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <h4 className="font-bold text-slate-900 truncate">
-                                  {review.brand_name || (lang === "el" ? "Επιχείρηση" : "Brand")}
-                                </h4>
-                                <p className="text-xs text-slate-500 truncate">
-                                  {formatDisplayDate(review.created_at)}
-                                </p>
-                              </div>
-                              <div className="flex shrink-0 items-center gap-0.5 whitespace-nowrap" aria-label={`${review.rating}/5`}>
-                                {[...Array(5)].map((_, i) => (
-                                  <span key={i} className={`text-lg sm:text-xl ${i < review.rating ? 'text-amber-400' : 'text-slate-300'}`}>★</span>
-                                ))}
-                              </div>
-                            </div>
-                            {review.project_type && (
-                              <span className="inline-block max-w-full truncate bg-blue-50 text-blue-700 text-xs font-bold px-2 py-1 rounded mb-3">
-                                {review.project_type}
-                              </span>
-                            )}
-                            {review.review_text && (
-                              <p className="text-slate-700 leading-relaxed break-words">{review.review_text}</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <CreatorReviewsList
+                      avgRating={profile.avg_rating || 0}
+                      totalReviews={profile.total_reviews || 0}
+                      reviews={reviews}
+                      lang={lang}
+                    />
                   </div>
                 )}
             </div>
