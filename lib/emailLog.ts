@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-/** Durable send audit (no raw email addresses). Never throws. */
+/**
+ * Durable send audit (no raw email addresses). Never throws.
+ * Writes the shared email_log schema from #478/#480 (type, ok, provider,
+ * recipient_id, deal_ref, party) — same columns as lib/emailLogDb.
+ */
 export async function persistEmailLog(
   supabaseAdmin: SupabaseClient,
   input: {
@@ -11,11 +15,19 @@ export async function persistEmailLog(
   }
 ): Promise<void> {
   try {
+    const meta = input.meta && typeof input.meta === "object" ? input.meta : null;
+    const ref = meta
+      ? Object.values(meta)
+          .filter((v) => typeof v === "string" || typeof v === "number")
+          .join(":")
+      : "";
     const { error } = await supabaseAdmin.from("email_log").insert({
-      email_type: input.emailType.slice(0, 64),
+      type: input.emailType.slice(0, 120),
       ok: input.ok,
-      influencer_id: input.influencerId || null,
-      meta: input.meta && typeof input.meta === "object" ? input.meta : null,
+      provider: "resend",
+      recipient_id: input.influencerId || null,
+      deal_ref: ref ? ref.slice(0, 64) : null,
+      party: input.influencerId ? "influencer" : null,
     });
     if (error && !/relation|does not exist|schema cache/i.test(error.message)) {
       console.warn("[email_log]", error.message);
