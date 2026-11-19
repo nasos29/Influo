@@ -844,6 +844,17 @@ export default function DocsPage() {
               </div>
             </div>
 
+            <div className="border border-slate-200 rounded-xl p-5 bg-white mb-6">
+              <h3 className="font-bold text-slate-900 mt-0 mb-2">
+                {lang === "el" ? "Portfolio" : "Portfolio"}
+              </h3>
+              <p className="text-sm text-slate-700 mb-0">
+                {lang === "el"
+                  ? "Στο προφίλ μπορείτε να δείξετε έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες). Το Influo μπορεί να κατεβάσει και να φιλοξενήσει αυτό το υλικό στους διακομιστές του, για σταθερή αναπαραγωγή στο προφίλ. Αν έχετε ήδη περισσότερα από 6, τα κρατάτε και μπορείτε μόνο να αφαιρέσετε μέχρι να μείνουν 6 ή λιγότερα."
+                  : "Your profile can show up to 6 items in total (videos and photos). Influo may download and host this media on its own servers, so it plays reliably on your profile. If you already have more than 6, you keep them and may only remove items until you are at 6 or fewer."}
+              </p>
+            </div>
+
             <div className="grid md:grid-cols-2 gap-4 mb-6">
               <div className="border border-slate-200 rounded-xl p-5 bg-white">
                 <h3 className="font-bold text-slate-900 mt-0 mb-2">

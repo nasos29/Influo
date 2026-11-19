@@ -41,6 +41,17 @@ export const faqs: FAQItem[] = [
   {
     category: { el: "Για Influencers", en: "For Influencers" },
     question: {
+      el: "Πόσα στοιχεία μπορώ να βάλω στο portfolio;",
+      en: "How many items can I add to my portfolio?"
+    },
+    answer: {
+      el: "Έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες μαζί), ως συνδέσμους από τους λογαριασμούς που δηλώνετε. Το Influo μπορεί να κατεβάσει και να φιλοξενήσει αυτό το υλικό στους διακομιστές του, για εμφάνιση στο προφίλ σας. Αν το portfolio σας έχει ήδη περισσότερα από 6, τα κρατάτε· μπορείτε μόνο να αφαιρέσετε, όχι να προσθέσετε, μέχρι να μείνουν 6 ή λιγότερα.",
+      en: "Up to 6 items in total (videos and photos combined), as links from the accounts you provide. Influo may download and host this media on its own servers, for display on your profile. If your portfolio already has more than 6 items, you keep them; you may only remove items, not add, until you are at 6 or fewer."
+    }
+  },
+  {
+    category: { el: "Για Influencers", en: "For Influencers" },
+    question: {
       el: "Πώς λειτουργεί η πληρωμή;",
       en: "How does payment work?"
     },
