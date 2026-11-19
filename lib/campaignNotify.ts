@@ -10,6 +10,7 @@ import {
   type RankedAlert,
 } from "@/lib/campaignAlert";
 import { sendPushToInfluencer } from "@/lib/push";
+import { sendTransactionalCreator } from "@/lib/collabCreatorMail";
 import { sendTransactional } from "@/lib/transactionalEmail";
 import { applicationStatusToCreator, newCampaignToCreator, removedToCreator } from "@/lib/campaignMail";
 import {
@@ -410,7 +411,14 @@ export async function notifyApplicationStatus(opts: {
     campaignId: opts.campaignId,
     status: opts.status,
   });
-  const sent = await sendTransactional(person.email, mail.subject, mail.html).catch((err) => ({
+  const sent = await sendTransactionalCreator(
+    opts.influencerId,
+    "campaign_application_status",
+    person.email,
+    mail.subject,
+    mail.html,
+    { recipientId: opts.influencerId }
+  ).catch((err) => ({
     ok: false,
     error: err instanceof Error ? err.message : "send failed",
   }));

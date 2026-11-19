@@ -104,8 +104,11 @@ export function shouldSendSecondReviewReminder(opts: {
   status?: string | null;
   reviewReminderSentAt?: string | null;
   reviewReminderSecondSentAt?: string | null;
+  publishDeadline?: string | null;
+  realCompletedAt?: string | null;
   nowMs?: number;
   secondDays?: number;
+  fromRealCompletion?: boolean;
 }): boolean {
   if ((opts.status || "").toLowerCase() !== "completed") return false;
   if (!opts.reviewReminderSentAt) return false;
@@ -114,5 +117,14 @@ export function shouldSendSecondReviewReminder(opts: {
   if (!Number.isFinite(first)) return false;
   const days = opts.secondDays ?? REVIEW_REMINDER_SECOND_DAYS;
   const now = opts.nowMs ?? Date.now();
-  return now >= first + days * 24 * 60 * 60 * 1000;
+  if (now < first + days * 24 * 60 * 60 * 1000) return false;
+
+  const realOnly = opts.fromRealCompletion ?? isReviewFromRealCompletionEnabled();
+  if (!realOnly) return true;
+
+  const real = opts.realCompletedAt ? new Date(opts.realCompletedAt).getTime() : NaN;
+  const hasReal = Number.isFinite(real);
+  const deadlineEnd = publishDeadlineDueMs(opts.publishDeadline);
+  const deadlinePassed = deadlineEnd != null && now >= deadlineEnd;
+  return hasReal || deadlinePassed;
 }

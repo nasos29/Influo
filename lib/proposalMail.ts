@@ -39,11 +39,20 @@ export async function send(type: string, to: string | null | undefined, subject:
 }
 
 /** Like send, but reports the outcome; "quota" = provider daily/rate limit reached. */
-export async function sendChecked(type: string, to: string | null | undefined, subject: string, html: string): Promise<"ok" | "quota" | "error"> {
+export async function sendChecked(
+  type: string,
+  to: string | null | undefined,
+  subject: string,
+  html: string,
+  opts?: { recipientId?: string | null }
+): Promise<"ok" | "quota" | "error"> {
   const address = (to || "").trim();
   const key = process.env.RESEND_API_KEY;
   if (!address || !address.includes("@") || !key) {
     logEmail(type, false);
+    void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
+      persistEmailLog({ type, ok: false, recipientId: opts?.recipientId })
+    );
     return "error";
   }
   try {
@@ -55,13 +64,20 @@ export async function sendChecked(type: string, to: string | null | undefined, s
       html,
     });
     if (error) console.error("[mail]", type, error.message);
-    logEmail(type, !error);
-    if (!error) return "ok";
+    const ok = !error;
+    logEmail(type, ok);
+    void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
+      persistEmailLog({ type, ok, recipientId: opts?.recipientId })
+    );
+    if (ok) return "ok";
     const name = String((error as { name?: string }).name || "");
     return /quota|rate_limit|daily/i.test(`${name} ${error.message}`) ? "quota" : "error";
   } catch (err) {
     console.error("[mail]", type, err instanceof Error ? err.message : "send failed");
     logEmail(type, false);
+    void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
+      persistEmailLog({ type, ok: false, recipientId: opts?.recipientId })
+    );
     return "error";
   }
 }
@@ -146,6 +162,7 @@ function adminDealRows(input: DealInfo & { brandName: string; influencerName: st
 }
 
 export async function mailNewProposal(input: DealInfo & {
+  influencerId?: string | null;
   influencerEmail: string | null;
   influencerName: string;
   brandEmail: string;
@@ -167,8 +184,10 @@ export async function mailNewProposal(input: DealInfo & {
     : "";
   const quote = message ? `<p><strong>Μήνυμα της επιχείρησης:</strong></p><blockquote style="margin: 0; padding-left: 12px; border-left: 3px solid #e2e8f0; color: #475569;">${message}</blockquote>` : "";
 
+  const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
   await Promise.all([
-  send(
+  sendCheckedCreator(
+    input.influencerId,
     "proposal_new",
     input.influencerEmail,
     campaignTitle
@@ -342,6 +361,19 @@ export async function mailCounter(input: DealInfo & {
        ])}`
     )
   );
+  try {
+    const { enqueueAdminDigestItem } = await import("@/lib/adminDailyDigest");
+    const { supabaseService } = await import("@/lib/apiAuth");
+    const queued = await enqueueAdminDigestItem(supabaseService(), "counter_new", {
+      brandName: input.brandName,
+      creatorName: input.influencerName,
+      counterBudget: intEuro(input.counterBudget),
+      proposalId: input.proposalId ?? null,
+    });
+    if (queued) return;
+  } catch (err) {
+    console.error("[counter_admin digest]", err instanceof Error ? err.message : err);
+  }
   await mailAdminEvent(
     "counter_admin",
     `Αντιπρόταση: ${input.influencerName} / ${input.brandName} – ${intEuro(input.counterBudget)}`,
@@ -352,6 +384,7 @@ export async function mailCounter(input: DealInfo & {
 
 export async function mailCounterDecision(input: DealInfo & {
   accepted: boolean;
+  influencerId?: string | null;
   influencerEmail: string | null;
   influencerName: string;
   brandName: string;
@@ -363,7 +396,9 @@ export async function mailCounterDecision(input: DealInfo & {
     ? `<p>Η <strong>${brand}</strong> αποδέχτηκε την αντιπρότασή σου στις ${escapeHtml(todayAthens())}. Νέο ποσό: <strong>${escapeHtml(intEuro(input.budget))}</strong>.</p>
        <p><strong>Επόμενο βήμα:</strong> αποδοχή της σύνοψης συμφωνίας και από τις δύο πλευρές.</p>`
     : `<p>Η <strong>${brand}</strong> απέρριψε την αντιπρότασή σου στις ${escapeHtml(todayAthens())}. Η αρχική πρόταση (${escapeHtml(intEuro(input.budget))}) παραμένει ανοιχτή — μπορείς ακόμη να την αποδεχτείς.</p>`;
-  await send(
+  const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
+  await sendCheckedCreator(
+    input.influencerId,
     input.accepted ? "counter_accepted" : "counter_rejected",
     input.influencerEmail,
     `Η ${input.brandName} ${input.accepted ? "αποδέχτηκε" : "απέρριψε"} την αντιπρότασή σου`,
@@ -376,6 +411,22 @@ export async function mailCounterDecision(input: DealInfo & {
        ${emailNextSteps(input.accepted ? "counter_accepted_creator" : "counter_rejected_creator")}`
     )
   );
+  try {
+    const { enqueueAdminDigestItem } = await import("@/lib/adminDailyDigest");
+    const { supabaseService } = await import("@/lib/apiAuth");
+    const queued = await enqueueAdminDigestItem(
+      supabaseService(),
+      input.accepted ? "counter_accepted" : "counter_rejected",
+      {
+        brandName: input.brandName,
+        creatorName: input.influencerName,
+        proposalId: input.proposalId ?? null,
+      }
+    );
+    if (queued) return;
+  } catch (err) {
+    console.error("[counter_decision_admin digest]", err instanceof Error ? err.message : err);
+  }
   await mailAdminEvent(
     input.accepted ? "counter_accepted_admin" : "counter_rejected_admin",
     `Αντιπρόταση ${input.accepted ? "αποδεκτή" : "απορρίφθηκε"}: ${input.brandName} / ${input.influencerName}`,
@@ -443,6 +494,7 @@ export function influoMentionHtml(opts?: { profileUrl?: string | null; forCreato
 
 export async function mailAgreement(input: {
   to: string | null;
+  influencerId?: string | null;
   recipientName: string;
   otherName: string;
   service: string;
@@ -457,21 +509,23 @@ export async function mailAgreement(input: {
     ? brandLink(input.to || "", input.brandHasAccount)
     : creatorProposalsUrl();
   const safety = input.toBrand ? "" : creatorPaymentSafetyHtml();
-  await send(
-    "agreement_accepted",
-    input.to,
-    `Αναμένεται η αποδοχή σας – συμφωνία #${input.proposalId}`,
-    shell(
-      "Αναμένεται η αποδοχή σας",
-      `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>
+  const subject = `Αναμένεται η αποδοχή σας – συμφωνία #${input.proposalId}`;
+  const html = shell(
+    "Αναμένεται η αποδοχή σας",
+    `<p>Γεια σας ${escapeHtml(input.recipientName)},</p>
        <p>Ο/Η <strong>${escapeHtml(input.otherName)}</strong> αποδέχτηκε τη σύνοψη συμφωνίας στις ${escapeHtml(todayAthens())}. Αποδεχτείτε κι εσείς για να ξεκινήσει η συνεργασία.</p>
        ${summaryBlockHtml(input)}
        ${safety}
        ${buttonHtml(link, input.toBrand && !input.brandHasAccount ? "Δημιουργία λογαριασμού" : "Αποδοχή συμφωνίας")}
        ${emailNextSteps("agreement_waiting")}
        ${tipsHtml(["Όλη η επικοινωνία μέσα από τα μηνύματα του Influo κρατά ιστορικό για κάθε συμφωνία."])}`
-    )
   );
+  if (input.toBrand) {
+    await send("agreement_accepted", input.to, subject, html);
+    return;
+  }
+  const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
+  await sendCheckedCreator(input.influencerId, "agreement_accepted", input.to, subject, html);
 }
 
 /**
@@ -560,6 +614,18 @@ export async function mailAdminAgreementComplete(input: {
   const extras = extrasLine ? extrasLine.replace(/^Extras:\s*/, "") : "";
   const deadline = formatDate(input.publishDeadline, "el") || "κατόπιν συνεννόησης";
   const id = escapeHtml(String(input.proposalId));
+  try {
+    const { enqueueAdminDigestItem } = await import("@/lib/adminDailyDigest");
+    const { supabaseService } = await import("@/lib/apiAuth");
+    const queued = await enqueueAdminDigestItem(supabaseService(), "agreement_complete", {
+      proposalId: input.proposalId,
+      brandName: input.brandName,
+      creatorName: input.creatorName,
+    });
+    if (queued) return;
+  } catch (err) {
+    console.error("[agreement_complete_admin digest]", err instanceof Error ? err.message : err);
+  }
   await send(
     "agreement_complete_admin",
     adminEmail(),
@@ -580,6 +646,37 @@ export async function mailAdminAgreementComplete(input: {
         <strong>Αποδοχή δημιουργού:</strong> ${escapeHtml(formatAthensDateTime(input.creatorAcceptedAt))}</p>
        <p><a href="${siteUrl()}/admin">Άνοιγμα διαχείρισης</a></p>
        ${emailNextSteps("agreement_complete_admin")}`
+    )
+  );
+}
+
+/** Brand withdrew a pending proposal (work has not started). */
+export async function mailProposalWithdrawn(input: {
+  influencerId: string;
+  to: string | null | undefined;
+  creatorName: string;
+  brandName: string;
+  proposalId: string | number;
+  reason?: string | null;
+}): Promise<void> {
+  const brand = escapeHtml(input.brandName);
+  const reason =
+    input.reason && input.reason.trim()
+      ? `<p><strong>Σχόλιο:</strong> ${escapeHtml(input.reason.trim()).replace(/\n/g, "<br/>")}</p>`
+      : "";
+  const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
+  await sendCheckedCreator(
+    input.influencerId,
+    "proposal_withdrawn",
+    input.to,
+    `${input.brandName} απέσυρε την πρόταση #${input.proposalId}`,
+    shell(
+      "Απόσυρση πρότασης",
+      `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>
+       <p>Η <strong>${brand}</strong> απέσυρε την πρόταση συνεργασίας <strong>#${escapeHtml(String(input.proposalId))}</strong> πριν την αποδοχή της — η συνεργασία δεν ξεκίνησε.</p>
+       ${reason}
+       ${buttonHtml(creatorProposalsUrl(), "Δες τις προτάσεις σου")}
+       ${emailNextSteps("proposal_new_creator")}`
     )
   );
 }
@@ -738,6 +835,7 @@ function projectWrapUpBody(opts: {
 
 /** Creator email once both sides accepted the agreement (start of work — not a review ask). */
 export async function mailCreatorDealComplete(input: {
+  influencerId?: string | null;
   to: string | null;
   creatorName: string;
   brandName: string;
@@ -762,12 +860,14 @@ export async function mailCreatorDealComplete(input: {
     extras: input.extras,
     publishDeadline: input.publishDeadline,
   };
-  await send(
+  const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
+  await sendCheckedCreator(
+    input.influencerId,
     "deal_complete_creator",
     input.to,
     `Η συνεργασία ξεκίνησε με ${input.brandName} – #${input.proposalId}`,
     shell(
-      "Η συνεργασία ξεκίνησε",
+      "Η συνεργασία ξεκίνηκε",
       lockedAgreementBody({
         greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
         leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία στις ${date}. Η συνεργασία με την <strong>${brand}</strong> ξεκίνησε — οι όροι και η προθεσμία κλειδώθηκαν.</p>

@@ -1,4 +1,5 @@
 /** One summary email per quiet conversation, only for messages still unread in the app. */
+import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
 import { emailNextSteps } from "@/lib/emailNextSteps";
 
 export const DEFAULT_QUIET_MINUTES = 20;
@@ -247,6 +248,10 @@ export async function deliverSummaries(args: {
       if (digest.recipient === "admin") {
         to = (process.env.ADMIN_EMAIL || "").trim().toLowerCase() || null;
       } else if (digest.recipient === "influencer") {
+        if (isCollabEmailExcludedInfluencer(conversation.influencer_id)) {
+          skipped += 1;
+          continue;
+        }
         to = conversation.influencer_id
           ? await args.store.influencerEmail(conversation.influencer_id, conversation.influencer_email)
           : null;

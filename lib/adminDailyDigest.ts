@@ -29,7 +29,12 @@ export type AdminDigestKind =
   | "collaboration_completed"
   | "event_confirm_pending"
   | "proposal_accepted"
-  | "proposal_rejected";
+  | "proposal_rejected"
+  | "counter_new"
+  | "counter_accepted"
+  | "counter_rejected"
+  | "campaign_accepted"
+  | "agreement_complete";
 
 const KIND_TO_TYPE: Record<AdminDigestKind, DigestType> = {
   campaign_application: "admin_campaign_application",
@@ -42,6 +47,11 @@ const KIND_TO_TYPE: Record<AdminDigestKind, DigestType> = {
   event_confirm_pending: "admin_event_confirm_pending",
   proposal_accepted: "admin_proposal",
   proposal_rejected: "admin_proposal",
+  counter_new: "admin_proposal",
+  counter_accepted: "admin_proposal",
+  counter_rejected: "admin_proposal",
+  campaign_accepted: "admin_campaign_application",
+  agreement_complete: "admin_proposal",
 };
 
 /** True when admin should queue this kind instead of sending 1:1. */
@@ -93,6 +103,16 @@ function sectionTitle(kind: string): string {
       return "Αποδοχές προτάσεων";
     case "proposal_rejected":
       return "Απορρίψεις προτάσεων";
+    case "counter_new":
+      return "Νέες αντιπροτάσεις";
+    case "counter_accepted":
+      return "Αποδοχές αντιπροτάσεων";
+    case "counter_rejected":
+      return "Απορρίψεις αντιπροτάσεων";
+    case "campaign_accepted":
+      return "Αποδοχές αιτήσεων (πρόταση)";
+    case "agreement_complete":
+      return "Συνεργασίες που ξεκίνησαν";
     default:
       return kind;
   }
@@ -137,6 +157,24 @@ function lineFor(payload: Record<string, unknown>): string {
     const id = payload.proposalId ? ` · #${escapeHtml(String(payload.proposalId))}` : "";
     const service = payload.service ? ` · ${escapeHtml(String(payload.service))}` : "";
     return `<li><strong>${escapeHtml(String(payload.creatorName || ""))}</strong> ${verb} πρόταση της <strong>${escapeHtml(String(payload.brandName || ""))}</strong>${service}${id} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
+  }
+  if (kind === "counter_new") {
+    const id = payload.proposalId ? ` · #${escapeHtml(String(payload.proposalId))}` : "";
+    const counter = payload.counterBudget ? ` · ${escapeHtml(String(payload.counterBudget))}` : "";
+    return `<li><strong>${escapeHtml(String(payload.creatorName || ""))}</strong> → αντιπρόταση <strong>${escapeHtml(String(payload.brandName || ""))}</strong>${counter}${id} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
+  }
+  if (kind === "counter_accepted" || kind === "counter_rejected") {
+    const verb = kind === "counter_accepted" ? "αποδέχτηκε" : "απέρριψε";
+    const id = payload.proposalId ? ` · #${escapeHtml(String(payload.proposalId))}` : "";
+    return `<li><strong>${escapeHtml(String(payload.brandName || ""))}</strong> ${verb} αντιπρόταση του/της <strong>${escapeHtml(String(payload.creatorName || ""))}</strong>${id} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
+  }
+  if (kind === "campaign_accepted") {
+    const id = payload.proposalId ? ` · πρόταση #${escapeHtml(String(payload.proposalId))}` : "";
+    return `<li><strong>${escapeHtml(String(payload.brandName || ""))}</strong> αποδέχτηκε αίτηση του/της <strong>${escapeHtml(String(payload.creatorName || ""))}</strong> · ${escapeHtml(String(payload.campaignTitle || ""))}${id} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
+  }
+  if (kind === "agreement_complete") {
+    const id = payload.proposalId ? ` · #${escapeHtml(String(payload.proposalId))}` : "";
+    return `<li><strong>${escapeHtml(String(payload.brandName || ""))}</strong> / <strong>${escapeHtml(String(payload.creatorName || ""))}</strong> — ξεκίνησε συνεργασία${id} <span style="color:#9ca3af;font-size:12px;">(${escapeHtml(at)})</span></li>`;
   }
   return `<li>${escapeHtml(JSON.stringify(payload).slice(0, 200))}</li>`;
 }
@@ -239,9 +277,12 @@ export async function flushAdminDailyDigest(
     return { sent: false, count: all.length, skipped: true, reason: "dry_run" };
   }
 
-  const { send } = await import("@/lib/proposalMail");
+  const { sendChecked } = await import("@/lib/proposalMail");
   const adminTo = (process.env.ADMIN_EMAIL || "nd.6@hotmail.com").trim();
-  await send("admin_daily_digest", adminTo, mail.subject, mail.html);
+  const outcome = await sendChecked("admin_daily_digest", adminTo, mail.subject, mail.html);
+  if (outcome !== "ok") {
+    return { sent: false, count: all.length, skipped: true, reason: `send_${outcome}` };
+  }
   await markDigestItemsFlushed(
     admin,
     all.map((r) => r.id)

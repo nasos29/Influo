@@ -10,15 +10,13 @@ import {
   isBrandApplicationDigestEnabled,
 } from "@/lib/emailDigestFlags";
 import {
-  countPendingForGroup,
-  enqueueDigestItem,
   listPendingDigestItems,
   markDigestItemsFlushed,
   oldestPendingCreatedAt,
 } from "@/lib/emailDigestQueue";
 import { applicationToBrand } from "@/lib/campaignMail";
 import { emailNextSteps } from "@/lib/emailNextSteps";
-import { send, shell, siteUrl } from "@/lib/proposalMail";
+import { sendChecked, shell, siteUrl } from "@/lib/proposalMail";
 import { escapeHtml } from "@/lib/proposalParty";
 
 export function brandCampaignGroupKey(campaignId: string): string {
@@ -54,28 +52,12 @@ export async function enqueueOrSendBrandApplicationEmail(
     hasPriorApplications: boolean;
   }
 ): Promise<"instant" | "queued" | "skipped"> {
-  if (!isBrandApplicationDigestEnabled()) return "instant";
-
+  // Product rule: brand application emails are always immediate (never batched).
+  void admin;
+  void input.hasPriorApplications;
   const email = input.brandEmail.trim().toLowerCase();
   if (!email) return "skipped";
-
-  const groupKey = brandCampaignGroupKey(input.payload.campaignId);
-  const pending = await countPendingForGroup(admin, "brand_campaign_applications", groupKey);
-
-  // First application for the campaign (no prior apps, nothing queued) → instant.
-  if (!input.hasPriorApplications && pending === 0) {
-    return "instant";
-  }
-
-  const result = await enqueueDigestItem(admin, {
-    digestType: "brand_campaign_applications",
-    recipientKind: "brand",
-    recipientId: input.brandId || null,
-    recipientEmail: email,
-    groupKey,
-    payload: { ...input.payload, at: new Date().toISOString() },
-  });
-  return result.ok ? "queued" : "instant";
+  return "instant";
 }
 
 function buildBrandDigestHtml(input: {
@@ -168,6 +150,7 @@ export async function flushBrandApplicationDigests(
       continue;
     }
     try {
+      let outcome: "ok" | "quota" | "error";
       // Single-item flush can reuse the normal template for nicer UX.
       if (payloads.length === 1) {
         const p = payloads[0];
@@ -181,9 +164,13 @@ export async function flushBrandApplicationDigests(
           workLinks: p.workLinks ?? null,
           brandHasAccount: true,
         });
-        await send("campaign_application_brand_digest", email, one.subject, one.html);
+        outcome = await sendChecked("campaign_application_brand_digest", email, one.subject, one.html);
       } else {
-        await send("campaign_application_brand_digest", email, mail.subject, mail.html);
+        outcome = await sendChecked("campaign_application_brand_digest", email, mail.subject, mail.html);
+      }
+      if (outcome !== "ok") {
+        errors.push(`${groupKey}: send_${outcome}`);
+        continue;
       }
       await markDigestItemsFlushed(
         admin,
