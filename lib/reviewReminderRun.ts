@@ -503,7 +503,7 @@ async function sendReminderWave(
  */
 export async function runReviewReminders(
   admin: SupabaseClient,
-  opts?: { limit?: number; nowMs?: number }
+  opts?: { nowMs?: number }
 ): Promise<{
   scanned: number;
   due: number;
@@ -514,7 +514,6 @@ export async function runReviewReminders(
   secondWaveEnabled: boolean;
   errors: string[];
 }> {
-  const limit = Math.min(Math.max(opts?.limit ?? 40, 1), 100);
   const nowMs = opts?.nowMs ?? Date.now();
   const errors: string[] = [];
   const secondWaveEnabled = isSecondReviewReminderWaveEnabled();
@@ -599,7 +598,6 @@ export async function runReviewReminders(
     scanned += rows.length;
 
     for (const row of rows) {
-      if (sent >= limit) break;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
         skipped += 1;
         continue;
@@ -659,7 +657,6 @@ export async function runReviewReminders(
       }
     } else {
       for (const row of data) {
-        if (sent >= limit) break;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
           continue;
@@ -729,7 +726,6 @@ export async function runReviewReminders(
     scanned += secondRows.length;
 
     for (const row of secondRows) {
-      if (secondSent >= limit) break;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
       const realAt = realCompletionAt(row);
       const stampRow = row as ReminderStampRow;
@@ -780,7 +776,6 @@ export async function runReviewReminders(
       }
     } else {
       for (const row of data) {
-        if (secondSent >= limit) break;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
         const stampRow = row as ReminderStampRow;
         const secondGate = {
