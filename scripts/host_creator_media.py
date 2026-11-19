@@ -35,7 +35,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 BUCKET = "creator-videos"
 KIND_FOLDER = {"portfolio": "portfolio", "top_post": "top-posts", "collab": "collabs"}
@@ -294,8 +294,22 @@ def ytdlp_download(url: str, dest: Path, platform: str | None, cookies: Path | N
         # unless yt-dlp impersonates a real browser (needs curl_cffi).
         attempts = [
             [ytdlp, "--no-playlist", "--impersonate", "chrome", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
+            [
+                ytdlp,
+                "--no-playlist",
+                "--extractor-args",
+                "tiktok:webpage_download=True",
+                "--impersonate",
+                "chrome",
+                "-f",
+                fmt,
+                "--merge-output-format",
+                "mp4",
+                "-o",
+                outtmpl,
+                url,
+            ],
             [ytdlp, "--no-playlist", "--impersonate", "safari", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
-            [ytdlp, "--no-playlist", "--extractor-args", "tiktok:webpage_download=True", "--impersonate", "chrome", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
         ] + attempts
     if cookies and cookies.is_file():
         attempts.insert(0, [ytdlp, "--no-playlist", "--cookies", str(cookies), "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url])
@@ -734,6 +748,27 @@ def select_top_posts_to_host(accounts: list[Any] | None, limit: int = TOP_POSTS_
     ]
 
 
+def is_video_top_post_type(post_type: Any) -> bool:
+    """Photos are not self-hosted; carousels and videos may be."""
+    t = str(post_type or "video").lower().strip()
+    if t in {"image", "photo", "picture", "graphimage"}:
+        return False
+    return True
+
+
+def post_type_for_url(accounts: list[Any] | None, url: str) -> str | None:
+    want = normalize_source_url(url)
+    for acc in accounts or []:
+        if not isinstance(acc, dict):
+            continue
+        for post in acc.get("top_posts") or []:
+            if not isinstance(post, dict):
+                continue
+            if normalize_source_url(str(post.get("url") or "")) == want:
+                return str(post.get("type") or "video")
+    return None
+
+
 def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str]] = set()
@@ -748,6 +783,35 @@ def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
         items.append({"kind": "portfolio", "url": url, "collab_id": None})
     for post in select_top_posts_to_host(inf.get("accounts") or []):
         url = post["url"]
+        key = (normalize_source_url(url), "top_post")
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        items.append({"kind": "top_post", "url": url, "collab_id": None})
+    return items
+
+
+def collect_backfill_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
+    """Portfolio (Instagram/TikTok) + hosted top-post slots; no YouTube, photos, or collabs."""
+    items: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    accounts = inf.get("accounts") or []
+    for url in inf.get("videos") or []:
+        url = str(url or "").strip()
+        if not url:
+            continue
+        platform = detect_platform(url)
+        if platform not in HOSTED_TOP_POST_PLATFORMS:
+            continue
+        key = (normalize_source_url(url), "portfolio")
+        if key in seen_keys:
+            continue
+        seen_keys.add(key)
+        items.append({"kind": "portfolio", "url": url, "collab_id": None})
+    for post in select_top_posts_to_host(accounts):
+        url = post["url"]
+        if not is_video_top_post_type(post_type_for_url(accounts, url)):
+            continue
         key = (normalize_source_url(url), "top_post")
         if key in seen_keys:
             continue
@@ -824,35 +888,48 @@ def existing_ready_by_norm(rows: list[dict[str, Any]]) -> dict[str, dict[str, An
     return out
 
 
-def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, only_url: str | None, force: bool = False, prune_only: bool = False, skip_collabs: bool = False, store: Any | None = None) -> dict[str, Any]:
-    rows = sb.rest_get("influencers", f"select=id,display_name,profile_slug,videos,accounts&id=eq.{influencer_id}")
-    if not rows:
-        raise SystemExit(f"influencer not found: {influencer_id}")
-    store = store or _load_media_storage()(sb)
-    inf = rows[0]
-    log(f"Hosting media for {inf.get('display_name')} ({inf.get('profile_slug')}) {influencer_id}")
-    items = collect_items(inf)
-    if not skip_collabs and not prune_only:
-        items += collect_collabs(sb, influencer_id)
-    if only_url:
-        want = normalize_source_url(only_url)
-        items = [i for i in items if normalize_source_url(i["url"]) == want]
-    # Portfolio first so overlap lands in the portfolio folder.
-    items.sort(key=lambda i: {"portfolio": 0, "top_post": 1, "collab": 2}[i["kind"]])
+def _rate_limit_mark(err: str, streak: list[int]) -> bool:
+    """Increment streak on 403/429-ish errors; return True when the run should stop."""
+    if re.search(r"\b403\b|HTTP Error 403|status code:\s*403", err, re.I):
+        streak[0] += 1
+    elif re.search(r"\b429\b|HTTP Error 429|too many requests", err, re.I):
+        streak[0] += 1
+    else:
+        streak[0] = 0
+    return streak[0] >= 5
 
-    existing = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
+
+def host_media_items(
+    sb: Supabase,
+    influencer_id: str,
+    items: list[dict[str, Any]],
+    *,
+    cookies: Path | None = None,
+    force: bool = False,
+    store: Any | None = None,
+    existing: list[dict[str, Any]] | None = None,
+    dry_run: bool = False,
+    on_after_download: Callable[[], None] | None = None,
+    rate_limit_streak: list[int] | None = None,
+    download_budget: list[int] | None = None,
+    skip_prune: bool = False,
+) -> tuple[dict[str, Any], bool]:
+    """Encode and upload `items` for one influencer. Returns (summary, abort_run)."""
+    store = store or _load_media_storage()(sb)
+    existing = existing if existing is not None else sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
     ready_map = {} if force else existing_ready_by_norm(existing)
     wanted_top = {normalize_source_url(i["url"]) for i in items if i["kind"] == "top_post"}
+    streak = rate_limit_streak if rate_limit_streak is not None else [0]
+    budget = download_budget
 
-    summary = {"ready": 0, "failed": 0, "reused": 0, "skipped": 0, "details": []}
+    summary: dict[str, Any] = {"ready": 0, "failed": 0, "reused": 0, "skipped": 0, "details": []}
     work_root = Path(os.environ.get("WORKDIR") or tempfile.mkdtemp(prefix="host-media-"))
     work_root.mkdir(parents=True, exist_ok=True)
-
-    if prune_only:
-        items = []
-        log("prune-only: skipping encode, dropping leftover top-post folders")
+    abort = False
 
     for item in items:
+        if budget is not None and budget[0] <= 0:
+            break
         url = item["url"]
         kind = item["kind"]
         norm = normalize_source_url(url)
@@ -863,6 +940,11 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
 
         reused = ready_map.get(norm)
         if reused and reused.get("play_path"):
+            if dry_run:
+                summary["skipped"] += 1
+                summary["details"].append({"url": url, "kind": kind, "status": "dry-run-ready", "folder": reused["folder_path"]})
+                log(f"  dry-run: would reuse {reused['folder_path']}")
+                continue
             # Point this kind at the already-stored folder (portfolio preferred).
             upsert_row(
                 sb,
@@ -901,6 +983,15 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             log("  already ready")
             continue
 
+        if dry_run:
+            summary["skipped"] += 1
+            summary["details"].append({"url": url, "kind": kind, "status": "dry-run", "folder": folder})
+            log("  dry-run: would download and encode")
+            continue
+
+        if budget is not None:
+            budget[0] -= 1
+
         upsert_row(
             sb,
             {
@@ -918,6 +1009,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
 
         item_dir = work_root / safe_segment(f"{kind}-{platform}-{vid}")
         item_dir.mkdir(parents=True, exist_ok=True)
+        did_download = False
         try:
             local = [p for p in item_dir.glob("source.*") if p.suffix.lower() not in {".part", ".ytdl"}]
             if local:
@@ -926,7 +1018,10 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             else:
                 try:
                     source = ytdlp_download(url, item_dir, platform, cookies)
+                    did_download = True
                     log(f"  downloaded {source.name} ({source.stat().st_size} bytes)")
+                    if on_after_download:
+                        on_after_download()
                 except Exception as e:
                     prior = next(
                         (
@@ -999,6 +1094,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     leftover.unlink(missing_ok=True)
             summary["ready"] += 1
             summary["details"].append({**meta, "status": "ready", "folder": folder})
+            streak[0] = 0
             log(
                 f"  ready {folder} mp4={meta['video_mp4_bytes']} av1={meta.get('video_av1_bytes')} "
                 f"hevc={meta.get('video_hevc_bytes')} orig={meta['original_bytes']}"
@@ -1022,27 +1118,70 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             summary["failed"] += 1
             summary["details"].append({"url": url, "kind": kind, "status": "failed", "error": err, "folder": folder})
             log(f"  FAILED: {err}")
+            if _rate_limit_mark(err, streak):
+                log("  rate-limit streak (403/429) reached 5; stopping run")
+                abort = True
+                break
 
-    # Drop leftover top-post folders that are no longer referenced.
-    current = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
-    for row in current:
-        if row.get("kind") != "top_post":
-            continue
-        if row.get("source_url_norm") in wanted_top:
-            continue
-        folder = row.get("folder_path") or ""
-        still = [r for r in current if r.get("folder_path") == folder and not (r.get("kind") == "top_post" and r.get("id") == row.get("id"))]
-        if not still and folder:
-            log(f"  removing dropped top-post folder {folder}")
-            try:
-                paths = store.storage_list(folder.rstrip("/"))
-                if paths:
-                    store.storage_remove(paths)
-            except Exception as e:
-                log(f"  folder delete warning: {e}")
-        sb.rest_delete("creator_media", f"id=eq.{row['id']}")
+    if not skip_prune:
+        # Drop leftover top-post folders that are no longer referenced.
+        current = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
+        for row in current:
+            if row.get("kind") != "top_post":
+                continue
+            if row.get("source_url_norm") in wanted_top:
+                continue
+            folder = row.get("folder_path") or ""
+            still = [r for r in current if r.get("folder_path") == folder and not (r.get("kind") == "top_post" and r.get("id") == row.get("id"))]
+            if not still and folder:
+                log(f"  removing dropped top-post folder {folder}")
+                try:
+                    paths = store.storage_list(folder.rstrip("/"))
+                    if paths:
+                        store.storage_remove(paths)
+                except Exception as e:
+                    log(f"  folder delete warning: {e}")
+            sb.rest_delete("creator_media", f"id=eq.{row['id']}")
 
     log(f"Done: {json.dumps({k: summary[k] for k in ('ready', 'reused', 'skipped', 'failed')})}")
+    return summary, abort
+
+
+def process_influencer(
+    sb: Supabase,
+    influencer_id: str,
+    cookies: Path | None,
+    only_url: str | None,
+    force: bool = False,
+    prune_only: bool = False,
+    skip_collabs: bool = False,
+    store: Any | None = None,
+) -> dict[str, Any]:
+    rows = sb.rest_get("influencers", f"select=id,display_name,profile_slug,videos,accounts&id=eq.{influencer_id}")
+    if not rows:
+        raise SystemExit(f"influencer not found: {influencer_id}")
+    store = store or _load_media_storage()(sb)
+    inf = rows[0]
+    log(f"Hosting media for {inf.get('display_name')} ({inf.get('profile_slug')}) {influencer_id}")
+    items = collect_items(inf)
+    if not skip_collabs and not prune_only:
+        items += collect_collabs(sb, influencer_id)
+    if only_url:
+        want = normalize_source_url(only_url)
+        items = [i for i in items if normalize_source_url(i["url"]) == want]
+    items.sort(key=lambda i: {"portfolio": 0, "top_post": 1, "collab": 2}[i["kind"]])
+    if prune_only:
+        items = []
+        log("prune-only: skipping encode, dropping leftover top-post folders")
+    summary, _abort = host_media_items(
+        sb,
+        influencer_id,
+        items,
+        cookies=cookies,
+        force=force,
+        store=store,
+        skip_prune=False,
+    )
     return summary
 
 

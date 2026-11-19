@@ -49,3 +49,22 @@ Env (all optional; omit them to keep current behaviour):
 - When `MEDIA_STORAGE_BACKEND=r2`, the hosting and purge jobs also need `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (defaults to `creator-videos`), and `R2_ACCOUNT_ID` or `R2_ENDPOINT`. The `creator_media` rows stay in Supabase; only the files move.
 
 Helpers: `lib/mediaStorage.ts` (public URLs), `lib/mediaObjectStore.ts` and `scripts/media_storage.py` (upload / list / delete).
+
+## Backfill (all approved creators)
+
+One-off or resumable batch job on the VPS (same encode rules as `scripts/host_creator_media.py`):
+
+```bash
+export SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=…
+# Optional: export YTDLP_COOKIES=/path/to/cookies.txt
+
+python3 scripts/backfill_creator_media.py --dry-run          # list pending work
+python3 scripts/backfill_creator_media.py --limit 5          # first 5 approved creators
+python3 scripts/backfill_creator_media.py --only <uuid>      # single creator
+python3 scripts/backfill_creator_media.py --max-items 20     # cap downloads this run
+```
+
+- Processes **portfolio** URLs on Instagram/TikTok and the **3 top-post slots** (`collectTopPostsToHost`); YouTube stays embed; photo posts are skipped.
+- Skips `creator_media` rows already `ready` (idempotent). Failed rows are retried on the next run.
+- Random **3–8 s** pause after each yt-dlp download; **one item at a time**. Stops with exit code **3** after **5** consecutive HTTP 403/429 errors.
+- Writes a JSON summary to `/var/log/influo-backfill/<timestamp>.json` (override with `CREATOR_MEDIA_BACKFILL_LOG_DIR`).
