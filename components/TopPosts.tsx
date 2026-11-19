@@ -10,6 +10,8 @@ import {
   type TopPost,
 } from "@/lib/topPosts";
 import { formatDisplayDate } from "@/lib/formatDate";
+import type { HostedMedia } from "@/lib/creatorMedia";
+import { lookupHostedMedia } from "@/lib/useCreatorMedia";
 
 const COPY = {
   title: { el: "Κορυφαία posts", en: "Top posts" },
@@ -37,10 +39,12 @@ function TopPostCard({
   post,
   lang,
   onUnavailable,
+  hostedMedia,
 }: {
   post: TopPost;
   lang: "el" | "en";
   onUnavailable: () => void;
+  hostedMedia?: HostedMedia | null;
 }) {
   const provider = detectProvider(post.url);
   const dateLabel = formatPostedAt(post.posted_at, lang);
@@ -48,7 +52,13 @@ function TopPostCard({
 
   return (
     <div className="w-full min-w-0">
-      <SocialEmbedCard provider={provider} originalUrl={post.url} lang={lang} onUnavailable={onUnavailable} />
+      <SocialEmbedCard
+        provider={provider}
+        originalUrl={post.url}
+        lang={lang}
+        onUnavailable={hostedMedia ? undefined : onUnavailable}
+        hostedMedia={hostedMedia}
+      />
       <PostMeta post={post} lang={lang} dateLabel={dateLabel} />
     </div>
   );
@@ -98,11 +108,14 @@ function PostMeta({
 export default function TopPosts({
   accounts,
   lang,
+  hostedByUrl,
 }: Readonly<{
   accounts?: AccountLike[] | null;
   lang: "el" | "en";
+  hostedByUrl?: Map<string, HostedMedia>;
 }>) {
-  // Collect a few spares so a removed post can be replaced by the next one.
+  // 3 slots: best of each platform, then next-best overall. Collect a few
+  // spares so an unavailable embed can be replaced by the next post.
   const candidates = useMemo(() => collectTopPosts(accounts, TOP_POSTS_DISPLAY_LIMIT * 3), [accounts]);
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const candidateKey = candidates.map((p) => p.url).join("|");
@@ -124,7 +137,9 @@ export default function TopPosts({
     };
   }, [candidateKey]);
 
-  const posts = candidates.filter((p) => !hidden.has(p.url)).slice(0, TOP_POSTS_DISPLAY_LIMIT);
+  const posts = candidates
+    .filter((p) => !hidden.has(p.url) || Boolean(hostedByUrl && lookupHostedMedia(hostedByUrl, p.url)))
+    .slice(0, TOP_POSTS_DISPLAY_LIMIT);
   if (!posts.length) return null;
 
   return (
@@ -136,6 +151,7 @@ export default function TopPosts({
             key={post.url}
             post={post}
             lang={lang}
+            hostedMedia={hostedByUrl ? lookupHostedMedia(hostedByUrl, post.url) : null}
             onUnavailable={() => setHidden((prev) => new Set(prev).add(post.url))}
           />
         ))}

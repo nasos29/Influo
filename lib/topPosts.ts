@@ -14,10 +14,15 @@ export type TopPost = {
 
 const ALLOWED_TYPES = new Set<TopPostType>(["video", "image", "carousel"]);
 
-/** Saved on each account by admin refresh and the 15-day job (3 shown + 3 backups for removed posts). */
+/** Saved on each account by admin refresh and the 15-day job (shown posts + backups). */
 export const TOP_POSTS_PER_ACCOUNT = 6;
-/** Shown on the profile, across every account. */
+/** Shown and self-hosted on the profile, across every account. Always 3 slots. */
 export const TOP_POSTS_DISPLAY_LIMIT = 3;
+
+export type TopPostPlatform = "instagram" | "tiktok" | "youtube";
+
+/** Instagram and TikTok top posts are self-hosted. YouTube stays an official embed. */
+export const HOSTED_TOP_POST_PLATFORMS: readonly TopPostPlatform[] = ["instagram", "tiktok"];
 
 const ALLOWED_HOST_SUFFIXES = ["instagram.com", "tiktok.com", "youtube.com", "youtu.be"] as const;
 
@@ -117,12 +122,34 @@ export type AccountWithTopPosts = {
   top_posts?: unknown;
 };
 
+export function topPostPlatformKey(
+  url: string,
+  accountPlatform?: string | null
+): TopPostPlatform | null {
+  const n = String(url || "").toLowerCase();
+  if (/tiktok\.com|vm\.tiktok/.test(n)) return "tiktok";
+  if (/instagram\.com|instagr\.am/.test(n)) return "instagram";
+  if (/youtube\.com|youtu\.be/.test(n)) return "youtube";
+  const p = String(accountPlatform || "").toLowerCase();
+  if (p.includes("tiktok")) return "tiktok";
+  if (p.includes("instagram")) return "instagram";
+  if (p.includes("youtube")) return "youtube";
+  return null;
+}
+
+export function isHostedTopPostPlatform(platform: TopPostPlatform | null): boolean {
+  return platform === "instagram" || platform === "tiktok";
+}
+
 /**
- * Posts the profile shows.
- * Each account keeps its own ranking (views, else likes+comments).
- * Slots alternate across accounts, best of each first, so every account
- * with posts is represented before a second post from the same account.
- * Hidden URLs are skipped before that choice. Total is `limit` (default 3).
+ * Always fill `limit` slots (default 3):
+ *   1. The best post of each platform (Instagram, TikTok, YouTube), ranked
+ *      by views, else likes+comments.
+ *   2. If the creator has fewer platforms, fill remaining slots with the
+ *      next-best posts overall from the platforms they do have.
+ * Hidden URLs are skipped first. A URL that is also in the portfolio still
+ * occupies one of these slots (the file is stored once). YouTube is included
+ * in this list for display as an official embed; it is not self-hosted.
  */
 export function collectTopPosts(
   accounts: AccountWithTopPosts[] | null | undefined,
@@ -132,30 +159,61 @@ export function collectTopPosts(
   if (!Array.isArray(accounts) || !accounts.length) return [];
   const visible = accountsWithoutHiddenTopPosts(accounts, hiddenRaw);
   const source = Array.isArray(visible) ? (visible as AccountWithTopPosts[]) : [];
-  const ranked: TopPost[][] = [];
+  const byUrl = new Map<string, TopPost>();
   for (const acc of source) {
-    const platform = typeof acc?.platform === "string" ? acc.platform : undefined;
-    const posts = sanitizeTopPosts(acc?.top_posts)
-      .map((post) => (platform ? { ...post, platform } : post))
-      .sort(compareTopPosts);
-    if (posts.length) ranked.push(posts);
+    const accountPlatform = typeof acc?.platform === "string" ? acc.platform : undefined;
+    for (const raw of sanitizeTopPosts(acc?.top_posts)) {
+      const platformLabel = accountPlatform || topPostPlatformKey(raw.url, accountPlatform) || undefined;
+      const post = platformLabel ? { ...raw, platform: platformLabel } : raw;
+      const prev = byUrl.get(post.url);
+      if (!prev || compareTopPosts(post, prev) < 0) byUrl.set(post.url, post);
+    }
   }
+  const all = [...byUrl.values()];
   const cap = Math.max(0, limit);
+  if (!all.length || cap === 0) return [];
+
+  const byPlatform = new Map<string, TopPost[]>();
+  for (const post of all) {
+    const key = topPostPlatformKey(post.url, post.platform);
+    if (!key) continue;
+    const list = byPlatform.get(key) || [];
+    list.push(post);
+    byPlatform.set(key, list);
+  }
+  for (const list of byPlatform.values()) list.sort(compareTopPosts);
+
   const out: TopPost[] = [];
   const seen = new Set<string>();
-  for (let round = 0; out.length < cap; round += 1) {
-    let added = false;
-    for (const posts of ranked) {
-      const post = posts[round];
-      if (!post || seen.has(post.url)) continue;
-      seen.add(post.url);
-      out.push(post);
-      added = true;
-      if (out.length >= cap) break;
-    }
-    if (!added) break;
+  const winners = [...byPlatform.values()]
+    .map((list) => list[0])
+    .filter(Boolean)
+    .sort(compareTopPosts);
+  for (const post of winners) {
+    if (seen.has(post.url)) continue;
+    seen.add(post.url);
+    out.push(post);
+    if (out.length >= cap) return out;
+  }
+
+  const rest = all.filter((post) => !seen.has(post.url)).sort(compareTopPosts);
+  for (const post of rest) {
+    seen.add(post.url);
+    out.push(post);
+    if (out.length >= cap) break;
   }
   return out;
+}
+
+/** Display slots that should be self-hosted (Instagram and TikTok only). */
+export function collectTopPostsToHost(
+  accounts: AccountWithTopPosts[] | null | undefined,
+  limit = TOP_POSTS_DISPLAY_LIMIT,
+  hiddenRaw?: unknown
+): TopPost[] {
+  return collectTopPosts(accounts, limit, hiddenRaw).filter((post) =>
+    isHostedTopPostPlatform(topPostPlatformKey(post.url, post.platform))
+  );
 }
 
 /** Compact count for UI: 12500 → "12.5K" (caller may localize the decimal). */

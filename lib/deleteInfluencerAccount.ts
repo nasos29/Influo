@@ -228,6 +228,15 @@ export async function deleteInfluencerAccount(
     .eq('id', trimmedId);
   if (influencerDeleteError) {
     console.error('[deleteInfluencerAccount] influencers:', influencerDeleteError.message);
+  } else {
+    // AFTER DELETE trigger queued creators/<id>/; drain it now so folders
+    // do not wait for the cron job. Safe no-op if the table is not migrated yet.
+    try {
+      const { processCreatorStoragePurge } = await import('@/lib/purgeCreatorStorage');
+      await processCreatorStoragePurge(supabaseAdmin);
+    } catch (purgeErr) {
+      console.warn('[deleteInfluencerAccount] storage purge:', purgeErr);
+    }
   }
 
   const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(trimmedId);

@@ -31,6 +31,9 @@ import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 import type { PortfolioMediaKind } from "@/lib/usePortfolioMediaControls";
+import HostedVideoPlayer from "@/components/HostedVideoPlayer";
+import PlatformBrandIcon from "@/components/PlatformBrandIcon";
+import type { HostedMedia } from "@/lib/creatorMedia";
 
 type Provider = "instagram" | "tiktok" | "youtube";
 
@@ -49,6 +52,8 @@ interface SocialEmbedCardProps {
    * call it. Other providers still report a hard load failure.
    */
   onUnavailable?: () => void;
+  /** When set, play the Influo-hosted file instead of an off-site embed. */
+  hostedMedia?: HostedMedia | null;
 }
 
 const COPY = {
@@ -170,6 +175,7 @@ export default function SocialEmbedCard({
   width,
   height,
   onUnavailable,
+  hostedMedia = null,
 }: SocialEmbedCardProps) {
   const finalWidth = width || DEFAULT_DIMENSIONS[provider].width;
   const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
@@ -401,6 +407,7 @@ export default function SocialEmbedCard({
 
   // Silent player/v1 remount after a backoff wait (temporary TikTok limits).
   useEffect(() => {
+    if (hostedMedia?.playUrl) return;
     if (!tikTokPlayerReloadNonce) return;
     const id = extractTikTokVideoId(iframeSrc || originalUrl);
     if (!id) return;
@@ -412,10 +419,11 @@ export default function SocialEmbedCard({
       setActivated(true);
       setLoading(false);
     });
-  }, [iframeSrc, originalUrl, mediaIframeRef, tikTokIframeRef, tikTokPlayerReloadNonce]);
+  }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, tikTokIframeRef, tikTokPlayerReloadNonce]);
 
   // Silent player/v1 → embed/v2 fallback (mobile and desktop). No error UI.
   useEffect(() => {
+    if (hostedMedia?.playUrl) return;
     if (!tikTokFallbackToEmbed || tikTokEmbedFallbackUsed.current) return;
     const id = extractTikTokVideoId(iframeSrc || originalUrl);
     if (!id) {
@@ -432,7 +440,7 @@ export default function SocialEmbedCard({
       setActivated(true);
       setLoading(false);
     });
-  }, [iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokFallbackToEmbed, tikTokIframeRef]);
+  }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokFallbackToEmbed, tikTokIframeRef]);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
@@ -513,6 +521,10 @@ export default function SocialEmbedCard({
   }, [igKind, isIgPost, isInstagram, originalUrl]);
 
   const fallBackToOfficialEmbed = useCallback(() => {
+    if (hostedMedia?.playUrl) {
+      setLoading(false);
+      return;
+    }
     setNativeVideoUrl(null);
     const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
     if (!official) {
@@ -523,7 +535,7 @@ export default function SocialEmbedCard({
     setIframeSrc(official);
     setActivated(true);
     setLoading(false);
-  }, [originalUrl]);
+  }, [hostedMedia?.playUrl, originalUrl]);
 
   // Never leave an empty Instagram /p/ card: cover from video-thumbnail, else official embed.
   useEffect(() => {
@@ -558,6 +570,7 @@ export default function SocialEmbedCard({
   ]);
 
   const retryTikTokWithEmbed = useCallback(() => {
+    if (hostedMedia?.playUrl) return;
     const id =
       extractTikTokVideoId(iframeSrc || originalUrl) || cachedTikTokVideoId(originalUrl);
     if (!id) {
@@ -583,13 +596,25 @@ export default function SocialEmbedCard({
       setActivated(true);
       setLoading(false);
     });
-  }, [iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokIframeRef, tikTokSessionId]);
+  }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokIframeRef, tikTokSessionId]);
+
+  // Hosted files replace official embeds. If a TikTok iframe was mounted
+  // before creator_media resolved, tear it down and never mount another.
+  useEffect(() => {
+    if (!hostedMedia?.playUrl) return;
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+    setIframeSrc(null);
+    setNativeVideoUrl(null);
+    setLoading(false);
+  }, [hostedMedia?.playUrl, mediaIframeRef, tikTokIframeRef]);
 
   const activateClickToLoad = useCallback(async () => {
     if (
       loading ||
       iframeSrc ||
       nativeVideoUrl ||
+      (hostedMedia?.playUrl && activated) ||
       isStaticImage ||
       isInteractiveCarousel
     ) {
@@ -600,6 +625,11 @@ export default function SocialEmbedCard({
     setActivated(true);
     setLoading(true);
     try {
+      if (hostedMedia?.playUrl) {
+        setLoading(false);
+        return;
+      }
+
       if (provider === "youtube") {
         const official = buildOfficialEmbedUrl(originalUrl, { autoplay: true });
         if (!official) throw new Error("Missing YouTube embed");
@@ -680,9 +710,11 @@ export default function SocialEmbedCard({
     originalUrl,
     provider,
     tikTokSessionId,
+    hostedMedia,
+    activated,
   ]);
 
-  const coverSrc = igPoster || thumbSrc || null;
+  const coverSrc = hostedMedia?.posterUrl || igPoster || thumbSrc || null;
   const playLabel = isInstagram
     ? COPY.play[uiLang]
     : isTikTokPhoto
@@ -768,38 +800,37 @@ export default function SocialEmbedCard({
                     }
                     void activateClickToLoad();
                   }}
-                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                  className="group absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                   aria-label={error ? COPY.retry[uiLang] : playLabel}
                 >
-                  <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
-                    {NAMES[provider]}
-                  </span>
+                  <span className="flex flex-col items-center justify-center gap-4 opacity-80 transition-opacity duration-200 [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.55))] group-hover:opacity-100 group-focus-visible:opacity-100">
+                  <PlatformBrandIcon
+                    platform={provider}
+                    className="h-7 w-7 text-white"
+                  />
                   {showPlayButton ? (
-                    <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
-                      <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                      <svg viewBox="0 0 24 24" className="ml-0.5 h-6 w-6 fill-current" aria-hidden>
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </span>
                   ) : showPhotoBadge ? (
-                    <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
-                      <svg viewBox="0 0 24 24" className="h-8 w-8 fill-current" aria-hidden>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                      <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
                         <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
                       </svg>
                     </span>
                   ) : igMetaLoading || (isIgPost && igKind === null) ? (
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
                   ) : null}
-                  <span className="text-base font-bold drop-shadow">
-                    {error
-                      ? COPY.retry[uiLang]
-                      : showPlayButton || showPhotoBadge
-                        ? playLabel
-                        : isIgPost
-                          ? COPY.loading[uiLang]
-                          : COPY.loading[uiLang]}
                   </span>
                   {error ? (
-                    <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
+                    <>
+                      <span className="text-base font-bold drop-shadow">{COPY.retry[uiLang]}</span>
+                      <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
+                    </>
+                  ) : igMetaLoading || (isIgPost && igKind === null) ? (
+                    <span className="sr-only">{COPY.loading[uiLang]}</span>
                   ) : null}
                 </button>
               ) : null}
@@ -815,7 +846,17 @@ export default function SocialEmbedCard({
                 </div>
               ) : null}
 
-              {nativeVideoUrl ? (
+              {hostedMedia?.playUrl && activated && showPlayButton ? (
+                <HostedVideoPlayer
+                  media={hostedMedia}
+                  lang={uiLang}
+                  posterFallback={coverSrc}
+                  onError={() => {
+                    setError(true);
+                    setLoading(false);
+                  }}
+                />
+              ) : nativeVideoUrl ? (
                 <video
                   src={nativeVideoUrl}
                   poster={nativePoster || coverSrc || undefined}
@@ -835,6 +876,7 @@ export default function SocialEmbedCard({
 
               {iframeSrc &&
               iframeSrc !== "about:blank" &&
+              !hostedMedia?.playUrl &&
               !error &&
               (!isTikTokIframe || tikTokBoxMeasured) ? (
                 <>
@@ -882,6 +924,7 @@ export default function SocialEmbedCard({
                       if (isTikTokIframe) onTikTokIframeLoad();
                     }}
                     onError={() => {
+                      if (hostedMedia?.playUrl) return;
                       if (
                         provider === "tiktok" &&
                         isTikTokPlayer &&
@@ -935,7 +978,7 @@ export default function SocialEmbedCard({
 
               {/* Transparent toggle overlay — iframe clicks are otherwise swallowed.
                   Skipped for photos/carousels. Sound button is z-40 with stopPropagation. */}
-              {portfolioActive ? (
+              {portfolioActive && !(hostedMedia?.playUrl && activated) ? (
                 <button
                   type="button"
                   className={`absolute inset-x-0 top-0 z-[15] bg-transparent ${

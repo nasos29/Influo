@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   collectTopPosts,
+  collectTopPostsToHost,
   formatCompactCount,
   isAllowedTopPostUrl,
   sanitizeTopPosts,
@@ -76,7 +77,7 @@ test("sanitizeTopPosts keeps at most six posts per account (3 shown + 3 backups)
   );
 });
 
-test("collectTopPosts round-robins the best post of each account", () => {
+test("collectTopPosts takes the best of each platform, then fills with next-best overall", () => {
   const accounts = [
     {
       platform: "Instagram",
@@ -120,16 +121,17 @@ test("collectTopPosts round-robins the best post of each account", () => {
 
   const top = collectTopPosts(accounts, 3);
   assert.equal(top.length, 3);
+  // Platform winners first (ranked by views), then next-best overall (Mid has views).
   assert.deepEqual(
     top.map((p) => p.url),
     [
-      "https://www.instagram.com/reel/LowViews/",
       "https://www.tiktok.com/@u/video/HighViews",
-      "https://www.instagram.com/p/NoViewsHighEng/",
+      "https://www.instagram.com/reel/LowViews/",
+      "https://www.tiktok.com/@u/photo/Mid",
     ]
   );
-  assert.equal(top[0]?.platform, "Instagram");
-  assert.equal(top[1]?.platform, "TikTok");
+  assert.equal(top[0]?.platform, "TikTok");
+  assert.equal(top[1]?.platform, "Instagram");
 
   const hiddenBest = collectTopPosts(accounts, 3, [
     {
@@ -141,9 +143,61 @@ test("collectTopPosts round-robins the best post of each account", () => {
   assert.deepEqual(
     hiddenBest.map((p) => p.url),
     [
-      "https://www.instagram.com/p/NoViewsHighEng/",
       "https://www.tiktok.com/@u/video/HighViews",
+      "https://www.instagram.com/p/NoViewsHighEng/",
       "https://www.tiktok.com/@u/photo/Mid",
+    ]
+  );
+
+  // TikTok only: all 3 slots come from that platform, best first.
+  const tiktokOnly = collectTopPosts(
+    [
+      {
+        platform: "TikTok",
+        top_posts: [
+          { url: "https://www.tiktok.com/@u/video/A", type: "video", views: 100, likes: 1, comments: 0 },
+          { url: "https://www.tiktok.com/@u/video/B", type: "video", views: 300, likes: 1, comments: 0 },
+          { url: "https://www.tiktok.com/@u/video/C", type: "video", views: 200, likes: 1, comments: 0 },
+          { url: "https://www.tiktok.com/@u/video/D", type: "video", views: 50, likes: 1, comments: 0 },
+        ],
+      },
+    ],
+    3
+  );
+  assert.deepEqual(
+    tiktokOnly.map((p) => p.url),
+    [
+      "https://www.tiktok.com/@u/video/B",
+      "https://www.tiktok.com/@u/video/C",
+      "https://www.tiktok.com/@u/video/A",
+    ]
+  );
+
+  // Two Instagram accounts still count as one platform: best overall, then next-best.
+  const twoIg = collectTopPosts(
+    [
+      {
+        platform: "Instagram",
+        top_posts: [
+          { url: "https://www.instagram.com/reel/AccA/", type: "video", views: 100, likes: 1, comments: 0 },
+        ],
+      },
+      {
+        platform: "Instagram",
+        top_posts: [
+          { url: "https://www.instagram.com/reel/AccB/", type: "video", views: 400, likes: 1, comments: 0 },
+          { url: "https://www.instagram.com/reel/AccC/", type: "video", views: 200, likes: 1, comments: 0 },
+        ],
+      },
+    ],
+    3
+  );
+  assert.deepEqual(
+    twoIg.map((p) => p.url),
+    [
+      "https://www.instagram.com/reel/AccB/",
+      "https://www.instagram.com/reel/AccC/",
+      "https://www.instagram.com/reel/AccA/",
     ]
   );
 
@@ -189,4 +243,95 @@ test("formatCompactCount abbreviates", () => {
   assert.equal(formatCompactCount(1000), "1K");
   assert.equal(formatCompactCount(999), "999");
   assert.equal(formatCompactCount(null), "—");
+});
+
+test("YouTube fills a display slot as an embed and is not hosted", () => {
+  const accounts = [
+    {
+      platform: "Instagram",
+      top_posts: [
+        { url: "https://www.instagram.com/reel/IgBest/", type: "video", views: 100, likes: 1, comments: 0 },
+        { url: "https://www.instagram.com/reel/IgSecond/", type: "video", views: 90, likes: 1, comments: 0 },
+      ],
+    },
+    {
+      platform: "TikTok",
+      top_posts: [
+        { url: "https://www.tiktok.com/@u/video/TtBest", type: "video", views: 80, likes: 1, comments: 0 },
+      ],
+    },
+    {
+      platform: "YouTube",
+      top_posts: [
+        { url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", type: "video", views: 999999, likes: 1, comments: 0 },
+      ],
+    },
+  ];
+  const shown = collectTopPosts(accounts, 3);
+  assert.deepEqual(
+    shown.map((p) => p.url),
+    [
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "https://www.instagram.com/reel/IgBest/",
+      "https://www.tiktok.com/@u/video/TtBest",
+    ]
+  );
+  assert.deepEqual(
+    collectTopPostsToHost(accounts, 3).map((p) => p.url),
+    [
+      "https://www.instagram.com/reel/IgBest/",
+      "https://www.tiktok.com/@u/video/TtBest",
+    ]
+  );
+
+  const igAndYt = collectTopPosts(
+    [
+      {
+        platform: "Instagram",
+        top_posts: [
+          { url: "https://www.instagram.com/reel/IgBest/", type: "video", views: 100, likes: 1, comments: 0 },
+          { url: "https://www.instagram.com/reel/IgSecond/", type: "video", views: 90, likes: 1, comments: 0 },
+        ],
+      },
+      {
+        platform: "YouTube",
+        top_posts: [
+          { url: "https://www.youtube.com/shorts/abcdefghijk", type: "video", views: 50, likes: 1, comments: 0 },
+        ],
+      },
+    ],
+    3
+  );
+  assert.deepEqual(
+    igAndYt.map((p) => p.url),
+    [
+      "https://www.instagram.com/reel/IgBest/",
+      "https://www.youtube.com/shorts/abcdefghijk",
+      "https://www.instagram.com/reel/IgSecond/",
+    ]
+  );
+  assert.deepEqual(
+    collectTopPostsToHost(
+      [
+        {
+          platform: "Instagram",
+          top_posts: [
+            { url: "https://www.instagram.com/reel/IgBest/", type: "video", views: 100, likes: 1, comments: 0 },
+            { url: "https://www.instagram.com/reel/IgSecond/", type: "video", views: 90, likes: 1, comments: 0 },
+          ],
+        },
+        {
+          platform: "YouTube",
+          top_posts: [
+            { url: "https://www.youtube.com/shorts/abcdefghijk", type: "video", views: 50, likes: 1, comments: 0 },
+          ],
+        },
+      ],
+      3
+    ).map((p) => p.url),
+    [
+      "https://www.instagram.com/reel/IgBest/",
+      "https://www.instagram.com/reel/IgSecond/",
+    ]
+  );
 });
