@@ -363,6 +363,9 @@ export async function POST(request: NextRequest) {
           ...copyAuditprErExtras(acc),
           // Same cap and field cleanup as the admin refresh. Omit the key when
           // Auditpr did not send it so stored top_posts (and hidden_videos) stay.
+          // Stored backups can exceed the 3 shown/hosted slots. Display and
+          // self-hosting use collectTopPosts / collectTopPostsToHost
+          // (best of each platform, then next-best; YouTube embed only).
           ...(Object.hasOwn(acc, 'top_posts')
             ? { top_posts: sanitizeTopPosts(acc.top_posts) }
             : {}),

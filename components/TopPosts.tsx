@@ -114,7 +114,8 @@ export default function TopPosts({
   lang: "el" | "en";
   hostedByUrl?: Map<string, HostedMedia>;
 }>) {
-  // Collect a few spares so a removed post can be replaced by the next one.
+  // 3 slots: best of each platform, then next-best overall. Collect a few
+  // spares so an unavailable embed can be replaced by the next post.
   const candidates = useMemo(() => collectTopPosts(accounts, TOP_POSTS_DISPLAY_LIMIT * 3), [accounts]);
   const [hidden, setHidden] = useState<Set<string>>(() => new Set());
   const candidateKey = candidates.map((p) => p.url).join("|");

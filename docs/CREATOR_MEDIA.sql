@@ -3,6 +3,9 @@
 -- creator_media rows cascade when the influencer is deleted.
 -- Storage folders are queued on influencer delete for a cleanup job
 -- (admin delete, self-delete, and direct SQL DELETE all hit this trigger).
+-- Top posts: 3 slots (best of each platform, then next-best overall).
+-- YouTube stays an official embed and is not stored here. A portfolio
+-- duplicate occupies one slot; the file is stored once (portfolio folder).
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (

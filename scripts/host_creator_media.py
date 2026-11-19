@@ -5,10 +5,15 @@ Layout in bucket creator-videos:
   creators/<influencer_id>/portfolio/<platform>-<source_video_id>/
   creators/<influencer_id>/top-posts/<platform>-<source_video_id>/
   creators/<influencer_id>/collabs/<proposal-or-application-id>/
-  Files: video.mp4, video-av1.mp4 (only if smaller), poster.webp, meta.json
+  Files: video.mp4, video-av1.mp4 or video-hevc.mp4 (only if smaller), poster.webp, meta.json
 
 Overlap: store once (prefer the portfolio folder) and point every kind at it.
 Dropped top-post folders are removed only when no remaining row references them.
+
+Top posts: always 3 display slots. Take the best post of each platform
+(Instagram, TikTok, YouTube), then fill leftover slots with the next-best
+posts overall. YouTube stays an official embed and is never downloaded.
+A portfolio duplicate still occupies one slot (the file is stored once).
 
 Env:
   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
@@ -33,6 +38,8 @@ from typing import Any
 
 BUCKET = "creator-videos"
 KIND_FOLDER = {"portfolio": "portfolio", "top_post": "top-posts", "collab": "collabs"}
+TOP_POSTS_DISPLAY_LIMIT = 3
+HOSTED_TOP_POST_PLATFORMS = ("instagram", "tiktok")
 
 
 def log(msg: str) -> None:
@@ -548,6 +555,121 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
     }
 
 
+def _post_int(value: Any) -> int | None:
+    if value is None or value is False or value == "":
+        return None
+    try:
+        n = int(value)
+        return n
+    except (TypeError, ValueError):
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+
+def top_post_platform_key(url: str, account_platform: str | None = None) -> str | None:
+    n = str(url or "").lower()
+    if "tiktok.com" in n or "vm.tiktok" in n:
+        return "tiktok"
+    if "instagram.com" in n or "instagr.am" in n:
+        return "instagram"
+    if "youtube.com" in n or "youtu.be" in n:
+        return "youtube"
+    p = str(account_platform or "").lower()
+    if "tiktok" in p:
+        return "tiktok"
+    if "instagram" in p:
+        return "instagram"
+    if "youtube" in p:
+        return "youtube"
+    return None
+
+
+def compare_top_posts(a: dict[str, Any], b: dict[str, Any]) -> int:
+    va, vb = _post_int(a.get("views")), _post_int(b.get("views"))
+    a_has = va is not None and va > 0
+    b_has = vb is not None and vb > 0
+    if a_has and b_has and va != vb:
+        return int(vb) - int(va)
+    if a_has != b_has:
+        return -1 if a_has else 1
+    ea = (_post_int(a.get("likes")) or 0) + (_post_int(a.get("comments")) or 0)
+    eb = (_post_int(b.get("likes")) or 0) + (_post_int(b.get("comments")) or 0)
+    return eb - ea
+
+
+def select_top_posts_for_display(accounts: list[Any] | None, limit: int = TOP_POSTS_DISPLAY_LIMIT) -> list[dict[str, Any]]:
+    """Best of each platform, then next-best overall, up to `limit` slots."""
+    from functools import cmp_to_key
+
+    by_url: dict[str, dict[str, Any]] = {}
+    for acc in accounts or []:
+        if not isinstance(acc, dict):
+            continue
+        account_platform = acc.get("platform") if isinstance(acc.get("platform"), str) else None
+        for post in acc.get("top_posts") or []:
+            if not isinstance(post, dict):
+                continue
+            url = str(post.get("url") or "").strip()
+            if not url:
+                continue
+            platform = top_post_platform_key(url, account_platform)
+            candidate = {
+                "url": url,
+                "platform": platform,
+                "views": _post_int(post.get("views")),
+                "likes": _post_int(post.get("likes")),
+                "comments": _post_int(post.get("comments")),
+            }
+            prev = by_url.get(url)
+            if prev is None or compare_top_posts(candidate, prev) < 0:
+                by_url[url] = candidate
+    all_posts = list(by_url.values())
+    cap = max(0, int(limit))
+    if not all_posts or cap == 0:
+        return []
+
+    by_platform: dict[str, list[dict[str, Any]]] = {}
+    for post in all_posts:
+        key = post.get("platform")
+        if not key:
+            continue
+        by_platform.setdefault(str(key), []).append(post)
+    for group in by_platform.values():
+        group.sort(key=cmp_to_key(compare_top_posts))
+
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    winners = [group[0] for group in by_platform.values() if group]
+    winners.sort(key=cmp_to_key(compare_top_posts))
+    for post in winners:
+        if post["url"] in seen:
+            continue
+        seen.add(post["url"])
+        out.append(post)
+        if len(out) >= cap:
+            return out
+
+    rest = [p for p in all_posts if p["url"] not in seen]
+    rest.sort(key=cmp_to_key(compare_top_posts))
+    for post in rest:
+        seen.add(post["url"])
+        out.append(post)
+        if len(out) >= cap:
+            break
+    return out
+
+
+def select_top_posts_to_host(accounts: list[Any] | None, limit: int = TOP_POSTS_DISPLAY_LIMIT) -> list[dict[str, Any]]:
+    """Same 3-slot rule as the profile, excluding YouTube (embed only)."""
+    return [
+        post
+        for post in select_top_posts_for_display(accounts, limit)
+        if post.get("platform") in HOSTED_TOP_POST_PLATFORMS
+    ]
+
+
 def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str]] = set()
@@ -560,20 +682,13 @@ def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         seen_keys.add(key)
         items.append({"kind": "portfolio", "url": url, "collab_id": None})
-    for acc in inf.get("accounts") or []:
-        if not isinstance(acc, dict):
+    for post in select_top_posts_to_host(inf.get("accounts") or []):
+        url = post["url"]
+        key = (normalize_source_url(url), "top_post")
+        if key in seen_keys:
             continue
-        for post in acc.get("top_posts") or []:
-            if not isinstance(post, dict):
-                continue
-            url = str(post.get("url") or "").strip()
-            if not url:
-                continue
-            key = (normalize_source_url(url), "top_post")
-            if key in seen_keys:
-                continue
-            seen_keys.add(key)
-            items.append({"kind": "top_post", "url": url, "collab_id": None})
+        seen_keys.add(key)
+        items.append({"kind": "top_post", "url": url, "collab_id": None})
     return items
 
 
@@ -645,13 +760,15 @@ def existing_ready_by_norm(rows: list[dict[str, Any]]) -> dict[str, dict[str, An
     return out
 
 
-def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, only_url: str | None, force: bool = False) -> dict[str, Any]:
+def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, only_url: str | None, force: bool = False, prune_only: bool = False, skip_collabs: bool = False) -> dict[str, Any]:
     rows = sb.rest_get("influencers", f"select=id,display_name,profile_slug,videos,accounts&id=eq.{influencer_id}")
     if not rows:
         raise SystemExit(f"influencer not found: {influencer_id}")
     inf = rows[0]
     log(f"Hosting media for {inf.get('display_name')} ({inf.get('profile_slug')}) {influencer_id}")
-    items = collect_items(inf) + collect_collabs(sb, influencer_id)
+    items = collect_items(inf)
+    if not skip_collabs and not prune_only:
+        items += collect_collabs(sb, influencer_id)
     if only_url:
         want = normalize_source_url(only_url)
         items = [i for i in items if normalize_source_url(i["url"]) == want]
@@ -665,6 +782,10 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
     summary = {"ready": 0, "failed": 0, "reused": 0, "skipped": 0, "details": []}
     work_root = Path(os.environ.get("WORKDIR") or tempfile.mkdtemp(prefix="host-media-"))
     work_root.mkdir(parents=True, exist_ok=True)
+
+    if prune_only:
+        items = []
+        log("prune-only: skipping encode, dropping leftover top-post folders")
 
     for item in items:
         url = item["url"]
@@ -849,6 +970,8 @@ def main() -> int:
     parser.add_argument("--cookies", default=os.environ.get("YTDLP_COOKIES") or "", help="Netscape cookies.txt for TikTok")
     parser.add_argument("--only-url", default="")
     parser.add_argument("--force", action="store_true", help="Re-encode even if a ready row already exists")
+    parser.add_argument("--prune-only", action="store_true", help="Only delete leftover top-post folders/rows; do not encode")
+    parser.add_argument("--skip-collabs", action="store_true", help="Do not host collaboration deliverables")
     args = parser.parse_args()
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SERVICE_ROLE_KEY") or ""
@@ -858,7 +981,15 @@ def main() -> int:
     which_or_die("ffprobe")
     cookies = Path(args.cookies) if args.cookies else None
     sb = Supabase(url, key)
-    process_influencer(sb, args.influencer_id.strip(), cookies, args.only_url.strip() or None, force=args.force)
+    process_influencer(
+        sb,
+        args.influencer_id.strip(),
+        cookies,
+        args.only_url.strip() or None,
+        force=args.force,
+        prune_only=args.prune_only,
+        skip_collabs=args.skip_collabs,
+    )
     return 0
 
 

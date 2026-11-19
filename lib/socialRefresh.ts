@@ -171,6 +171,11 @@ function metricsFromAuditprData(
     ...copyAuditprErExtras(data),
   };
   // Only set when Auditpr included top_posts — omit key so refresh keeps prior posts.
+  // Auditpr may return more than 3 posts per account; we keep up to
+  // TOP_POSTS_PER_ACCOUNT as backups. Profile display and self-hosting pick
+  // 3 slots (best of each platform, then next-best overall). YouTube stays an
+  // official embed and is not downloaded. A portfolio duplicate still occupies
+  // one of those 3 slots.
   if (Object.hasOwn(data, 'top_posts')) {
     metrics.top_posts = sanitizeTopPosts(data.top_posts);
   }
