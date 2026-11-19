@@ -42,6 +42,13 @@ import CategoryCheckboxList from '@/components/CategoryCheckboxList';
 import SkillsPicker from '@/components/SkillsPicker';
 import { sanitizeSkills, type SkillKey } from '@/lib/skills';
 import {
+    hasAudienceRequirement,
+    isAudienceNoAccess,
+    validateAudienceInput,
+} from '@/lib/audience';
+import AudienceDemographicsHelp from '@/components/AudienceDemographicsHelp';
+import NextStepsChecklist, { type NextStepItem } from '@/components/NextStepsChecklist';
+import {
     badgeAfterOpen,
     influencerCampaignSeenKey,
     influencerProposalAlertIds,
@@ -189,7 +196,7 @@ const HIDDEN_VIDEO_NOTICE = {
 } as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
-const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics', focusSkills = false }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection, focusSkills?: boolean }) => {
+const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics', focusSkills = false, focusPhoto = false, focusBio = false, focusAudience = false }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection, focusSkills?: boolean, focusPhoto?: boolean, focusBio?: boolean, focusAudience?: boolean }) => {
     const L = (el: string, en: string) => (lang === 'en' ? en : el);
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
@@ -236,9 +243,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             ? user.accounts.map((acc: any) => ({ ...acc, engagement_rate: acc.engagement_rate || "", avg_likes: acc.avg_likes || "" }))
             : [{ platform: "Instagram", username: "", followers: "", engagement_rate: "", avg_likes: "" }]
     );
-    const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
-    const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
-    const [topAge, setTopAge] = useState(user.audience_top_age || "");
+    const initialNoAccess = isAudienceNoAccess(user.audience_top_age);
+    const [malePercent, setMalePercent] = useState(initialNoAccess ? "" : (user.audience_male_percent?.toString() || ""));
+    const [femalePercent, setFemalePercent] = useState(initialNoAccess ? "" : (user.audience_female_percent?.toString() || ""));
+    const [topAge, setTopAge] = useState(initialNoAccess ? "" : (user.audience_top_age || ""));
+    const [audienceNoAccess, setAudienceNoAccess] = useState(initialNoAccess);
+    const [audienceError, setAudienceError] = useState("");
     const [videoRows, setVideoRows] = useState<VideoRow[]>(() =>
         toVideoRows(Array.isArray(user.videos) && user.videos.length ? user.videos : [""])
     );
@@ -251,9 +261,17 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     );
     const [section, setSection] = useState<EditSection>(initialSection);
     useEffect(() => {
-        if (!focusSkills || section !== 'basics') return;
-        document.getElementById('creator-skills')?.scrollIntoView({ block: 'nearest' });
-    }, [focusSkills, section]);
+        const target =
+            focusAudience && section === 'platforms' ? 'creator-audience' :
+            focusSkills && section === 'basics' ? 'creator-skills' :
+            focusPhoto && section === 'basics' ? 'creator-photo' :
+            focusBio && section === 'basics' ? 'creator-bio' :
+            null;
+        if (!target) return;
+        const el = document.getElementById(target);
+        el?.scrollIntoView({ block: 'nearest' });
+        if (target === 'creator-bio' && el instanceof HTMLTextAreaElement) el.focus();
+    }, [focusSkills, focusPhoto, focusBio, focusAudience, section]);
     const [confirmSave, setConfirmSave] = useState(false);
     const [confirmDiscard, setConfirmDiscard] = useState(false);
 
@@ -365,6 +383,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
         malePercent,
         femalePercent,
         topAge,
+        audienceNoAccess,
         videos: videoRows.map((row) => row.url),
         avatarPreview,
         servicePrices,
@@ -563,6 +582,22 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 extrasFromCreatorPrices(servicePrices)
             );
 
+            const audienceTouched = audienceNoAccess || malePercent.trim() || femalePercent.trim() || topAge.trim();
+            const audienceCheck = validateAudienceInput(
+                { noAccess: audienceNoAccess, male: malePercent, female: femalePercent, topAge },
+                lang
+            );
+            if (audienceTouched && !audienceCheck.ok) {
+                notify(audienceCheck.error, 'error');
+                setAudienceError(audienceCheck.error);
+                setSection('platforms');
+                setLoading(false);
+                return;
+            }
+            const audiencePayload = audienceCheck.ok
+                ? audienceCheck.payload
+                : { audience_male_percent: null, audience_female_percent: null, audience_top_age: null };
+
             const newValues: any = {
                 display_name: name, 
                 bio: bio, 
@@ -575,9 +610,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 accounts: accountsForSave,
                 videos: preparedVideos.videos,
                 hidden_videos: nextHidden,
-                audience_male_percent: malePercent ? parseInt(malePercent) : null,
-                audience_female_percent: femalePercent ? parseInt(femalePercent) : null,
-                audience_top_age: topAge || null,
+                audience_male_percent: audiencePayload.audience_male_percent,
+                audience_female_percent: audiencePayload.audience_female_percent,
+                audience_top_age: audiencePayload.audience_top_age,
             };
 
             const priceRes = await sessionFetch("/api/influencer/prices", {
@@ -905,7 +940,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                         <h3 className="text-sm font-semibold text-slate-700 mb-3 uppercase">{L("Βασικές Πληροφορίες", "Basic Information")}</h3>
                         
                         {/* Avatar Upload */}
-                        <div className="mb-4">
+                        <div id="creator-photo" className="mb-4">
                             <label className="block text-sm font-semibold text-slate-900 mb-2">{L("Φωτογραφία Προφίλ", "Profile Photo")}</label>
                             <div className="flex items-center gap-4">
                                 <div className="relative w-20 h-20 rounded-full border-2 border-slate-300 overflow-hidden bg-slate-100">
@@ -989,8 +1024,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                             </div>
                         </div>
                         <div className="mt-3">
-                            <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Βιογραφικό", "Biography")}</label>
-                            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900" />
+                            <label className="block text-xs font-semibold text-slate-900 mb-1" htmlFor="creator-bio">{L("Βιογραφικό", "Biography")}</label>
+                            <textarea id="creator-bio" value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 resize-none text-slate-900" />
                         </div>
                     </div>
                     ) : null}
@@ -1067,38 +1102,61 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                     </div>
 
                     {/* Audience */}
-                    <div>
+                    <div id="creator-audience">
                         <h3 className="text-sm font-bold text-slate-900 mb-3 uppercase">{L("Κοινό", "Audience")}</h3>
                         <div className="grid md:grid-cols-3 gap-3">
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Άνδρες (%)", "Men (%)")}</label>
-                                <input type="number" value={malePercent} onChange={e => setMalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" />
+                                <input type="number" value={malePercent} onChange={e => { setAudienceError(""); setMalePercent(e.target.value); }} min="0" max="100" disabled={audienceNoAccess} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900 disabled:bg-slate-100" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Γυναίκες (%)", "Women (%)")}</label>
-                                <input type="number" value={femalePercent} onChange={e => setFemalePercent(e.target.value)} min="0" max="100" className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" />
+                                <input type="number" value={femalePercent} onChange={e => { setAudienceError(""); setFemalePercent(e.target.value); }} min="0" max="100" disabled={audienceNoAccess} className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900 disabled:bg-slate-100" />
                             </div>
                             <div>
                                 <label className="block text-xs font-semibold text-slate-900 mb-1">{L("Κύρια Ηλικιακή Ομάδα", "Main Age Group")}</label>
                                 <input 
                                     type="text" 
                                     value={topAge} 
+                                    disabled={audienceNoAccess}
                                     onChange={(e) => {
                                         let value = e.target.value;
-                                        // Allow only numbers and dashes
-                                        value = value.replace(/[^0-9-]/g, '');
+                                        // Allow only numbers, plus and dashes
+                                        value = value.replace(/[^0-9+\-]/g, '');
                                         // Auto-add dash after 2 digits if not already present
-                                        if (value.length === 2 && !value.includes('-')) {
+                                        if (value.length === 2 && !value.includes('-') && !value.includes('+')) {
                                             value = value + '-';
                                         }
+                                        setAudienceError("");
                                         setTopAge(value);
                                     }}
-                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900" 
+                                    className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900 disabled:bg-slate-100" 
                                     placeholder="18-24" 
                                     maxLength={6}
                                 />
                             </div>
                         </div>
+                        {audienceError ? <p className="mt-2 text-xs font-medium text-red-600">{audienceError}</p> : null}
+                        <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                            <input
+                                type="checkbox"
+                                className="mt-1"
+                                checked={audienceNoAccess}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setAudienceNoAccess(checked);
+                                    setAudienceError("");
+                                }}
+                            />
+                            <span>
+                                <span className="font-medium">{L("Δεν έχω πρόσβαση (προσωπικός λογαριασμός)", "I don’t have access (personal account)")}</span>
+                                <span className="block text-xs text-slate-500 mt-0.5">{L("Στο δημόσιο προφίλ τα στοιχεία κοινού θα φαίνονται ως «;».", "Public profiles will show “?” for audience stats.")}</span>
+                            </span>
+                        </label>
+                        <details className="mt-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                            <summary className="cursor-pointer text-sm font-medium text-blue-800">{L("Πού τα βρίσκω;", "Where do I find this?")}</summary>
+                            <AudienceDemographicsHelp lang={lang} className="mt-2" />
+                        </details>
                     </div>
                     </>
                     ) : null}
@@ -1330,7 +1388,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [profile, setProfile] = useState(initialProfile);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editSection, setEditSection] = useState<EditSection>('basics');
-    const [editFocusSkills, setEditFocusSkills] = useState(false);
+    const [editFocus, setEditFocus] = useState<'skills' | 'photo' | 'bio' | 'audience' | null>(null);
     const [availabilitySaving, setAvailabilitySaving] = useState(false);
     const [availabilityError, setAvailabilityError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<CreatorTab>('overview');
@@ -1553,9 +1611,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         }
     };
 
-    const openEdit = (section: EditSection, focusSkills = false) => {
+    const openEdit = (section: EditSection, focus: 'skills' | 'photo' | 'bio' | 'audience' | null = null) => {
         setEditSection(section);
-        setEditFocusSkills(focusSkills);
+        setEditFocus(focus);
         setMenuOpen(false);
         setShowEditModal(true);
     };
@@ -2080,43 +2138,98 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             isActiveCollaborationDisplayKey(deriveProposalDisplayStatusKey(item))
         ).length + campaignDealRows.filter(isActiveCampaignDealRow).length;
     const ratingValue = typeof profile.avg_rating === 'number' && profile.avg_rating > 0 ? profile.avg_rating : null;
-    const profileIncomplete = !(profile.bio || '').trim() || !profile.avatar_url || !(profile.accounts || []).some((account) => String(account.username || '').trim());
-    const missingPackages = packagesForSave(profile.service_packages || []).length < 1;
-    const missingSkills = sanitizeSkills(profile.skills).length === 0;
-    const missingPortfolio = !(profile.videos || []).some((url) => String(url || '').trim());
     const waitingAgreements = proposals.filter((item) => (item.status === 'accepted' || item.status === 'completed') && !item.influencer_agreement_accepted).length;
-    const overviewStepList = (
-        [
-            !profile.approved
-                ? { id: 'approval', text: T('Ο λογαριασμός περιμένει έγκριση. Μπορείς να συμπληρώσεις το προφίλ στο μεταξύ.', 'Your account is waiting for approval. You can complete your profile in the meantime.'), tab: 'profile' as const, cta: T('Προφίλ', 'Profile') }
-                : null,
-            profileIncomplete
-                ? { id: 'profile', text: T('Συμπλήρωσε φωτογραφία, βιογραφικό και τουλάχιστον ένα κανάλι.', 'Add a photo, a biography, and at least one channel.'), tab: 'profile' as const, cta: T('Συμπλήρωση', 'Complete'), section: 'basics' as const }
-                : null,
-            missingPackages
-                ? { id: 'packages', text: T('Πρόσθεσε πακέτα με τιμή για να σε βρίσκουν οι επιχειρήσεις.', 'Add priced packages so brands can find you.'), tab: 'profile' as const, cta: T('Πακέτα', 'Packages'), section: 'packages' as const }
-                : null,
-            missingSkills
-                ? { id: 'skills', text: T('Πρόσθεσε τις δεξιότητές σου ώστε να σε βρίσκουν τα brands στα φίλτρα', 'Add your skills so brands can find you in the filters.'), tab: 'profile' as const, cta: T('Δεξιότητες', 'Skills'), section: 'basics' as const }
-                : null,
-            missingPortfolio
-                ? { id: 'portfolio', text: T('Πρόσθεσε δείγματα δουλειάς στο portfolio.', 'Add work samples to your portfolio.'), tab: 'profile' as const, cta: T('Portfolio', 'Portfolio'), section: 'portfolio' as const }
-                : null,
-            waitingAgreements > 0
-                ? { id: 'agreements', text: T('Υπάρχουν συμφωνίες που δεν έχεις αποδεχτεί ακόμη.', 'Some agreements are still waiting for you.'), tab: 'proposals' as const, cta: T('Συμφωνίες', 'Agreements') }
-                : null,
-            unreadMessagesCount > 0
-                ? { id: 'messages', text: T(`Έχεις ${unreadMessagesCount} αδιάβαστα μηνύματα.`, `You have ${unreadMessagesCount} unread messages.`), tab: 'messages' as const, cta: T('Άνοιγμα', 'Open') }
-                : null,
-        ] as Array<{ id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } | null>
-    ).filter((step): step is { id: string; text: string; tab: CreatorTab; cta: string; section?: EditSection } => step !== null);
-    const urgentStepIds = new Set(['agreements', 'messages']);
-    const urgentSteps = overviewStepList.filter((step) => urgentStepIds.has(step.id));
-    const otherSteps = overviewStepList.filter((step) => !urgentStepIds.has(step.id));
-    const overviewOrder = new Map(overviewStepList.map((step, index) => [step.id, index]));
-    const overviewSteps = [...otherSteps.slice(0, 5), ...urgentSteps].sort(
-        (a, b) => (overviewOrder.get(a.id) ?? 0) - (overviewOrder.get(b.id) ?? 0)
-    );
+    const creatorSetupSteps: NextStepItem[] = [
+        {
+            id: 'photo',
+            title: T('Προσθήκη φωτογραφίας προφίλ', 'Add a profile photo'),
+            why: T('Μια καθαρή φωτογραφία κάνει το προφίλ σου αναγνωρίσιμο στις προτάσεις των brands.', 'A clear photo makes your profile recognizable in brand recommendations.'),
+            how: T('Προτίμησε καλό φως, καθαρό πλαίσιο και το πρόσωπό σου ευκρινές. Η τετράγωνη φωτογραφία δουλεύει καλύτερα.', 'Use good light, a clear frame, and a sharp view of your face. A square photo works best.'),
+            cta: T('Φωτογραφία', 'Photo'),
+            done: Boolean(profile.avatar_url),
+            onAction: () => openEdit('basics', 'photo'),
+        },
+        {
+            id: 'bio',
+            title: T('Συμπλήρωση βιογραφικού', 'Write your bio'),
+            why: T('Ένα σύντομο βιογραφικό βοηθά τα brands να καταλάβουν το ύφος και τη θεματολογία σου.', 'A short bio helps brands understand your style and topics.'),
+            how: T('Γράψε σε 2–3 γραμμές ποιος/α είσαι, τι περιεχόμενο φτιάχνεις και με ποιους θέλεις να συνεργαστείς. Απόφυγε τηλέφωνα και links.', 'In two or three lines, say who you are, what you create, and who you want to work with. Avoid phone numbers and links.'),
+            cta: T('Βιογραφικό', 'Bio'),
+            done: Boolean((profile.bio || '').trim()),
+            onAction: () => openEdit('basics', 'bio'),
+        },
+        {
+            id: 'accounts',
+            title: T('Σύνδεση κοινωνικών λογαριασμών', 'Connect social accounts'),
+            why: T('Χωρίς κανάλια, τα brands δεν βλέπουν το κοινό και τα στατιστικά σου.', 'Without channels, brands cannot see your audience or stats.'),
+            how: T('Βάλε το ακριβές όνομα χρήστη, χωρίς @, μόνο για κανάλια που χρησιμοποιείς ενεργά.', 'Enter the exact username, without @, only for channels you actually use.'),
+            cta: T('Κανάλια', 'Channels'),
+            done: (profile.accounts || []).some((account) => String(account.username || '').trim()),
+            onAction: () => openEdit('platforms'),
+        },
+        {
+            id: 'portfolio',
+            title: T('Προσθήκη portfolio (έως 6)', 'Add a portfolio (up to 6)'),
+            why: T('Τα δείγματα δουλειάς δείχνουν το επίπεδο και το στυλ σου πριν τη συνεργασία.', 'Work samples show your level and style before a collaboration.'),
+            how: T(`Πρόσθεσε έως ${MAX_PORTFOLIO_POSTS} από τα καλύτερά σου posts (TikTok, Reels, YouTube ή φωτογραφίες).`, `Add up to ${MAX_PORTFOLIO_POSTS} of your best posts (TikTok, Reels, YouTube, or photos).`),
+            cta: T('Portfolio', 'Portfolio'),
+            done: (profile.videos || []).some((url) => String(url || '').trim()),
+            onAction: () => openEdit('portfolio'),
+        },
+        {
+            id: 'demographics',
+            title: T('Στοιχεία κοινού', 'Audience demographics'),
+            why: T('Τα brands κοιτάζουν πρώτα το κοινό σου πριν στείλουν πρόταση.', 'Brands look at your audience first before sending a proposal.'),
+            how: <AudienceDemographicsHelp lang={lang} />,
+            cta: T('Κοινό', 'Audience'),
+            done: hasAudienceRequirement(profile),
+            onAction: () => openEdit('platforms', 'audience'),
+        },
+        {
+            id: 'packages',
+            title: T('Τιμές και πακέτα υπηρεσιών', 'Prices and service packages'),
+            why: T('Με τιμές στο προφίλ, τα brands μπορούν να σε βρουν και να σου στείλουν προσφορά πιο εύκολα.', 'Listed prices make it easier for brands to find you and send an offer.'),
+            how: T('Όρισε μία τιμή σε ευρώ ανά υπηρεσία που προσφέρεις. Άφησε κενό ό,τι δεν προσφέρεις.', 'Set one euro price for each service you offer. Leave blank what you do not offer.'),
+            cta: T('Πακέτα', 'Packages'),
+            done: packagesForSave(profile.service_packages || []).length >= 1,
+            onAction: () => openEdit('packages'),
+        },
+        {
+            id: 'skills',
+            title: T('Προσθήκη δεξιοτήτων', 'Add your skills'),
+            why: T('Οι δεξιότητες εμφανίζονται στα φίλτρα αναζήτησης των brands.', 'Skills appear in brand search filters.'),
+            how: T('Διάλεξε τις δεξιότητες που αντιπροσωπεύουν πραγματικά τη δουλειά σου.', 'Choose the skills that actually represent your work.'),
+            cta: T('Δεξιότητες', 'Skills'),
+            done: sanitizeSkills(profile.skills).length > 0,
+            onAction: () => openEdit('basics', 'skills'),
+        },
+    ];
+    const creatorStepAlerts: NextStepItem[] = [
+        ...(!profile.approved
+            ? [{
+                id: 'approval',
+                title: T('Ο λογαριασμός περιμένει έγκριση. Μπορείς να συμπληρώσεις το προφίλ στο μεταξύ.', 'Your account is waiting for approval. You can complete your profile in the meantime.'),
+                cta: T('Προφίλ', 'Profile'),
+                onAction: () => openCreatorTab('profile'),
+            }]
+            : []),
+        ...(waitingAgreements > 0
+            ? [{
+                id: 'agreements',
+                title: T('Υπάρχουν συμφωνίες που δεν έχεις αποδεχτεί ακόμη.', 'Some agreements are still waiting for you.'),
+                cta: T('Συμφωνίες', 'Agreements'),
+                onAction: () => openCreatorTab('proposals'),
+            }]
+            : []),
+        ...(unreadMessagesCount > 0
+            ? [{
+                id: 'messages',
+                title: T(`Έχεις ${unreadMessagesCount} αδιάβαστα μηνύματα.`, `You have ${unreadMessagesCount} unread messages.`),
+                cta: T('Άνοιγμα', 'Open'),
+                onAction: () => openCreatorTab('messages'),
+            }]
+            : []),
+    ];
 
     const announcementsErrorText = announcementsError === 'timeout' ? ui.announcementsTimeout : ui.announcementsError;
 
@@ -2339,28 +2452,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </div>
                         </div>
                         <div className="grid gap-6 lg:grid-cols-2">
-                            <section className="rounded-xl border border-slate-200 bg-white p-5">
-                                <h2 className="text-lg font-semibold text-slate-900">{T('Επόμενα βήματα', 'Next steps')}</h2>
-                                <ul className="mt-4 space-y-3">
-                                    {overviewSteps.length === 0 ? (
-                                        <li className="text-sm text-slate-600">{T('Είσαι ενήμερος. Δεν εκκρεμεί κάποιο βήμα.', 'You are up to date. Nothing is waiting.')}</li>
-                                    ) : overviewSteps.map((step) => (
-                                        <li key={step.id} className="flex items-start justify-between gap-3">
-                                            <p className="text-sm text-slate-700 leading-relaxed">{step.text}</p>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    if (step.section) openEdit(step.section, step.id === 'skills');
-                                                    else openCreatorTab(step.tab);
-                                                }}
-                                                className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
-                                            >
-                                                {step.cta}
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </section>
+                            <NextStepsChecklist lang={lang} setupSteps={creatorSetupSteps} alerts={creatorStepAlerts} />
                             <section className="rounded-xl border border-slate-200 bg-white p-5">
                                 <div className="flex items-center justify-between gap-3">
                                     <h2 className="text-lg font-semibold text-slate-900">{ui.announcementsTitle}</h2>
@@ -2967,7 +3059,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     lang={lang}
                     notify={notify}
                     initialSection={editSection}
-                    focusSkills={editFocusSkills}
+                    focusSkills={editFocus === 'skills'}
+                    focusPhoto={editFocus === 'photo'}
+                    focusBio={editFocus === 'bio'}
+                    focusAudience={editFocus === 'audience'}
                 />
             )}
 

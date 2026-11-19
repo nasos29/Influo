@@ -1,7 +1,19 @@
 // node --experimental-strip-types --import ./scripts/resolve-ts-imports.mjs --test scripts/audience.test.mts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { displayAudienceTopAge, isValidAgeRange } from "../lib/audience.ts";
+import {
+  AUDIENCE_NO_ACCESS,
+  displayAudienceTopAge,
+  hasAudienceDemographics,
+  hasAudienceRequirement,
+  isAudienceNoAccess,
+  isValidAgeRange,
+  parseGenderPercent,
+  validateAudienceInput,
+  audienceMissingKind,
+  matchesDemographicsListFilter,
+  parseDemographicsListFilter,
+} from "../lib/audience.ts";
 
 test("isValidAgeRange accepts NN-NN variants with 13≤from<to≤80", () => {
   assert.equal(isValidAgeRange("18-24"), true);
@@ -31,6 +43,82 @@ test("isValidAgeRange rejects singles, empty, ?, and out-of-range", () => {
   assert.equal(isValidAgeRange("81+"), false);
 });
 
+
+
+test("isAudienceNoAccess and displayAudienceTopAge hide the sentinel", () => {
+  assert.equal(isAudienceNoAccess(AUDIENCE_NO_ACCESS), true);
+  assert.equal(isAudienceNoAccess(" no_access "), true);
+  assert.equal(isAudienceNoAccess("18-24"), false);
+  assert.equal(displayAudienceTopAge("18-24"), "18-24");
+  assert.equal(displayAudienceTopAge(AUDIENCE_NO_ACCESS), "?");
+  assert.equal(displayAudienceTopAge(""), "?");
+  assert.equal(displayAudienceTopAge("?"), "?");
+  assert.equal(displayAudienceTopAge(null), "?");
+});
+
+test("hasAudienceDemographics requires a valid range and a 100% split", () => {
+  assert.equal(
+    hasAudienceDemographics({ audience_top_age: "18-24", audience_male_percent: 40, audience_female_percent: 60 }),
+    true
+  );
+  assert.equal(
+    hasAudienceDemographics({ audience_top_age: "18-24", audience_male_percent: 0, audience_female_percent: 0 }),
+    false
+  );
+  assert.equal(
+    hasAudienceDemographics({ audience_top_age: "", audience_male_percent: 40, audience_female_percent: 60 }),
+    false
+  );
+  assert.equal(
+    hasAudienceDemographics({ audience_top_age: AUDIENCE_NO_ACCESS, audience_male_percent: null, audience_female_percent: null }),
+    false
+  );
+});
+
+test("hasAudienceRequirement treats personal-account opt-out as complete", () => {
+  assert.equal(hasAudienceRequirement({ audience_top_age: AUDIENCE_NO_ACCESS }), true);
+  assert.equal(hasAudienceRequirement({ audience_top_age: "18-24", audience_male_percent: 30, audience_female_percent: 70 }), true);
+  assert.equal(hasAudienceRequirement({ audience_top_age: null, audience_male_percent: 0, audience_female_percent: 0 }), false);
+});
+
+test("validateAudienceInput accepts opt-out or a complete split", () => {
+  const skipped = validateAudienceInput({ noAccess: true, male: "", female: "", topAge: "" }, "el");
+  assert.equal(skipped.ok, true);
+  if (skipped.ok) {
+    assert.equal(skipped.payload.audience_top_age, AUDIENCE_NO_ACCESS);
+    assert.equal(skipped.payload.audience_male_percent, null);
+  }
+
+  const ok = validateAudienceInput({ noAccess: false, male: "35", female: "65", topAge: "18-24" }, "en");
+  assert.equal(ok.ok, true);
+
+  const missing = validateAudienceInput({ noAccess: false, male: "", female: "", topAge: "" }, "el");
+  assert.equal(missing.ok, false);
+  if (!missing.ok) {
+    assert.match(missing.error, /Δεν έχω πρόσβαση/);
+  }
+
+  const sum = validateAudienceInput({ noAccess: false, male: "40", female: "40", topAge: "18-24" }, "en");
+  assert.equal(sum.ok, false);
+  if (!sum.ok) {
+    assert.match(sum.error, /add up to 100/);
+  }
+
+  const age = validateAudienceInput({ noAccess: false, male: "50", female: "50", topAge: "12" }, "en");
+  assert.equal(age.ok, false);
+  if (!age.ok) {
+    assert.match(age.error, /18-24/);
+  }
+});
+
+test("parseGenderPercent accepts 0–100 integers only", () => {
+  assert.equal(parseGenderPercent("0"), 0);
+  assert.equal(parseGenderPercent("100"), 100);
+  assert.equal(parseGenderPercent("40.5"), null);
+  assert.equal(parseGenderPercent(""), null);
+  assert.equal(parseGenderPercent("101"), null);
+});
+
 test("displayAudienceTopAge uses ? for missing and don't-know placeholders", () => {
   assert.equal(displayAudienceTopAge(null), "?");
   assert.equal(displayAudienceTopAge(undefined), "?");
@@ -48,4 +136,30 @@ test("displayAudienceTopAge keeps entered age groups", () => {
   assert.equal(displayAudienceTopAge("18-24"), "18-24");
   assert.equal(displayAudienceTopAge(" 35-44 "), "35-44");
   assert.equal(displayAudienceTopAge("45+"), "45+");
+});
+
+test("audienceMissingKind distinguishes personal-account opt-out from empty data", () => {
+  assert.equal(
+    audienceMissingKind({ audience_top_age: "18-24", audience_male_percent: 40, audience_female_percent: 60 }),
+    null
+  );
+  assert.equal(audienceMissingKind({ audience_top_age: AUDIENCE_NO_ACCESS }), "no_access");
+  assert.equal(audienceMissingKind({ audience_top_age: null, audience_male_percent: null, audience_female_percent: null }), "empty");
+  assert.equal(audienceMissingKind({ audience_top_age: "18-24", audience_male_percent: 0, audience_female_percent: 0 }), "empty");
+});
+
+test("matchesDemographicsListFilter supports all / missing / no_access / empty", () => {
+  assert.equal(parseDemographicsListFilter("NO_ACCESS"), "no_access");
+  assert.equal(parseDemographicsListFilter("foo"), "all");
+  const complete = { audience_top_age: "18-24", audience_male_percent: 50, audience_female_percent: 50 };
+  const optOut = { audience_top_age: AUDIENCE_NO_ACCESS };
+  const empty = { audience_top_age: null };
+  assert.equal(matchesDemographicsListFilter(complete, "all"), true);
+  assert.equal(matchesDemographicsListFilter(complete, "missing"), false);
+  assert.equal(matchesDemographicsListFilter(optOut, "missing"), true);
+  assert.equal(matchesDemographicsListFilter(optOut, "no_access"), true);
+  assert.equal(matchesDemographicsListFilter(optOut, "empty"), false);
+  assert.equal(matchesDemographicsListFilter(empty, "empty"), true);
+  assert.equal(matchesDemographicsListFilter(empty, "no_access"), false);
+  assert.equal(matchesDemographicsListFilter(empty, "missing"), true);
 });

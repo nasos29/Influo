@@ -68,6 +68,7 @@ import {
 } from '@/lib/brandShortlist';
 import { openAgreementCount, openBrandAgreements } from '@/lib/brandAgreements';
 import { BRAND_BIO_MAX } from '@/lib/brandProfile';
+import NextStepsChecklist, { type NextStepItem } from '@/components/NextStepsChecklist';
 import {
   badgeAfterOpen,
   brandApplicationSeenKey,
@@ -190,6 +191,7 @@ type EditBrandModalProps = {
   txt: any;
   onToast: (message: string, tone: 'success' | 'error') => void;
   focusBio?: boolean;
+  focusLogo?: boolean;
 };
 
 const t = {
@@ -342,7 +344,7 @@ const t = {
 };
 
 // Edit Brand Modal Component
-function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, focusBio = false }: EditBrandModalProps) {
+function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, focusBio = false, focusLogo = false }: EditBrandModalProps) {
   const [brandName, setBrandName] = useState(brand.brand_name || '');
   const [contactPerson, setContactPerson] = useState(brand.contact_person || '');
   const [website, setWebsite] = useState(brand.website || '');
@@ -350,11 +352,12 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
   const [city, setCity] = useState(brand.city || '');
   const [bio, setBio] = useState(brand.bio || '');
   useEffect(() => {
-    if (!focusBio) return;
-    const field = document.getElementById("brand-bio");
+    const target = focusLogo ? "brand-logo" : focusBio ? "brand-bio" : null;
+    if (!target) return;
+    const field = document.getElementById(target);
     field?.scrollIntoView({ block: "nearest" });
-    if (field instanceof HTMLTextAreaElement) field.focus();
-  }, [focusBio]);
+    if (target === "brand-bio" && field instanceof HTMLTextAreaElement) field.focus();
+  }, [focusBio, focusLogo]);
   const [categories, setCategories] = useState<string[]>(parseStoredCategories(brand.industry || brand.category || ''));
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(brand.logo_url || null);
@@ -691,7 +694,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
           )}
 
           {/* Logo */}
-          <div>
+          <div id="brand-logo">
             <label className="block text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">
               {txt.edit_logo}
             </label>
@@ -879,6 +882,7 @@ export default function BrandDashboardContent() {
   );
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFocusBio, setEditFocusBio] = useState(false);
+  const [editFocusLogo, setEditFocusLogo] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [recommendationFilters, setRecommendationFilters] = useState(EMPTY_RECOMMENDATION_FILTERS);
   const [recommendationFiltersOpen, setRecommendationFiltersOpen] = useState(false);
@@ -1037,6 +1041,7 @@ export default function BrandDashboardContent() {
   const [announcementsLoading, setAnnouncementsLoading] = useState(false);
   const [announcementsError, setAnnouncementsError] = useState<string | null>(null);
   const [activeCampaignCount, setActiveCampaignCount] = useState(0);
+  const [totalCampaignCount, setTotalCampaignCount] = useState(0);
   const [campaignDealRows, setCampaignDealRows] = useState<CampaignDealCountRow[]>([]);
   const [pendingCampaignApplicationsCount, setPendingCampaignApplicationsCount] = useState(0);
   const [pendingApplicationsOldestDays, setPendingApplicationsOldestDays] = useState(0);
@@ -1329,6 +1334,7 @@ export default function BrandDashboardContent() {
           .from("brand_campaigns")
           .select("id")
           .eq("brand_id", brandData.id);
+        if (!cancelled) setTotalCampaignCount(camps?.length ?? 0);
         if (camps?.length) {
           const { data: apps, error: appsErr } = await supabase
             .from("campaign_applications")
@@ -2098,69 +2104,85 @@ export default function BrandDashboardContent() {
     }
   };
 
-  const overviewSteps = (
-    [
-      !brandData?.verified
-        ? {
-            id: "verify",
-            text: lang === "el" ? "Ο λογαριασμός περιμένει έγκριση. Μπορείς να ετοιμάσεις πρόχειρες καμπάνιες." : "Your account is waiting for approval. You can prepare draft campaigns.",
-            tab: "campaigns" as const,
-            cta: lang === "el" ? "Καμπάνιες" : "Campaigns",
-          }
-        : null,
-      !(brandData?.bio || "").trim()
-        ? {
-            id: "bio",
-            text: lang === "el" ? "Συμπλήρωσε το bio της επιχείρησής σου ώστε οι creators να ξέρουν ποιοι είστε" : "Add your company bio so creators know who you are.",
-            tab: "overview" as const,
-            cta: lang === "el" ? "Bio" : "Bio",
-            focusBio: true,
-          }
-        : null,
-      activeCampaignCount === 0
-        ? {
-            id: "campaign",
-            text: lang === "el" ? "Δημοσίευσε μια καμπάνια για να λάβεις αιτήσεις." : "Publish a campaign to start receiving applications.",
-            tab: "campaigns" as const,
-            cta: lang === "el" ? "Νέα καμπάνια" : "New campaign",
-          }
-        : null,
-      proposals.filter((p) => p.status === "pending" || p.status === "accepted").length === 0
-        ? {
-            id: "proposal",
-            text: lang === "el" ? "Στείλε την πρώτη προσφορά σε creator που ταιριάζει." : "Send your first proposal to a matching creator.",
-            tab: "recommendations" as const,
-            cta: lang === "el" ? "Προτάσεις" : "Matches",
-          }
-        : null,
-      unreadMessageCount > 0
-        ? {
-            id: "messages",
-            text: lang === "el" ? `Έχεις ${unreadMessageCount} αδιάβαστα μηνύματα.` : `You have ${unreadMessageCount} unread messages.`,
-            tab: "messages" as const,
-            cta: lang === "el" ? "Άνοιγμα" : "Open",
-          }
-        : null,
-      openAgreements > 0
-        ? {
-            id: "agreements",
-            text: lang === "el" ? "Υπάρχουν συμφωνίες που δεν έχουν κλείσει και από τις δύο πλευρές." : "Some agreements are not signed by both sides yet.",
-            tab: "proposals" as const,
-            cta: lang === "el" ? "Συμφωνίες" : "Agreements",
-          }
-        : null,
-      shortlist.length === 0
-        ? {
-            id: "saved",
-            text: lang === "el" ? "Αποθήκευσε creators για να τους συγκρίνεις αργότερα." : "Save creators so you can compare them later.",
-            tab: "recommendations" as const,
-            cta: lang === "el" ? "Αποθήκευση" : "Save",
-          }
-        : null,
-    ] as Array<{ id: string; text: string; tab: BrandTab; cta: string; focusBio?: boolean } | null>
-  )
-    .filter((step): step is { id: string; text: string; tab: BrandTab; cta: string; focusBio?: boolean } => step !== null)
-    .slice(0, 5);
+  const openBrandEdit = (focus: "bio" | "logo" | null = null) => {
+    setEditFocusBio(focus === "bio");
+    setEditFocusLogo(focus === "logo");
+    setShowEditModal(true);
+  };
+  const B = (el: string, en: string) => (lang === "el" ? el : en);
+  const brandSetupSteps: NextStepItem[] = [
+    {
+      id: "logo",
+      title: B("Προσθήκη λογότυπου", "Add your logo"),
+      why: B("Το λογότυπο εμφανίζεται στις καμπάνιες και βοηθά τους creators να σας αναγνωρίσουν.", "Your logo appears on campaigns and helps creators recognize your brand."),
+      how: B("Τετράγωνο λογότυπο, καθαρό ακόμα και σε μικρό μέγεθος. PNG ή JPG.", "Use a square logo that stays clear at a small size. PNG or JPG."),
+      cta: B("Λογότυπο", "Logo"),
+      done: Boolean(brandData?.logo_url),
+      onAction: () => openBrandEdit("logo"),
+    },
+    {
+      id: "bio",
+      title: B("Περιγραφή επιχείρησης", "Add a company description"),
+      why: B("Μια σύντομη περιγραφή λέει στους creators ποιοι είστε και τι συνεργασίες ψάχνετε.", "A short description tells creators who you are and what collaborations you want."),
+      how: B("Πείτε σε λίγες γραμμές τι κάνει η επιχείρηση και τι είδους συνεργασίες αναζητάτε. Χωρίς τηλέφωνα ή email.", "In a few lines, say what the company does and what collaborations you are looking for. No phone numbers or emails."),
+      cta: B("Bio", "Bio"),
+      done: Boolean((brandData?.bio || "").trim()),
+      onAction: () => openBrandEdit("bio"),
+    },
+    {
+      id: "campaign",
+      title: B("Δημιουργία πρώτης καμπάνιας", "Create your first campaign"),
+      why: B("Μια καμπάνια συγκεντρώνει αιτήσεις από creators που ταιριάζουν.", "A campaign collects applications from matching creators."),
+      how: B("Συμπληρώστε στόχο, κοινό, παραδοτέα, budget και ημερομηνίες. Μπορείτε να ξεκινήσετε με πρόχειρο και να δημοσιεύσετε όταν είστε έτοιμοι. Η δημοσίευση ανοίγει μετά την έγκριση του λογαριασμού.", "Fill in the goal, audience, deliverables, budget, and dates. You can start with a draft and publish when you are ready. Publishing unlocks after account approval."),
+      cta: B("Καμπάνια", "Campaign"),
+      done: totalCampaignCount > 0,
+      onAction: () => openBrandTab("campaigns"),
+    },
+    {
+      id: "proposal",
+      title: B("Αποστολή πρώτης προσφοράς", "Send your first proposal"),
+      why: B("Η πρώτη προσφορά ξεκινά μια συνεργασία με έναν creator που σας ταιριάζει.", "The first proposal starts a collaboration with a matching creator."),
+      how: B("Από τις Προτάσεις, ανοίξτε ένα προφίλ που ταιριάζει και στείλτε προσφορά με σαφή περιγραφή, αμοιβή και παράδοση.", "From Matches, open a fitting profile and send a proposal with a clear brief, fee, and delivery."),
+      cta: B("Προτάσεις", "Matches"),
+      done: proposals.length > 0,
+      onAction: () => openBrandTab("recommendations"),
+    },
+    {
+      id: "saved",
+      title: B("Αποθήκευση creators στη λίστα", "Save creators to your shortlist"),
+      why: B("Κρατήστε υποψηφίους για να τους συγκρίνετε όταν είστε έτοιμοι.", "Keep candidates so you can compare them when you are ready."),
+      how: B("Πατήστε αποθήκευση στο προφίλ ενός creator για να τον βρείτε αργότερα στη λίστα σας.", "Tap save on a creator’s profile to find them later in your list."),
+      cta: B("Αποθήκευση", "Save"),
+      done: shortlist.length > 0,
+      onAction: () => openBrandTab("recommendations"),
+    },
+  ];
+  const brandStepAlerts: NextStepItem[] = [
+    ...(!brandData?.verified
+      ? [{
+          id: "verify",
+          title: B("Ο λογαριασμός περιμένει έγκριση. Μπορείς να ετοιμάσεις πρόχειρες καμπάνιες.", "Your account is waiting for approval. You can prepare draft campaigns."),
+          cta: B("Καμπάνιες", "Campaigns"),
+          onAction: () => openBrandTab("campaigns"),
+        }]
+      : []),
+    ...(unreadMessageCount > 0
+      ? [{
+          id: "messages",
+          title: B(`Έχεις ${unreadMessageCount} αδιάβαστα μηνύματα.`, `You have ${unreadMessageCount} unread messages.`),
+          cta: B("Άνοιγμα", "Open"),
+          onAction: () => openBrandTab("messages"),
+        }]
+      : []),
+    ...(openAgreements > 0
+      ? [{
+          id: "agreements",
+          title: B("Υπάρχουν συμφωνίες που δεν έχουν κλείσει και από τις δύο πλευρές.", "Some agreements are not signed by both sides yet."),
+          cta: B("Συμφωνίες", "Agreements"),
+          onAction: () => openBrandTab("proposals"),
+        }]
+      : []),
+  ];
 
   if (loading || leaving) {
     return (
@@ -2236,7 +2258,7 @@ export default function BrandDashboardContent() {
               </Link>
               <button
                 type="button"
-                onClick={() => { setEditFocusBio(false); setShowEditModal(true); }}
+                onClick={() => { setEditFocusBio(false); setEditFocusLogo(false); setShowEditModal(true); }}
                 className="text-xs sm:text-sm font-medium text-blue-600 hover:text-blue-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200"
               >
                 {txt.edit_profile}
@@ -2281,7 +2303,7 @@ export default function BrandDashboardContent() {
                 <LifeBuoy className="w-4 h-4" aria-hidden="true" />
                 Help Desk
               </Link>
-              <button type="button" onClick={() => { setMenuOpen(false); setEditFocusBio(false); setShowEditModal(true); }} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
+              <button type="button" onClick={() => { setMenuOpen(false); setEditFocusBio(false); setEditFocusLogo(false); setShowEditModal(true); }} className="min-h-11 text-left rounded-lg px-3 text-sm font-medium text-blue-700 hover:bg-blue-50">
                 {txt.edit_profile}
               </button>
               <button
@@ -2445,38 +2467,7 @@ export default function BrandDashboardContent() {
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
-              <section className="rounded-xl border border-slate-200 bg-white p-5">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  {lang === 'el' ? 'Επόμενα βήματα' : 'Next steps'}
-                </h2>
-                <ul className="mt-4 space-y-3">
-                  {overviewSteps.length === 0 ? (
-                    <li className="text-sm text-slate-600">
-                      {lang === 'el' ? 'Είσαι ενήμερος. Δεν εκκρεμεί κάποιο βήμα.' : 'You are up to date. Nothing is waiting.'}
-                    </li>
-                  ) : (
-                    overviewSteps.map((step) => (
-                      <li key={step.id} className="flex items-start justify-between gap-3">
-                        <p className="text-sm text-slate-700 leading-relaxed">{step.text}</p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (step.focusBio) {
-                              setEditFocusBio(true);
-                              setShowEditModal(true);
-                              return;
-                            }
-                            openBrandTab(step.tab);
-                          }}
-                          className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
-                        >
-                          {step.cta}
-                        </button>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </section>
+              <NextStepsChecklist lang={lang} setupSteps={brandSetupSteps} alerts={brandStepAlerts} />
 
               <section className="rounded-xl border border-slate-200 bg-white p-5">
                 <div className="flex items-center justify-between gap-3">
@@ -3518,8 +3509,9 @@ export default function BrandDashboardContent() {
         {showEditModal && brandData && (
           <EditBrandModal
             brand={brandData}
-            onClose={() => { setShowEditModal(false); setEditFocusBio(false); }}
+            onClose={() => { setShowEditModal(false); setEditFocusBio(false); setEditFocusLogo(false); }}
             focusBio={editFocusBio}
+            focusLogo={editFocusLogo}
             onSave={handleUpdateProfile}
             updating={updating}
             lang={lang}

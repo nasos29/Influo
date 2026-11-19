@@ -1793,7 +1793,8 @@ export default function DocsPage() {
                   {lang === 'el' ? 'Για Influencers' : 'For Influencers'}
                 </h3>
                 <ul className="space-y-3 text-slate-700 text-sm list-disc list-inside">
-                  <li>{lang === 'el' ? 'Συμπληρώστε το προφίλ: bio, φωτογραφία και μία σταθερή τιμή ανά υπηρεσία' : 'Complete your profile: bio, photo, and one fixed price per service'}</li>
+                  <li>{lang === 'el' ? 'Συμπληρώστε το προφίλ από τα Επόμενα βήματα: φωτογραφία, bio, κανάλια, portfolio (έως 6), στοιχεία κοινού, τιμές και δεξιότητες' : 'Complete your profile from Next steps: photo, bio, channels, portfolio (up to 6), audience demographics, prices, and skills'}</li>
+                  <li>{lang === 'el' ? 'Τα στοιχεία κοινού είναι υποχρεωτικά στην εγγραφή. Τα βρίσκεις στα Insights του Instagram ή στα Analytics του TikTok (με δωρεάν επαγγελματικό/δημιουργού λογαριασμό). Αν δεν έχεις πρόσβαση, επίλεξε «Δεν έχω πρόσβαση»' : 'Audience demographics are required at signup. Find them in Instagram Insights or TikTok Analytics (after switching to a free professional/creator account). If you have no access, choose “I don’t have access”'}</li>
                   <li>{lang === 'el' ? 'Ορίστε διαθεσιμότητα όταν είστε ανοιχτοί σε deals' : 'Set availability when you are open to deals'}</li>
                   <li>{lang === 'el' ? 'Βάλτε το Influo link στο bio (Dashboard → Εργαλεία) και μοιραστείτε QR / media kit' : 'Put your Influo link in your bio (Dashboard → Tools) and share QR / media kit'}</li>
                   <li>{lang === 'el' ? 'Καλή Απόδοση: Υψηλό engagement, consistent posting' : 'Good Performance: High engagement, consistent posting'}</li>
