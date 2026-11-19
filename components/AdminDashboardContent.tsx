@@ -2056,7 +2056,7 @@ const EditProfileModal = ({
                                 {videoLinkError}
                               </p>
                             ) : null}
-                            <p className="mt-2 text-xs text-gray-500">Έως {MAX_PORTFOLIO_POSTS} posts · {videoRows.filter((r) => r.url.trim()).length}/{portfolioMax}</p>
+                            <p className="mt-2 text-xs text-gray-500">Έως {MAX_PORTFOLIO_POSTS} στοιχεία (βίντεο και φωτογραφίες) · {videoRows.filter((r) => r.url.trim()).length}/{portfolioMax}</p>
                             {videoRows.length < portfolioMax ? (
                             <button type="button" onClick={addVideo} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm">+ Προσθήκη Video Link / Φωτογραφίας</button>
                             ) : null}
