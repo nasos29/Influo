@@ -295,6 +295,7 @@ export function useTikTokPlayerHost(
       }
 
       if (type === "onStateChange") {
+        // ended(0) / paused(2): local UI only. Never claim, release, or pause-all.
         const playing = tikTokPlayingState(value);
         if (playing != null) setIsPlaying(playing);
         return;
