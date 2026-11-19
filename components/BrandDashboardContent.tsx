@@ -3428,7 +3428,7 @@ export default function BrandDashboardContent() {
                               <ProposalDeliverableField
                                 proposalId={String(proposal.id)}
                                 initialUrl={proposal.published_post_url}
-                                initialShowcaseConsent={proposal.brand_showcase_consent !== false}
+                                initialShowcaseConsent={proposal.brand_showcase_consent === true}
                                 lang={lang}
                                 readOnly
                                 canApprove

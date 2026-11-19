@@ -17,6 +17,14 @@ test("parseSocialPostUrl accepts IG / TikTok / YouTube https URLs", () => {
   const yt = parseSocialPostUrl("https://youtu.be/dQw4w9WgXcQ");
   assert.equal(yt.ok, true);
   if (yt.ok) assert.equal(yt.provider, "youtube");
+
+  const igTv = parseSocialPostUrl("https://www.instagram.com/p/AbCdEfGhIjK/");
+  assert.equal(igTv.ok, true);
+  if (igTv.ok) assert.equal(igTv.provider, "instagram");
+
+  const ytWatch = parseSocialPostUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+  assert.equal(ytWatch.ok, true);
+  if (ytWatch.ok) assert.equal(ytWatch.provider, "youtube");
 });
 
 test("parseSocialPostUrl rejects empty, http, and non-social hosts", () => {

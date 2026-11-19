@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
-import { ACTIVE_PROPOSAL_STATUSES } from "@/lib/campaignProposalIdempotency";
-import { ensureProposalThread } from "@/lib/proposalChat";
+import { ACTIVE_PROPOSAL_STATUSES, isCampaignServiceType } from "@/lib/campaignProposalIdempotency";
+import { ensureConversationLink } from "@/lib/proposalChat";
+
+function titleNeedle(title: string): string {
+  const t = title.trim();
+  if (t.length < 4) return t;
+  return t.slice(0, 80);
+}
 
 export async function POST(request: NextRequest) {
   const user = await userFromBearer(request);
@@ -23,6 +29,9 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   if (appErr || !app) {
     return NextResponse.json({ error: "Application not found" }, { status: 404 });
+  }
+  if (String(app.status || "").toLowerCase() !== "accepted") {
+    return NextResponse.json({ error: "not_accepted" }, { status: 403 });
   }
 
   const { data: influencer } = await admin
@@ -67,35 +76,32 @@ export async function POST(request: NextRequest) {
   }
 
   const campaignTitle = campaign?.title || "Καμπάνια";
-  const serviceType = `Καμπάνια: ${campaignTitle}`.slice(0, 120);
   const brandId = campaign?.brand_id || "";
   let proposalId: string | number | null = null;
-  if (brandId) {
-    const { data: proposal } = await admin
+  const needle = titleNeedle(campaignTitle);
+  if (needle) {
+    let pq = admin
       .from("proposals")
-      .select("id")
-      .eq("brand_id", brandId)
+      .select("id, service_type, brand_id, created_at")
       .eq("influencer_id", app.influencer_id)
-      .eq("service_type", serviceType)
-      .in("status", [...ACTIVE_PROPOSAL_STATUSES])
+      .ilike("service_type", `%${needle.replace(/%/g, "\\%")}%`)
+      .in("status", [...ACTIVE_PROPOSAL_STATUSES, "completed"])
       .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (proposal?.id != null) proposalId = proposal.id;
+      .limit(30);
+    if (brandId) pq = pq.eq("brand_id", brandId);
+    const { data: proposals } = await pq;
+    for (const row of proposals || []) {
+      if (!isCampaignServiceType(String(row.service_type || ""))) continue;
+      proposalId = row.id as string | number;
+      break;
+    }
   }
 
-  if (proposalId == null) {
-    return NextResponse.json({ error: "no_conversation" }, { status: 404 });
-  }
-
-  const conversationId = await ensureProposalThread({
+  const conversationId = await ensureConversationLink({
     influencerId: String(app.influencer_id),
     brandEmail,
     brandName,
     proposalId,
-    content: `Συνομιλία για την καμπάνια «${campaignTitle}».`,
-    replaceLink: false,
-    alreadyNotified: true,
   });
   if (!conversationId) {
     return NextResponse.json({ error: "Could not open the conversation" }, { status: 500 });

@@ -106,6 +106,7 @@ type ApplicationRow = {
   deliverable_status?: string | null;
   deliverable_review_note?: string | null;
   deliverable_seen_at?: string | null;
+  brand_showcase_consent?: boolean | null;
   delivery_confirmed_at?: string | null;
   auto_completed_at?: string | null;
   cancelled_by?: string | null;
@@ -631,7 +632,7 @@ export default function BrandCampaignsSection({
   const [decidingAppId, setDecidingAppId] = useState<string | null>(null);
   const [cancelApplication, setCancelApplication] = useState<ApplicationRow | null>(null);
   const [cancelApplicationSaving, setCancelApplicationSaving] = useState(false);
-  /** Brand showcase consent at deliverable approval (UI default on). */
+  /** Brand showcase consent at deliverable approval (explicit opt-in). */
   const [approveShowcaseByApp, setApproveShowcaseByApp] = useState<Record<string, boolean>>({});
   /** Application ids whose deliverable details are expanded (marks seen on open). */
   const [openDeliverableIds, setOpenDeliverableIds] = useState<Record<string, boolean>>({});
@@ -1592,7 +1593,9 @@ export default function BrandCampaignsSection({
                                       <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-[11px] text-slate-700">
                                         <input
                                           type="checkbox"
-                                          checked={approveShowcaseByApp[app.id] !== false}
+                                          checked={
+                                            approveShowcaseByApp[app.id] ?? app.brand_showcase_consent === true
+                                          }
                                           onChange={(e) =>
                                             setApproveShowcaseByApp((prev) => ({
                                               ...prev,
@@ -1622,7 +1625,7 @@ export default function BrandCampaignsSection({
                                               app.id,
                                               "approved",
                                               undefined,
-                                              approveShowcaseByApp[app.id] !== false
+                                              approveShowcaseByApp[app.id] === true
                                             );
                                           }}
                                           className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"

@@ -84,7 +84,7 @@ export default function ProposalDeliverableField({
   deliverableStatus = null,
   deliverableReviewNote = null,
   showStepLabel = false,
-  initialShowcaseConsent = true,
+  initialShowcaseConsent = false,
 }: {
   proposalId: string;
   initialUrl?: string | null;
@@ -122,7 +122,7 @@ export default function ProposalDeliverableField({
   const [status, setStatus] = useState(String(deliverableStatus || ""));
   const [reviewNote, setReviewNote] = useState(deliverableReviewNote || "");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showcaseConsent, setShowcaseConsent] = useState(initialShowcaseConsent !== false);
+  const [showcaseConsent, setShowcaseConsent] = useState(initialShowcaseConsent === true);
 
   useEffect(() => {
     setPending(!!pendingApproval);
@@ -145,7 +145,7 @@ export default function ProposalDeliverableField({
   }, [prefill]);
 
   useEffect(() => {
-    setShowcaseConsent(initialShowcaseConsent !== false);
+    setShowcaseConsent(initialShowcaseConsent === true);
   }, [initialShowcaseConsent]);
 
   useEffect(() => {

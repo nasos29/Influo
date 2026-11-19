@@ -109,3 +109,54 @@ export async function ensureProposalThread(args: ThreadArgs): Promise<string | n
 
   return conversationId;
 }
+
+/** Opens brand↔creator thread without inserting a synthetic brand message or emailing. */
+export async function ensureConversationLink(args: {
+  influencerId: string;
+  brandEmail: string;
+  brandName: string;
+  proposalId?: string | number | null;
+}): Promise<string | null> {
+  const admin = supabaseService();
+  const brandEmail = args.brandEmail.toLowerCase().trim();
+  if (!brandEmail.includes("@")) return null;
+
+  const { data: existingRows } = await admin
+    .from("conversations")
+    .select("id, proposal_id, closed_at")
+    .eq("influencer_id", args.influencerId)
+    .ilike("brand_email", brandEmail)
+    .limit(1);
+  const existing = existingRows?.[0];
+  let conversationId = existing?.id as string | undefined;
+
+  if (!conversationId) {
+    const contact = await influencerContact(args.influencerId);
+    const profile = await admin
+      .from("influencers")
+      .select("id, display_name")
+      .eq("id", args.influencerId)
+      .maybeSingle();
+    if (!profile.data) return null;
+    const insertRow: Record<string, unknown> = {
+      influencer_id: args.influencerId,
+      influencer_name: profile.data.display_name,
+      influencer_email: contact.email || "",
+      brand_email: brandEmail,
+      brand_name: args.brandName,
+    };
+    if (args.proposalId != null) insertRow.proposal_id = args.proposalId;
+    const { data: createdRow, error } = await admin.from("conversations").insert([insertRow]).select("id").single();
+    if (error || !createdRow) return null;
+    conversationId = createdRow.id as string;
+  } else {
+    if (existing?.closed_at) {
+      await admin.from("conversations").update({ closed_at: null }).eq("id", conversationId);
+    }
+    if (args.proposalId != null && !existing?.proposal_id) {
+      await admin.from("conversations").update({ proposal_id: args.proposalId }).eq("id", conversationId);
+    }
+  }
+
+  return conversationId ?? null;
+}

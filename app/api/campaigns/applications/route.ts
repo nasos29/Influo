@@ -4,8 +4,8 @@ import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
 export const dynamic = "force-dynamic";
 
 const APP_SELECTS = [
+  "id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, deliverable_seen_at, brand_showcase_consent, initiated_by",
   "id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, deliverable_seen_at, initiated_by",
-  "id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, initiated_by",
   "id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note",
   "id, campaign_id, influencer_id, message, status, created_at, deliverable_url, deliverable_note, deliverable_status, deliverable_review_note",
 ];

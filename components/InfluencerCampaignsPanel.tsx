@@ -538,7 +538,7 @@ export default function InfluencerCampaignsPanel({
   };
 
   const submitDeliverable = async (appId: string) => {
-    const draft = deliverDraft[appId] || { url: "", note: "", showcaseConsent: true };
+    const draft = deliverDraft[appId] || { url: "", note: "", showcaseConsent: false };
     const parsed = parseSocialPostUrl(draft.url);
     if (!parsed.ok) {
       notify(socialPostUrlErrorMessage(parsed.error, uiLang), "error");
@@ -554,7 +554,7 @@ export default function InfluencerCampaignsPanel({
           action: "submit",
           url: parsed.url,
           note: draft.note.trim() || "",
-          showcaseConsent: draft.showcaseConsent !== false,
+          showcaseConsent: draft.showcaseConsent === true,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -834,7 +834,7 @@ export default function InfluencerCampaignsPanel({
               const draft = deliverDraft[m.id] || {
                 url: m.deliverable_url || "",
                 note: m.deliverable_note || "",
-                showcaseConsent: true,
+                showcaseConsent: m.influencer_showcase_consent === true,
               };
               const showDeliver = canShowDeliverable(m);
               return (
@@ -920,11 +920,7 @@ export default function InfluencerCampaignsPanel({
                         {uiLang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
                       </button>
                     )}
-                    {(m.status === "pending" ||
-                      m.status === "shortlisted" ||
-                      m.status === "accepted" ||
-                      showDeliver) &&
-                    m.brand_campaigns?.brands?.contact_email ? (
+                    {m.status === "accepted" && m.brand_campaigns?.brands?.contact_email ? (
                       <button
                         type="button"
                         disabled={messageOpeningId === m.id}
@@ -993,7 +989,7 @@ export default function InfluencerCampaignsPanel({
                     <label className="flex items-start gap-2 text-xs text-slate-700">
                       <input
                         type="checkbox"
-                        checked={draft.showcaseConsent !== false}
+                        checked={draft.showcaseConsent === true}
                         onChange={(e) =>
                           setDeliverDraft((prev) => ({
                             ...prev,

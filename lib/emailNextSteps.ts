@@ -26,6 +26,8 @@ export type EmailNextStepsKey =
   | "campaign_deliverable_approved_creator"
   | "campaign_deliverable_approved_brand"
   | "campaign_deliverable_changes_creator"
+  | "campaign_deliverable_reminder_creator"
+  | "proposal_deliverable_reminder_creator"
   | "proposal_new_creator"
   | "proposal_brand_confirmation"
   | "proposal_accepted_brand"
@@ -166,6 +168,16 @@ export const EMAIL_NEXT_STEPS: Record<EmailNextStepsKey, NextStep[]> = {
     { el: "Διάβασε τι ζητήθηκε στις Καμπάνιες / στο σχόλιο.", en: "Read the requested changes in Campaigns / the note." },
     { el: "Κάνε τις αλλαγές και υπέβαλε ξανά το link παράδοσης.", en: "Make the changes and resubmit the deliverable link." },
     { el: "Για απορίες, γράψε στην επιχείρηση από τα Μηνύματα.", en: "Ask the brand in Messages if anything is unclear." },
+  ],
+  campaign_deliverable_reminder_creator: [
+    { el: "Ανέβασε το περιεχόμενο (post, reel ή video) στα social σου.", en: "Publish the content (post, reel, or video) on social." },
+    { el: "Από dashboard → Καμπάνιες, επικόλλησε το link της ανάρτησης στο πεδίο παραδοτέου.", en: "From Dashboard → Campaigns, paste the post link into the deliverable field." },
+    { el: "Η επιχείρηση θα εγκρίνει το link — θα λάβεις email όταν απαντήσει.", en: "The brand will approve the link — you’ll get an email when they respond." },
+  ],
+  proposal_deliverable_reminder_creator: [
+    { el: "Ανέβασε το περιεχόμενο (post, reel ή video) στα social σου.", en: "Publish the content (post, reel, or video) on social." },
+    { el: "Από dashboard → Προτάσεις, επικόλλησε το link στο πεδίο Παραδοτέο.", en: "From Dashboard → Proposals, paste the link into the Deliverable field." },
+    { el: "Η επιχείρηση θα εγκρίνει — θα λάβεις email όταν απαντήσει.", en: "The brand will approve — you’ll get an email when they respond." },
   ],
   proposal_new_creator: [
     { el: "Άνοιξε την πρόταση από dashboard → Προτάσεις.", en: "Open the proposal under Dashboard → Proposals." },

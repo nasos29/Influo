@@ -147,9 +147,6 @@ export async function PATCH(request: Request) {
             if (typeof submitConsent === "boolean") {
               update.influencer_showcase_consent = submitConsent;
               update.influencer_showcase_opted_out = !submitConsent;
-            } else {
-              update.influencer_showcase_consent = true;
-              update.influencer_showcase_opted_out = false;
             }
           }
         }
@@ -173,9 +170,6 @@ export async function PATCH(request: Request) {
         if (typeof approveConsent === "boolean") {
           update.brand_showcase_consent = approveConsent;
           update.brand_showcase_opted_out = !approveConsent;
-        } else {
-          update.brand_showcase_consent = true;
-          update.brand_showcase_opted_out = false;
         }
       }
 
