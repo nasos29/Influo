@@ -3,13 +3,23 @@
  * Deliverable + approval mails are essential (always send when addressed).
  */
 
-import { emailNextSteps } from "@/lib/emailNextSteps";
+import { emailNextSteps, type EmailNextStepsKey } from "@/lib/emailNextSteps";
 import { formatDate } from "@/lib/formatDateTime";
 import { escapeHtml } from "@/lib/proposalParty";
 import { send, shell, siteUrl } from "@/lib/proposalMail";
 
 function button(href: string, label: string): string {
   return `<p style="margin:20px 0;"><a href="${escapeHtml(href)}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-weight:600;">${escapeHtml(label)}</a></p>`;
+}
+
+function deliverableReminderCreatorNextSteps(dashboardUrl: string): EmailNextStepsKey {
+  try {
+    const tab = new URL(dashboardUrl).searchParams.get("tab");
+    if (tab === "campaigns") return "campaign_deliverable_changes_creator";
+  } catch {
+    /* ignore */
+  }
+  return "campaign_deliverable_changes_creator";
 }
 
 export async function mailCreatorDeliverableReminder(input: {
@@ -20,15 +30,30 @@ export async function mailCreatorDeliverableReminder(input: {
   wave: "before" | "after_1" | "after_5";
   dashboardUrl: string;
 }): Promise<void> {
-  const deadline = formatDate(input.publishDeadline, "el") || "την προθεσμία";
+  const deadlineFormatted = formatDate(input.publishDeadline, "el");
+  const deadlinePhrase = deadlineFormatted ? `τις ${deadlineFormatted}` : "";
+  const isCampaign = (() => {
+    try {
+      return new URL(input.dashboardUrl).searchParams.get("tab") === "campaigns";
+    } catch {
+      return input.dashboardUrl.includes("tab=campaigns");
+    }
+  })();
+  const ctaLabel = isCampaign ? "Άνοιξε τις καμπάνιες" : "Άνοιξε τις προτάσεις";
   const subject =
     input.wave === "before"
-      ? `Υπενθύμιση: ανέβασε το παραδοτέο πριν τις ${deadline}`
+      ? deadlineFormatted
+        ? `Υπενθύμιση: ανέβασε το παραδοτέο πριν ${deadlinePhrase}`
+        : `Υπενθύμιση: ανέβασε το παραδοτέο (${input.brandName})`
       : `Υπενθύμιση: εκκρεμεί το παραδοτέο (${input.brandName})`;
   const lead =
     input.wave === "before"
-      ? `Η προθεσμία δημοσίευσης είναι στις <strong>${escapeHtml(deadline)}</strong>. Ανέβασε το link (ή επιβεβαίωσε event/παρουσία) από το dashboard.`
-      : `Η προθεσμία δημοσίευσης (${escapeHtml(deadline)}) πέρασε και δεν έχει υποβληθεί παραδοτέο ακόμα.`;
+      ? deadlineFormatted
+        ? `Η προθεσμία δημοσίευσης είναι ${deadlinePhrase}. Ανέβασε το link (ή επιβεβαίωσε event/παρουσία) από το dashboard.`
+        : `Πλησιάζει η προθεσμία δημοσίευσης. Ανέβασε το link (ή επιβεβαίωσε event/παρουσία) από το dashboard.`
+      : deadlineFormatted
+        ? `Η προθεσμία δημοσίευσης (${escapeHtml(deadlineFormatted)}) πέρασε και δεν έχει υποβληθεί παραδοτέο ακόμα.`
+        : `Η προθεσμία δημοσίευσης πέρασε και δεν έχει υποβληθεί παραδοτέο ακόμα.`;
   await send(
     `deliverable_reminder_creator_${input.wave}`,
     input.to,
@@ -38,8 +63,8 @@ export async function mailCreatorDeliverableReminder(input: {
       `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>
        <p>Η συνεργασία με <strong>${escapeHtml(input.brandName)}</strong> περιμένει το παραδοτέο σου.</p>
        <p>${lead}</p>
-       ${button(input.dashboardUrl, "Άνοιξε τις προτάσεις")}
-       ${emailNextSteps("proposal_new_creator")}`
+       ${button(input.dashboardUrl, ctaLabel)}
+       ${emailNextSteps(deliverableReminderCreatorNextSteps(input.dashboardUrl))}`
     )
   );
 }

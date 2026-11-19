@@ -21,11 +21,7 @@ import {
 } from "@/lib/notificationPreferences";
 import { influencerContact } from "@/lib/proposalAccess";
 import { isCampaignRealDeliveryComplete } from "@/lib/campaignDealCompletion";
-import {
-  campaignPublishDeadline,
-  isCampaignReminderBacklog,
-  publishDeadlineDueMsForCampaign,
-} from "@/lib/campaignReviewReminder";
+import { campaignPublishDeadline, isCampaignReminderBacklog } from "@/lib/campaignReviewReminder";
 import { publishDeadlineDueMs } from "@/lib/reviewReminder";
 
 type ProposalRow = {
@@ -159,13 +155,11 @@ export async function runDeliverableReminders(
         skipped += 1;
         continue;
       }
-      const { brandName, deadline, opened_at, created_at } = campaignBrandBits(row);
+      const { brandName, deadline } = campaignBrandBits(row);
       const publishDeadline = campaignPublishDeadline(null, deadline);
-      const deadlineEnd = publishDeadlineDueMsForCampaign(null, deadline, {
-        deadline,
-        opened_at,
-        created_at,
-      });
+      const deadlineEnd = publishDeadline
+        ? publishDeadlineDueMs(publishDeadline)
+        : null;
       if (deadlineEnd == null) {
         skipped += 1;
         continue;
@@ -187,7 +181,8 @@ export async function runDeliverableReminders(
         stampCol = "deliverable_reminder_before_sent_at";
       } else if (
         !row.deliverable_reminder_1d_after_sent_at &&
-        nowMs >= deadlineEnd + dayMs(DELIVERABLE_REMINDER_AFTER_1_DAYS)
+        nowMs >= deadlineEnd + dayMs(DELIVERABLE_REMINDER_AFTER_1_DAYS) &&
+        !!publishDeadline
       ) {
         wave = "after_1";
         stampCol = "deliverable_reminder_1d_after_sent_at";
@@ -227,7 +222,7 @@ export async function runDeliverableReminders(
           brandName,
           publishDeadline,
           wave,
-          dashboardUrl: `${siteUrl()}/dashboard?tab=campaigns&focus=deliverable&applicationId=${encodeURIComponent(String(row.id))}`,
+          dashboardUrl: `${siteUrl()}/dashboard?tab=campaigns&focus=deliverable&application=${encodeURIComponent(String(row.id))}`,
         });
         creatorSent += 1;
       } catch (err) {
@@ -398,7 +393,7 @@ export async function runDeliverableReminders(
             brandName: row.brand_name || "Επιχείρηση",
             publishDeadline: row.publish_deadline,
             wave,
-            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&deliverable=1&proposalId=${encodeURIComponent(String(row.id))}`,
+            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&focus=deliverable&proposalId=${encodeURIComponent(String(row.id))}`,
           });
           creatorSent += 1;
         } catch (err) {

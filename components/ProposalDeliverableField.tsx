@@ -84,6 +84,7 @@ export default function ProposalDeliverableField({
   deliverableStatus = null,
   deliverableReviewNote = null,
   showStepLabel = false,
+  initialShowcaseConsent = true,
 }: {
   proposalId: string;
   initialUrl?: string | null;
@@ -102,6 +103,8 @@ export default function ProposalDeliverableField({
   deliverableStatus?: string | null;
   deliverableReviewNote?: string | null;
   showStepLabel?: boolean;
+  /** Showcase consent at link submit / brand approve (single place). */
+  initialShowcaseConsent?: boolean;
 }) {
   const txt = COPY[lang];
   const [mode, setMode] = useState<Mode>(initialMode === "event" ? "event" : "link");
@@ -119,6 +122,7 @@ export default function ProposalDeliverableField({
   const [status, setStatus] = useState(String(deliverableStatus || ""));
   const [reviewNote, setReviewNote] = useState(deliverableReviewNote || "");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showcaseConsent, setShowcaseConsent] = useState(initialShowcaseConsent !== false);
 
   useEffect(() => {
     setPending(!!pendingApproval);
@@ -139,6 +143,10 @@ export default function ProposalDeliverableField({
   useEffect(() => {
     if (prefill) setUrl(prefill);
   }, [prefill]);
+
+  useEffect(() => {
+    setShowcaseConsent(initialShowcaseConsent !== false);
+  }, [initialShowcaseConsent]);
 
   useEffect(() => {
     if (!autoFocus) return;
@@ -167,6 +175,7 @@ export default function ProposalDeliverableField({
           id: proposalId,
           deliveryMode: "link",
           publishedPostUrl: parsed.url,
+          showcaseConsent,
         }),
       });
       if (!res.ok) {
@@ -236,6 +245,7 @@ export default function ProposalDeliverableField({
           id: proposalId,
           approvePublishedPost: mode !== "event",
           confirmEventDelivery: mode === "event",
+          showcaseConsent,
         }),
       });
       if (!res.ok) {
@@ -347,6 +357,21 @@ export default function ProposalDeliverableField({
           ) : null}
           {canApprove && pending && !confirmed ? (
             <div className="space-y-2">
+              <label className="flex items-start gap-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={showcaseConsent}
+                  onChange={(e) => setShowcaseConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                />
+                <span className="min-w-0">
+                  <span className="block font-medium text-slate-800">
+                    {lang === "el"
+                      ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
+                      : "Show publicly in “Recent collaborations”"}
+                  </span>
+                </span>
+              </label>
               <textarea
                 value={brandReviewNote}
                 onChange={(e) => {
@@ -403,6 +428,21 @@ export default function ProposalDeliverableField({
           </div>
           {mode === "link" ? (
             <>
+              <label className="flex items-start gap-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={showcaseConsent}
+                  onChange={(e) => setShowcaseConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                />
+                <span className="min-w-0">
+                  <span className="block font-medium text-slate-800">
+                    {lang === "el"
+                      ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
+                      : "Show publicly in “Recent collaborations”"}
+                  </span>
+                </span>
+              </label>
               <input
                 ref={inputRef}
                 type="url"

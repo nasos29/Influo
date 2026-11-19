@@ -385,7 +385,6 @@ export default function Messaging({
   const [endingConversation, setEndingConversation] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
-  const [showcaseConsent, setShowcaseConsent] = useState(true);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
@@ -1433,7 +1432,6 @@ export default function Messaging({
           proposalId: activeProposalId,
           userType: mode,
           accepted: true,
-          showcaseConsent,
         })
       });
 
@@ -1443,7 +1441,6 @@ export default function Messaging({
         await loadProposalInfo();
         setShowAgreementModal(false);
         setAgreementAccepted(false);
-        setShowcaseConsent(true);
         notify(lang === 'el'
           ? mode === 'influencer'
             ? 'Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σας όταν αποδεχτεί και εκείνη.'
@@ -3021,14 +3018,11 @@ export default function Messaging({
           publishDeadline={proposalInfo.publish_deadline}
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
-          showcaseConsent={showcaseConsent}
-          onShowcaseConsentChange={setShowcaseConsent}
           showcaseParty={mode === "brand" ? "brand" : "influencer"}
           saving={savingAgreement}
           onCancel={() => {
             setShowAgreementModal(false);
             setAgreementAccepted(false);
-            setShowcaseConsent(true);
           }}
           onAccept={handleAcceptAgreement}
         />

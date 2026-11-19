@@ -25,6 +25,11 @@ test("parseSocialPostUrl rejects empty, http, and non-social hosts", () => {
   assert.deepEqual(parseSocialPostUrl("https://example.com/video"), { ok: false, error: "invalid" });
 });
 
+test("parseSocialPostUrl rejects profile-only social URLs", () => {
+  assert.deepEqual(parseSocialPostUrl("https://www.instagram.com/someuser"), { ok: false, error: "invalid" });
+  assert.deepEqual(parseSocialPostUrl("https://www.tiktok.com/@someuser"), { ok: false, error: "invalid" });
+});
+
 test("parseSelfReportedCount keeps non-negative integers only", () => {
   assert.equal(parseSelfReportedCount(null), null);
   assert.equal(parseSelfReportedCount(""), null);
