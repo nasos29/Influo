@@ -10,6 +10,12 @@
  */
 
 import { isReviewFromRealCompletionEnabled } from "@/lib/deliveryFlags";
+import {
+  effectiveFirstReminderSentAt,
+  effectiveSecondReminderSentAt,
+  type ReminderStampRow,
+  type ReviewPartySide,
+} from "@/lib/reviewReminderStamps";
 
 export const REVIEW_REMINDER_FALLBACK_DAYS = 3;
 export const REVIEW_REMINDER_SECOND_DAYS = 7;
@@ -104,8 +110,11 @@ export function shouldSendSecondReviewReminder(opts: {
   status?: string | null;
   reviewReminderSentAt?: string | null;
   reviewReminderSecondSentAt?: string | null;
+  publishDeadline?: string | null;
+  realCompletedAt?: string | null;
   nowMs?: number;
   secondDays?: number;
+  fromRealCompletion?: boolean;
 }): boolean {
   if ((opts.status || "").toLowerCase() !== "completed") return false;
   if (!opts.reviewReminderSentAt) return false;
@@ -114,5 +123,75 @@ export function shouldSendSecondReviewReminder(opts: {
   if (!Number.isFinite(first)) return false;
   const days = opts.secondDays ?? REVIEW_REMINDER_SECOND_DAYS;
   const now = opts.nowMs ?? Date.now();
-  return now >= first + days * 24 * 60 * 60 * 1000;
+  if (now < first + days * 24 * 60 * 60 * 1000) return false;
+
+  const realOnly = opts.fromRealCompletion ?? isReviewFromRealCompletionEnabled();
+  if (!realOnly) return true;
+
+  const real = opts.realCompletedAt ? new Date(opts.realCompletedAt).getTime() : NaN;
+  const hasReal = Number.isFinite(real);
+  const deadlineEnd = publishDeadlineDueMs(opts.publishDeadline);
+  const deadlinePassed = deadlineEnd != null && now >= deadlineEnd;
+  return hasReal || deadlinePassed;
+}
+
+/** First-wave due for one party (uses per-side effective stamp). */
+export function shouldSendSideReviewReminder(
+  party: ReviewPartySide,
+  opts: {
+    status?: string | null;
+    row: ReminderStampRow;
+    publishDeadline?: string | null;
+    agreementAcceptedAt?: string | null;
+    realCompletedAt?: string | null;
+    nowMs?: number;
+    fallbackDays?: number;
+    fromRealCompletion?: boolean;
+  }
+): boolean {
+  if ((opts.status || "").toLowerCase() !== "completed") return false;
+  if (effectiveFirstReminderSentAt(party, opts.row)) return false;
+  const due = reviewReminderDueMs({
+    publishDeadline: opts.publishDeadline,
+    agreementAcceptedAt: opts.agreementAcceptedAt,
+    realCompletedAt: opts.realCompletedAt,
+    fallbackDays: opts.fallbackDays,
+    fromRealCompletion: opts.fromRealCompletion,
+  });
+  if (due == null) return false;
+  const now = opts.nowMs ?? Date.now();
+  return now >= due;
+}
+
+/** Second-wave due for one party. */
+export function shouldSendSideSecondReviewReminder(
+  party: ReviewPartySide,
+  opts: {
+    status?: string | null;
+    row: ReminderStampRow;
+    publishDeadline?: string | null;
+    realCompletedAt?: string | null;
+    nowMs?: number;
+    secondDays?: number;
+    fromRealCompletion?: boolean;
+  }
+): boolean {
+  if ((opts.status || "").toLowerCase() !== "completed") return false;
+  const first = effectiveFirstReminderSentAt(party, opts.row);
+  if (!first) return false;
+  if (effectiveSecondReminderSentAt(party, opts.row)) return false;
+  const firstMs = new Date(first).getTime();
+  if (!Number.isFinite(firstMs)) return false;
+  const days = opts.secondDays ?? REVIEW_REMINDER_SECOND_DAYS;
+  const now = opts.nowMs ?? Date.now();
+  if (now < firstMs + days * 24 * 60 * 60 * 1000) return false;
+
+  const realOnly = opts.fromRealCompletion ?? isReviewFromRealCompletionEnabled();
+  if (!realOnly) return true;
+
+  const real = opts.realCompletedAt ? new Date(opts.realCompletedAt).getTime() : NaN;
+  const hasReal = Number.isFinite(real);
+  const deadlineEnd = publishDeadlineDueMs(opts.publishDeadline);
+  const deadlinePassed = deadlineEnd != null && now >= deadlineEnd;
+  return hasReal || deadlinePassed;
 }

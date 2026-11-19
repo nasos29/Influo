@@ -21,9 +21,15 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import {
   isReviewFromRealCompletionEnabled,
   isSecondReviewReminderWaveEnabled,
-  shouldSendReviewReminder,
-  shouldSendSecondReviewReminder,
+  shouldSendSideReviewReminder,
+  shouldSendSideSecondReviewReminder,
 } from "@/lib/reviewReminder";
+import {
+  effectiveFirstReminderSentAt,
+  effectiveSecondReminderSentAt,
+  type ReminderStampRow,
+  type ReviewPartySide,
+} from "@/lib/reviewReminderStamps";
 
 export { isSecondReviewReminderWaveEnabled, isReviewFromRealCompletionEnabled };
 
@@ -43,13 +49,17 @@ export type ReviewReminderRow = {
   auto_completed_at?: string | null;
   review_reminder_sent_at?: string | null;
   review_reminder_second_sent_at?: string | null;
+  brand_review_reminder_sent_at?: string | null;
+  influencer_review_reminder_sent_at?: string | null;
+  brand_review_reminder_second_sent_at?: string | null;
+  influencer_review_reminder_second_sent_at?: string | null;
   brand_review_prompts_declined_at?: string | null;
   influencer_review_prompts_declined_at?: string | null;
   status?: string | null;
 };
 
 const SELECT_COLS =
-  "id, influencer_id, brand_name, brand_email, service_type, budget, counter_proposal_budget, counter_proposal_status, selected_extras, publish_deadline, agreement_accepted_at, delivery_confirmed_at, auto_completed_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, status";
+  "id, influencer_id, brand_name, brand_email, service_type, budget, counter_proposal_budget, counter_proposal_status, selected_extras, publish_deadline, agreement_accepted_at, delivery_confirmed_at, auto_completed_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_reminder_sent_at, influencer_review_reminder_sent_at, brand_review_reminder_second_sent_at, influencer_review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, status";
 
 const SELECT_COLS_LEGACY =
   "id, influencer_id, brand_name, brand_email, service_type, budget, counter_proposal_budget, counter_proposal_status, selected_extras, publish_deadline, agreement_accepted_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, status";
@@ -102,25 +112,72 @@ function helperHtml(party: "brand" | "influencer"): string {
   return `<p style="margin:12px 0;font-size:13px;color:#475569;">${text}</p>`;
 }
 
-/** Claim one proposal for the first review reminder (null → already claimed / missing). */
+type ReminderWave = "first" | "second";
+
+function stampColumn(
+  party: ReviewPartySide,
+  wave: ReminderWave
+): string {
+  if (wave === "first") {
+    return party === "brand" ? "brand_review_reminder_sent_at" : "influencer_review_reminder_sent_at";
+  }
+  return party === "brand" ? "brand_review_reminder_second_sent_at" : "influencer_review_reminder_second_sent_at";
+}
+
+async function stampProposalSideReminder(
+  admin: SupabaseClient,
+  proposalId: string | number,
+  party: ReviewPartySide,
+  wave: ReminderWave,
+  sentAt: string
+): Promise<boolean> {
+  const col = stampColumn(party, wave);
+  const { data, error } = await admin
+    .from("proposals")
+    .update({ [col]: sentAt })
+    .eq("id", proposalId)
+    .is(col, null)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    if (/schema cache|column|PGRST204|42703/i.test(error.message || "")) return false;
+    console.error("[review-reminder] stamp failed", proposalId, col, error.message);
+    return false;
+  }
+  return !!data?.id;
+}
+
+async function stampCampaignSideReminder(
+  admin: SupabaseClient,
+  applicationId: string,
+  party: ReviewPartySide,
+  wave: ReminderWave,
+  sentAt: string
+): Promise<boolean> {
+  const col = stampColumn(party, wave);
+  const { data, error } = await admin
+    .from("campaign_applications")
+    .update({ [col]: sentAt })
+    .eq("id", applicationId)
+    .is(col, null)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    if (/schema cache|column|PGRST204|42703/i.test(error.message || "")) return false;
+    return false;
+  }
+  return !!data?.id;
+}
+
+/** Stamp both sides after merged completion email (legacy helper). */
 export async function claimReviewReminder(
   admin: SupabaseClient,
   proposalId: string | number,
   sentAt = new Date().toISOString()
 ): Promise<boolean> {
-  const { data, error } = await admin
-    .from("proposals")
-    .update({ review_reminder_sent_at: sentAt })
-    .eq("id", proposalId)
-    .is("review_reminder_sent_at", null)
-    .eq("status", "completed")
-    .select("id")
-    .maybeSingle();
-  if (error) {
-    console.error("[review-reminder] claim failed", proposalId, error.message);
-    return false;
-  }
-  return !!data?.id;
+  const a = await stampProposalSideReminder(admin, proposalId, "brand", "first", sentAt);
+  const b = await stampProposalSideReminder(admin, proposalId, "influencer", "first", sentAt);
+  return a || b;
 }
 
 async function claimSecondReviewReminder(
@@ -316,7 +373,8 @@ async function sendCampaignReminderWave(
       publishDeadline: campaignPublishDeadline(null, meta.deadline),
       isSecond: wave === "second",
     };
-    const jobs: Promise<void>[] = [];
+    const sentAt = new Date().toISOString();
+  const outcomes: Array<"ok" | "skipped" | "quota" | "error"> = [];
     const creatorDone =
       creatorDeclined || (brandEmail ? await creatorAlreadyReviewedBrand(admin, row.influencer_id, brandEmail) : false);
     const brandDone =
@@ -325,43 +383,49 @@ async function sendCampaignReminderWave(
     if (!creatorDone) {
       const creatorPrefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
       if (allowRemindersEmail(creatorPrefs)) {
-        jobs.push(
-          mailCreatorReviewReminder({
-            ...common,
-            to: influencer.email,
-            creatorName: influencer.name,
-            brandName: meta.brandName,
-            profileUrl: bits.profileUrl,
-            dashboardUrl: `${siteUrl()}/dashboard?tab=campaigns&reviewBrand=1&applicationId=${encodeURIComponent(String(row.id))}`,
-            starUrls: starUrlsFor("campaign", row.id, "influencer"),
-            declineUrl: reviewDeclineUrl("campaign", String(row.id), "influencer", "el"),
-            helperHtml: helperHtml("influencer"),
-          })
-        );
+        const outcome = await mailCreatorReviewReminder({
+          ...common,
+          influencerId: row.influencer_id,
+          dealRef: row.id,
+          source: "campaign",
+          to: influencer.email,
+          creatorName: influencer.name,
+          brandName: meta.brandName,
+          profileUrl: bits.profileUrl,
+          dashboardUrl: reviewOpenUrl("campaign", String(row.id), "influencer", 5, "el"),
+          starUrls: starUrlsFor("campaign", row.id, "influencer"),
+          declineUrl: reviewDeclineUrl("campaign", String(row.id), "influencer", "el"),
+          helperHtml: helperHtml("influencer"),
+        });
+        if (outcome === "ok") await stampCampaignSideReminder(admin, row.id, "influencer", wave, sentAt);
+        outcomes.push(outcome === "skipped" ? "skipped" : outcome);
       }
     }
 
     if (brandEmail && !brandDone) {
       if (await brandAllowsRemindersEmail(admin, brandEmail)) {
-        jobs.push(
-          mailBrandReviewReminder({
-            ...common,
-            to: brandEmail,
-            brandName: meta.brandName,
-            creatorName: influencer.name,
-            creatorFemale: bits.creatorFemale,
-            reviewUrl: `${bits.profileUrl}?tab=reviews&review=1&applicationId=${encodeURIComponent(String(row.id))}`,
-            starUrls: starUrlsFor("campaign", row.id, "brand"),
-            declineUrl: reviewDeclineUrl("campaign", String(row.id), "brand", "el"),
-            helperHtml: helperHtml("brand"),
-          })
-        );
+        const outcome = await mailBrandReviewReminder({
+          ...common,
+          dealRef: row.id,
+          source: "campaign",
+          to: brandEmail,
+          brandName: meta.brandName,
+          creatorName: influencer.name,
+          creatorFemale: bits.creatorFemale,
+          reviewUrl: reviewOpenUrl("campaign", String(row.id), "brand", 5, "el"),
+          starUrls: starUrlsFor("campaign", row.id, "brand"),
+          declineUrl: reviewDeclineUrl("campaign", String(row.id), "brand", "el"),
+          helperHtml: helperHtml("brand"),
+        });
+        if (outcome === "ok") await stampCampaignSideReminder(admin, row.id, "brand", wave, sentAt);
+        outcomes.push(outcome);
       }
     }
 
-    if (jobs.length === 0) return "skipped";
-    await Promise.all(jobs);
-    return "sent";
+    if (outcomes.length === 0) return "skipped";
+    if (outcomes.some((o) => o === "ok")) return "sent";
+    if (outcomes.some((o) => o === "quota" || o === "error")) return "error";
+    return "skipped";
   } catch (err) {
     const message = err instanceof Error ? err.message : "send failed";
     console.error("[review-reminder] campaign send", row.id, message);
@@ -387,74 +451,92 @@ async function brandAllowsRemindersEmail(
 
 type SendWave = "first" | "second";
 
+async function sendProposalSideReminder(
+  admin: SupabaseClient,
+  row: ReviewReminderRow,
+  wave: SendWave,
+  party: ReviewPartySide
+): Promise<"ok" | "skipped" | "quota" | "error"> {
+  const brandEmail = (row.brand_email || "").trim();
+  const stampRow = row as ReminderStampRow;
+  if (wave === "first" && effectiveFirstReminderSentAt(party, stampRow)) return "skipped";
+  if (wave === "second") {
+    if (!effectiveFirstReminderSentAt(party, stampRow)) return "skipped";
+    if (effectiveSecondReminderSentAt(party, stampRow)) return "skipped";
+  }
+
+  const brandDeclined = !!row.brand_review_prompts_declined_at;
+  const creatorDeclined = !!row.influencer_review_prompts_declined_at;
+  const influencer = await influencerContact(row.influencer_id);
+  const bits = await creatorProfileBits(admin, row.influencer_id);
+  const common = {
+    proposalId: row.id,
+    service: row.service_type || "",
+    budget: dealAmount(row),
+    extras: row.selected_extras,
+    publishDeadline: row.publish_deadline,
+    isSecond: wave === "second",
+    dealRef: row.id,
+    source: "proposal" as const,
+  };
+  const sentAt = new Date().toISOString();
+
+  if (party === "influencer") {
+    if (creatorDeclined) return "skipped";
+    if (brandEmail && (await creatorAlreadyReviewedBrand(admin, row.influencer_id, brandEmail))) {
+      return "skipped";
+    }
+    const creatorPrefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
+    if (!allowRemindersEmail(creatorPrefs)) return "skipped";
+    const outcome = await mailCreatorReviewReminder({
+      ...common,
+      influencerId: row.influencer_id,
+      to: influencer.email,
+      creatorName: influencer.name,
+      brandName: row.brand_name || "Επιχείρηση",
+      profileUrl: bits.profileUrl,
+      dashboardUrl: reviewOpenUrl("proposal", String(row.id), "influencer", 5, "el"),
+      starUrls: starUrlsFor("proposal", row.id, "influencer"),
+      declineUrl: reviewDeclineUrl("proposal", String(row.id), "influencer", "el"),
+      helperHtml: helperHtml("influencer"),
+    });
+    if (outcome === "ok") await stampProposalSideReminder(admin, row.id, "influencer", wave, sentAt);
+    return outcome === "skipped" ? "skipped" : outcome;
+  }
+
+  if (!brandEmail || brandDeclined) return "skipped";
+  if (await brandAlreadyReviewed(admin, row.influencer_id, brandEmail)) return "skipped";
+  if (!(await brandAllowsRemindersEmail(admin, brandEmail))) return "skipped";
+  const outcome = await mailBrandReviewReminder({
+    ...common,
+    to: brandEmail,
+    brandName: row.brand_name || "Επιχείρηση",
+    creatorName: influencer.name,
+    creatorFemale: bits.creatorFemale,
+    reviewUrl: reviewOpenUrl("proposal", String(row.id), "brand", 5, "el"),
+    starUrls: starUrlsFor("proposal", row.id, "brand"),
+    declineUrl: reviewDeclineUrl("proposal", String(row.id), "brand", "el"),
+    helperHtml: helperHtml("brand"),
+  });
+  if (outcome === "ok") await stampProposalSideReminder(admin, row.id, "brand", wave, sentAt);
+  return outcome;
+}
+
 async function sendReminderWave(
   admin: SupabaseClient,
   row: ReviewReminderRow,
   wave: SendWave
 ): Promise<"sent" | "skipped" | "error"> {
-  const brandEmail = (row.brand_email || "").trim();
-  const brandDeclined = !!row.brand_review_prompts_declined_at;
-  const creatorDeclined = !!row.influencer_review_prompts_declined_at;
-
   try {
-    const influencer = await influencerContact(row.influencer_id);
-    const bits = await creatorProfileBits(admin, row.influencer_id);
-    const common = {
-      proposalId: row.id,
-      service: row.service_type || "",
-      budget: dealAmount(row),
-      extras: row.selected_extras,
-      publishDeadline: row.publish_deadline,
-      isSecond: wave === "second",
-    };
-    const jobs: Promise<void>[] = [];
-    const creatorDone =
-      creatorDeclined ||
-      (brandEmail ? await creatorAlreadyReviewedBrand(admin, row.influencer_id, brandEmail) : false);
-    const brandDone =
-      brandDeclined ||
-      (brandEmail ? await brandAlreadyReviewed(admin, row.influencer_id, brandEmail) : true);
-
-    if (!creatorDone) {
-      const creatorPrefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
-      if (allowRemindersEmail(creatorPrefs)) {
-        jobs.push(
-          mailCreatorReviewReminder({
-            ...common,
-            to: influencer.email,
-            creatorName: influencer.name,
-            brandName: row.brand_name || "Επιχείρηση",
-            profileUrl: bits.profileUrl,
-            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&reviewBrand=1&proposalId=${encodeURIComponent(String(row.id))}`,
-            starUrls: starUrlsFor("proposal", row.id, "influencer"),
-            declineUrl: reviewDeclineUrl("proposal", String(row.id), "influencer", "el"),
-            helperHtml: helperHtml("influencer"),
-          })
-        );
-      }
-    }
-
-    if (brandEmail && !brandDone) {
-      if (await brandAllowsRemindersEmail(admin, brandEmail)) {
-        jobs.push(
-          mailBrandReviewReminder({
-            ...common,
-            to: brandEmail,
-            brandName: row.brand_name || "Επιχείρηση",
-            creatorName: influencer.name,
-            creatorFemale: bits.creatorFemale,
-            reviewUrl: `${bits.profileUrl}?tab=reviews&review=1&proposalId=${encodeURIComponent(String(row.id))}`,
-            starUrls: starUrlsFor("proposal", row.id, "brand"),
-            declineUrl: reviewDeclineUrl("proposal", String(row.id), "brand", "el"),
-            helperHtml: helperHtml("brand"),
-          })
-        );
-      }
-    }
-
-    if (jobs.length === 0) return "skipped";
-    await Promise.all(jobs);
-    return "sent";
+    const outcomes: Array<"ok" | "skipped" | "quota" | "error"> = [
+      await sendProposalSideReminder(admin, row, wave, "influencer"),
+      await sendProposalSideReminder(admin, row, wave, "brand"),
+    ];
+    if (outcomes.length === 0) return "skipped";
+    if (outcomes.some((o) => o === "ok")) return "sent";
+    if (outcomes.every((o) => o === "skipped")) return "skipped";
+    if (outcomes.some((o) => o === "quota" || o === "error")) return "error";
+    return "skipped";
   } catch (err) {
     const message = err instanceof Error ? err.message : "send failed";
     console.error("[review-reminder] send", row.id, message);
@@ -500,7 +582,9 @@ export async function runReviewReminders(
       .from("proposals")
       .select(SELECT_COLS)
       .eq("status", "completed")
-      .is("review_reminder_sent_at", null)
+      .or(
+        "brand_review_reminder_sent_at.is.null,influencer_review_reminder_sent_at.is.null,review_reminder_sent_at.is.null"
+      )
       .limit(200);
 
     if (fromRealCompletion) {
@@ -569,33 +653,34 @@ export async function runReviewReminders(
         continue;
       }
       const realAt = realCompletionAt(row);
-      if (
-        !shouldSendReviewReminder({
-          status: row.status,
-          reviewReminderSentAt: row.review_reminder_sent_at,
-          publishDeadline: row.publish_deadline,
-          agreementAcceptedAt: row.agreement_accepted_at,
-          realCompletedAt: realAt,
-          nowMs,
-          fromRealCompletion,
-        })
-      ) {
-        continue;
-      }
+      const stampRow = row as ReminderStampRow;
+      const needsInfluencer = shouldSendSideReviewReminder("influencer", {
+        status: row.status,
+        row: stampRow,
+        publishDeadline: row.publish_deadline,
+        agreementAcceptedAt: row.agreement_accepted_at,
+        realCompletedAt: realAt,
+        nowMs,
+        fromRealCompletion,
+      });
+      const needsBrand = shouldSendSideReviewReminder("brand", {
+        status: row.status,
+        row: stampRow,
+        publishDeadline: row.publish_deadline,
+        agreementAcceptedAt: row.agreement_accepted_at,
+        realCompletedAt: realAt,
+        nowMs,
+        fromRealCompletion,
+      });
+      if (!needsInfluencer && !needsBrand) continue;
       due += 1;
-
-      const claimed = await claimReviewReminder(admin, row.id);
-      if (!claimed) {
-        skipped += 1;
-        continue;
-      }
 
       try {
         const outcome = await sendReminderWave(admin, row, "first");
         if (outcome === "sent") sent += 1;
+        else if (outcome === "error") errors.push(`#${row.id}: send failed`);
         else skipped += 1;
       } catch (err) {
-        await releaseReviewReminderClaim(admin, row.id);
         const message = err instanceof Error ? err.message : "send failed";
         errors.push(`#${row.id}: ${message}`);
       }
@@ -686,26 +771,32 @@ export async function runReviewReminders(
     for (const row of secondRows) {
       if (secondSent >= limit) break;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
-      if (
-        !shouldSendSecondReviewReminder({
-          status: row.status,
-          reviewReminderSentAt: row.review_reminder_sent_at,
-          reviewReminderSecondSentAt: row.review_reminder_second_sent_at,
-          nowMs,
-        })
-      ) {
-        continue;
-      }
+      const realAt = realCompletionAt(row);
+      const stampRow = row as ReminderStampRow;
+      const needsInfluencer = shouldSendSideSecondReviewReminder("influencer", {
+        status: row.status,
+        row: stampRow,
+        publishDeadline: row.publish_deadline,
+        realCompletedAt: realAt,
+        nowMs,
+        fromRealCompletion,
+      });
+      const needsBrand = shouldSendSideSecondReviewReminder("brand", {
+        status: row.status,
+        row: stampRow,
+        publishDeadline: row.publish_deadline,
+        realCompletedAt: realAt,
+        nowMs,
+        fromRealCompletion,
+      });
+      if (!needsInfluencer && !needsBrand) continue;
       secondDue += 1;
-
-      const claimed = await claimSecondReviewReminder(admin, row.id);
-      if (!claimed) continue;
 
       try {
         const outcome = await sendReminderWave(admin, row, "second");
         if (outcome === "sent") secondSent += 1;
+        else if (outcome === "error") errors.push(`#${row.id} second: send failed`);
       } catch (err) {
-        await releaseSecondReviewReminderClaim(admin, row.id);
         const message = err instanceof Error ? err.message : "send failed";
         errors.push(`#${row.id} second: ${message}`);
       }
