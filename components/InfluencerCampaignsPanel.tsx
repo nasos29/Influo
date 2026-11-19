@@ -259,7 +259,8 @@ export default function InfluencerCampaignsPanel({
         [target.id]: {
           url: prefill,
           note: prev[target.id]?.note || target.deliverable_note || "",
-          showcaseConsent: prev[target.id]?.showcaseConsent !== false,
+          showcaseConsent:
+            prev[target.id]?.showcaseConsent ?? (target.influencer_showcase_consent === true),
         },
       }));
     }

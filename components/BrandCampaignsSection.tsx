@@ -763,7 +763,7 @@ export default function BrandCampaignsSection({
           .from("campaign_applications")
           .select(
             `id, campaign_id, influencer_id, message, status, created_at, proposed_price, work_links,
-             deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, initiated_by`
+             deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, brand_showcase_consent, initiated_by`
           )
           .eq("campaign_id", campaignId)
           .order("created_at", { ascending: false });
@@ -772,7 +772,7 @@ export default function BrandCampaignsSection({
             .from("campaign_applications")
             .select(
               `id, campaign_id, influencer_id, message, status, created_at,
-               deliverable_url, deliverable_note, deliverable_status, deliverable_review_note`
+               deliverable_url, deliverable_note, deliverable_status, deliverable_review_note, brand_showcase_consent`
             )
             .eq("campaign_id", campaignId)
             .order("created_at", { ascending: false });
