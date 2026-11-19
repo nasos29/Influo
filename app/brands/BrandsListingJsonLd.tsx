@@ -4,6 +4,15 @@ import { absoluteUrl } from "@/lib/site";
 
 /** AggregateRating JSON-LD for brands listed on /brands (count > 0). */
 export default async function BrandsListingJsonLd() {
+  try {
+    return await renderBrandsListingJsonLd();
+  } catch {
+    // SEO extra only: never break /brands when the DB is unreachable (e.g. at build time).
+    return null;
+  }
+}
+
+async function renderBrandsListingJsonLd() {
   const admin = supabaseService();
   const { data } = await admin
     .from("brands")
@@ -11,14 +20,12 @@ export default async function BrandsListingJsonLd() {
     .gt("total_reviews", 0)
     .order("total_reviews", { ascending: false })
     .limit(24);
-  const blocks: Record<string, unknown>[] = [];
   const base = absoluteUrl("/brands");
-  for (const row of data || []) {
-    const id = String(row.id || "");
-    if (!id) continue;
-    const ld = await brandReviewsJsonLdById(id, `${base}#brand-${id}`);
-    if (ld) blocks.push(ld);
-  }
+  const ids = (data || []).map((row) => String(row.id || "")).filter(Boolean);
+  const results = await Promise.all(
+    ids.map((id) => brandReviewsJsonLdById(id, `${base}#brand-${id}`).catch(() => null))
+  );
+  const blocks = results.filter((ld): ld is Record<string, unknown> => !!ld);
   if (!blocks.length) return null;
   const payload = blocks.length === 1 ? blocks[0] : { "@context": "https://schema.org", "@graph": blocks };
   return (

@@ -5272,11 +5272,11 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                       className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900"
                                       title={
                                         lang === "el"
-                                          ? "Τελευταίο social refresh: μερική αποτυχία προφίλ"
-                                          : "Recent social refresh: partial profile failure"
+                                          ? "Στο τελευταίο SocialRefresh ένας λογαριασμός απέτυχε (οι υπόλοιποι πέρασαν). Δες τα logs."
+                                          : "Last SocialRefresh: one account failed (others OK). See logs."
                                       }
                                     >
-                                      {lang === "el" ? "Social refresh" : "Social refresh"}
+                                      {lang === "el" ? "Refresh: λογαριασμός απέτυχε" : "Refresh: account failed"}
                                     </span>
                                   ) : null}
                                 </div>
@@ -5294,7 +5294,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     className="text-[10px] text-slate-400 mt-0.5 tabular-nums"
                                     title={formatDisplayDateTime(u.last_social_refresh_at)}
                                   >
-                                    {lang === "el" ? "Social refresh" : "Social refresh"}{" "}
+                                    {lang === "el" ? "Refresh: λογαριασμός απέτυχε" : "Refresh: account failed"}{" "}
                                     {formatDate(u.last_social_refresh_at, lang)}
                                   </div>
                                 ) : null}

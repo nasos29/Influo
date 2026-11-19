@@ -10,6 +10,8 @@ export const metadata = pageMetadata({
   keywords: ["brands Ελλάδα", "επιχειρήσεις influencers", ...categorySeoKeywords()],
 });
 
+export const revalidate = 3600;
+
 export default function BrandsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>

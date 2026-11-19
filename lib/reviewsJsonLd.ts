@@ -9,6 +9,10 @@ export type JsonLdReview = {
 };
 
 export function reviewsAggregateJsonLd(input: {
+  /** schema.org type that supports aggregateRating: brands = Organization, creators = Service. */
+  itemType?: "Organization" | "Service";
+  /** For Service: the creator offering it. */
+  providerName?: string;
   itemName: string;
   itemUrl: string;
   avgRating: number;
@@ -30,9 +34,12 @@ export function reviewsAggregateJsonLd(input: {
   }));
   return {
     "@context": "https://schema.org",
-    "@type": "Product",
+    "@type": input.itemType || "Organization",
     name: input.itemName,
     url: input.itemUrl,
+    ...(input.itemType === "Service" && input.providerName
+      ? { provider: { "@type": "Person", name: input.providerName } }
+      : {}),
     aggregateRating: {
       "@type": "AggregateRating",
       ratingValue: input.avgRating,

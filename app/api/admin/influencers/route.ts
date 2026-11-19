@@ -375,13 +375,24 @@ export async function GET(request: NextRequest) {
       logSince.setDate(logSince.getDate() - SOCIAL_REFRESH_LOG_RETENTION_DAYS);
       const { data: failLogs } = await admin
         .from("social_refresh_logs")
-        .select("influencer_id")
+        .select("influencer_id, created_at")
         .eq("event", "profile_failed")
         .gte("created_at", logSince.toISOString())
         .in("influencer_id", pageIds);
+      // Badge only while the partial failure is newer than the last full refresh.
+      const lastRefreshById = new Map<string, number>();
+      for (const row of (data || []) as Array<{ id?: string | number; last_social_refresh_at?: string | null }>) {
+        const at = row.last_social_refresh_at ? Date.parse(row.last_social_refresh_at) : NaN;
+        if (Number.isFinite(at)) lastRefreshById.set(String(row.id ?? ""), at);
+      }
       for (const row of failLogs || []) {
         const iid = row.influencer_id ? String(row.influencer_id) : "";
-        if (iid) socialRefreshProfileFailed.add(iid);
+        if (!iid) continue;
+        const failedAt = row.created_at ? Date.parse(String(row.created_at)) : NaN;
+        const lastOk = lastRefreshById.get(iid);
+        if (lastOk == null || !Number.isFinite(failedAt) || failedAt > lastOk) {
+          socialRefreshProfileFailed.add(iid);
+        }
       }
     }
 

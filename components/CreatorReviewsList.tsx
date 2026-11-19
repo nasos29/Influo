@@ -36,8 +36,12 @@ export default function CreatorReviewsList({
 }) {
   const el = lang !== "en";
   const [modalOpen, setModalOpen] = useState(false);
-  const avg = Number(avgRating) || 0;
-  const total = Number(totalReviews) || 0;
+  // Fall back to the loaded list when the stored aggregate is stale (0 while reviews exist).
+  const listAvg = reviews.length
+    ? reviews.reduce((sum, r) => sum + (Number(r.rating) || 0), 0) / reviews.length
+    : 0;
+  const total = Number(totalReviews) || reviews.length;
+  const avg = Number(avgRating) || listAvg;
 
   const listItems = useMemo<ReviewListItem[]>(
     () =>

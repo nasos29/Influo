@@ -111,6 +111,38 @@ type CampaignReviewRow = {
 const CAMPAIGN_REVIEW_SELECT =
   "id, influencer_id, status, proposed_price, delivery_confirmed_at, auto_completed_at, deliverable_status, reviewed_at, review_reminder_sent_at, review_reminder_second_sent_at, brand_review_reminder_sent_at, influencer_review_reminder_sent_at, brand_review_reminder_second_sent_at, influencer_review_reminder_second_sent_at, brand_review_prompts_declined_at, influencer_review_prompts_declined_at, brand_campaigns ( title, deadline, brands ( brand_name, contact_email ) )";
 
+/** Page size for reminder scans; every page is read (no per-run scan cap). */
+const SCAN_PAGE = 500;
+
+type PageQuery<T> = (
+  from: number,
+  to: number
+) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>;
+
+/** Read all pages of a filtered query (rows that leave the filter just drop out). */
+async function fetchAllPages<T>(build: PageQuery<T>): Promise<{ rows: T[]; error: { message: string } | null }> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += SCAN_PAGE) {
+    const { data, error } = await build(from, from + SCAN_PAGE - 1);
+    if (error) return { rows, error };
+    const page = data || [];
+    rows.push(...page);
+    if (page.length < SCAN_PAGE) return { rows, error: null };
+  }
+}
+
+/**
+ * First wave: only rows where a side that could still receive the email has a null per-side stamp.
+ * Brand side needs an address (proposals) and no decline; creator side needs no decline.
+ */
+const PROPOSAL_FIRST_WAVE_PENDING =
+  "and(brand_review_reminder_sent_at.is.null,brand_review_prompts_declined_at.is.null,brand_email.not.is.null),and(influencer_review_reminder_sent_at.is.null,influencer_review_prompts_declined_at.is.null)";
+const CAMPAIGN_FIRST_WAVE_PENDING =
+  "and(brand_review_reminder_sent_at.is.null,brand_review_prompts_declined_at.is.null),and(influencer_review_reminder_sent_at.is.null,influencer_review_prompts_declined_at.is.null)";
+/** Second wave: a side has its first-wave stamp but no second-wave stamp (and has not declined). */
+const SECOND_WAVE_PENDING =
+  "and(brand_review_reminder_sent_at.not.is.null,brand_review_reminder_second_sent_at.is.null,brand_review_prompts_declined_at.is.null),and(influencer_review_reminder_sent_at.not.is.null,influencer_review_reminder_second_sent_at.is.null,influencer_review_prompts_declined_at.is.null)";
+
 function helperHtml(party: "brand" | "influencer"): string {
   const text = party === "brand" ? REVIEW_HELPER_BRAND_EL : REVIEW_HELPER_CREATOR_EL;
   return `<p style="margin:12px 0;font-size:13px;color:#475569;">${text}</p>`;
@@ -167,7 +199,7 @@ async function stampCampaignSideReminder(
     .select("id")
     .maybeSingle();
   if (error) {
-    if (/schema cache|column|PGRST204|42703/i.test(error.message || "")) return false;
+    console.error("[review-reminder] campaign stamp failed", applicationId, col, error.message);
     return false;
   }
   return !!data?.id;
@@ -182,52 +214,6 @@ export async function claimReviewReminder(
   const a = await stampProposalSideReminder(admin, proposalId, "brand", "first", sentAt);
   const b = await stampProposalSideReminder(admin, proposalId, "influencer", "first", sentAt);
   return a || b;
-}
-
-async function claimSecondReviewReminder(
-  admin: SupabaseClient,
-  proposalId: string | number,
-  sentAt = new Date().toISOString()
-): Promise<boolean> {
-  const { data, error } = await admin
-    .from("proposals")
-    .update({ review_reminder_second_sent_at: sentAt })
-    .eq("id", proposalId)
-    .is("review_reminder_second_sent_at", null)
-    .not("review_reminder_sent_at", "is", null)
-    .eq("status", "completed")
-    .select("id")
-    .maybeSingle();
-  if (error) {
-    // Column may not exist until migration is applied.
-    if (/review_reminder_second|schema cache|column|PGRST204|42703/i.test(error.message || "")) {
-      console.warn("[review-reminder] second claim skipped (migration pending)", error.message);
-      return false;
-    }
-    console.error("[review-reminder] second claim failed", proposalId, error.message);
-    return false;
-  }
-  return !!data?.id;
-}
-
-/** Undo claim so a later cron can retry after a send failure. */
-async function releaseReviewReminderClaim(admin: SupabaseClient, proposalId: string | number): Promise<void> {
-  const { error } = await admin
-    .from("proposals")
-    .update({ review_reminder_sent_at: null })
-    .eq("id", proposalId);
-  if (error) console.error("[review-reminder] release failed", proposalId, error.message);
-}
-
-async function releaseSecondReviewReminderClaim(
-  admin: SupabaseClient,
-  proposalId: string | number
-): Promise<void> {
-  const { error } = await admin
-    .from("proposals")
-    .update({ review_reminder_second_sent_at: null })
-    .eq("id", proposalId);
-  if (error) console.error("[review-reminder] second release failed", proposalId, error.message);
 }
 
 async function brandAlreadyReviewed(
@@ -305,62 +291,12 @@ function campaignMeta(row: CampaignReviewRow): {
   };
 }
 
-async function claimCampaignReviewReminder(
-  admin: SupabaseClient,
-  applicationId: string,
-  sentAt = new Date().toISOString()
-): Promise<boolean> {
-  const { data, error } = await admin
-    .from("campaign_applications")
-    .update({ review_reminder_sent_at: sentAt })
-    .eq("id", applicationId)
-    .is("review_reminder_sent_at", null)
-    .neq("status", "cancelled")
-    .select("id")
-    .maybeSingle();
-  if (error) {
-    if (/review_reminder|schema cache|column|PGRST204|42703/i.test(error.message || "")) return false;
-    console.error("[review-reminder] campaign claim failed", applicationId, error.message);
-    return false;
-  }
-  return !!data?.id;
-}
-
-async function claimCampaignSecondReviewReminder(
-  admin: SupabaseClient,
-  applicationId: string,
-  sentAt = new Date().toISOString()
-): Promise<boolean> {
-  const { data, error } = await admin
-    .from("campaign_applications")
-    .update({ review_reminder_second_sent_at: sentAt })
-    .eq("id", applicationId)
-    .is("review_reminder_second_sent_at", null)
-    .not("review_reminder_sent_at", "is", null)
-    .select("id")
-    .maybeSingle();
-  if (error) {
-    if (/review_reminder_second|schema cache|column|PGRST204|42703/i.test(error.message || "")) return false;
-    return false;
-  }
-  return !!data?.id;
-}
-
-async function releaseCampaignReviewReminderClaim(admin: SupabaseClient, applicationId: string): Promise<void> {
-  await admin.from("campaign_applications").update({ review_reminder_sent_at: null }).eq("id", applicationId);
-}
-
-async function releaseCampaignSecondReviewReminderClaim(
-  admin: SupabaseClient,
-  applicationId: string
-): Promise<void> {
-  await admin.from("campaign_applications").update({ review_reminder_second_sent_at: null }).eq("id", applicationId);
-}
-
 async function sendCampaignReminderWave(
   admin: SupabaseClient,
   row: CampaignReviewRow,
-  wave: "first" | "second"
+  wave: "first" | "second",
+  /** Only sides the caller found due (per-side timing). */
+  due: { influencer: boolean; brand: boolean }
 ): Promise<"sent" | "skipped" | "error"> {
   const meta = campaignMeta(row);
   const brandEmail = meta.brandEmail;
@@ -385,22 +321,22 @@ async function sendCampaignReminderWave(
     const brandDone =
       brandDeclined || (brandEmail ? await brandAlreadyReviewed(admin, row.influencer_id, brandEmail) : true);
 
-  const creatorStamped =
-    wave === "first"
-      ? !!effectiveFirstReminderSentAt("influencer", stampRow)
-      : !!effectiveSecondReminderSentAt("influencer", stampRow);
-  const brandStamped =
-    wave === "first"
-      ? !!effectiveFirstReminderSentAt("brand", stampRow)
-      : !!effectiveSecondReminderSentAt("brand", stampRow);
+    const creatorStamped =
+      wave === "first"
+        ? !!effectiveFirstReminderSentAt("influencer", stampRow)
+        : !!effectiveSecondReminderSentAt("influencer", stampRow);
+    const brandStamped =
+      wave === "first"
+        ? !!effectiveFirstReminderSentAt("brand", stampRow)
+        : !!effectiveSecondReminderSentAt("brand", stampRow);
 
-    if (!creatorDone && !creatorStamped) {
+    if (due.influencer && !creatorDone && !creatorStamped) {
       const creatorPrefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
       if (allowRemindersEmail(creatorPrefs)) {
         const outcome = await mailCreatorReviewReminder({
           ...common,
           influencerId: row.influencer_id,
-          dealRef: row.id,
+          dealRef: `campaign:${row.id}`,
           source: "campaign",
           to: influencer.email,
           creatorName: influencer.name,
@@ -416,11 +352,11 @@ async function sendCampaignReminderWave(
       }
     }
 
-    if (brandEmail && !brandDone && !brandStamped) {
+    if (due.brand && brandEmail && !brandDone && !brandStamped) {
       if (await brandAllowsRemindersEmail(admin, brandEmail)) {
         const outcome = await mailBrandReviewReminder({
           ...common,
-          dealRef: row.id,
+          dealRef: `campaign:${row.id}`,
           source: "campaign",
           to: brandEmail,
           brandName: meta.brandName,
@@ -539,12 +475,14 @@ async function sendProposalSideReminder(
 async function sendReminderWave(
   admin: SupabaseClient,
   row: ReviewReminderRow,
-  wave: SendWave
+  wave: SendWave,
+  /** Only sides the caller found due (per-side timing). */
+  due: { influencer: boolean; brand: boolean }
 ): Promise<"sent" | "skipped" | "error"> {
   try {
     const outcomes: Array<"ok" | "skipped" | "quota" | "error"> = [
-      await sendProposalSideReminder(admin, row, wave, "influencer"),
-      await sendProposalSideReminder(admin, row, wave, "brand"),
+      due.influencer ? await sendProposalSideReminder(admin, row, wave, "influencer") : "skipped",
+      due.brand ? await sendProposalSideReminder(admin, row, wave, "brand") : "skipped",
     ];
     if (outcomes.length === 0) return "skipped";
     if (outcomes.some((o) => o === "ok")) return "sent";
@@ -592,25 +530,27 @@ export async function runReviewReminders(
   // ——— First wave ———
   {
     let rows: ReviewReminderRow[] = [];
-    let query = admin
-      .from("proposals")
-      .select(SELECT_COLS)
-      .eq("status", "completed")
-      .or("brand_review_reminder_sent_at.is.null,influencer_review_reminder_sent_at.is.null")
-      .limit(200);
-
-    if (fromRealCompletion) {
-      // Real completion only — skip legacy completed-without-confirmation (no spam).
-      query = query
-        .or("delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null")
-        .order("delivery_confirmed_at", { ascending: true, nullsFirst: false });
-    } else {
-      query = query
+    const { rows: pageRows, error } = await fetchAllPages<ReviewReminderRow>((from, to) => {
+      const base = admin.from("proposals").select(SELECT_COLS).eq("status", "completed");
+      if (fromRealCompletion) {
+        // Real completion only — skip legacy completed-without-confirmation (no spam).
+        // One or= param so both groups are ANDed explicitly.
+        return base
+          .or(
+            `and(or(${PROPOSAL_FIRST_WAVE_PENDING}),or(delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null))`
+          )
+          .order("delivery_confirmed_at", { ascending: true, nullsFirst: false })
+          .order("id", { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{ data: ReviewReminderRow[] | null; error: { message: string } | null }>;
+      }
+      return base
+        .or(PROPOSAL_FIRST_WAVE_PENDING)
         .not("agreement_accepted_at", "is", null)
-        .order("agreement_accepted_at", { ascending: true });
-    }
-
-    const { data, error } = await query;
+        .order("agreement_accepted_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to) as unknown as PromiseLike<{ data: ReviewReminderRow[] | null; error: { message: string } | null }>;
+    });
+    const data = pageRows;
 
     if (error) {
       // Older DBs without new columns — retry with legacy select (and disable real-completion filter).
@@ -659,7 +599,7 @@ export async function runReviewReminders(
     scanned += rows.length;
 
     for (const row of rows) {
-      if (sent + skipped >= limit) break;
+      if (sent >= limit) break;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
         skipped += 1;
         continue;
@@ -688,7 +628,7 @@ export async function runReviewReminders(
       due += 1;
 
       try {
-        const outcome = await sendReminderWave(admin, row, "first");
+        const outcome = await sendReminderWave(admin, row, "first", { influencer: needsInfluencer, brand: needsBrand });
         if (outcome === "sent") sent += 1;
         else if (outcome === "error") errors.push(`#${row.id}: send failed`);
         else skipped += 1;
@@ -701,22 +641,25 @@ export async function runReviewReminders(
 
   // ——— Campaign applications: first wave ———
   {
-    const { data, error } = await admin
-      .from("campaign_applications")
-      .select(CAMPAIGN_REVIEW_SELECT)
-      .or("brand_review_reminder_sent_at.is.null,influencer_review_reminder_sent_at.is.null")
-      .or(
-        "delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null,deliverable_status.eq.approved"
-      )
-      .neq("status", "cancelled")
-      .limit(200);
+    const { rows: data, error } = await fetchAllPages<CampaignReviewRow>(
+      (from, to) =>
+        admin
+          .from("campaign_applications")
+          .select(CAMPAIGN_REVIEW_SELECT)
+          .or(
+            `and(or(${CAMPAIGN_FIRST_WAVE_PENDING}),or(delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null,deliverable_status.eq.approved))`
+          )
+          .neq("status", "cancelled")
+          .order("id", { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{ data: CampaignReviewRow[] | null; error: { message: string } | null }>
+    );
     if (error) {
       if (!/review_reminder|review_prompts_declined|schema cache|column|PGRST204|42703/i.test(error.message || "")) {
         errors.push(`campaign review: ${error.message}`);
       }
     } else {
-      for (const row of (data || []) as CampaignReviewRow[]) {
-        if (sent + skipped >= limit) break;
+      for (const row of data) {
+        if (sent >= limit) break;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
           continue;
@@ -744,7 +687,7 @@ export async function runReviewReminders(
         scanned += 1;
         due += 1;
         try {
-          const outcome = await sendCampaignReminderWave(admin, row, "first");
+          const outcome = await sendCampaignReminderWave(admin, row, "first", { influencer: needsInfluencer, brand: needsBrand });
           if (outcome === "sent") sent += 1;
           else if (outcome === "error") errors.push(`campaign #${row.id}: send failed`);
           else skipped += 1;
@@ -761,15 +704,17 @@ export async function runReviewReminders(
   }
 
   {
-    const { data, error } = await admin
-      .from("proposals")
-      .select(SELECT_COLS)
-      .eq("status", "completed")
-      .or(
-        "and(brand_review_reminder_sent_at.not.is.null,brand_review_reminder_second_sent_at.is.null),and(influencer_review_reminder_sent_at.not.is.null,influencer_review_reminder_second_sent_at.is.null)"
-      )
-      .order("delivery_confirmed_at", { ascending: true, nullsFirst: false })
-      .limit(200);
+    const { rows: data, error } = await fetchAllPages<ReviewReminderRow>(
+      (from, to) =>
+        admin
+          .from("proposals")
+          .select(SELECT_COLS)
+          .eq("status", "completed")
+          .or(SECOND_WAVE_PENDING)
+          .order("delivery_confirmed_at", { ascending: true, nullsFirst: false })
+          .order("id", { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{ data: ReviewReminderRow[] | null; error: { message: string } | null }>
+    );
 
     if (error) {
       if (/review_reminder_second|review_prompts_declined|schema cache|column|PGRST204|42703/i.test(error.message)) {
@@ -780,7 +725,7 @@ export async function runReviewReminders(
       return { scanned, due, sent, skipped, secondDue, secondSent, secondWaveEnabled, errors };
     }
 
-    const secondRows = (data || []) as ReviewReminderRow[];
+    const secondRows = data;
     scanned += secondRows.length;
 
     for (const row of secondRows) {
@@ -808,7 +753,7 @@ export async function runReviewReminders(
       secondDue += 1;
 
       try {
-        const outcome = await sendReminderWave(admin, row, "second");
+        const outcome = await sendReminderWave(admin, row, "second", { influencer: needsInfluencer, brand: needsBrand });
         if (outcome === "sent") secondSent += 1;
         else if (outcome === "error") errors.push(`#${row.id} second: send failed`);
       } catch (err) {
@@ -819,16 +764,22 @@ export async function runReviewReminders(
   }
 
   {
-    const { data, error } = await admin
-      .from("campaign_applications")
-      .select(CAMPAIGN_REVIEW_SELECT)
-      .or(
-        "and(brand_review_reminder_sent_at.not.is.null,brand_review_reminder_second_sent_at.is.null),and(influencer_review_reminder_sent_at.not.is.null,influencer_review_reminder_second_sent_at.is.null)"
-      )
-      .neq("status", "cancelled")
-      .limit(200);
-    if (!error) {
-      for (const row of (data || []) as CampaignReviewRow[]) {
+    const { rows: data, error } = await fetchAllPages<CampaignReviewRow>(
+      (from, to) =>
+        admin
+          .from("campaign_applications")
+          .select(CAMPAIGN_REVIEW_SELECT)
+          .or(SECOND_WAVE_PENDING)
+          .neq("status", "cancelled")
+          .order("id", { ascending: true })
+          .range(from, to) as unknown as PromiseLike<{ data: CampaignReviewRow[] | null; error: { message: string } | null }>
+    );
+    if (error) {
+      if (!/review_reminder|review_prompts_declined|schema cache|column|PGRST204|42703/i.test(error.message || "")) {
+        errors.push(`campaign review second: ${error.message}`);
+      }
+    } else {
+      for (const row of data) {
         if (secondSent >= limit) break;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
         const stampRow = row as ReminderStampRow;
@@ -846,7 +797,7 @@ export async function runReviewReminders(
         scanned += 1;
         secondDue += 1;
         try {
-          const outcome = await sendCampaignReminderWave(admin, row, "second");
+          const outcome = await sendCampaignReminderWave(admin, row, "second", { influencer: needsInfluencer, brand: needsBrand });
           if (outcome === "sent") secondSent += 1;
           else if (outcome === "error") errors.push(`campaign #${row.id} second: send failed`);
         } catch (err) {

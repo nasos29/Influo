@@ -34,6 +34,8 @@ export async function creatorReviewsJsonLd(
     authorName: (r.brand_name || "Brand").trim() || "Brand",
   }));
   return reviewsAggregateJsonLd({
+    itemType: "Service",
+    providerName: itemName,
     itemName,
     itemUrl,
     avgRating: avg,
@@ -93,6 +95,7 @@ export async function brandReviewsJsonLd(
     };
   });
   return reviewsAggregateJsonLd({
+    itemType: "Organization",
     itemName,
     itemUrl,
     avgRating: avg,
