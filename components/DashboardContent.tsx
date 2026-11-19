@@ -1307,7 +1307,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 {videoLinkError}
                               </p>
                             ) : null}
-                            <p className="text-xs text-gray-500">{L(`Έως ${MAX_PORTFOLIO_POSTS} posts`, `Up to ${MAX_PORTFOLIO_POSTS} posts`)} · {videoRows.filter((r) => r.url.trim()).length}/{portfolioMax}</p>
+                            <p className="text-xs text-gray-500">{L(`Έως ${MAX_PORTFOLIO_POSTS} στοιχεία (βίντεο και φωτογραφίες)`, `Up to ${MAX_PORTFOLIO_POSTS} items (videos and photos)`)} · {videoRows.filter((r) => r.url.trim()).length}/{portfolioMax}</p>
                             {videoRows.length < portfolioMax ? (
                             <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">{L("+ Προσθήκη Video Link / Φωτογραφίας", "+ Add Video Link / Photo")}</button>
                             ) : null}

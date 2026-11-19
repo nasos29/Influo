@@ -96,8 +96,8 @@ export function prepareVideosForSave(videos: unknown): PrepareVideosResult {
   return { ok: true, videos: out };
 }
 
-/** Free plan: max portfolio posts per creator. Older profiles above it keep theirs but cannot add more. */
-export const MAX_PORTFOLIO_POSTS = 10;
+/** Free plan: max portfolio items per creator (videos and photos combined). Older profiles above it keep theirs but cannot add more. */
+export const MAX_PORTFOLIO_POSTS = 6;
 
 /** Allowed count given what was already saved (grandfathers older profiles with more). */
 export function portfolioPostLimit(existingCount = 0): number {
@@ -106,6 +106,6 @@ export function portfolioPostLimit(existingCount = 0): number {
 
 export function portfolioLimitMessage(lang: "el" | "en"): string {
   return lang === "en"
-    ? `You can add up to ${MAX_PORTFOLIO_POSTS} posts.`
-    : `Μπορείτε να προσθέσετε έως ${MAX_PORTFOLIO_POSTS} posts.`;
+    ? `You can add up to ${MAX_PORTFOLIO_POSTS} portfolio items (videos and photos in total).`
+    : `Μπορείτε να προσθέσετε έως ${MAX_PORTFOLIO_POSTS} στοιχεία στο portfolio (βίντεο και φωτογραφίες συνολικά).`;
 }

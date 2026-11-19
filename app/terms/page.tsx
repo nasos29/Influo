@@ -148,6 +148,7 @@ export default function TermsPage() {
           title: "10. Διανοητική ιδιοκτησία και άδεια χρήσης υλικού",
           paragraphs: [
             "Το περιεχόμενο που αναρτούν οι Χρήστες παραμένει δικό τους. Ο Δημιουργός παραχωρεί στο Influo μη αποκλειστική, δωρεάν, παγκόσμια άδεια να χρησιμοποιεί τη φωτογραφία προφίλ, τις φωτογραφίες portfolio, τα δημόσια posts και τα στατιστικά που εμφανίζονται στο προφίλ του, με σκοπό την εμφάνισή τους στην Πλατφόρμα και την προβολή του προφίλ του στα μέσα κοινωνικής δικτύωσης και στο προωθητικό υλικό του Influo. Ο Δημιουργός δηλώνει ότι διαθέτει όλα τα αναγκαία δικαιώματα επί του υλικού που αναρτά, συμπεριλαμβανομένης της συναίνεσης τυχόν εικονιζόμενων προσώπων. Η άδεια λήγει με την αφαίρεση του υλικού ή τη διαγραφή του λογαριασμού, με την επιφύλαξη αναρτήσεων που έχουν ήδη δημοσιευθεί. Η μεταβίβαση ή η άδεια χρήσης του περιεχομένου που παράγεται στο πλαίσιο συνεργασίας, συμπεριλαμβανομένων των δικαιωμάτων διαφημιστικής χρήσης και της αποκλειστικότητας, ρυθμίζεται αποκλειστικά από τη συμφωνία των Μερών. Τα σήματα, ο σχεδιασμός και το λογισμικό της Πλατφόρμας ανήκουν στο Influo.",
+            "Με την εγγραφή του, ο Δημιουργός επιτρέπει στο Influo να κατεβάζει και να φιλοξενεί στους διακομιστές του φωτογραφίες και βίντεο από τους λογαριασμούς και τους συνδέσμους που δηλώνει, αποκλειστικά για την εμφάνισή τους στο προφίλ του στο Influo.",
           ],
         },
         {
@@ -265,6 +266,7 @@ export default function TermsPage() {
           title: "10. Intellectual property and license to use material",
           paragraphs: [
             "Content posted by Users remains their own. The Creator grants Influo a non-exclusive, royalty-free, worldwide license to use the profile photograph, the portfolio photographs, the public posts, and the statistics displayed on their profile, for the purpose of displaying them on the Platform and promoting their profile on social media and in Influo's promotional material. The Creator declares that they hold all necessary rights in the material they post, including the consent of any persons depicted. The license ends upon removal of the material or deletion of the account, without prejudice to posts that have already been published. The transfer or license of content produced in the course of a collaboration, including advertising-use rights and exclusivity, is governed solely by the agreement of the Parties. The trademarks, design, and software of the Platform belong to Influo.",
+            "By signing up, the Creator permits Influo to download and host, on its own servers, photos and videos from the accounts and links they provide, solely for display on their Influo profile.",
           ],
         },
         {

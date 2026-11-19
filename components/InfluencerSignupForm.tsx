@@ -1304,7 +1304,7 @@ export default function InfluencerSignupForm() {
                 <div className="space-y-3">
                     <label className={labelClass}>{txt.videoLabel}</label>
                     <p className="text-xs text-gray-500 mb-2">{txt.videoDesc}</p>
-                    <p className="text-xs font-semibold text-gray-600">{lang === "en" ? `Up to ${MAX_PORTFOLIO_POSTS} posts` : `Έως ${MAX_PORTFOLIO_POSTS} posts`} · {videoRows.filter((r) => r.url.trim()).length}/{MAX_PORTFOLIO_POSTS}</p>
+                    <p className="text-xs font-semibold text-gray-600">{lang === "en" ? `Up to ${MAX_PORTFOLIO_POSTS} items (videos and photos)` : `Έως ${MAX_PORTFOLIO_POSTS} στοιχεία (βίντεο και φωτογραφίες)`} · {videoRows.filter((r) => r.url.trim()).length}/{MAX_PORTFOLIO_POSTS}</p>
                     {videoRows.map((row) => (
                       <PortfolioVideoLinkRow
                         key={row.id}
