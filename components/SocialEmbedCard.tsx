@@ -32,6 +32,7 @@ import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 import type { PortfolioMediaKind } from "@/lib/usePortfolioMediaControls";
 import HostedVideoPlayer from "@/components/HostedVideoPlayer";
+import PlatformBrandIcon from "@/components/PlatformBrandIcon";
 import type { HostedMedia } from "@/lib/creatorMedia";
 
 type Provider = "instagram" | "tiktok" | "youtube";
@@ -802,18 +803,19 @@ export default function SocialEmbedCard({
                   className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                   aria-label={error ? COPY.retry[uiLang] : playLabel}
                 >
-                  <span className="text-sm font-semibold tracking-wide uppercase opacity-95 drop-shadow">
-                    {NAMES[provider]}
-                  </span>
+                  <PlatformBrandIcon
+                    platform={provider}
+                    className="h-7 w-7 text-white drop-shadow"
+                  />
                   {showPlayButton ? (
-                    <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
-                      <svg viewBox="0 0 24 24" className="ml-1 h-8 w-8 fill-current" aria-hidden>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                      <svg viewBox="0 0 24 24" className="ml-0.5 h-6 w-6 fill-current" aria-hidden>
                         <path d="M8 5v14l11-7z" />
                       </svg>
                     </span>
                   ) : showPhotoBadge ? (
-                    <span className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
-                      <svg viewBox="0 0 24 24" className="h-8 w-8 fill-current" aria-hidden>
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
+                      <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
                         <path d="M4 5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2H6a2 2 0 0 1-2-2V5zm2 0v10h8V5H6zm10 4v10h2V9h-2z" />
                       </svg>
                     </span>
