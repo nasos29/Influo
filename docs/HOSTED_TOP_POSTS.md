@@ -34,3 +34,18 @@ Sync design:
 - Ranking must use the stored views (else likes+comments) so a later refresh can replace a slot when a newer post outranks it.
 
 The profile UI calls `collectTopPosts` and prefers a hosted player when a matching `creator_media` row exists; otherwise it falls back to the official embed.
+
+
+## Storage backend
+
+Files live on our server today (the self-hosted Supabase `creator-videos` bucket). Playback URLs, the hosting job, and storage purge all go through a small backend switch so we can move objects to Cloudflare R2 later **with configuration only**. No R2 bucket or token is created in this work, and the default is unchanged.
+
+Env (all optional; omit them to keep current behaviour):
+
+- `MEDIA_STORAGE_BACKEND=supabase|r2` — default `supabase`. `NEXT_PUBLIC_MEDIA_STORAGE_BACKEND` is also read.
+- `MEDIA_PUBLIC_BASE_URL` — public prefix for object keys (no trailing slash). The key is appended as `{base}/{key}`. `NEXT_PUBLIC_MEDIA_PUBLIC_BASE_URL` is also read.
+  - Unset + Supabase: `{NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/creator-videos/{key}` (today’s URLs).
+  - R2 later: the public bucket URL or custom domain, e.g. `https://media.influo.gr`.
+- When `MEDIA_STORAGE_BACKEND=r2`, the hosting and purge jobs also need `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (defaults to `creator-videos`), and `R2_ACCOUNT_ID` or `R2_ENDPOINT`. The `creator_media` rows stay in Supabase; only the files move.
+
+Helpers: `lib/mediaStorage.ts` (public URLs), `lib/mediaObjectStore.ts` and `scripts/media_storage.py` (upload / list / delete).

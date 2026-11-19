@@ -39,6 +39,18 @@ from typing import Any
 
 BUCKET = "creator-videos"
 KIND_FOLDER = {"portfolio": "portfolio", "top_post": "top-posts", "collab": "collabs"}
+
+def _load_media_storage():
+    import importlib.util
+    from pathlib import Path as _P
+    candidate = _P(__file__).resolve().parent / "media_storage.py"
+    spec = importlib.util.spec_from_file_location("media_storage", candidate)
+    if not spec or not spec.loader:
+        raise SystemExit("scripts/media_storage.py is required")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.create_object_store
+
 TOP_POSTS_DISPLAY_LIMIT = 3
 HOSTED_TOP_POST_PLATFORMS = ("instagram", "tiktok")
 
@@ -786,20 +798,20 @@ def content_type_for(path: Path) -> str:
     }.get(ext, "application/octet-stream")
 
 
-def upload_folder(sb: Supabase, folder: str, assets: dict[str, Any], meta: dict[str, Any]) -> dict[str, str]:
+def upload_folder(store: Any, folder: str, assets: dict[str, Any], meta: dict[str, Any]) -> dict[str, str]:
     paths = {"play_path": f"{folder}video.mp4", "av1_path": None, "hevc_path": None}
-    sb.storage_upload(paths["play_path"], assets["play"].read_bytes(), "video/mp4")
+    store.storage_upload(paths["play_path"], assets["play"].read_bytes(), "video/mp4")
     if assets.get("av1"):
         paths["av1_path"] = f"{folder}video-av1.mp4"
-        sb.storage_upload(paths["av1_path"], assets["av1"].read_bytes(), "video/mp4")
+        store.storage_upload(paths["av1_path"], assets["av1"].read_bytes(), "video/mp4")
     if assets.get("hevc"):
         paths["hevc_path"] = f"{folder}video-hevc.mp4"
-        sb.storage_upload(paths["hevc_path"], assets["hevc"].read_bytes(), "video/mp4")
+        store.storage_upload(paths["hevc_path"], assets["hevc"].read_bytes(), "video/mp4")
     if assets.get("poster"):
         paths["poster_path"] = f"{folder}poster.webp"
-        sb.storage_upload(paths["poster_path"], assets["poster"].read_bytes(), "image/webp")
+        store.storage_upload(paths["poster_path"], assets["poster"].read_bytes(), "image/webp")
     meta_path = f"{folder}meta.json"
-    sb.storage_upload(meta_path, json.dumps(meta, indent=2).encode(), "application/json")
+    store.storage_upload(meta_path, json.dumps(meta, indent=2).encode(), "application/json")
     return paths
 
 
@@ -812,10 +824,11 @@ def existing_ready_by_norm(rows: list[dict[str, Any]]) -> dict[str, dict[str, An
     return out
 
 
-def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, only_url: str | None, force: bool = False, prune_only: bool = False, skip_collabs: bool = False) -> dict[str, Any]:
+def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, only_url: str | None, force: bool = False, prune_only: bool = False, skip_collabs: bool = False, store: Any | None = None) -> dict[str, Any]:
     rows = sb.rest_get("influencers", f"select=id,display_name,profile_slug,videos,accounts&id=eq.{influencer_id}")
     if not rows:
         raise SystemExit(f"influencer not found: {influencer_id}")
+    store = store or _load_media_storage()(sb)
     inf = rows[0]
     log(f"Hosting media for {inf.get('display_name')} ({inf.get('profile_slug')}) {influencer_id}")
     items = collect_items(inf)
@@ -925,7 +938,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     )
                     if not prior:
                         raise
-                    source = sb.storage_download(prior["play_path"], item_dir / "source.mp4")
+                    source = store.storage_download(prior["play_path"], item_dir / "source.mp4")
                     log(
                         f"  yt-dlp failed ({e}); re-encoding from existing {prior['play_path']} "
                         f"({source.stat().st_size} bytes)"
@@ -948,7 +961,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                 "video_hevc_bytes": assets["hevc"].stat().st_size if assets.get("hevc") else None,
                 "poster_bytes": assets["poster"].stat().st_size if assets.get("poster") else None,
             }
-            paths = upload_folder(sb, folder, assets, meta)
+            paths = upload_folder(store, folder, assets, meta)
             row = {
                 "influencer_id": influencer_id,
                 "source_url": url,
@@ -973,10 +986,10 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             keep = {paths["play_path"], paths.get("av1_path"), paths.get("hevc_path"), paths.get("poster_path"), f"{folder}meta.json"}
             keep = {p for p in keep if p}
             try:
-                existing_objs = sb.storage_list(folder.rstrip("/"))
+                existing_objs = store.storage_list(folder.rstrip("/"))
                 stale = [p for p in existing_objs if p not in keep]
                 if stale:
-                    sb.storage_remove(stale)
+                    store.storage_remove(stale)
                     log(f"  removed {len(stale)} stale object(s) in {folder}")
             except Exception as e:
                 log(f"  stale-object cleanup warning: {e}")
@@ -1022,9 +1035,9 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
         if not still and folder:
             log(f"  removing dropped top-post folder {folder}")
             try:
-                paths = sb.storage_list(folder.rstrip("/"))
+                paths = store.storage_list(folder.rstrip("/"))
                 if paths:
-                    sb.storage_remove(paths)
+                    store.storage_remove(paths)
             except Exception as e:
                 log(f"  folder delete warning: {e}")
         sb.rest_delete("creator_media", f"id=eq.{row['id']}")

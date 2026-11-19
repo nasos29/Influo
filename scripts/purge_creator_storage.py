@@ -62,11 +62,38 @@ def list_prefix(url: str, key: str, prefix: str) -> list[str]:
     return paths
 
 
+class _SupabaseObjectStore:
+    def __init__(self, url: str, key: str) -> None:
+        self.url = url
+        self.key = key
+
+    def storage_list(self, prefix: str) -> list[str]:
+        return list_prefix(self.url, self.key, prefix)
+
+    def storage_remove(self, paths: list[str]) -> None:
+        if not paths:
+            return
+        req(self.url, self.key, "DELETE", f"/storage/v1/object/{BUCKET}", json.dumps({"prefixes": paths}).encode())
+
+
+def _load_store(url: str, key: str):
+    import importlib.util
+    from pathlib import Path as _P
+    candidate = _P(__file__).resolve().parent / "media_storage.py"
+    spec = importlib.util.spec_from_file_location("media_storage", candidate)
+    if not spec or not spec.loader:
+        raise SystemExit("scripts/media_storage.py is required")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.create_object_store(_SupabaseObjectStore(url, key))
+
+
 def main() -> int:
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SERVICE_ROLE_KEY") or ""
     if not url or not key:
         raise SystemExit("Need SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY")
+    store = _load_store(url, key)
     jobs = req(url, key, "GET", "/rest/v1/creator_storage_purge?processed_at=is.null&order=created_at.asc") or []
     processed = 0
     removed = 0
@@ -74,11 +101,9 @@ def main() -> int:
     for job in jobs:
         prefix = (job.get("prefix") or f"creators/{job['influencer_id']}/").strip()
         try:
-            paths = list_prefix(url, key, prefix)
+            paths = store.storage_list(prefix)
             if paths:
-                # supabase-js remove() body: { prefixes: [object names...] }
-                # A folder prefix alone returns 200 but deletes nothing.
-                req(url, key, "DELETE", f"/storage/v1/object/{BUCKET}", json.dumps({"prefixes": paths}).encode())
+                store.storage_remove(paths)
                 removed += len(paths)
             req(
                 url,

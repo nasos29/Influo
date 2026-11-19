@@ -1,3 +1,5 @@
+import { publicMediaUrl as buildPublicMediaUrl } from "@/lib/mediaStorage";
+
 /**
  * Paths and URL helpers for self-hosted creator videos.
  * Bucket: creator-videos
@@ -112,11 +114,9 @@ export function mediaFolderPath(opts: {
   return `${root}${folder}/${platform}-${id}/`;
 }
 
+/** Public URL for a stored object. Backend/base come from mediaStorage env. */
 export function publicMediaUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
-  const base = String(process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/+$/, "");
-  if (!base) return null;
-  return `${base}/storage/v1/object/public/${CREATOR_VIDEOS_BUCKET}/${path.replace(/^\/+/, "")}`;
+  return buildPublicMediaUrl(path);
 }
 
 export function mediaFromRow(row: {

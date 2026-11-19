@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { mediaPublicRemotePattern } from "./lib/mediaStorage";
 
 /** Self-hosted / custom Supabase host from env (protocol + hostname + optional port). */
 const supabaseEnvRemotePatterns = (() => {
@@ -77,6 +78,10 @@ const nextConfig: NextConfig = {
         pathname: "/storage/v1/render/image/public/**",
       },
       ...supabaseEnvRemotePatterns,
+      ...((): NonNullable<NextConfig["images"]>["remotePatterns"] => {
+        const pattern = mediaPublicRemotePattern();
+        return pattern ? [pattern] : [];
+      })(),
       {
         protocol: "https",
         hostname: "*.tiktokcdn-us.com",
