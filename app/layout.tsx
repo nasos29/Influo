@@ -83,15 +83,15 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48 256x256", type: "image/x-icon" },
       { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "any" },
-      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "48x48" },
-      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "32x32" },
-      { url: "/logo-icon.svg", type: "image/svg+xml", sizes: "16x16" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
     apple: [
-      { url: "/logo-icon.svg", sizes: "180x180", type: "image/svg+xml" },
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
-    shortcut: "/logo-icon.svg",
+    shortcut: "/favicon.ico",
   },
 };
 
@@ -142,11 +142,11 @@ export default async function RootLayout({
     <html lang="el" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: HEADER_AVATAR_BOOT_SCRIPT }} />
+        <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48 256x256" type="image/x-icon" />
         <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="any" />
-        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="48x48" />
-        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="32x32" />
-        <link rel="icon" href="/logo-icon.svg" type="image/svg+xml" sizes="16x16" />
-        <link rel="apple-touch-icon" href="/logo-icon.svg" />
+        <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+        <link rel="icon" href="/icon-512.png" type="image/png" sizes="512x512" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
         <link rel="manifest" href="/manifest.webmanifest" />
         {process.env.NEXT_PUBLIC_SUPABASE_URL ? (
           <>
