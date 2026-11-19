@@ -1,5 +1,6 @@
-import { isAudienceNoAccess } from "@/lib/audience";
 "use client";
+
+import { isAudienceNoAccess } from "@/lib/audience";
 
 import { useState } from "react";
 import type { MediaKitAccount, MediaKitProfile } from "@/lib/mediaKit";
