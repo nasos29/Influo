@@ -91,7 +91,7 @@ type AgreementTermsProps = {
   readOnly?: boolean;
   /** Shown only in read-only mode. */
   status?: "waiting" | "completed";
-  /** Opt-in to public recent-collaborations (explicit; public only if both consent). */
+  /** Public recent-collaborations (default on; public only if both consent). */
   showcaseConsent?: boolean;
   onShowcaseConsentChange?: (consent: boolean) => void;
   /** Which party is accepting — drives helper copy. */
@@ -116,7 +116,7 @@ export default function AgreementTerms({
   saving = false,
   readOnly = false,
   status,
-  showcaseConsent = false,
+  showcaseConsent = true,
   onShowcaseConsentChange,
   showcaseParty = "influencer",
 }: AgreementTermsProps) {

@@ -632,7 +632,7 @@ export default function BrandCampaignsSection({
   const [decidingAppId, setDecidingAppId] = useState<string | null>(null);
   const [cancelApplication, setCancelApplication] = useState<ApplicationRow | null>(null);
   const [cancelApplicationSaving, setCancelApplicationSaving] = useState(false);
-  /** Brand showcase consent at deliverable approval (explicit opt-in). */
+  /** Brand showcase consent at deliverable approval (default on unless stored === false). */
   const [approveShowcaseByApp, setApproveShowcaseByApp] = useState<Record<string, boolean>>({});
   /** Application ids whose deliverable details are expanded (marks seen on open). */
   const [openDeliverableIds, setOpenDeliverableIds] = useState<Record<string, boolean>>({});
@@ -1594,7 +1594,8 @@ export default function BrandCampaignsSection({
                                         <input
                                           type="checkbox"
                                           checked={
-                                            approveShowcaseByApp[app.id] ?? app.brand_showcase_consent === true
+                                            approveShowcaseByApp[app.id] ??
+                                            app.brand_showcase_consent !== false
                                           }
                                           onChange={(e) =>
                                             setApproveShowcaseByApp((prev) => ({
@@ -1625,7 +1626,8 @@ export default function BrandCampaignsSection({
                                               app.id,
                                               "approved",
                                               undefined,
-                                              approveShowcaseByApp[app.id] === true
+                                              (approveShowcaseByApp[app.id] ??
+                                                app.brand_showcase_consent !== false)
                                             );
                                           }}
                                           className="text-[11px] px-2 py-1 rounded bg-emerald-600 text-white"

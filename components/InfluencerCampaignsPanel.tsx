@@ -260,7 +260,7 @@ export default function InfluencerCampaignsPanel({
           url: prefill,
           note: prev[target.id]?.note || target.deliverable_note || "",
           showcaseConsent:
-            prev[target.id]?.showcaseConsent ?? (target.influencer_showcase_consent === true),
+            prev[target.id]?.showcaseConsent ?? target.influencer_showcase_consent !== false,
         },
       }));
     }
@@ -539,7 +539,7 @@ export default function InfluencerCampaignsPanel({
   };
 
   const submitDeliverable = async (appId: string) => {
-    const draft = deliverDraft[appId] || { url: "", note: "", showcaseConsent: false };
+    const draft = deliverDraft[appId] || { url: "", note: "", showcaseConsent: true };
     const parsed = parseSocialPostUrl(draft.url);
     if (!parsed.ok) {
       notify(socialPostUrlErrorMessage(parsed.error, uiLang), "error");
@@ -555,7 +555,7 @@ export default function InfluencerCampaignsPanel({
           action: "submit",
           url: parsed.url,
           note: draft.note.trim() || "",
-          showcaseConsent: draft.showcaseConsent === true,
+          showcaseConsent: draft.showcaseConsent !== false,
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -835,7 +835,7 @@ export default function InfluencerCampaignsPanel({
               const draft = deliverDraft[m.id] || {
                 url: m.deliverable_url || "",
                 note: m.deliverable_note || "",
-                showcaseConsent: m.influencer_showcase_consent === true,
+                showcaseConsent: m.influencer_showcase_consent !== false,
               };
               const showDeliver = canShowDeliverable(m);
               return (
@@ -990,7 +990,7 @@ export default function InfluencerCampaignsPanel({
                     <label className="flex items-start gap-2 text-xs text-slate-700">
                       <input
                         type="checkbox"
-                        checked={draft.showcaseConsent === true}
+                        checked={draft.showcaseConsent !== false}
                         onChange={(e) =>
                           setDeliverDraft((prev) => ({
                             ...prev,

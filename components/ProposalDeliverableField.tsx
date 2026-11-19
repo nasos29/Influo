@@ -84,7 +84,7 @@ export default function ProposalDeliverableField({
   deliverableStatus = null,
   deliverableReviewNote = null,
   showStepLabel = false,
-  initialShowcaseConsent = false,
+  initialShowcaseConsent,
 }: {
   proposalId: string;
   initialUrl?: string | null;
@@ -103,8 +103,8 @@ export default function ProposalDeliverableField({
   deliverableStatus?: string | null;
   deliverableReviewNote?: string | null;
   showStepLabel?: boolean;
-  /** Showcase consent at link submit / brand approve (single place). */
-  initialShowcaseConsent?: boolean;
+  /** Showcase consent at link submit / brand approve (checked unless stored === false). */
+  initialShowcaseConsent?: boolean | null;
 }) {
   const txt = COPY[lang];
   const [mode, setMode] = useState<Mode>(initialMode === "event" ? "event" : "link");
@@ -122,7 +122,7 @@ export default function ProposalDeliverableField({
   const [status, setStatus] = useState(String(deliverableStatus || ""));
   const [reviewNote, setReviewNote] = useState(deliverableReviewNote || "");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [showcaseConsent, setShowcaseConsent] = useState(initialShowcaseConsent === true);
+  const [showcaseConsent, setShowcaseConsent] = useState(initialShowcaseConsent !== false);
 
   useEffect(() => {
     setPending(!!pendingApproval);
@@ -145,7 +145,7 @@ export default function ProposalDeliverableField({
   }, [prefill]);
 
   useEffect(() => {
-    setShowcaseConsent(initialShowcaseConsent === true);
+    setShowcaseConsent(initialShowcaseConsent !== false);
   }, [initialShowcaseConsent]);
 
   useEffect(() => {

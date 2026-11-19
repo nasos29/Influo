@@ -2565,7 +2565,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 <ProposalDeliverableField
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}
-                                                                  initialShowcaseConsent={prop.influencer_showcase_consent === true}
+                                                                  initialShowcaseConsent={prop.influencer_showcase_consent}
                                                                   lang={lang}
                                                                   showStepLabel={
                                                                     prop.status === 'completed' &&
