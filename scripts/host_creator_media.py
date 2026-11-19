@@ -333,6 +333,35 @@ def is_web_safe_h264(info: dict[str, Any]) -> bool:
     return True
 
 
+# Card-sized delivery: cap the shorter side at 720 and about 2 Mbps.
+SCALE_720 = "scale='if(lt(iw,ih),min(720,iw),-2)':'if(lt(ih,iw),min(720,ih),-2)'"
+H264_MAXRATE = "2M"
+H264_BUFSIZE = "4M"
+H264_CRF = "30"
+
+
+def shorter_side(info: dict[str, Any]) -> int:
+    return min(int(info.get("width") or 0), int(info.get("height") or 0))
+
+
+def source_bitrate_bps(info: dict[str, Any]) -> float:
+    duration = float(info.get("duration") or 0)
+    size = float(info.get("size") or 0)
+    return (size * 8 / duration) if duration > 0 else 0
+
+
+def can_keep_original_h264(info: dict[str, Any]) -> bool:
+    """Remux only when the source is already card-sized and within the 2 Mbps budget."""
+    if not is_web_safe_h264(info):
+        return False
+    if shorter_side(info) > 720:
+        return False
+    # 10% slack so an already-compact 720p file is not transcoded for a tiny overage.
+    if source_bitrate_bps(info) > 2_000_000 * 1.10:
+        return False
+    return True
+
+
 def remux_faststart(source: Path, dest: Path, audio_aac: bool = True) -> bool:
     cmd = ["ffmpeg", "-y", "-i", str(source), "-movflags", "+faststart"]
     if audio_aac:
@@ -344,7 +373,7 @@ def remux_faststart(source: Path, dest: Path, audio_aac: bool = True) -> bool:
     return proc.returncode == 0 and dest.exists() and dest.stat().st_size > 0
 
 
-def encode_h264(source: Path, dest: Path, crf: str = "28") -> bool:
+def encode_h264(source: Path, dest: Path, crf: str = H264_CRF) -> bool:
     proc = run(
         [
             "ffmpeg",
@@ -352,7 +381,7 @@ def encode_h264(source: Path, dest: Path, crf: str = "28") -> bool:
             "-i",
             str(source),
             "-vf",
-            "scale='min(1080,iw)':-2",
+            SCALE_720,
             "-c:v",
             "libx264",
             "-pix_fmt",
@@ -360,11 +389,15 @@ def encode_h264(source: Path, dest: Path, crf: str = "28") -> bool:
             "-profile:v",
             "high",
             "-level",
-            "4.1",
+            "4.0",
             "-threads",
             "2",
             "-crf",
             crf,
+            "-maxrate",
+            H264_MAXRATE,
+            "-bufsize",
+            H264_BUFSIZE,
             "-preset",
             "slow",
             "-c:a",
@@ -382,86 +415,15 @@ def encode_h264(source: Path, dest: Path, crf: str = "28") -> bool:
     return proc.returncode == 0 and dest.exists() and dest.stat().st_size > 0
 
 
-def encode_assets(source: Path, work: Path) -> dict[str, Any]:
-    """Build video.mp4 (H.264), optional video-hevc.mp4 / video-av1.mp4, poster.webp.
-
-    H.264 stays at or below the source size when possible (CRF 28, preset slow,
-    1080p cap, AAC 96k, faststart). Already-web-safe H.264 is remuxed only.
-    Original HEVC is kept as video-hevc.mp4 only when it is smaller than video.mp4.
-    AV1 is kept only when it is smaller than the next alternative.
-    """
-    info = ffprobe_info(source)
-    scale = "scale='min(1080,iw)':-2"
-    poster = work / "poster.webp"
-    avc = work / "video-avc.mp4"
-    av1 = work / "video-av1.mp4"
-    hevc = work / "video-hevc.mp4"
-    play = work / "video.mp4"
-
-    ss = 1.0 if info["duration"] >= 2 else max(0.0, info["duration"] * 0.25)
-    poster_cmd = run(
-        [
-            "ffmpeg",
-            "-y",
-            "-ss",
-            f"{ss:.2f}",
-            "-i",
-            str(source),
-            "-frames:v",
-            "1",
-            "-vf",
-            scale,
-            "-c:v",
-            "libwebp",
-            "-quality",
-            "80",
-            str(poster),
-        ],
-        timeout=60,
-    )
-    if poster_cmd.returncode != 0 or not poster.exists():
-        log(f"  poster failed: {(poster_cmd.stderr or '')[-200:]}")
-        poster = Path()
-
-    source_bytes = source.stat().st_size
-    used_original_h264 = False
-    if is_web_safe_h264(info):
-        ok = remux_faststart(source, play, audio_aac=True)
-        if not ok:
-            shutil.copy2(source, play)
-        used_original_h264 = True
-        log(f"  kept original H.264 as video.mp4 ({play.stat().st_size} bytes)")
-    else:
-        if not encode_h264(source, avc, "28"):
-            log("  h264 CRF 28 failed, trying CRF 26")
-            if not encode_h264(source, avc, "26"):
-                raise RuntimeError("could not produce an H.264 video.mp4")
-        if avc.stat().st_size <= source_bytes or not is_web_safe_h264(info):
-            shutil.move(str(avc), str(play))
-        else:
-            # Transcode grew the file; still must ship H.264 for compatibility.
-            shutil.move(str(avc), str(play))
-            log(f"  h264 larger than source ({play.stat().st_size} > {source_bytes}); keeping transcode")
-        log(f"  h264 video.mp4 {play.stat().st_size} bytes (source {source_bytes})")
-
-    hevc_kept = None
-    if is_hevc(info):
-        if remux_faststart(source, hevc, audio_aac=True) and hevc.stat().st_size < play.stat().st_size:
-            hevc_kept = hevc
-            log(f"  kept HEVC {hevc.stat().st_size} bytes (< h264 {play.stat().st_size})")
-        elif hevc.exists():
-            hevc.unlink()
-
-    av1_kept = None
-    ceiling = min(play.stat().st_size, hevc_kept.stat().st_size if hevc_kept else play.stat().st_size)
-    av1_proc = run(
+def encode_av1(source: Path, dest: Path) -> bool:
+    proc = run(
         [
             "ffmpeg",
             "-y",
             "-i",
             str(source),
             "-vf",
-            scale,
+            SCALE_720,
             "-threads",
             "2",
             "-c:v",
@@ -480,18 +442,96 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
             "2",
             "-movflags",
             "+faststart",
-            str(av1),
+            str(dest),
         ],
         timeout=900,
     )
-    if av1_proc.returncode == 0 and av1.exists() and av1.stat().st_size < ceiling:
+    return proc.returncode == 0 and dest.exists() and dest.stat().st_size > 0
+
+
+def encode_assets(source: Path, work: Path) -> dict[str, Any]:
+    """Build a compact, card-sized rendition set.
+
+    Always produce a web-safe H.264 video.mp4 at max 720p (shorter side) with
+    CRF 30, maxrate 2M / bufsize 4M, AAC 96k, and faststart. Remux an already
+    web-safe H.264 source only when it already fits that budget.
+
+    Keep video-hevc.mp4 or video-av1.mp4 only when that file is smaller than
+    video.mp4 (one extra variant, and only if it saves bytes).
+    """
+    info = ffprobe_info(source)
+    poster = work / "poster.webp"
+    avc = work / "video-avc.mp4"
+    av1 = work / "video-av1.mp4"
+    hevc = work / "video-hevc.mp4"
+    play = work / "video.mp4"
+
+    ss = 1.0 if info["duration"] >= 2 else max(0.0, info["duration"] * 0.25)
+    poster_cmd = run(
+        [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{ss:.2f}",
+            "-i",
+            str(source),
+            "-frames:v",
+            "1",
+            "-vf",
+            SCALE_720,
+            "-c:v",
+            "libwebp",
+            "-quality",
+            "80",
+            str(poster),
+        ],
+        timeout=60,
+    )
+    if poster_cmd.returncode != 0 or not poster.exists():
+        log(f"  poster failed: {(poster_cmd.stderr or '')[-200:]}")
+        poster = Path()
+
+    source_bytes = source.stat().st_size
+    used_original_h264 = False
+    if can_keep_original_h264(info):
+        ok = remux_faststart(source, play, audio_aac=True)
+        if not ok:
+            shutil.copy2(source, play)
+        used_original_h264 = True
+        log(f"  kept original H.264 as video.mp4 ({play.stat().st_size} bytes, already <=720p / ~2 Mbps)")
+    else:
+        if not encode_h264(source, avc, H264_CRF):
+            log("  h264 CRF 30 failed, trying CRF 28 with the same 2 Mbps cap")
+            if not encode_h264(source, avc, "28"):
+                raise RuntimeError("could not produce an H.264 video.mp4")
+        shutil.move(str(avc), str(play))
+        log(f"  h264 video.mp4 {play.stat().st_size} bytes (source {source_bytes}, cap 720p / 2 Mbps)")
+
+    # At most one extra variant, and only when it is smaller than H.264.
+    hevc_kept = None
+    if is_hevc(info):
+        if remux_faststart(source, hevc, audio_aac=True) and hevc.stat().st_size < play.stat().st_size:
+            hevc_kept = hevc
+            log(f"  kept HEVC {hevc.stat().st_size} bytes (< h264 {play.stat().st_size})")
+        elif hevc.exists():
+            hevc.unlink()
+
+    av1_kept = None
+    ceiling = play.stat().st_size
+    if encode_av1(source, av1) and av1.stat().st_size < ceiling:
         av1_kept = av1
-        log(f"  kept AV1 {av1.stat().st_size} bytes (< next {ceiling})")
+        log(f"  kept AV1 {av1.stat().st_size} bytes (< h264 {ceiling})")
+        # Prefer a single extra variant: if AV1 beats both H.264 and HEVC, drop HEVC
+        # (Safari/Firefox still have H.264; Chrome can use AV1).
+        if hevc_kept and av1_kept.stat().st_size <= hevc_kept.stat().st_size:
+            log(f"  dropped HEVC; AV1 is smaller or equal and H.264 remains the fallback")
+            hevc_kept.unlink(missing_ok=True)
+            hevc_kept = None
     else:
         if av1.exists():
-            av1.unlink()
-        if av1_proc.returncode != 0:
-            log(f"  av1 encode skipped/failed: {(av1_proc.stderr or '')[-160:]}")
+            reason = "not smaller than h264" if av1.exists() else "encode failed"
+            av1.unlink(missing_ok=True)
+            log(f"  av1 not kept ({reason})")
 
     play_info = ffprobe_info(play)
     return {
@@ -740,9 +780,26 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             }
             upsert_row(sb, row)
             ready_map[norm] = row
+            keep = {paths["play_path"], paths.get("av1_path"), paths.get("hevc_path"), paths.get("poster_path"), f"{folder}meta.json"}
+            keep = {p for p in keep if p}
+            try:
+                existing_objs = sb.storage_list(folder.rstrip("/"))
+                stale = [p for p in existing_objs if p not in keep]
+                if stale:
+                    sb.storage_remove(stale)
+                    log(f"  removed {len(stale)} stale object(s) in {folder}")
+            except Exception as e:
+                log(f"  stale-object cleanup warning: {e}")
+            # Drop source and encode temps once the folder is uploaded.
+            for leftover in list(item_dir.glob("*")):
+                if leftover.is_file():
+                    leftover.unlink(missing_ok=True)
             summary["ready"] += 1
             summary["details"].append({**meta, "status": "ready", "folder": folder})
-            log(f"  ready {folder} mp4={meta['video_mp4_bytes']} av1={meta['video_av1_bytes']} orig={meta['original_bytes']}")
+            log(
+                f"  ready {folder} mp4={meta['video_mp4_bytes']} av1={meta.get('video_av1_bytes')} "
+                f"hevc={meta.get('video_hevc_bytes')} orig={meta['original_bytes']}"
+            )
         except Exception as e:
             err = str(e)[:500]
             upsert_row(

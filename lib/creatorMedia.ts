@@ -4,7 +4,7 @@
  *   creators/<influencer_id>/portfolio/<platform>-<source_video_id>/
  *   creators/<influencer_id>/top-posts/<platform>-<source_video_id>/
  *   creators/<influencer_id>/collabs/<proposal-or-application-id>/
- * Filenames: video.mp4 (H.264), video-hevc.mp4 and video-av1.mp4 only if smaller, poster.webp, meta.json
+ * Filenames: video.mp4 (H.264, max 720p / ~2 Mbps), optional video-hevc.mp4 or video-av1.mp4 only if smaller, poster.webp, meta.json
  */
 
 export const CREATOR_VIDEOS_BUCKET = "creator-videos";
