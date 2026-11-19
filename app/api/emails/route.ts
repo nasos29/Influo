@@ -18,7 +18,9 @@ const ADMIN_DIGEST_EMAIL_TYPES: Record<string, AdminDigestKind> = {
   proposal_admin_notification: 'proposal',
 };
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 // --- ΤΑ VERIFIED EMAILS ---
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr'; 
@@ -976,7 +978,7 @@ export async function POST(req: Request) {
     const senderName = type === 'custom_email' ? 'Influo Support' : 'Influo';
     
     try {
-      const data = await resend.emails.send({
+      const data = await getResend().emails.send({
         from: `${senderName} <${senderEmail}>`, 
         to: [toEmail],
         subject: subject,

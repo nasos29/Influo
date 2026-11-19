@@ -23,7 +23,9 @@ const supabaseAdmin = createClient(
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
 const FROM_EMAIL = 'noreply@influo.gr';
 const CREATOR_DASHBOARD_PATH = '/login?redirect=/dashboard';
@@ -68,7 +70,7 @@ async function sendAnnouncementEmails(emails: string[], dashboardPath: string) {
     const chunk = unique.slice(i, i + chunkSize);
     await Promise.allSettled(
       chunk.map((email) =>
-        resend.emails.send({
+        getResend().emails.send({
           from: `Influo <${FROM_EMAIL}>`,
           to: [email],
           subject: ANNOUNCEMENT_EMAIL_SUBJECT,

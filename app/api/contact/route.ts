@@ -5,7 +5,9 @@ import { emailNextSteps } from '@/lib/emailNextSteps';
 import { formatDisplayDateTime } from '@/lib/formatDate';
 import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 const VERIFIED_SENDER_EMAIL = 'noreply@influo.gr';
 const ADMIN_RECEIVING_EMAIL = process.env.ADMIN_EMAIL || 'nd.6@hotmail.com';
 
@@ -115,7 +117,7 @@ export async function POST(req: Request) {
     console.log('Sending contact form email to admin:', { name, email, subject });
     
     try {
-      const data = await resend.emails.send({
+      const data = await getResend().emails.send({
         from: `Influo Contact Form <${VERIFIED_SENDER_EMAIL}>`,
         to: [ADMIN_RECEIVING_EMAIL],
         replyTo: email, // Allow admin to reply directly to the sender

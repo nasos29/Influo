@@ -11,7 +11,9 @@ import { ticketAuthResponse } from '@/lib/ticketAccess';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-const resend = new Resend(process.env.RESEND_API_KEY);
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 const SUPPORT_SENDER_EMAIL = 'support@influo.gr';
 
 export async function POST(req: Request) {
@@ -123,7 +125,7 @@ export async function POST(req: Request) {
           </div>
         `;
 
-        await resend.emails.send({
+        await getResend().emails.send({
           from: `Influo Support <${SUPPORT_SENDER_EMAIL}>`,
           to: [ticket.user_email],
           replyTo: SUPPORT_SENDER_EMAIL,

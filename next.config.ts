@@ -1,11 +1,25 @@
 import type { NextConfig } from "next";
 
-const supabaseHostname = (() => {
+/** Self-hosted / custom Supabase host from env (protocol + hostname + optional port). */
+const supabaseEnvRemotePatterns = (() => {
   try {
-    const u = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    return u ? new URL(u).hostname : null;
+    const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!raw) return [];
+    const parsed = new URL(raw);
+    const protocol = parsed.protocol.replace(/:$/, "");
+    if (protocol !== "http" && protocol !== "https") return [];
+    if (!parsed.hostname) return [];
+    const base = {
+      protocol: protocol as "http" | "https",
+      hostname: parsed.hostname,
+      ...(parsed.port ? { port: parsed.port } : {}),
+    };
+    return [
+      { ...base, pathname: "/storage/v1/object/public/**" },
+      { ...base, pathname: "/storage/v1/render/image/public/**" },
+    ];
   } catch {
-    return null;
+    return [];
   }
 })();
 
@@ -62,20 +76,7 @@ const nextConfig: NextConfig = {
         hostname: "*.supabase.in",
         pathname: "/storage/v1/render/image/public/**",
       },
-      ...(supabaseHostname
-        ? [
-            {
-              protocol: "https" as const,
-              hostname: supabaseHostname,
-              pathname: "/storage/v1/object/public/**",
-            },
-            {
-              protocol: "https" as const,
-              hostname: supabaseHostname,
-              pathname: "/storage/v1/render/image/public/**",
-            },
-          ]
-        : []),
+      ...supabaseEnvRemotePatterns,
       {
         protocol: "https",
         hostname: "*.tiktokcdn-us.com",
