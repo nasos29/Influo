@@ -30,6 +30,8 @@ const LIST_COLUMNS = [
   "audience_top_age",
   "audience_male_percent",
   "audience_female_percent",
+  "last_social_refresh_at",
+  "profile_slug",
 ].join(",");
 
 const LIST_COLUMNS_WITHOUT_LOCK = [

@@ -715,11 +715,14 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 }
             }
 
+            const needsReapproval = changedFields.includes("accounts");
+
             // Update the profile
             const updateData = {
                 ...newValues,
-                approved: false, // Reset approval status
-                analytics_verified: false, // Reset analytics verification
+                ...(needsReapproval
+                    ? { approved: false, analytics_verified: false }
+                    : {}),
             };
 
             let data: InfluencerData | null = null;
@@ -852,8 +855,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 ...user,
                 ...(data as InfluencerData),
                 ...newValues,
-                approved: false,
-                analytics_verified: false,
+                ...(needsReapproval
+                    ? { approved: false, analytics_verified: false }
+                    : {
+                        approved: user.approved,
+                        analytics_verified: (user as InfluencerData & { analytics_verified?: boolean }).analytics_verified,
+                    }),
                 contact_email: user.contact_email,
                 min_rate: syncedMinRate || user.min_rate,
                 birth_date: newValues.birth_date,
@@ -862,7 +869,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 service_packages: priceBody?.service_packages ?? packagesPayload,
                 insights_urls: user.insights_urls,
             });
-            notify(L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again."), 'success');
+            notify(
+                needsReapproval
+                    ? L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again.")
+                    : L("Το προφίλ σου ενημερώθηκε.", "Your profile was updated."),
+                'success'
+            );
             onClose();
         } catch (err: any) {
             setLoading(false);
