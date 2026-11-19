@@ -16,6 +16,26 @@ function wantsImageProxy(): boolean {
   return true;
 }
 
+/** True when URL origin matches NEXT_PUBLIC_SUPABASE_URL (self-hosted / custom domain). */
+function isConfiguredSupabaseOrigin(url: string): boolean {
+  try {
+    const configured = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!configured) return false;
+    return new URL(url).origin === new URL(configured).origin;
+  } catch {
+    return false;
+  }
+}
+
+/** Hosted supabase.co/.in or the configured Supabase origin. */
+function isSupabaseStorageUrl(url: string): boolean {
+  return (
+    url.includes("supabase.co") ||
+    url.includes("supabase.in") ||
+    isConfiguredSupabaseOrigin(url)
+  );
+}
+
 export function getCachedImageUrl(url: string | null | undefined): string | null | undefined {
   if (!url || typeof url !== "string" || url.trim() === "") return url;
   const trimmed = url.trim();
@@ -26,8 +46,7 @@ export function getCachedImageUrl(url: string | null | undefined): string | null
   if (!wantsImageProxy()) return trimmed;
 
   const isSupabaseStorage =
-    (trimmed.includes("supabase.co") || trimmed.includes("supabase.in")) &&
-    trimmed.includes("/storage/");
+    isSupabaseStorageUrl(trimmed) && trimmed.includes("/storage/");
   if (isSupabaseStorage) {
     return `/api/image-proxy?url=${encodeURIComponent(trimmed)}`;
   }
@@ -74,7 +93,7 @@ export function getStorageCardUrl(
   const marker = "/storage/v1/object/public/";
   const idx = trimmed.indexOf(marker);
   if (idx === -1) return trimmed;
-  if (!trimmed.includes("supabase.co") && !trimmed.includes("supabase.in")) {
+  if (!isSupabaseStorageUrl(trimmed)) {
     return trimmed;
   }
 
