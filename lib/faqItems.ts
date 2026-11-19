@@ -34,8 +34,19 @@ export const faqs: FAQItem[] = [
       en: "How do I become an influencer on Influo?"
     },
     answer: {
-      el: "Εγγραφείτε δωρεάν, συμπληρώστε το προφίλ σας με stats, pricing και portfolio. Μετά την έγκριση, θα εμφανίζεστε στον κατάλογο και θα λαμβάνετε προσφορές από brands.",
-      en: "Sign up for free, complete your profile with stats, pricing and portfolio. After approval, you'll appear in the directory and receive offers from brands."
+      el: "Εγγραφείτε δωρεάν και συμπληρώστε το προφίλ σας με κανάλια, portfolio, τιμές και στοιχεία κοινού (ηλικιακή ομάδα και ποσοστό ανδρών/γυναικών). Τα δημογραφικά είναι υποχρεωτικά· αν έχεις προσωπικό λογαριασμό χωρίς Insights, επίλεξε «Δεν έχω πρόσβαση». Μετά την έγκριση, θα εμφανίζεστε στον κατάλογο και θα λαμβάνετε προσφορές από brands.",
+      en: "Sign up for free and complete your profile with channels, portfolio, prices, and audience demographics (top age group and male/female split). Demographics are required; if you have a personal account without Insights, choose “I don’t have access”. After approval, you’ll appear in the directory and receive offers from brands."
+    }
+  },
+  {
+    category: { el: "Για Influencers", en: "For Influencers" },
+    question: {
+      el: "Πού βρίσκω τα στοιχεία κοινού και είναι υποχρεωτικά;",
+      en: "Where do I find audience demographics, and are they required?"
+    },
+    answer: {
+      el: "Ναι, στην εγγραφή είναι υποχρεωτικά. Στο Instagram: Ρυθμίσεις → μετάβαση σε επαγγελματικό λογαριασμό (δωρεάν) και μετά Επαγγελματικός πίνακας → Insights → Κοινό. Στο TikTok: μετάβαση σε λογαριασμό Δημιουργού/Επιχείρησης (δωρεάν) και μετά Εργαλεία δημιουργού → Analytics → Θεατές ή Ακόλουθοι. Τα στατιστικά ξεκινούν από τη στιγμή της μετάβασης. Αν μείνεις σε προσωπικό λογαριασμό, επίλεξε «Δεν έχω πρόσβαση» και στο δημόσιο προφίλ θα φαίνεται «;». Στο dashboard, το βήμα μένει στα Επόμενα βήματα μέχρι να συμπληρωθεί.",
+      en: "Yes, they are required at signup. On Instagram: Settings → switch to a free professional account, then Professional dashboard → Insights → Audience. On TikTok: switch to a free Creator or Business account, then Creator tools → Analytics → Viewers or Followers. Stats start collecting from the moment you switch. If you stay on a personal account, choose “I don’t have access” and the public profile will show “?”. In the dashboard, the step stays in Next steps until it is completed."
     }
   },
   {

@@ -19,6 +19,8 @@ import {
 } from "@/lib/useVideoPlayableChecks";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
+import { validateAudienceInput } from "@/lib/audience";
+import AudienceDemographicsHelp from "@/components/AudienceDemographicsHelp";
 import { languagesCodesToStored } from "@/lib/languages";
 import { formatStoredCategories } from "@/lib/categories";
 import CategoryCheckboxList from "./CategoryCheckboxList";
@@ -133,6 +135,10 @@ const t = {
     aud_female: "Γυναίκες (%)",
     aud_age_group: "Κορυφαία Ηλικιακή Ομάδα",
     aud_age_place: "Π.χ. 18-24",
+    aud_required: "Συμπλήρωσε την ηλικιακή ομάδα και το ποσοστό ανδρών/γυναικών, ή επίλεξε «Δεν έχω πρόσβαση».",
+    aud_find_title: "Πού τα βρίσκω;",
+    aud_no_access: "Δεν έχω πρόσβαση (προσωπικός λογαριασμός)",
+    aud_no_access_hint: "Στο δημόσιο προφίλ τα στοιχεία κοινού θα φαίνονται ως «;».",
     next: "Επόμενο →",
     back: "← Πίσω",
     submit: "Ολοκλήρωση Εγγραφής",
@@ -206,6 +212,10 @@ const t = {
     aud_female: "Female (%)",
     aud_age_group: "Top Age Group",
     aud_age_place: "E.g. 18-24",
+    aud_required: "Fill in the top age group and the male/female split, or choose “I don’t have access”.",
+    aud_find_title: "Where do I find this?",
+    aud_no_access: "I don’t have access (personal account)",
+    aud_no_access_hint: "Public profiles will show “?” for audience stats.",
     next: "Next →",
     back: "← Back",
     submit: "Complete Signup",
@@ -258,6 +268,9 @@ export default function InfluencerSignupForm() {
   const [malePercent, setMalePercent] = useState("");
   const [femalePercent, setFemalePercent] = useState("");
   const [topAge, setTopAge] = useState("");
+  const [audienceNoAccess, setAudienceNoAccess] = useState(false);
+  const [audienceError, setAudienceError] = useState("");
+  const [audienceMissing, setAudienceMissing] = useState<Array<"male" | "female" | "age">>([]);
 
   // Handlers
   const normalizeUsername = (value: string) => value.trim().replace(/^@+/, "");
@@ -584,6 +597,21 @@ export default function InfluencerSignupForm() {
       return;
     }
 
+    const audienceCheck = validateAudienceInput(
+      { noAccess: audienceNoAccess, male: malePercent, female: femalePercent, topAge },
+      lang
+    );
+    if (!audienceCheck.ok) {
+      setAudienceError(audienceCheck.error);
+      setAudienceMissing(audienceCheck.fields);
+      setStep(3);
+      setMessage(audienceCheck.error);
+      document.getElementById("signup-audience")?.scrollIntoView({ block: "center" });
+      return;
+    }
+    setAudienceError("");
+    setAudienceMissing([]);
+
     setLoading(true);
     try {
       // Validate categories before submitting
@@ -812,9 +840,9 @@ export default function InfluencerSignupForm() {
           videos: preparedVideos.videos,
           avatar_url: avatarUrl,
           insights_urls: insightUrls,
-          audience_male_percent: parseInt(malePercent) || 0,
-          audience_female_percent: parseInt(femalePercent) || 0,
-          audience_top_age: topAge,
+          audience_male_percent: audienceCheck.payload.audience_male_percent,
+          audience_female_percent: audienceCheck.payload.audience_female_percent,
+          audience_top_age: audienceCheck.payload.audience_top_age,
       };
 
       let insertError = (await supabase.from("influencers").insert([baseRow])).error;
@@ -1229,20 +1257,47 @@ export default function InfluencerSignupForm() {
                 </div>
 
                 {/* Audience Data (Self Declared) */}
-                <h3 className="text-sm font-bold uppercase text-gray-600 border-b border-gray-200 pb-2">{txt.aud_title}</h3>
+                <div id="signup-audience" className="space-y-3">
+                <h3 className="text-sm font-bold uppercase text-gray-600 border-b border-gray-200 pb-2">{txt.aud_title} *</h3>
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className={labelClass}>{txt.aud_male}</label>
-                        <input type="number" className={inputClass} value={malePercent} onChange={handleMaleChange} placeholder="35" />
+                        <input type="number" min={0} max={100} disabled={audienceNoAccess} className={`${inputClass} ${!audienceNoAccess && audienceMissing.includes("male") ? "!border-red-500" : ""}`} value={malePercent} onChange={(e) => { setAudienceError(""); handleMaleChange(e); }} placeholder="35" />
                     </div>
                     <div>
                         <label className={labelClass}>{txt.aud_female}</label>
-                        <input type="number" className={inputClass} value={femalePercent} onChange={handleFemaleChange} placeholder="65" />
+                        <input type="number" min={0} max={100} disabled={audienceNoAccess} className={`${inputClass} ${!audienceNoAccess && audienceMissing.includes("female") ? "!border-red-500" : ""}`} value={femalePercent} onChange={(e) => { setAudienceError(""); handleFemaleChange(e); }} placeholder="65" />
                     </div>
                     <div>
                         <label className={labelClass}>{txt.aud_age_group}</label>
-                        <input type="text" className={inputClass} value={topAge} onChange={(e) => setTopAge(e.target.value)} placeholder={txt.aud_age_place} />
+                        <input type="text" disabled={audienceNoAccess} className={`${inputClass} ${!audienceNoAccess && audienceMissing.includes("age") ? "!border-red-500" : ""}`} value={topAge} onChange={(e) => { setAudienceError(""); setTopAge(e.target.value); }} placeholder={txt.aud_age_place} />
                     </div>
+                </div>
+                {audienceError ? (
+                  <p className="text-red-600 text-xs font-medium">{audienceError}</p>
+                ) : null}
+                <label className="flex items-start gap-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={audienceNoAccess}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setAudienceNoAccess(checked);
+                      setAudienceError("");
+                      setAudienceMissing([]);
+                      if (checked) setMessage((prev) => (prev === txt.aud_required || prev === audienceError ? "" : prev));
+                    }}
+                  />
+                  <span>
+                    <span className="font-medium">{txt.aud_no_access}</span>
+                    <span className="block text-xs text-slate-500 mt-0.5">{txt.aud_no_access_hint}</span>
+                  </span>
+                </label>
+                <details className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                  <summary className="cursor-pointer text-sm font-medium text-blue-800">{txt.aud_find_title}</summary>
+                  <AudienceDemographicsHelp lang={lang} className="mt-2" />
+                </details>
                 </div>
 
                 {/* Videos */}

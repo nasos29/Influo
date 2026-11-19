@@ -43,7 +43,7 @@ import ChannelScorePanel from "@/components/ChannelScorePanel";
 import FollowerGrowthChart from "@/components/FollowerGrowthChart";
 import InfoTooltip from "@/components/InfoTooltip";
 import StatsInsightsPanel from "@/components/StatsInsightsPanel";
-import { isValidAgeRange } from "@/lib/audience";
+import { displayAudienceTopAge, isValidAgeRange } from "@/lib/audience";
 import { buildChannelScore } from "@/lib/channelScore";
 import { formatCpmEuro, platformVideoCpms, type CpmPlatform } from "@/lib/cpm";
 import { resolveCompletionRate } from "@/lib/completionRate";
@@ -1189,7 +1189,7 @@ export default function InfluencerProfile(props: {
           return {
             male: bothMissing ? null : male,
             female: bothMissing ? null : female,
-            top_age: data.audience_top_age || "?",
+            top_age: displayAudienceTopAge(data.audience_top_age),
           };
         })(),
         rate_card_flags: data.rate_card_flags || {},

@@ -1,3 +1,4 @@
+import { isAudienceNoAccess } from "@/lib/audience";
 "use client";
 
 import { useState } from "react";
@@ -81,7 +82,8 @@ export default function MediaKitView({ profile, lang = "el" }: { profile: MediaK
   const qr = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=${encodeURIComponent(profile.profileUrl)}`;
   const female = parsePct(profile.audienceFemale);
   const male = parsePct(profile.audienceMale);
-  const topAge = (profile.audienceTopAge || "").trim();
+  const topAgeRaw = (profile.audienceTopAge || "").trim();
+  const topAge = isAudienceNoAccess(topAgeRaw) || topAgeRaw === "?" ? "" : topAgeRaw;
   const hasAudience = female !== null || male !== null || !!topAge;
   const femaleW = female ?? (male !== null ? Math.max(0, 100 - male) : 0);
   const maleW = male ?? (female !== null ? Math.max(0, 100 - female) : 0);

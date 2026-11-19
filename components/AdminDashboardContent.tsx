@@ -1,5 +1,6 @@
 "use client";
 
+import { isAudienceNoAccess } from "@/lib/audience";
 import { DataQualityBadge, DataQualityList, DataQualityNotes, type DataQualityMap } from "@/components/admin/DataQualityPanel";
 import { creatorDataQualityFlags } from "@/lib/creatorDataQuality";
 import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
@@ -978,9 +979,10 @@ const EditProfileModal = ({
     );
     const [serviceExtras, setServiceExtras] = useState<ServiceExtras>(() => extrasFromRateCard(user.rate_card));
     const pricingBaselineRef = useRef(JSON.stringify({ servicePackages, serviceExtras }));
-    const [malePercent, setMalePercent] = useState(user.audience_male_percent?.toString() || "");
-    const [femalePercent, setFemalePercent] = useState(user.audience_female_percent?.toString() || "");
-    const [topAge, setTopAge] = useState(user.audience_top_age || "");
+    const adminNoAccess = isAudienceNoAccess(user.audience_top_age);
+    const [malePercent, setMalePercent] = useState(adminNoAccess ? "" : (user.audience_male_percent?.toString() || ""));
+    const [femalePercent, setFemalePercent] = useState(adminNoAccess ? "" : (user.audience_female_percent?.toString() || ""));
+    const [topAge, setTopAge] = useState(adminNoAccess ? "" : (user.audience_top_age || ""));
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
