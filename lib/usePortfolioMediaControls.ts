@@ -56,6 +56,8 @@ export function usePortfolioMediaControls(
   }, [active, kind, pauseSelf, playSelf, playing]);
 
   // When this media first becomes active (autoplay), claim + mark playing.
+  // TikTok session claim stays in SocialEmbedCard (user start only); this
+  // only pauses peers via postTikTokPlayer / pauseVideo — it does not unload.
   useEffect(() => {
     if (!active || !kind) {
       setPlaying(false);

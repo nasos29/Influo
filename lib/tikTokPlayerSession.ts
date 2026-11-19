@@ -1,18 +1,20 @@
 /**
- * Only one official TikTok player/v1 iframe should be mounted at a time.
- * Each iframe loads TikTok's player SDK (and msToken / webmssdk). Several
- * at once on Chrome mobile tend to trip per-domain usage limits
- * (onPlayerError 2005 TOO_MANY_REQUESTS) or leave the in-iframe
- * "Player error" state.
+ * Coordinate TikTok player/v1 iframes across cards.
  *
- * Cards still start as a cover + tap-to-load facade; claiming this session
- * unloads every other TikTok iframe back to that facade.
+ * Cards still start as a cover + tap-to-load facade. Claiming a session
+ * (only from an explicit user start) tells other cards to pause — not to
+ * unload immediately. Mobile may later unload an other card that is
+ * off-screen or has stayed paused for a long time (2005 TOO_MANY_REQUESTS
+ * protection); visible paused cards stay mounted.
  */
 
 export const TIKTOK_PLAYER_SESSION_EVENT = "influo:tiktok-player-session";
 
+/** How long a yielded (paused-for-other) mobile card may stay mounted. */
+export const TIKTOK_YIELDED_UNLOAD_MS = 60_000;
+
 export type TikTokPlayerSessionDetail = {
-  /** Unique id for the card that may keep its iframe (or null = unload all). */
+  /** Unique id for the card that may keep playing (or null = pause all). */
   id: string | null;
 };
 

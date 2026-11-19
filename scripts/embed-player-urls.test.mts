@@ -371,7 +371,7 @@ test("TikTok 1001/1002 are fatal; nothing is auto-retried; 3002 is not a load er
   assert.ok(TIKTOK_PLAYER_READY_TIMEOUT_MS >= 5000);
 });
 
-test("claimTikTokPlayerSession notifies other cards to unload", () => {
+test("claimTikTokPlayerSession notifies other cards to pause", () => {
   const target = new EventTarget();
   const previous = (globalThis as { window?: EventTarget }).window;
   (globalThis as { window?: EventTarget }).window = target;

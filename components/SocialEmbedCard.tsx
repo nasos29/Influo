@@ -12,6 +12,8 @@ import {
   rememberTikTokVideoId,
   TIKTOK_IFRAME_ALLOW,
   disposeTikTokIframe,
+  isTikTokMobileUa,
+  postTikTokPlayer,
   tikTokEmbedIframeSandbox,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
@@ -20,6 +22,7 @@ import { tikTokIframeVariantFromSrc, useTikTokIframeScale } from "@/lib/useTikTo
 import {
   claimTikTokPlayerSession,
   TIKTOK_PLAYER_SESSION_EVENT,
+  TIKTOK_YIELDED_UNLOAD_MS,
   type TikTokPlayerSessionDetail,
 } from "@/lib/tikTokPlayerSession";
 import { usePortfolioMediaControls } from "@/lib/usePortfolioMediaControls";
@@ -282,7 +285,20 @@ export default function SocialEmbedCard({
   );
   const tikTokEmbedFallbackUsed = useRef(false);
 
+  const tikTokInViewRef = useRef(true);
+  const tikTokYieldedRef = useRef(false);
+  const tikTokYieldUnloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearTikTokYieldUnload = useCallback(() => {
+    if (tikTokYieldUnloadTimerRef.current) {
+      clearTimeout(tikTokYieldUnloadTimerRef.current);
+      tikTokYieldUnloadTimerRef.current = null;
+    }
+    tikTokYieldedRef.current = false;
+  }, []);
+
   const releaseTikTokPlayer = useCallback(() => {
+    clearTikTokYieldUnload();
     tikTokEmbedFallbackUsed.current = false;
     disposeTikTokIframe(mediaIframeRef.current);
     disposeTikTokIframe(tikTokIframeRef.current);
@@ -293,20 +309,85 @@ export default function SocialEmbedCard({
       setLoading(false);
     });
     // Do not set error — that would hide/replace the post and load another iframe.
-  }, [mediaIframeRef, tikTokIframeRef]);
+  }, [clearTikTokYieldUnload, mediaIframeRef, tikTokIframeRef]);
 
-  // Only one TikTok iframe (player/v1 or embed/v2) may stay mounted at a time.
+  const pauseTikTokForOtherSession = useCallback(() => {
+    postTikTokPlayer(mediaIframeRef.current, "pause");
+    postTikTokPlayer(tikTokIframeRef.current, "pause");
+    // Mobile 2005 protection: unload only if off-screen, or after a long pause.
+    // Never unload a currently visible paused card immediately.
+    if (typeof navigator === "undefined" || !isTikTokMobileUa(navigator.userAgent)) {
+      return;
+    }
+    tikTokYieldedRef.current = true;
+    if (!tikTokInViewRef.current) {
+      releaseTikTokPlayer();
+      return;
+    }
+    if (tikTokYieldUnloadTimerRef.current) {
+      clearTimeout(tikTokYieldUnloadTimerRef.current);
+    }
+    tikTokYieldUnloadTimerRef.current = setTimeout(() => {
+      tikTokYieldUnloadTimerRef.current = null;
+      if (tikTokYieldedRef.current) releaseTikTokPlayer();
+    }, TIKTOK_YIELDED_UNLOAD_MS);
+  }, [mediaIframeRef, releaseTikTokPlayer, tikTokIframeRef]);
+
+  // Listen for other cards claiming playback. Claim itself only on user start
+  // (activateClickToLoad / play tap) — never on effect re-runs, silent remounts,
+  // or embed/v2 fallback.
   useEffect(() => {
-    if (!isTikTokIframe) return;
-    claimTikTokPlayerSession(tikTokSessionId);
+    if (!isTikTokIframe) {
+      clearTikTokYieldUnload();
+      return;
+    }
     const onClaim = (event: Event) => {
       const detail = (event as CustomEvent<TikTokPlayerSessionDetail>).detail;
-      if (!detail || detail.id === tikTokSessionId) return;
-      releaseTikTokPlayer();
+      if (!detail) return;
+      if (detail.id === tikTokSessionId) {
+        clearTikTokYieldUnload();
+        return;
+      }
+      pauseTikTokForOtherSession();
     };
     window.addEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
-    return () => window.removeEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
-  }, [isTikTokIframe, releaseTikTokPlayer, tikTokSessionId]);
+    return () => {
+      window.removeEventListener(TIKTOK_PLAYER_SESSION_EVENT, onClaim);
+      if (tikTokYieldUnloadTimerRef.current) {
+        clearTimeout(tikTokYieldUnloadTimerRef.current);
+        tikTokYieldUnloadTimerRef.current = null;
+      }
+    };
+  }, [
+    clearTikTokYieldUnload,
+    isTikTokIframe,
+    pauseTikTokForOtherSession,
+    tikTokSessionId,
+  ]);
+
+  // Track on-screen so a yielded mobile card can unload once it scrolls away.
+  useEffect(() => {
+    if (!isTikTokIframe) return;
+    const node = rootRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const inView = entries.some((e) => e.isIntersecting && e.intersectionRatio > 0);
+        tikTokInViewRef.current = inView;
+        if (
+          !inView &&
+          tikTokYieldedRef.current &&
+          typeof navigator !== "undefined" &&
+          isTikTokMobileUa(navigator.userAgent)
+        ) {
+          releaseTikTokPlayer();
+        }
+      },
+      { threshold: 0.01 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isTikTokIframe, releaseTikTokPlayer]);
 
   // After player/v1 and embed/v2 are both exhausted: cover + Retry only.
   // Never swap or hide the post for a playback / timeout failure.
@@ -507,6 +588,8 @@ export default function SocialEmbedCard({
         }
         if (!videoId) throw new Error("Missing TikTok video id");
         tikTokEmbedFallbackUsed.current = false;
+        // Explicit user start only — pause other cards; do not claim from effects.
+        claimTikTokPlayerSession(tikTokSessionId);
         // Same path as desktop: official player/v1, unmuted first (user gesture).
         // If the browser forces mute, the existing Tap-for-sound prompt appears.
         setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
@@ -559,6 +642,7 @@ export default function SocialEmbedCard({
     nativeVideoUrl,
     originalUrl,
     provider,
+    tikTokSessionId,
   ]);
 
   const coverSrc = igPoster || thumbSrc || null;
@@ -816,8 +900,13 @@ export default function SocialEmbedCard({
                     e.stopPropagation();
                     // Prefer a user-gesture unmute+play when auto-unmute was blocked.
                     if (isTikTokPlayer && showTikTokSoundPrompt) {
+                      claimTikTokPlayerSession(tikTokSessionId);
                       onTikTokTapForSound();
                       return;
+                    }
+                    // Resume / play tap: claim so peers pause (not unload).
+                    if (isTikTokIframe && !mediaPlaying) {
+                      claimTikTokPlayerSession(tikTokSessionId);
                     }
                     toggleMediaPlayback();
                   }}
