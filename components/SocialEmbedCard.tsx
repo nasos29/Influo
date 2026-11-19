@@ -800,12 +800,13 @@ export default function SocialEmbedCard({
                     }
                     void activateClickToLoad();
                   }}
-                  className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                  className="group absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                   aria-label={error ? COPY.retry[uiLang] : playLabel}
                 >
+                  <span className="flex flex-col items-center justify-center gap-4 opacity-80 transition-opacity duration-200 [filter:drop-shadow(0_2px_8px_rgba(0,0,0,0.55))] group-hover:opacity-100 group-focus-visible:opacity-100">
                   <PlatformBrandIcon
                     platform={provider}
-                    className="h-7 w-7 text-white drop-shadow"
+                    className="h-7 w-7 text-white"
                   />
                   {showPlayButton ? (
                     <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/95 text-slate-900 shadow-lg">
@@ -822,17 +823,14 @@ export default function SocialEmbedCard({
                   ) : igMetaLoading || (isIgPost && igKind === null) ? (
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-white border-t-transparent" />
                   ) : null}
-                  <span className="text-base font-bold drop-shadow">
-                    {error
-                      ? COPY.retry[uiLang]
-                      : showPlayButton || showPhotoBadge
-                        ? playLabel
-                        : isIgPost
-                          ? COPY.loading[uiLang]
-                          : COPY.loading[uiLang]}
                   </span>
                   {error ? (
-                    <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
+                    <>
+                      <span className="text-base font-bold drop-shadow">{COPY.retry[uiLang]}</span>
+                      <span className="text-xs font-medium text-white/85">{COPY.error[uiLang]}</span>
+                    </>
+                  ) : igMetaLoading || (isIgPost && igKind === null) ? (
+                    <span className="sr-only">{COPY.loading[uiLang]}</span>
                   ) : null}
                 </button>
               ) : null}
@@ -848,7 +846,7 @@ export default function SocialEmbedCard({
                 </div>
               ) : null}
 
-              {hostedMedia?.playUrl && activated ? (
+              {hostedMedia?.playUrl && activated && showPlayButton ? (
                 <HostedVideoPlayer
                   media={hostedMedia}
                   lang={uiLang}
