@@ -970,8 +970,10 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                         ),
                         None,
                     )
+                    if not prior:
+                        raise
                     play_key = safe_storage_object_path(prior.get("play_path"))
-                    if not prior or not play_key:
+                    if not play_key:
                         raise
                     source = store.storage_download(play_key, item_dir / "source.mp4")
                     if not source.is_file():

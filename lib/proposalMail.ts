@@ -568,34 +568,6 @@ export async function mailAgreementReminder(input: {
   );
 }
 
-export async function mailCollaborationComplete(input: {
-  influencerEmail: string | null;
-  influencerName: string;
-  brandName: string;
-  proposalId: string | number;
-  service: string;
-  budget: string;
-  extras?: unknown;
-  publishDeadline?: string | null;
-  showcaseOptOutUrl?: string | null;
-  addPostUrl?: string | null;
-}): Promise<void> {
-  await mailCreatorDealComplete({
-    to: input.influencerEmail,
-    creatorName: input.influencerName,
-    brandName: input.brandName,
-    completedAt: new Date().toISOString(),
-    proposalId: input.proposalId,
-    service: input.service,
-    budget: input.budget,
-    extras: input.extras,
-    publishDeadline: input.publishDeadline,
-    dashboardUrl: creatorProposalsUrl(),
-    showcaseOptOutUrl: input.showcaseOptOutUrl,
-    addPostUrl: input.addPostUrl,
-  });
-}
-
 /** Admin inbox only, after both sides have accepted. */
 export async function mailAdminAgreementComplete(input: {
   proposalId: string | number;
@@ -867,7 +839,7 @@ export async function mailCreatorDealComplete(input: {
     input.to,
     `Η συνεργασία ξεκίνησε με ${input.brandName} – #${input.proposalId}`,
     shell(
-      "Η συνεργασία ξεκίνηκε",
+      "Η συνεργασία ξεκίνησε",
       lockedAgreementBody({
         greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
         leadHtml: `<p>Και οι δύο πλευρές αποδέχτηκαν τη συμφωνία στις ${date}. Η συνεργασία με την <strong>${brand}</strong> ξεκίνησε — οι όροι και η προθεσμία κλειδώθηκαν.</p>

@@ -9,14 +9,20 @@ if [[ -z "$ROUTE" ]]; then
 fi
 
 ENV_FILE="${INFLUO_ENV_FILE:-/opt/influo/.env.production}"
+SECRET=""
 if [[ -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
-  set -a && source "$ENV_FILE" && set +a
+  line="$(grep -E '^CRON_SECRET=' "$ENV_FILE" | head -n1 || true)"
+  if [[ -n "$line" ]]; then
+  SECRET="${line#CRON_SECRET=}"
+  SECRET="${SECRET%\"}"
+  SECRET="${SECRET#\"}"
+  SECRET="${SECRET%\'}"
+  SECRET="${SECRET#\'}"
+  fi
 fi
 
-BASE="${CRON_BASE_URL:-https://www.influo.gr}"
+BASE="http://127.0.0.1:3100"
 URL="${BASE%/}${ROUTE}"
-SECRET="${CRON_SECRET:-}"
 
 TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 TMP="$(mktemp)"
@@ -27,16 +33,16 @@ if [[ -n "$SECRET" ]]; then
   HTTP_CODE="$(curl -sS -o "$TMP" -w "%{http_code}" \
     -H "Authorization: Bearer ${SECRET}" \
     -H "Accept: application/json" \
-    --connect-timeout 20 --max-time 120 \
+    --connect-timeout 20 --max-time 300 \
     "$URL" || true)"
 else
   HTTP_CODE="$(curl -sS -o "$TMP" -w "%{http_code}" \
     -H "Accept: application/json" \
-    --connect-timeout 20 --max-time 120 \
+    --connect-timeout 20 --max-time 300 \
     "$URL" || true)"
 fi
 
-BODY="$(tr '\n' ' ' <"$TMP" | head -c 800)"
+BODY="$(tr '\n' ' ' <"$TMP" | head -c 300)"
 LOG="${TS} path=${ROUTE} http=${HTTP_CODE} body=${BODY}"
 echo "$LOG" >>/var/log/influo-cron.log
 

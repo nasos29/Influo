@@ -7,6 +7,7 @@ import {
 } from "@/lib/campaignMail";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { send } from "@/lib/proposalMail";
+import { sendTransactionalCreator } from "@/lib/collabCreatorMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
 import {
@@ -282,11 +283,13 @@ export async function POST(request: NextRequest) {
         showcaseOptOutUrl: null,
       });
       if (person.email) {
-        await send(
+        await sendTransactionalCreator(
+          person.id,
           "campaign_deliverable_changes_creator",
           person.email,
           mail.subject,
-          mail.html
+          mail.html,
+          { recipientId: person.id }
         );
       }
       await sendPushToInfluencer(person.id, {

@@ -504,7 +504,10 @@ export function deliverableReviewToCreator(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${quoteHtml(approved ? "Σχόλιο:" : "Τι ζητήθηκε:", input.reviewNote)}
-       ${buttonHtml(input.ctaUrl || creatorCampaignsTab(), "Δες τις καμπάνιες σου")}
+       ${buttonHtml(
+         input.ctaUrl || creatorCampaignsTab(),
+         input.ctaUrl ? "Δες το παραδοτέο" : "Δες τις καμπάνιες σου"
+       )}
        ${showcaseNotice}
        ${emailNextSteps(approved ? "campaign_deliverable_approved_creator" : "campaign_deliverable_changes_creator")}`
     ),
