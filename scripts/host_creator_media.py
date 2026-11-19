@@ -492,6 +492,13 @@ def encode_av1(source: Path, dest: Path) -> bool:
     return proc.returncode == 0 and dest.exists() and dest.stat().st_size > 0
 
 
+def safe_storage_object_path(path: str | None) -> str | None:
+    p = str(path or "").strip().lstrip("/")
+    if not p or p == ".":
+        return None
+    return p
+
+
 def encode_assets(source: Path, work: Path) -> dict[str, Any]:
     """Build a compact, card-sized rendition set.
 
@@ -503,6 +510,8 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
     smaller than video.mp4 (one extra variant). Default delivery is H.264 +
     poster only.
     """
+    if not source.is_file():
+        raise RuntimeError(f"encode source is not a file: {source}")
     info = ffprobe_info(source)
     poster = work / "poster.webp"
     avc = work / "video-avc.mp4"
@@ -663,6 +672,22 @@ def compare_top_posts(a: dict[str, Any], b: dict[str, Any]) -> int:
     return eb - ea
 
 
+def _normalize_post_type(raw: Any) -> str:
+    return re.sub(r"[^a-z]", "", str(raw or "").lower())
+
+
+def is_hostable_video_url(url: str, post_type: str | None = None) -> bool:
+    """Skip TikTok photo paths and image-only posts (same rule as profile top posts)."""
+    n = str(url or "").strip().lower()
+    if "/photo/" in n:
+        return False
+    if post_type:
+        t = _normalize_post_type(post_type)
+        if t in {"image", "photo", "picture", "graphimage"}:
+            return False
+    return True
+
+
 def select_top_posts_for_display(accounts: list[Any] | None, limit: int = TOP_POSTS_DISPLAY_LIMIT) -> list[dict[str, Any]]:
     """Best of each platform, then next-best overall, up to `limit` slots."""
     from functools import cmp_to_key
@@ -677,6 +702,8 @@ def select_top_posts_for_display(accounts: list[Any] | None, limit: int = TOP_PO
                 continue
             url = str(post.get("url") or "").strip()
             if not url:
+                continue
+            if not is_hostable_video_url(url, post.get("type")):
                 continue
             platform = top_post_platform_key(url, account_platform)
             candidate = {
@@ -734,12 +761,19 @@ def select_top_posts_to_host(accounts: list[Any] | None, limit: int = TOP_POSTS_
     ]
 
 
+def collect_backfill_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
+    """Portfolio + top-post URLs eligible for self-hosting (videos only)."""
+    return collect_items(inf)
+
+
 def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str]] = set()
     for url in inf.get("videos") or []:
         url = str(url or "").strip()
         if not url:
+            continue
+        if not is_hostable_video_url(url):
             continue
         key = (normalize_source_url(url), "portfolio")
         if key in seen_keys:
@@ -938,7 +972,12 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     )
                     if not prior:
                         raise
-                    source = store.storage_download(prior["play_path"], item_dir / "source.mp4")
+                    play_key = safe_storage_object_path(prior.get("play_path"))
+                    if not play_key:
+                        raise
+                    source = store.storage_download(play_key, item_dir / "source.mp4")
+                    if not source.is_file():
+                        raise RuntimeError(f"re-encode download is not a file: {source}")
                     log(
                         f"  yt-dlp failed ({e}); re-encoding from existing {prior['play_path']} "
                         f"({source.stat().st_size} bytes)"

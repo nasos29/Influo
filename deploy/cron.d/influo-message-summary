@@ -1,0 +1,4 @@
+# Peer chat unread summaries (~20m quiet window). Hit often; do not batch to daily.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+*/10 * * * * root /opt/influo/cron-run.sh /api/cron/message-summary >>/var/log/influo-message-summary.log 2>&1

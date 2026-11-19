@@ -1,5 +1,5 @@
 import { isAllowedTopPostUrl } from "@/lib/topPosts";
-import { detectProvider } from "@/lib/videoThumbnail";
+import { detectProvider, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 
 export type SocialPostProvider = "instagram" | "tiktok" | "youtube";
 
@@ -14,6 +14,7 @@ export function parseSocialPostUrl(raw: unknown): {
   if (!isAllowedTopPostUrl(url)) return { ok: false, error: "invalid" };
   const provider = detectProvider(url);
   if (!provider) return { ok: false, error: "invalid" };
+  if (!isEmbeddableVideoUrl(url)) return { ok: false, error: "invalid" };
   try {
     const parsed = new URL(url);
     parsed.hash = "";
@@ -31,8 +32,8 @@ export function socialPostUrlErrorMessage(
     return lang === "el" ? "Βάλε link δημοσίευσης (URL)." : "Add a published post URL.";
   }
   return lang === "el"
-    ? "Το link πρέπει να είναι Instagram, TikTok ή YouTube (https)."
-    : "URL must be Instagram, TikTok, or YouTube (https).";
+    ? "Δώσε link δημοσιευμένου post (reel / post / video) — όχι προφίλ. Επιτρέπονται Instagram, TikTok και YouTube (https)."
+    : "Use a published post URL (reel / post / video) — not a profile. Instagram, TikTok, and YouTube only (https).";
 }
 
 /** Optional non-negative integer for self-reported views/reach. */

@@ -1,0 +1,4 @@
+# 07:40 Europe/Athens ≈ 05:40 UTC (CRON_TZ is unreliable in /etc/cron.d on this host).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+40 5 * * * root /opt/influo/cron-run.sh /api/cron/delivery-auto-complete >>/var/log/influo-delivery-auto-complete.log 2>&1

@@ -783,16 +783,16 @@ export async function runReviewReminders(
         if (secondSent >= limit) break;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) continue;
         const stampRow = row as ReminderStampRow;
-        const needsInfluencer = shouldSendSideCampaignSecondReviewReminder("influencer", {
+        const secondGate = {
           status: row.status,
           row: stampRow,
           nowMs,
-        });
-        const needsBrand = shouldSendSideCampaignSecondReviewReminder("brand", {
-          status: row.status,
-          row: stampRow,
-          nowMs,
-        });
+          publishDeadline: campaignPublishDeadline(null, row.brand_campaigns?.deadline ?? null),
+          realCompletedAt: campaignRealCompletionAt(row),
+          fromRealCompletion: isReviewFromRealCompletionEnabled(),
+        };
+        const needsInfluencer = shouldSendSideCampaignSecondReviewReminder("influencer", secondGate);
+        const needsBrand = shouldSendSideCampaignSecondReviewReminder("brand", secondGate);
         if (!needsInfluencer && !needsBrand) continue;
         scanned += 1;
         secondDue += 1;

@@ -221,6 +221,7 @@ export async function POST(request: Request) {
               await Promise.all([
                 mailCreatorDealComplete({
                   ...common,
+                  influencerId: proposal.influencer_id,
                   to: influencer.email,
                   creatorName: influencer.name,
                   brandName,
@@ -275,6 +276,7 @@ export async function POST(request: Request) {
       await Promise.all([
         mailAgreement({
           to: influencer.email,
+          influencerId: proposal.influencer_id,
           recipientName: influencer.name,
           otherName: brandName,
           service: proposal.service_type || "",

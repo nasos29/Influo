@@ -69,7 +69,6 @@ import {
   isActiveCampaignDealRow,
   isActiveCollaborationDisplayKey,
 } from '@/lib/proposalDisplayStatus';
-import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
@@ -1638,7 +1637,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [showAgreementModal, setShowAgreementModal] = useState(false);
     const [agreementAccepted, setAgreementAccepted] = useState(false);
     const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
-    const [showcaseConsent, setShowcaseConsent] = useState(true);
     const [savingAgreement, setSavingAgreement] = useState(false);
     const [showCounterProposalModal, setShowCounterProposalModal] = useState(false);
     const [counterBudget, setCounterBudget] = useState('');
@@ -2091,7 +2089,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     proposalId: selectedProposal.id,
                     userType: 'influencer',
                     accepted: true,
-                    showcaseConsent,
                     ...(selectedProposal.publish_deadline
                         ? {}
                         : { publishDeadline: draftAgreementDeadline.trim() }),
@@ -2118,7 +2115,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 setSelectedProposal(null);
                 setAgreementAccepted(false);
                 setDraftAgreementDeadline("");
-                setShowcaseConsent(true);
                 notify(T('Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
             } else {
                 throw new Error(result.error || T('Σφάλμα αποδοχής συμφωνίας', 'Could not accept the agreement'));
@@ -2590,6 +2586,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 <ProposalDeliverableField
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}
+                                                                  initialShowcaseConsent={prop.influencer_showcase_consent}
                                                                   lang={lang}
                                                                   showStepLabel={
                                                                     prop.status === 'completed' &&
@@ -2625,15 +2622,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                       : null
                                                                   }
                                                                 />
-                                                                {prop.status === 'completed' ? (
-                                                                  <ShowcaseConsentToggle
-                                                                    source="proposal"
-                                                                    id={String(prop.id)}
-                                                                    initialConsent={!!prop.influencer_showcase_consent}
-                                                                    lang={lang}
-                                                                    party="influencer"
-                                                                  />
-                                                                ) : null}
                                                               </div>
                                                             ) : null}
                                                             <p className="text-sm text-slate-600 mb-2">
@@ -3274,8 +3262,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     publishDeadline={selectedProposal.publish_deadline}
                     accepted={agreementAccepted}
                     onAcceptedChange={setAgreementAccepted}
-                    showcaseConsent={showcaseConsent}
-                    onShowcaseConsentChange={setShowcaseConsent}
                     showcaseParty="influencer"
                     saving={savingAgreement}
                     draftPublishDeadline={draftAgreementDeadline}
@@ -3285,7 +3271,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         setSelectedProposal(null);
                         setAgreementAccepted(false);
                         setDraftAgreementDeadline("");
-                        setShowcaseConsent(true);
                     }}
                     onAccept={handleAcceptAgreement}
                 />

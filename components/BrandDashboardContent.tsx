@@ -31,7 +31,6 @@ import { displayNameForLang } from '@/lib/greeklish';
 import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
-import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
@@ -862,7 +861,6 @@ export default function BrandDashboardContent() {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
-  const [showcaseConsent, setShowcaseConsent] = useState(true);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [processingCounterProposal, setProcessingCounterProposal] = useState<string | null>(null);
   const [cancelDealProposal, setCancelDealProposal] = useState<Proposal | null>(null);
@@ -1618,7 +1616,6 @@ export default function BrandDashboardContent() {
           proposalId: selectedProposal.id,
           userType: 'brand',
           accepted: true,
-          showcaseConsent,
           ...(selectedProposal.publish_deadline
             ? {}
             : { publishDeadline: draftAgreementDeadline.trim() }),
@@ -1644,7 +1641,6 @@ export default function BrandDashboardContent() {
         setSelectedProposal(null);
         setAgreementAccepted(false);
         setDraftAgreementDeadline("");
-        setShowcaseConsent(true);
         notify(lang === 'el'
           ? 'Η συμφωνία έγινε αποδεκτή.'
           : 'Agreement accepted.', 'success');
@@ -3444,6 +3440,7 @@ export default function BrandDashboardContent() {
                               <ProposalDeliverableField
                                 proposalId={String(proposal.id)}
                                 initialUrl={proposal.published_post_url}
+                                initialShowcaseConsent={proposal.brand_showcase_consent}
                                 lang={lang}
                                 readOnly
                                 canApprove
@@ -3474,15 +3471,6 @@ export default function BrandDashboardContent() {
                                   searchParams?.get("proposalId") === String(proposal.id)
                                 }
                               />
-                              {proposal.status === "completed" ? (
-                                <ShowcaseConsentToggle
-                                  source="proposal"
-                                  id={String(proposal.id)}
-                                  initialConsent={!!proposal.brand_showcase_consent}
-                                  lang={lang}
-                                  party="brand"
-                                />
-                              ) : null}
                             </div>
                           ) : null}
                         </div>
@@ -3549,10 +3537,6 @@ export default function BrandDashboardContent() {
           onDraftPublishDeadlineChange={setDraftAgreementDeadline}
           accepted={agreementAccepted}
           onAcceptedChange={setAgreementAccepted}
-          showcaseConsent={showcaseConsent}
-          onShowcaseConsentChange={
-            selectedProposal.brand_agreement_accepted ? undefined : setShowcaseConsent
-          }
           showcaseParty="brand"
           saving={savingAgreement}
           readOnly={!!selectedProposal.brand_agreement_accepted}
@@ -3566,7 +3550,6 @@ export default function BrandDashboardContent() {
             setSelectedProposal(null);
             setAgreementAccepted(false);
             setDraftAgreementDeadline("");
-            setShowcaseConsent(true);
           }}
           onAccept={handleAcceptAgreement}
         />

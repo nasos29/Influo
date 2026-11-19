@@ -28,6 +28,6 @@ export async function sendTransactionalCreator(
   opts?: { recipientId?: string | null }
 ): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
   if (creatorCollabEmailBlocked(influencerId)) return { ok: false, skipped: true };
-  const result = await sendTransactional(to, subject, html);
+  const result = await sendTransactional(to, subject, html, { type, recipientId: opts?.recipientId });
   return result;
 }

@@ -143,6 +143,11 @@ export async function PATCH(request: Request) {
             update.delivery_proof_url = null;
             update.showcase_post_url_updated_at = submittedAt;
             update.showcase_post_url_updated_by = `influencer:${session.user.email || session.user.id}`;
+            const submitConsent = body.showcaseConsent ?? body.consent;
+            if (typeof submitConsent === "boolean") {
+              update.influencer_showcase_consent = submitConsent;
+              update.influencer_showcase_opted_out = !submitConsent;
+            }
           }
         }
         if ("selfReportedViews" in body) {
@@ -161,6 +166,11 @@ export async function PATCH(request: Request) {
         update.published_post_pending_approval = false;
         update.deliverable_status = "approved";
         update.delivery_confirmed_at = new Date().toISOString();
+        const approveConsent = body.showcaseConsent ?? body.consent;
+        if (typeof approveConsent === "boolean") {
+          update.brand_showcase_consent = approveConsent;
+          update.brand_showcase_opted_out = !approveConsent;
+        }
       }
 
       const requestChanges = party === "brand" && body.requestDeliverableChanges === true;
