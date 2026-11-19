@@ -96,7 +96,7 @@ function dayMs(days: number): number {
 
 export async function runDeliverableReminders(
   admin: SupabaseClient,
-  opts?: { nowMs?: number; limit?: number }
+  opts?: { nowMs?: number }
 ): Promise<{
   creatorScanned: number;
   creatorSent: number;
@@ -107,7 +107,6 @@ export async function runDeliverableReminders(
   flags: { creator: boolean; brand: boolean };
 }> {
   const nowMs = opts?.nowMs ?? Date.now();
-  const limit = Math.min(Math.max(opts?.limit ?? 40, 1), 100);
   const creatorOn = isDeliverableRemindersEnabled();
   const brandOn = isBrandApproveRemindersEnabled();
   const errors: string[] = [];
@@ -134,7 +133,6 @@ export async function runDeliverableReminders(
       return;
     }
     for (const row of (data || []) as CampaignAppRow[]) {
-      if (creatorSent >= limit) break;
       creatorScanned += 1;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
         skipped += 1;
@@ -224,7 +222,6 @@ export async function runDeliverableReminders(
       return;
     }
     for (const row of (data || []) as CampaignAppRow[]) {
-      if (brandSent >= limit) break;
       brandScanned += 1;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
         skipped += 1;
@@ -302,7 +299,6 @@ export async function runDeliverableReminders(
       errors.push(`creator query: ${error.message}`);
     } else {
       for (const row of (data || []) as ProposalRow[]) {
-        if (creatorSent >= limit) break;
         creatorScanned += 1;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
@@ -393,7 +389,6 @@ export async function runDeliverableReminders(
       }
     } else {
       for (const row of (noDeadline || []) as ProposalRow[]) {
-        if (creatorSent >= limit) break;
         creatorScanned += 1;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
@@ -462,7 +457,6 @@ export async function runDeliverableReminders(
       errors.push(`brand query: ${error.message}`);
     } else {
       for (const row of (data || []) as ProposalRow[]) {
-        if (brandSent >= limit) break;
         brandScanned += 1;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
