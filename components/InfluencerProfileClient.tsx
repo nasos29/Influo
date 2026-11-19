@@ -26,6 +26,7 @@ import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { useHostedCreatorMedia, lookupHostedMedia } from "@/lib/useCreatorMedia";
+import HostedVideoPlayer from "@/components/HostedVideoPlayer";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import SiteHeader from "@/components/SiteHeader";
@@ -3301,6 +3302,25 @@ export default function InfluencerProfile(props: {
 
                                         const provider = detectProvider(vid);
                                         const embedUrl = provider ? getVideoEmbedApiUrl(vid) : null;
+
+                                        // Direct uploads: our own hosted file, no platform embed.
+                                        const uploadedHosted = !provider && !isImage ? lookupHostedMedia(hostedByUrl, vid) : null;
+                                        if (uploadedHosted) {
+                                            const ratio =
+                                                uploadedHosted.width && uploadedHosted.height
+                                                    ? `${uploadedHosted.width} / ${uploadedHosted.height}`
+                                                    : '9 / 16';
+                                            return (
+                                                <div key={vid} className="w-full">
+                                                    <div
+                                                        className="relative mx-auto w-full max-w-[360px] overflow-hidden rounded-xl bg-black shadow-md"
+                                                        style={{ aspectRatio: ratio }}
+                                                    >
+                                                        <HostedVideoPlayer media={uploadedHosted} lang={lang} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
 
                                         if (provider && embedUrl && !isImage) {
                                             return (
