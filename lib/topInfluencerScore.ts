@@ -9,6 +9,7 @@
  * Trust penalty ×0.35 applied after blend when hard ER issues on main account.
  */
 
+import { hasAudienceDemographics } from "@/lib/audience";
 import { buildChannelScore } from '@/lib/channelScore';
 import { resolveCompletionRate } from '@/lib/completionRate';
 import { creatorHasHardErOnMainAccount, displayErFlag, isHardErFlag, parseErPercent } from '@/lib/engagementFlags';
@@ -183,9 +184,7 @@ export function computeChannelScore100(
   }
 
   const contentCount = Array.isArray(inf.videos) ? inf.videos.filter(Boolean).length : 0;
-  const hasAudience =
-    !!(inf.audience_top_age && inf.audience_top_age !== '?') ||
-    (inf.audience_male_percent != null && inf.audience_female_percent != null);
+  const hasAudience = hasAudienceDemographics(inf);
 
   const responseHours = Number(inf.avg_response_time);
   const rating = Number(inf.avg_rating);

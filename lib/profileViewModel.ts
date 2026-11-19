@@ -1,3 +1,4 @@
+import { displayAudienceTopAge } from "@/lib/audience";
 import { normalizeGender, type GenderValue } from "@/lib/gender";
 import { parseStoredCategories } from "@/lib/categories";
 import { resolveCompletionRate } from "@/lib/completionRate";
@@ -149,7 +150,7 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
       return {
         male: male == null && female == null ? null : male,
         female: male == null && female == null ? null : female,
-        top_age: typeof data.audience_top_age === "string" ? data.audience_top_age : "?",
+        top_age: displayAudienceTopAge(typeof data.audience_top_age === "string" ? data.audience_top_age : null),
       };
     })(),
     rate_card_flags: flags,
