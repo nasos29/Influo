@@ -118,7 +118,7 @@ async function r2Request(method: string, pathAndQuery: string, body?: Buffer, ex
   const kSigning = hmac(hmac(hmac(hmac(`AWS4${cfg.secretKey}`, dateStamp), cfg.region), "s3"), "aws4_request");
   const signature = createHmac("sha256", kSigning).update(stringToSign).digest("hex");
   headers.Authorization = `AWS4-HMAC-SHA256 Credential=${cfg.accessKey}/${scope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-  const res = await fetch(url, { method, headers, body: payload.length ? payload : undefined });
+  const res = await fetch(url, { method, headers, body: payload.length ? new Uint8Array(payload) : undefined });
   const buf = Buffer.from(await res.arrayBuffer());
   if (!res.ok) {
     throw new Error(`R2 ${method} ${url.pathname} -> ${res.status}: ${buf.toString("utf8").slice(0, 300)}`);
