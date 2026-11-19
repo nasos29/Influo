@@ -244,7 +244,7 @@ export default function SocialEmbedCard({
     provider === "youtube" && !!iframeSrc && /youtube\.com\/embed\//i.test(iframeSrc);
   const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
     ? "native"
-    : isTikTokPlayer
+    : isTikTokIframe
       ? "tiktok"
       : isYouTubePlayer
         ? "youtube"
@@ -274,7 +274,7 @@ export default function SocialEmbedCard({
     playbackFailed: tikTokPlaybackFailed,
     fallbackToEmbed: tikTokFallbackToEmbed,
     playerReloadNonce: tikTokPlayerReloadNonce,
-  } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
+  } = useTikTokPlayerHost(isTikTokIframe, mediaIframeRef);
   // Measure the card while the cover is visible so the first Play tap can
   // mount player/v1 or embed/v2 already sized to object-cover the cover box.
   const tikTokScaleVariant = tikTokIframeVariantFromSrc(iframeSrc);
@@ -284,6 +284,7 @@ export default function SocialEmbedCard({
     { freeze: !!iframeSrc, variant: tikTokScaleVariant }
   );
   const tikTokEmbedFallbackUsed = useRef(false);
+  const tikTokUserRetryUsed = useRef(false);
 
   const tikTokInViewRef = useRef(true);
   const tikTokYieldedRef = useRef(false);
@@ -556,6 +557,34 @@ export default function SocialEmbedCard({
     thumbSrc,
   ]);
 
+  const retryTikTokWithEmbed = useCallback(() => {
+    const id =
+      extractTikTokVideoId(iframeSrc || originalUrl) || cachedTikTokVideoId(originalUrl);
+    if (!id) {
+      releaseTikTokPlayer();
+      setError(true);
+      return;
+    }
+    if (tikTokUserRetryUsed.current) {
+      // One user-initiated embed/v2 retry already used; stay on cover + Retry
+      // (another tap is a no-op besides keeping the facade visible).
+      setError(true);
+      setActivated(false);
+      return;
+    }
+    tikTokUserRetryUsed.current = true;
+    tikTokEmbedFallbackUsed.current = true;
+    claimTikTokPlayerSession(tikTokSessionId);
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+    requestAnimationFrame(() => {
+      setError(false);
+      setIframeSrc(buildTikTokEmbedUrl(id));
+      setActivated(true);
+      setLoading(false);
+    });
+  }, [iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokIframeRef, tikTokSessionId]);
+
   const activateClickToLoad = useCallback(async () => {
     if (
       loading ||
@@ -588,11 +617,19 @@ export default function SocialEmbedCard({
         }
         if (!videoId) throw new Error("Missing TikTok video id");
         tikTokEmbedFallbackUsed.current = false;
+        tikTokUserRetryUsed.current = false;
         // Explicit user start only — pause other cards; do not claim from effects.
         claimTikTokPlayerSession(tikTokSessionId);
-        // Same path as desktop: official player/v1, unmuted first (user gesture).
+        // Mobile: classic embed/v2 first (player/v1 often 403s without a
+        // TikTok session). Desktop: official player/v1, unmuted (user gesture).
         // If the browser forces mute, the existing Tap-for-sound prompt appears.
-        setIframeSrc(buildTikTokPlayerUrl(videoId, { muted: false }));
+        const mobile =
+          typeof navigator !== "undefined" && isTikTokMobileUa(navigator.userAgent);
+        setIframeSrc(
+          mobile
+            ? buildTikTokEmbedUrl(videoId)
+            : buildTikTokPlayerUrl(videoId, { muted: false })
+        );
         setLoading(false);
         return;
       }
@@ -694,7 +731,9 @@ export default function SocialEmbedCard({
           {/* Non-static: video facade / player */}
           {!showStaticPhoto && !showCarousel ? (
             <>
-              {!iframeSrc && !nativeVideoUrl && coverSrc ? (
+              {/* Keep the cover underneath the iframe so about:blank / 403
+                  never leaves a black card. */}
+              {coverSrc ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverSrc}
@@ -702,13 +741,13 @@ export default function SocialEmbedCard({
                   loading="lazy"
                   decoding="async"
                   referrerPolicy="no-referrer"
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="absolute inset-0 z-[1] h-full w-full object-cover"
                   onError={onImgError}
                 />
               ) : null}
 
               {/* Never leave a blank black TikTok card when cover is missing */}
-              {!iframeSrc && !nativeVideoUrl && !coverSrc && provider === "tiktok" ? (
+              {!coverSrc && provider === "tiktok" ? (
                 <div
                   className="absolute inset-0 z-[1] flex items-center justify-center bg-gradient-to-br from-black to-gray-900"
                   aria-hidden
@@ -723,6 +762,10 @@ export default function SocialEmbedCard({
                 <button
                   type="button"
                   onClick={() => {
+                    if (provider === "tiktok" && error) {
+                      retryTikTokWithEmbed();
+                      return;
+                    }
                     void activateClickToLoad();
                   }}
                   className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-gradient-to-t from-black/70 via-black/25 to-black/10 text-white transition hover:from-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
@@ -790,7 +833,10 @@ export default function SocialEmbedCard({
                 />
               ) : null}
 
-              {iframeSrc && (!isTikTokIframe || tikTokBoxMeasured) ? (
+              {iframeSrc &&
+              iframeSrc !== "about:blank" &&
+              !error &&
+              (!isTikTokIframe || tikTokBoxMeasured) ? (
                 <>
                   <div
                     className={
@@ -833,7 +879,7 @@ export default function SocialEmbedCard({
                     referrerPolicy="strict-origin-when-cross-origin"
                     onLoad={() => {
                       setLoading(false);
-                      if (isTikTokPlayer) onTikTokIframeLoad();
+                      if (isTikTokIframe) onTikTokIframeLoad();
                     }}
                     onError={() => {
                       if (
@@ -861,17 +907,18 @@ export default function SocialEmbedCard({
                   />
                   {isTikTokEmbed ? (
                     <>
-                      {/* Block off-site chrome; leave the 9:16 video area tappable. */}
+                      {/* Block off-site chrome (author, hearts, "Άνοιγμα στο TikTok");
+                          leave the 9:16 video area tappable for play/sound. */}
                       <div
-                        className="pointer-events-auto absolute inset-x-0 top-0 z-[16] h-14"
+                        className="pointer-events-auto absolute inset-x-0 top-0 z-[16] h-16"
                         aria-hidden="true"
                       />
                       <div
-                        className="pointer-events-auto absolute top-14 bottom-20 right-0 z-[16] w-14"
+                        className="pointer-events-auto absolute top-16 bottom-16 right-0 z-[16] w-16"
                         aria-hidden="true"
                       />
                       <div
-                        className="pointer-events-auto absolute inset-x-0 bottom-0 z-[16] h-12"
+                        className="pointer-events-auto absolute inset-x-0 bottom-0 z-[16] h-16"
                         aria-hidden="true"
                       />
                     </>
@@ -899,7 +946,7 @@ export default function SocialEmbedCard({
                     e.preventDefault();
                     e.stopPropagation();
                     // Prefer a user-gesture unmute+play when auto-unmute was blocked.
-                    if (isTikTokPlayer && showTikTokSoundPrompt) {
+                    if (isTikTokIframe && showTikTokSoundPrompt) {
                       claimTikTokPlayerSession(tikTokSessionId);
                       onTikTokTapForSound();
                       return;

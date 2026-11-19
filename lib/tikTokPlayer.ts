@@ -66,14 +66,10 @@ export const TIKTOK_IFRAME_ALLOW =
   "accelerometer; autoplay; clipboard-write; fullscreen; gyroscope; picture-in-picture; web-share; storage-access";
 
 /**
- * Sandbox for desktop embed/v2 iframes: scripts/origin/presentation so the
+ * Sandbox for every embed/v2 iframe: scripts/origin/presentation so the
  * player can run, but no allow-popups or allow-top-navigation so author/logo
- * clicks cannot take the user off-site.
- *
- * Not applied on mobile Chromium. Sandbox can interfere with third-party
- * storage (and, in some browsers, encrypted-media), and live #454 reports
- * left doubt that it is safe for embed/v2 playback there. Off-site
- * author/logo navigation is accepted on those browsers.
+ * / "Open in TikTok" clicks cannot take the user off-site. Chrome is also
+ * covered by click-catcher overlays in the card.
  */
 export const TIKTOK_EMBED_IFRAME_SANDBOX =
   "allow-scripts allow-same-origin allow-presentation";
@@ -152,25 +148,17 @@ export function postTikTokPlayer(
 }
 
 /**
- * Mobile browser (phone / Android / iPhone). The first path is always
- * player/v1 (same as desktop). embed/v2 is only a silent fallback after
- * a player/v1 playback error.
+ * Mobile browser (phone / Android / iPhone). These start on classic embed/v2.
+ * Desktop stays on official player/v1; embed/v2 is an immediate fallback
+ * after a player/v1 playback error (3001/1004/2005 or ready-timeout).
  */
 export function isTikTokMobileUa(ua: string): boolean {
   return /Mobile|Android|iPhone|iPod/i.test(String(ua || ""));
 }
 
-/**
- * @deprecated No longer selects the first player. Kept as a UA helper for
- * historical tests and desktop-only embed sandbox. Use isTikTokMobileUa /
- * allowTikTokEmbedFallbackFromUA instead.
- */
+/** True when the first path should be embed/v2 (all mobile UAs). */
 export function preferTikTokEmbedPlayerFromUA(ua: string): boolean {
-  const s = String(ua || "");
-  if (/Firefox|FxiOS/i.test(s)) return false;
-  const chromium = /Chrome|CriOS|Chromium|EdgA|EdgiOS|SamsungBrowser/i.test(s);
-  const mobile = /Mobile|Android|iPhone|iPod/i.test(s);
-  return chromium && mobile;
+  return isTikTokMobileUa(ua);
 }
 
 export function preferTikTokEmbedPlayer(): boolean {
@@ -192,11 +180,11 @@ export function allowTikTokEmbedFallback(): boolean {
 }
 
 /**
- * Sandbox attr for an embed/v2 iframe. Undefined on mobile Chromium (and
- * during SSR, when the iframe is not mounted).
+ * Sandbox attr for an embed/v2 iframe. Applied on every UA, including
+ * mobile, so author/logo navigation cannot leave the site. Undefined
+ * only during SSR, when the iframe is not mounted.
  */
-export function tikTokEmbedIframeSandboxFromUA(ua: string): string | undefined {
-  if (preferTikTokEmbedPlayerFromUA(ua)) return undefined;
+export function tikTokEmbedIframeSandboxFromUA(_ua: string): string | undefined {
   return TIKTOK_EMBED_IFRAME_SANDBOX;
 }
 

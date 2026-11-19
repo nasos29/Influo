@@ -10,12 +10,15 @@ import {
   toDisplayThumbnailSrc,
 } from "@/lib/videoThumbnailExtract";
 import {
+  buildTikTokEmbedUrl,
   buildTikTokPlayerUrl,
   cachedTikTokVideoId,
   extractTikTokVideoId,
   rememberTikTokVideoId,
   TIKTOK_IFRAME_ALLOW,
   disposeTikTokIframe,
+  isTikTokMobileUa,
+  tikTokEmbedIframeSandbox,
 } from "@/lib/tikTokPlayer";
 import { TIKTOK_SOUND_COPY, useTikTokPlayerHost } from "@/lib/useTikTokPlayerHost";
 import { tikTokIframeVariantFromSrc, useTikTokIframeScale } from "@/lib/useTikTokIframeScale";
@@ -110,13 +113,16 @@ export default function VideoThumbnail({
   const isIgReel = igMedia?.kind === "reel" || igMedia?.kind === "tv";
   const isTikTokPlayer =
     !!embedSrc && /tiktok\.com\/player\/v1\//i.test(embedSrc);
+  const isTikTokEmbed =
+    !!embedSrc && /tiktok\.com\/embed\/v2\//i.test(embedSrc);
+  const isTikTokIframe = isTikTokPlayer || isTikTokEmbed;
   const isYouTubePlayer =
     !!embedSrc && /youtube\.com\/embed\//i.test(embedSrc);
   const isTikTokPhotoEarly =
     isTikTok && (mediaType === "image" || /\/photo\/\d+/i.test(url));
   const portfolioKind: PortfolioMediaKind | null = nativeVideoUrl
     ? "native"
-    : isTikTokPlayer
+    : isTikTokIframe
       ? "tiktok"
       : isYouTubePlayer
         ? "youtube"
@@ -140,17 +146,30 @@ export default function VideoThumbnail({
     onTapForSound: onTikTokTapForSound,
     onIframeLoad: onTikTokIframeLoad,
     unplayable: tikTokUnplayable,
-  } = useTikTokPlayerHost(isTikTokPlayer, mediaIframeRef);
+    fallbackToEmbed: tikTokFallbackToEmbed,
+  } = useTikTokPlayerHost(isTikTokIframe, mediaIframeRef);
   const { style: tikTokIframeScale, measured: tikTokBoxMeasured } = useTikTokIframeScale(
     isTikTok && !!embedSrc,
     playerBoxRef,
-    { freeze: isTikTokPlayer, variant: tikTokIframeVariantFromSrc(embedSrc) }
+    { freeze: isTikTokIframe, variant: tikTokIframeVariantFromSrc(embedSrc) }
   );
+  const tikTokEmbedFallbackUsed = useRef(false);
 
   const disposeMountedTikTok = useCallback(() => {
     disposeTikTokIframe(mediaIframeRef.current);
     disposeTikTokIframe(tikTokIframeRef.current);
   }, [mediaIframeRef, tikTokIframeRef]);
+
+  useEffect(() => {
+    if (!tikTokFallbackToEmbed || tikTokEmbedFallbackUsed.current) return;
+    const id = extractTikTokVideoId(embedSrc || url);
+    if (!id) return;
+    tikTokEmbedFallbackUsed.current = true;
+    disposeMountedTikTok();
+    requestAnimationFrame(() => {
+      setEmbedSrc(buildTikTokEmbedUrl(id));
+    });
+  }, [disposeMountedTikTok, embedSrc, tikTokFallbackToEmbed, url]);
 
   useEffect(() => {
     let cancelled = false;
@@ -439,8 +458,13 @@ export default function VideoThumbnail({
         }
         if (!videoId) return;
         disposeMountedTikTok();
+        tikTokEmbedFallbackUsed.current = false;
         requestAnimationFrame(() => {
-          setEmbedSrc(buildTikTokPlayerUrl(videoId));
+          const mobile =
+            typeof navigator !== "undefined" && isTikTokMobileUa(navigator.userAgent);
+          setEmbedSrc(
+            mobile ? buildTikTokEmbedUrl(videoId) : buildTikTokPlayerUrl(videoId)
+          );
         });
       } catch {
         /* keep thumbnail */
@@ -500,10 +524,10 @@ export default function VideoThumbnail({
         className={`relative overflow-hidden bg-slate-100 ${className}`}
         style={fill ? { width: "100%", height: "100%" } : { width, height, minHeight: 320 }}
       >
-        {(!isTikTokPlayer || tikTokBoxMeasured) ? (
+        {(!isTikTokIframe || tikTokBoxMeasured) && embedSrc !== "about:blank" ? (
         <div
           className={
-            isTikTokPlayer ? "absolute inset-0 overflow-hidden" : "contents"
+            isTikTokIframe ? "absolute inset-0 overflow-hidden" : "contents"
           }
         >
         <iframe
@@ -515,12 +539,12 @@ export default function VideoThumbnail({
                 : undefined
           }
           src={embedSrc}
-          title={isTikTokPlayer ? "TikTok" : isYouTubePlayer ? "YouTube" : "Instagram"}
+          title={isTikTokIframe ? "TikTok" : isYouTubePlayer ? "YouTube" : "Instagram"}
           className={`absolute top-0 left-0 border-0 ${
-            isTikTokPlayer && tikTokIframeScale ? "" : "inset-0 h-full w-full"
+            isTikTokIframe && tikTokIframeScale ? "" : "inset-0 h-full w-full"
           }`}
           style={
-            isTikTokPlayer
+            isTikTokIframe
               ? {
                   ...(tikTokIframeScale || {}),
                   ...(isTikTokPlayer ? { pointerEvents: "none" as const } : {}),
@@ -528,16 +552,24 @@ export default function VideoThumbnail({
               : undefined
           }
           allow={
-            isTikTokPlayer
+            isTikTokIframe
               ? TIKTOK_IFRAME_ALLOW
               : "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           }
+          sandbox={isTikTokEmbed ? tikTokEmbedIframeSandbox() : undefined}
           allowFullScreen
           referrerPolicy="strict-origin-when-cross-origin"
           onLoad={() => {
-            if (isTikTokPlayer) onTikTokIframeLoad();
+            if (isTikTokIframe) onTikTokIframeLoad();
           }}
         />
+        {isTikTokEmbed ? (
+          <>
+            <div className="pointer-events-auto absolute inset-x-0 top-0 z-[16] h-16" aria-hidden="true" />
+            <div className="pointer-events-auto absolute top-16 bottom-16 right-0 z-[16] w-16" aria-hidden="true" />
+            <div className="pointer-events-auto absolute inset-x-0 bottom-0 z-[16] h-16" aria-hidden="true" />
+          </>
+        ) : null}
         </div>
         ) : null}
         {showTikTokSoundPrompt && !tikTokUnplayable ? (
@@ -554,7 +586,7 @@ export default function VideoThumbnail({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (isTikTokPlayer && showTikTokSoundPrompt) {
+              if (isTikTokIframe && showTikTokSoundPrompt) {
                 onTikTokTapForSound();
                 return;
               }
