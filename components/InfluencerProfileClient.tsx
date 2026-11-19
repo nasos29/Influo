@@ -25,6 +25,7 @@ import { isFacebookVideoUrl } from "@/lib/videoLinks";
 import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
+import { useHostedCreatorMedia, lookupHostedMedia } from "@/lib/useCreatorMedia";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import SiteHeader from "@/components/SiteHeader";
@@ -676,6 +677,7 @@ export default function InfluencerProfile(props: {
   }, [profile?.videos]);
 
   const portfolioItems = portfolioVideoList ?? basePortfolioItems;
+  const hostedByUrl = useHostedCreatorMedia(profile?.id ? String(profile.id) : null);
 
   const portfolioTikTokFallbacks = useMemo(() => {
     return collectTopPosts(profile?.accounts, 24)
@@ -3020,7 +3022,7 @@ export default function InfluencerProfile(props: {
                   avgLikes={profile.avg_likes}
                   accounts={profile.accounts}
                 />
-                <TopPosts accounts={profile.accounts} lang={lang} />
+                <TopPosts accounts={profile.accounts} lang={lang} hostedByUrl={hostedByUrl} />
               </div>
             )}
             <div className="lg:col-span-2 space-y-8 min-w-0">
@@ -3308,6 +3310,7 @@ export default function InfluencerProfile(props: {
                                                         originalUrl={vid}
                                                         embedUrl={embedUrl}
                                                         lang={lang}
+                                                        hostedMedia={lookupHostedMedia(hostedByUrl, vid)}
                                                         onUnavailable={() => handlePortfolioUnavailable(vid)}
                                                     />
                                                 </div>

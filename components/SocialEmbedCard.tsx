@@ -31,6 +31,8 @@ import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 import type { PortfolioMediaKind } from "@/lib/usePortfolioMediaControls";
+import HostedVideoPlayer from "@/components/HostedVideoPlayer";
+import type { HostedMedia } from "@/lib/creatorMedia";
 
 type Provider = "instagram" | "tiktok" | "youtube";
 
@@ -49,6 +51,8 @@ interface SocialEmbedCardProps {
    * call it. Other providers still report a hard load failure.
    */
   onUnavailable?: () => void;
+  /** When set, play the Influo-hosted file instead of an off-site embed. */
+  hostedMedia?: HostedMedia | null;
 }
 
 const COPY = {
@@ -170,6 +174,7 @@ export default function SocialEmbedCard({
   width,
   height,
   onUnavailable,
+  hostedMedia = null,
 }: SocialEmbedCardProps) {
   const finalWidth = width || DEFAULT_DIMENSIONS[provider].width;
   const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
@@ -590,6 +595,7 @@ export default function SocialEmbedCard({
       loading ||
       iframeSrc ||
       nativeVideoUrl ||
+      (hostedMedia?.playUrl && activated) ||
       isStaticImage ||
       isInteractiveCarousel
     ) {
@@ -600,6 +606,11 @@ export default function SocialEmbedCard({
     setActivated(true);
     setLoading(true);
     try {
+      if (hostedMedia?.playUrl) {
+        setLoading(false);
+        return;
+      }
+
       if (provider === "youtube") {
         const official = buildOfficialEmbedUrl(originalUrl, { autoplay: true });
         if (!official) throw new Error("Missing YouTube embed");
@@ -680,9 +691,11 @@ export default function SocialEmbedCard({
     originalUrl,
     provider,
     tikTokSessionId,
+    hostedMedia,
+    activated,
   ]);
 
-  const coverSrc = igPoster || thumbSrc || null;
+  const coverSrc = hostedMedia?.posterUrl || igPoster || thumbSrc || null;
   const playLabel = isInstagram
     ? COPY.play[uiLang]
     : isTikTokPhoto
@@ -815,7 +828,17 @@ export default function SocialEmbedCard({
                 </div>
               ) : null}
 
-              {nativeVideoUrl ? (
+              {hostedMedia?.playUrl && activated ? (
+                <HostedVideoPlayer
+                  media={hostedMedia}
+                  lang={uiLang}
+                  posterFallback={coverSrc}
+                  onError={() => {
+                    setError(true);
+                    setLoading(false);
+                  }}
+                />
+              ) : nativeVideoUrl ? (
                 <video
                   src={nativeVideoUrl}
                   poster={nativePoster || coverSrc || undefined}
@@ -935,7 +958,7 @@ export default function SocialEmbedCard({
 
               {/* Transparent toggle overlay — iframe clicks are otherwise swallowed.
                   Skipped for photos/carousels. Sound button is z-40 with stopPropagation. */}
-              {portfolioActive ? (
+              {portfolioActive && !(hostedMedia?.playUrl && activated) ? (
                 <button
                   type="button"
                   className={`absolute inset-x-0 top-0 z-[15] bg-transparent ${
