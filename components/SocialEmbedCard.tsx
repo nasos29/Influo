@@ -406,6 +406,7 @@ export default function SocialEmbedCard({
 
   // Silent player/v1 remount after a backoff wait (temporary TikTok limits).
   useEffect(() => {
+    if (hostedMedia?.playUrl) return;
     if (!tikTokPlayerReloadNonce) return;
     const id = extractTikTokVideoId(iframeSrc || originalUrl);
     if (!id) return;
@@ -417,10 +418,11 @@ export default function SocialEmbedCard({
       setActivated(true);
       setLoading(false);
     });
-  }, [iframeSrc, originalUrl, mediaIframeRef, tikTokIframeRef, tikTokPlayerReloadNonce]);
+  }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, tikTokIframeRef, tikTokPlayerReloadNonce]);
 
   // Silent player/v1 → embed/v2 fallback (mobile and desktop). No error UI.
   useEffect(() => {
+    if (hostedMedia?.playUrl) return;
     if (!tikTokFallbackToEmbed || tikTokEmbedFallbackUsed.current) return;
     const id = extractTikTokVideoId(iframeSrc || originalUrl);
     if (!id) {
@@ -437,7 +439,7 @@ export default function SocialEmbedCard({
       setActivated(true);
       setLoading(false);
     });
-  }, [iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokFallbackToEmbed, tikTokIframeRef]);
+  }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokFallbackToEmbed, tikTokIframeRef]);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
   const showPlayButton =
@@ -518,6 +520,10 @@ export default function SocialEmbedCard({
   }, [igKind, isIgPost, isInstagram, originalUrl]);
 
   const fallBackToOfficialEmbed = useCallback(() => {
+    if (hostedMedia?.playUrl) {
+      setLoading(false);
+      return;
+    }
     setNativeVideoUrl(null);
     const official = buildOfficialEmbedUrl(originalUrl, { autoplay: false });
     if (!official) {
@@ -528,7 +534,7 @@ export default function SocialEmbedCard({
     setIframeSrc(official);
     setActivated(true);
     setLoading(false);
-  }, [originalUrl]);
+  }, [hostedMedia?.playUrl, originalUrl]);
 
   // Never leave an empty Instagram /p/ card: cover from video-thumbnail, else official embed.
   useEffect(() => {
@@ -563,6 +569,7 @@ export default function SocialEmbedCard({
   ]);
 
   const retryTikTokWithEmbed = useCallback(() => {
+    if (hostedMedia?.playUrl) return;
     const id =
       extractTikTokVideoId(iframeSrc || originalUrl) || cachedTikTokVideoId(originalUrl);
     if (!id) {
@@ -588,7 +595,18 @@ export default function SocialEmbedCard({
       setActivated(true);
       setLoading(false);
     });
-  }, [iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokIframeRef, tikTokSessionId]);
+  }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokIframeRef, tikTokSessionId]);
+
+  // Hosted files replace official embeds. If a TikTok iframe was mounted
+  // before creator_media resolved, tear it down and never mount another.
+  useEffect(() => {
+    if (!hostedMedia?.playUrl) return;
+    disposeTikTokIframe(mediaIframeRef.current);
+    disposeTikTokIframe(tikTokIframeRef.current);
+    setIframeSrc(null);
+    setNativeVideoUrl(null);
+    setLoading(false);
+  }, [hostedMedia?.playUrl, mediaIframeRef, tikTokIframeRef]);
 
   const activateClickToLoad = useCallback(async () => {
     if (
@@ -858,6 +876,7 @@ export default function SocialEmbedCard({
 
               {iframeSrc &&
               iframeSrc !== "about:blank" &&
+              !hostedMedia?.playUrl &&
               !error &&
               (!isTikTokIframe || tikTokBoxMeasured) ? (
                 <>
@@ -905,6 +924,7 @@ export default function SocialEmbedCard({
                       if (isTikTokIframe) onTikTokIframeLoad();
                     }}
                     onError={() => {
+                      if (hostedMedia?.playUrl) return;
                       if (
                         provider === "tiktok" &&
                         isTikTokPlayer &&

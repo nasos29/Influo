@@ -5,7 +5,8 @@ Layout in bucket creator-videos:
   creators/<influencer_id>/portfolio/<platform>-<source_video_id>/
   creators/<influencer_id>/top-posts/<platform>-<source_video_id>/
   creators/<influencer_id>/collabs/<proposal-or-application-id>/
-  Files: video.mp4, video-av1.mp4 or video-hevc.mp4 (only if smaller), poster.webp, meta.json
+  Files: video.mp4 (H.264 720p / maxrate 2M) and poster.webp; video-av1.mp4 or
+  video-hevc.mp4 only if at least 30% smaller than H.264, at most one extra.
 
 Overlap: store once (prefer the portfolio folder) and point every kind at it.
 Dropped top-post folders are removed only when no remaining row references them.
@@ -240,6 +241,19 @@ class Supabase:
             headers=self._headers(),
         )
 
+    def storage_download(self, path: str, dest: Path) -> Path:
+        data = self.request(
+            "GET",
+            f"/storage/v1/object/{BUCKET}/{path.lstrip('/')}",
+            headers=self._headers(json_body=False),
+            timeout=180,
+        )
+        if not isinstance(data, (bytes, bytearray)) or not data:
+            raise RuntimeError(f"empty download for {path}")
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        return dest
+
 
 def run(cmd: list[str], cwd: Path | None = None, timeout: int = 300) -> subprocess.CompletedProcess[str]:
     # Stay polite on the shared VPS (live app + Supabase sit on the same host).
@@ -345,6 +359,8 @@ SCALE_720 = "scale='if(lt(iw,ih),min(720,iw),-2)':'if(lt(ih,iw),min(720,ih),-2)'
 H264_MAXRATE = "2M"
 H264_BUFSIZE = "4M"
 H264_CRF = "30"
+# Keep an extra AV1/HEVC file only when it is at most 70% of the H.264 size.
+VARIANT_MIN_SAVINGS = 0.30
 
 
 def shorter_side(info: dict[str, Any]) -> int:
@@ -367,6 +383,14 @@ def can_keep_original_h264(info: dict[str, Any]) -> bool:
     if source_bitrate_bps(info) > 2_000_000 * 1.10:
         return False
     return True
+
+
+def variant_saves_enough(variant: Path, h264: Path) -> bool:
+    """True when the extra variant is at least VARIANT_MIN_SAVINGS smaller."""
+    h264_size = h264.stat().st_size
+    if h264_size <= 0 or not variant.exists():
+        return False
+    return variant.stat().st_size <= h264_size * (1.0 - VARIANT_MIN_SAVINGS)
 
 
 def remux_faststart(source: Path, dest: Path, audio_aac: bool = True) -> bool:
@@ -463,8 +487,9 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
     CRF 30, maxrate 2M / bufsize 4M, AAC 96k, and faststart. Remux an already
     web-safe H.264 source only when it already fits that budget.
 
-    Keep video-hevc.mp4 or video-av1.mp4 only when that file is smaller than
-    video.mp4 (one extra variant, and only if it saves bytes).
+    Keep video-hevc.mp4 or video-av1.mp4 only when that file is at least 30%
+    smaller than video.mp4 (one extra variant). Default delivery is H.264 +
+    poster only.
     """
     info = ffprobe_info(source)
     poster = work / "poster.webp"
@@ -517,26 +542,40 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
     # At most one extra variant, and only when it is smaller than H.264.
     hevc_kept = None
     if is_hevc(info):
-        if remux_faststart(source, hevc, audio_aac=True) and hevc.stat().st_size < play.stat().st_size:
+        if remux_faststart(source, hevc, audio_aac=True) and variant_saves_enough(hevc, play):
             hevc_kept = hevc
-            log(f"  kept HEVC {hevc.stat().st_size} bytes (< h264 {play.stat().st_size})")
-        elif hevc.exists():
-            hevc.unlink()
+            log(
+                f"  kept HEVC {hevc.stat().st_size} bytes "
+                f"(saves {(1 - hevc.stat().st_size / play.stat().st_size) * 100:.0f}% vs h264 {play.stat().st_size})"
+            )
+        else:
+            if hevc.exists():
+                if hevc.stat().st_size >= play.stat().st_size:
+                    reason = "not smaller than h264"
+                else:
+                    reason = f"saves less than {int(VARIANT_MIN_SAVINGS * 100)}% vs h264"
+                hevc.unlink()
+                log(f"  hevc not kept ({reason})")
 
     av1_kept = None
-    ceiling = play.stat().st_size
-    if encode_av1(source, av1) and av1.stat().st_size < ceiling:
+    if encode_av1(source, av1) and variant_saves_enough(av1, play):
         av1_kept = av1
-        log(f"  kept AV1 {av1.stat().st_size} bytes (< h264 {ceiling})")
-        # Prefer a single extra variant: if AV1 beats both H.264 and HEVC, drop HEVC
+        log(
+            f"  kept AV1 {av1.stat().st_size} bytes "
+            f"(saves {(1 - av1.stat().st_size / play.stat().st_size) * 100:.0f}% vs h264 {play.stat().st_size})"
+        )
+        # Prefer a single extra variant: if AV1 also beats HEVC, drop HEVC
         # (Safari/Firefox still have H.264; Chrome can use AV1).
         if hevc_kept and av1_kept.stat().st_size <= hevc_kept.stat().st_size:
-            log(f"  dropped HEVC; AV1 is smaller or equal and H.264 remains the fallback")
+            log("  dropped HEVC; AV1 is smaller or equal and H.264 remains the fallback")
             hevc_kept.unlink(missing_ok=True)
             hevc_kept = None
     else:
         if av1.exists():
-            reason = "not smaller than h264" if av1.exists() else "encode failed"
+            if av1.stat().st_size >= play.stat().st_size:
+                reason = "not smaller than h264"
+            else:
+                reason = f"saves less than {int(VARIANT_MIN_SAVINGS * 100)}% vs h264"
             av1.unlink(missing_ok=True)
             log(f"  av1 not kept ({reason})")
 
@@ -859,8 +898,25 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                 source = max(local, key=lambda p: p.stat().st_size)
                 log(f"  using local {source.name} ({source.stat().st_size} bytes)")
             else:
-                source = ytdlp_download(url, item_dir, platform, cookies)
-                log(f"  downloaded {source.name} ({source.stat().st_size} bytes)")
+                try:
+                    source = ytdlp_download(url, item_dir, platform, cookies)
+                    log(f"  downloaded {source.name} ({source.stat().st_size} bytes)")
+                except Exception as e:
+                    prior = next(
+                        (
+                            r
+                            for r in existing
+                            if r.get("source_url_norm") == norm and r.get("play_path")
+                        ),
+                        None,
+                    )
+                    if not prior:
+                        raise
+                    source = sb.storage_download(prior["play_path"], item_dir / "source.mp4")
+                    log(
+                        f"  yt-dlp failed ({e}); re-encoding from existing {prior['play_path']} "
+                        f"({source.stat().st_size} bytes)"
+                    )
             assets = encode_assets(source, item_dir)
             meta = {
                 "source_url": url,
