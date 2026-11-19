@@ -525,18 +525,31 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
 
     source_bytes = source.stat().st_size
     used_original_h264 = False
+    # Always transcode to the 720p / maxrate 2 Mbps budget. A remux of an
+    # already-compliant original is used only when it is also smaller.
+    if not encode_h264(source, avc, H264_CRF):
+        log("  h264 CRF 30 failed, trying CRF 28 with the same 2 Mbps cap")
+        if not encode_h264(source, avc, "28"):
+            raise RuntimeError("could not produce an H.264 video.mp4")
+    chosen = avc
     if can_keep_original_h264(info):
-        ok = remux_faststart(source, play, audio_aac=True)
-        if not ok:
-            shutil.copy2(source, play)
-        used_original_h264 = True
-        log(f"  kept original H.264 as video.mp4 ({play.stat().st_size} bytes, already <=720p / ~2 Mbps)")
-    else:
-        if not encode_h264(source, avc, H264_CRF):
-            log("  h264 CRF 30 failed, trying CRF 28 with the same 2 Mbps cap")
-            if not encode_h264(source, avc, "28"):
-                raise RuntimeError("could not produce an H.264 video.mp4")
-        shutil.move(str(avc), str(play))
+        remux = work / "video-remux.mp4"
+        if remux_faststart(source, remux, audio_aac=True) and remux.stat().st_size <= avc.stat().st_size:
+            chosen = remux
+            used_original_h264 = True
+            log(
+                f"  kept original H.264 remux ({remux.stat().st_size} bytes) "
+                f"because it is already <=720p / ~2 Mbps and no larger than the transcode ({avc.stat().st_size})"
+            )
+            avc.unlink(missing_ok=True)
+        elif remux.exists():
+            log(
+                f"  original remux {remux.stat().st_size} bytes not used; "
+                f"transcode {avc.stat().st_size} bytes is smaller"
+            )
+            remux.unlink(missing_ok=True)
+    shutil.move(str(chosen), str(play))
+    if not used_original_h264:
         log(f"  h264 video.mp4 {play.stat().st_size} bytes (source {source_bytes}, cap 720p / 2 Mbps)")
 
     # At most one extra variant, and only when it is smaller than H.264.
