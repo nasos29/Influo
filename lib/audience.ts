@@ -24,3 +24,32 @@ export function isValidAgeRange(raw: string | null | undefined): boolean {
   if (!Number.isInteger(from) || !Number.isInteger(to)) return false;
   return from >= 13 && from < to && to <= 80;
 }
+
+/** Known placeholders meaning the age group is not known. Display these as "?". */
+const UNKNOWN_AGE_LABELS = new Set([
+  "?",
+  "δεν την ξέρουμε",
+  "δεν την ξερουμε",
+  "we don't know",
+  "we don’t know",
+  "we don't know it",
+  "we don’t know it",
+  "we do not know",
+  "we do not know it",
+  "don't know",
+  "don’t know",
+  "unknown",
+]);
+
+/**
+ * Value shown on public profile stats for the top age group.
+ * Missing or "we don't know" placeholders (Greek or English) become "?",
+ * which is the established unknown marker. Real ranges are left as entered.
+ */
+export function displayAudienceTopAge(raw: string | null | undefined): string {
+  if (raw == null) return "?";
+  const s = String(raw).trim();
+  if (!s) return "?";
+  if (UNKNOWN_AGE_LABELS.has(s.toLowerCase())) return "?";
+  return s;
+}
