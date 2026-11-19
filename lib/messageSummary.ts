@@ -249,6 +249,8 @@ export async function deliverSummaries(args: {
         to = (process.env.ADMIN_EMAIL || "").trim().toLowerCase() || null;
       } else if (digest.recipient === "influencer") {
         if (isCollabEmailExcludedInfluencer(conversation.influencer_id)) {
+          const idsToClaim = digest.messages.map((m) => m.id);
+          await args.store.claim(idsToClaim);
           skipped += 1;
           continue;
         }

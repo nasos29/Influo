@@ -11,7 +11,6 @@ import {
 } from "@/lib/campaignAlert";
 import { sendPushToInfluencer } from "@/lib/push";
 import { sendTransactionalCreator } from "@/lib/collabCreatorMail";
-import { sendTransactional } from "@/lib/transactionalEmail";
 import { applicationStatusToCreator, newCampaignToCreator, removedToCreator } from "@/lib/campaignMail";
 import {
   isStrongMatchZohoEnabled,
@@ -363,7 +362,14 @@ async function sendCampaignOutreach(
     campaignId: opts.campaignId,
   });
   const mail = await withTimeout(
-    sendTransactional(person.email, outreach.subject, outreach.html),
+    sendTransactionalCreator(
+      person.id,
+      "campaign_new_creator",
+      person.email,
+      outreach.subject,
+      outreach.html,
+      { recipientId: person.id }
+    ),
     SEND_TIMEOUT_MS
   );
   // Push for matched creators is sent once by notifyCampaignPublished (Q4).
@@ -439,7 +445,14 @@ export async function notifyApplicantsCampaignRemoved(opts: {
   let sent = 0;
   for (const person of people) {
     const removed = removedToCreator({ influencerName: person.name, campaignTitle: opts.campaignTitle });
-    const mail = await sendTransactional(person.email, removed.subject, removed.html).catch(() => ({ ok: false, error: "send failed" }));
+    const mail = await sendTransactionalCreator(
+      person.id,
+      "campaign_removed_creator",
+      person.email,
+      removed.subject,
+      removed.html,
+      { recipientId: person.id }
+    ).catch(() => ({ ok: false, error: "send failed" }));
     if (mail.ok) sent += 1;
     else if ("error" in mail && mail.error) console.error("[campaignNotify] removed mail", mail.error);
     await sendPushToInfluencer(person.id, {
