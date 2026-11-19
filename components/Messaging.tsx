@@ -385,6 +385,7 @@ export default function Messaging({
   const [endingConversation, setEndingConversation] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
   const [showcaseConsent, setShowcaseConsent] = useState(true);
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
@@ -1423,6 +1424,13 @@ export default function Messaging({
         : 'Read and accept the agreement terms.', 'error');
       return;
     }
+  if (!proposalInfo?.publish_deadline && !draftAgreementDeadline.trim()) {
+    notify(
+      lang === 'el' ? 'Επιλέξτε προθεσμία δημοσίευσης.' : 'Choose a publication deadline.',
+      'error'
+    );
+    return;
+  }
 
     setSavingAgreement(true);
     try {
@@ -1434,6 +1442,9 @@ export default function Messaging({
           userType: mode,
           accepted: true,
           showcaseConsent,
+          ...(proposalInfo?.publish_deadline
+            ? {}
+            : { publishDeadline: draftAgreementDeadline.trim() }),
         })
       });
 
@@ -1443,6 +1454,7 @@ export default function Messaging({
         await loadProposalInfo();
         setShowAgreementModal(false);
         setAgreementAccepted(false);
+        setDraftAgreementDeadline("");
         setShowcaseConsent(true);
         notify(lang === 'el'
           ? mode === 'influencer'
@@ -3025,9 +3037,12 @@ export default function Messaging({
           onShowcaseConsentChange={setShowcaseConsent}
           showcaseParty={mode === "brand" ? "brand" : "influencer"}
           saving={savingAgreement}
+          draftPublishDeadline={draftAgreementDeadline}
+          onDraftPublishDeadlineChange={setDraftAgreementDeadline}
           onCancel={() => {
             setShowAgreementModal(false);
             setAgreementAccepted(false);
+            setDraftAgreementDeadline("");
             setShowcaseConsent(true);
           }}
           onAccept={handleAcceptAgreement}

@@ -6,6 +6,8 @@ import { formatDate } from "@/lib/formatDateTime";
 import { formatEuroAmount } from "@/lib/formatEuro";
 import { formatProposalExtrasLine } from "@/lib/proposalFloor";
 import { showcaseHelperText } from "@/lib/showcaseCopy";
+import PublishDeadlinePicker from "@/components/PublishDeadlinePicker";
+import { parsePublishDeadline } from "@/lib/publishDeadline";
 
 type Lang = AgreementLang;
 
@@ -96,6 +98,9 @@ type AgreementTermsProps = {
   onShowcaseConsentChange?: (consent: boolean) => void;
   /** Which party is accepting — drives helper copy. */
   showcaseParty?: "brand" | "influencer";
+  /** When agreement has no deadline yet, picker before accept. */
+  draftPublishDeadline?: string;
+  onDraftPublishDeadlineChange?: (value: string) => void;
 };
 
 export default function AgreementTerms({
@@ -119,6 +124,8 @@ export default function AgreementTerms({
   showcaseConsent = true,
   onShowcaseConsentChange,
   showcaseParty = "influencer",
+  draftPublishDeadline = "",
+  onDraftPublishDeadlineChange,
 }: AgreementTermsProps) {
   const copy = COPY[lang];
   const showcaseHint = showcaseHelperText(showcaseParty === "brand" ? "brand" : "influencer", lang);
@@ -139,10 +146,14 @@ export default function AgreementTerms({
     { label: copy.deliverables, value: shown(displayServiceType(serviceType, lang)) },
   ];
   if (extras) rows.push({ label: copy.extras, value: extras });
-  rows.push(
-    { label: copy.fee, value: shown(fee) },
-    { label: copy.deadline, value: formatDate(publishDeadline, lang) || copy.deadlineValue }
-  );
+  const deadlineDisplay =
+    formatDate(publishDeadline, lang) ||
+    (draftPublishDeadline && parsePublishDeadline(draftPublishDeadline).ok
+      ? formatDate(draftPublishDeadline, lang)
+      : null) ||
+    copy.deadlineValue;
+  rows.push({ label: copy.fee, value: shown(fee) }, { label: copy.deadline, value: deadlineDisplay });
+  const mustPickDeadline = !readOnly && !publishDeadline && !!onDraftPublishDeadlineChange;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
@@ -217,6 +228,15 @@ export default function AgreementTerms({
             </label>
           )}
 
+          {mustPickDeadline ? (
+            <PublishDeadlinePicker
+              lang={lang}
+              value={draftPublishDeadline}
+              onChange={onDraftPublishDeadlineChange}
+              required
+            />
+          ) : null}
+
           {onShowcaseConsentChange ? (
             <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
               <input
@@ -254,7 +274,11 @@ export default function AgreementTerms({
               <button
                 type="button"
                 onClick={onAccept}
-                disabled={!accepted || saving}
+                disabled={
+                  !accepted ||
+                  saving ||
+                  (mustPickDeadline && !parsePublishDeadline(draftPublishDeadline).ok)
+                }
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg bg-blue-600 px-4 font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
               >
                 {saving ? copy.saving : copy.accept}
