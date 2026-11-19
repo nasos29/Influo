@@ -21,7 +21,6 @@ import {
   logTikTokPlayerMessage,
   shouldFallbackToTikTokEmbed,
   shouldUnloadTikTokPlayer,
-  nextTikTokSilentRetryDelay,
   TIKTOK_PLAYER_READY_TIMEOUT_MS,
 } from "@/lib/tikTokPlayerErrors";
 
@@ -71,13 +70,13 @@ export const TIKTOK_SOUND_COPY = {
  * play first (muted=0 URL + unMute/play on ready). If the browser blocks it,
  * fall back to muted playback and the existing Tap-for-sound button.
  *
- * Temporary 3001/1004/2005/2001: silently remount player/v1 with
- * backoff (2s, then 5s), then fall back to embed/v2 with no error UI.
- * Do not send a second play() on a failing iframe. If player/v1 never
- * becomes ready, fall back after TIKTOK_PLAYER_READY_TIMEOUT_MS. No
- * pre-warm. 3002 stays muted with the play/sound prompt. 1001 is
- * reported as invalidVideo so the card can confirm via oEmbed before
- * any swap. Playback errors never hide or replace the post.
+ * Temporary 3001/1004/2005/2001, or a player/v1 ready-timeout: fall back
+ * to embed/v2 immediately (no 2s/5s remount). Do not send a second play()
+ * on a failing iframe. No pre-warm. 3002 stays muted with the play/sound
+ * prompt. 1001 is reported as invalidVideo so the card can confirm via
+ * oEmbed before any swap. Playback errors never hide or replace the post.
+ * When the iframe is already embed/v2, a further player error surfaces
+ * cover + Retry instead of looping.
  */
 export function useTikTokPlayerHost(
   enabled: boolean,
@@ -147,33 +146,16 @@ export function useTikTokPlayerHost(
 
   const scheduleSilentRetryOrFallback = useCallback(() => {
     if (fallbackToEmbedRef.current || playbackFailedRef.current) return;
-    if (limitRetryTimerRef.current) return;
-    const delay = nextTikTokSilentRetryDelay(silentRetryCountRef.current);
-    if (delay == null) {
-      markFallbackToEmbed();
+    const src = iframeRef.current?.getAttribute("src") || iframeRef.current?.src || "";
+    // Already on embed/v2: do not remount player/v1 or loop the fallback.
+    if (/tiktok\.com\/embed\/v2\//i.test(src)) {
+      logTikTokPlayerMessage("embedPlaybackFailed");
+      markPlaybackFailed();
       return;
     }
-    silentRetryCountRef.current += 1;
-    logTikTokPlayerMessage("silentRetryScheduled", {
-      attempt: silentRetryCountRef.current,
-      delayMs: delay,
-    });
-    clearReadyTimeout();
-    limitRetryTimerRef.current = setTimeout(() => {
-      limitRetryTimerRef.current = null;
-      if (!enabledRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) {
-        return;
-      }
-      // Remount player/v1. Do not send play() again on the failing iframe.
-      playerReadyRef.current = false;
-      iframeLoadedRef.current = false;
-      triedUnmuteRef.current = false;
-      unmutedRef.current = false;
-      setShowSoundPrompt(false);
-      logTikTokPlayerMessage("silentRetry", silentRetryCountRef.current);
-      setPlayerReloadNonce((n) => n + 1);
-    }, delay);
-  }, [clearReadyTimeout, markFallbackToEmbed]);
+    logTikTokPlayerMessage("immediateEmbedFallback");
+    markFallbackToEmbed();
+  }, [iframeRef, markFallbackToEmbed, markPlaybackFailed]);
 
   const playerReadyRef = useRef(false);
 
@@ -231,6 +213,12 @@ export function useTikTokPlayerHost(
       if (playerReadyRef.current || fallbackToEmbedRef.current || playbackFailedRef.current) {
         return;
       }
+      // embed/v2 may not emit onPlayerReady; still try unmute/play for sound.
+      if (/tiktok\.com\/embed\/v2\//i.test(src)) {
+        playerReadyRef.current = true;
+        if (!triedUnmuteRef.current) tryUnmuteAndPlay();
+        return;
+      }
       clearReadyTimeout();
       readyTimeoutRef.current = setTimeout(() => {
         if (playerReadyRef.current || playbackFailedRef.current || fallbackToEmbedRef.current) {
@@ -240,7 +228,7 @@ export function useTikTokPlayerHost(
         markFallbackToEmbed();
       }, TIKTOK_PLAYER_READY_TIMEOUT_MS);
     }
-  }, [clearReadyTimeout, iframeRef, markFallbackToEmbed]);
+  }, [clearReadyTimeout, iframeRef, markFallbackToEmbed, tryUnmuteAndPlay]);
 
   useLayoutEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -277,7 +265,7 @@ export function useTikTokPlayerHost(
           clearReadyTimeout();
           return;
         }
-        // Temporary 3001/1004/2005/2001: backoff remount, then embed/v2.
+        // Temporary 3001/1004/2005/2001: fall back to embed/v2 immediately.
         if (shouldFallbackToTikTokEmbed(value, errorRetriedRef.current)) {
           scheduleSilentRetryOrFallback();
           return;
