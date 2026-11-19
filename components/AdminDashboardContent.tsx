@@ -1,6 +1,7 @@
 "use client";
 
-import { isAudienceNoAccess } from "@/lib/audience";
+import { audienceMissingKind, isAudienceNoAccess, type DemographicsListFilter } from "@/lib/audience";
+import AudienceMissingBadge from "@/components/AudienceMissingBadge";
 import { DataQualityBadge, DataQualityList, DataQualityNotes, type DataQualityMap } from "@/components/admin/DataQualityPanel";
 import { creatorDataQualityFlags } from "@/lib/creatorDataQuality";
 import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
@@ -2237,6 +2238,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
+  const [demographicsFilter, setDemographicsFilter] = useState<DemographicsListFilter>("all");
   const [reasonFilter, setReasonFilter] = useState<string>("all");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [influencersPage, setInfluencersPage] = useState(1);
@@ -3153,11 +3155,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     silent?: boolean;
     q?: string;
     status?: "all" | "verified" | "pending";
+    demographics?: DemographicsListFilter;
   }) => {
     const page = opts.page;
     const append = !!opts.append;
     const q = opts.q ?? debouncedSearch;
     const status = opts.status ?? statusFilter;
+    const demographics = opts.demographics ?? demographicsFilter;
     if (append) setInfluencersLoadingMore(true);
     else if (!opts.silent) setInfluencersLoading(true);
     if (!opts.silent) setInfluencersError(null);
@@ -3170,6 +3174,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         order: "desc",
       });
       if (q.trim()) params.set("q", q.trim());
+      if (demographics !== "all") params.set("demographics", demographics);
       const res = await withTimeout(
         fetch(`/api/admin/influencers?${params}`, {
           headers: await adminAuthHeaders(),
@@ -3384,7 +3389,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       window.clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, statusFilter, influencersPage]);
+  }, [debouncedSearch, statusFilter, demographicsFilter, influencersPage]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -3398,9 +3403,9 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       return;
     }
     setSelectedUsers([]);
-    void fetchInfluencersPage({ page: 1, q: debouncedSearch, status: statusFilter });
+    void fetchInfluencersPage({ page: 1, q: debouncedSearch, status: statusFilter, demographics: demographicsFilter });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, statusFilter]);
+  }, [debouncedSearch, statusFilter, demographicsFilter]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setBrandSearchDebounced(brandSearchQuery), 300);
@@ -4455,6 +4460,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           order: "desc",
         });
         if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
+        if (demographicsFilter !== "all") params.set("demographics", demographicsFilter);
         const res = await fetch(`/api/admin/influencers?${params}`, {
           headers: await adminAuthHeaders(),
         });
@@ -4977,8 +4983,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             <>
               {/* Search & Filters (server-side) */}
               <div className="p-4 border-b border-slate-200 flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                  <div className="flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:items-center min-w-0">
+                  <div className="flex-1 min-w-0 sm:min-w-[16rem]">
                     <input
                       type="text"
                       placeholder={lang === "el" ? "Αναζήτηση ονόματος, email ή username…" : "Search name, email, or username…"}
@@ -4995,6 +5001,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     <option value="all">{txt.filter}: {lang === "el" ? "Όλοι" : "All"}</option>
                     <option value="verified">{lang === "el" ? "Εγκεκριμένοι" : "Approved"}</option>
                     <option value="pending">{lang === "el" ? "Εκκρεμείς" : "Pending"}</option>
+                  </select>
+                  <select
+                    value={demographicsFilter}
+                    onChange={(e) => setDemographicsFilter(e.target.value as DemographicsListFilter)}
+                    aria-label={lang === "el" ? "Φίλτρο δημογραφικών" : "Demographics filter"}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 shrink-0 max-w-full"
+                  >
+                    <option value="all">{lang === "el" ? "Δημογραφικά: όλα" : "Demographics: all"}</option>
+                    <option value="missing">{lang === "el" ? "Χωρίς δημογραφικά: όλα" : "No demographics: all"}</option>
+                    <option value="no_access">{lang === "el" ? "Χωρίς δημογραφικά (προσωπικός λογ.)" : "No demographics (personal acct.)"}</option>
+                    <option value="empty">{lang === "el" ? "Χωρίς δημογραφικά (κενά)" : "No demographics (empty)"}</option>
                   </select>
                   <select
                     value={reasonFilter}
@@ -5149,7 +5166,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                       <div className="flex items-start gap-3">
                         <input type="checkbox" checked={selectedUsers.includes(u.id)} onChange={() => toggleUserSelection(u.id)} className="mt-3 h-5 w-5 rounded border-slate-300" />
                         <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-slate-900">{u.display_name} <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} /></p>
+                          <p className="font-semibold text-slate-900 break-words">
+                            {u.display_name}{" "}
+                            <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} />
+                          </p>
+                          <div className="mt-1 flex flex-wrap gap-1 min-w-0">
+                            <AudienceMissingBadge kind={audienceMissingKind(u)} lang={lang} />
+                          </div>
                           <p className="text-sm text-slate-600 break-all">{u.contact_email || "—"}</p>
                           <p className="text-xs text-slate-400 mt-1">{formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}</p>
                           <p className="mt-2 text-xs text-slate-600">{u.approved ? txt.approved : { el: "Μη εγκεκριμένος", en: "Not approved" }[lang]}</p>
@@ -5165,8 +5188,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     </article>
                   ))}
                 </div>
-                <div className="hidden md:block overflow-x-auto min-w-0 w-full">
-                <table className="w-full table-fixed">
+                <div className="hidden md:block overflow-x-auto min-w-0 w-full max-w-full">
+                <table className="w-full max-w-full table-fixed">
                   <colgroup>
                     <col className="w-[3%]" />
                     <col className="w-[24%]" />
@@ -5227,7 +5250,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="w-10 h-10 shrink-0 rounded-full overflow-hidden bg-slate-200 flex items-center justify-center text-slate-400 text-xs">{lang === "el" ? "Χωρίς φωτό" : "No Photo"}</div>
                               )}
                               <div className="min-w-0 max-w-full">
-                                <div className="font-medium text-slate-900 break-words">{u.display_name} <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} /></div>
+                                <div className="font-medium text-slate-900 break-words min-w-0">
+                                  <span className="break-words">{u.display_name}</span>{" "}
+                                  <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} />
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1 min-w-0 max-w-full">
+                                  <AudienceMissingBadge kind={audienceMissingKind(u)} lang={lang} />
+                                </div>
                                 {u.created_at && (
                                   <div
                                     className="text-[10px] text-slate-400 mt-0.5 tabular-nums"

@@ -10,6 +10,9 @@ import {
   isValidAgeRange,
   parseGenderPercent,
   validateAudienceInput,
+  audienceMissingKind,
+  matchesDemographicsListFilter,
+  parseDemographicsListFilter,
 } from "../lib/audience.ts";
 
 test("isValidAgeRange accepts NN-NN variants with 13≤from<to≤80", () => {
@@ -133,4 +136,30 @@ test("displayAudienceTopAge keeps entered age groups", () => {
   assert.equal(displayAudienceTopAge("18-24"), "18-24");
   assert.equal(displayAudienceTopAge(" 35-44 "), "35-44");
   assert.equal(displayAudienceTopAge("45+"), "45+");
+});
+
+test("audienceMissingKind distinguishes personal-account opt-out from empty data", () => {
+  assert.equal(
+    audienceMissingKind({ audience_top_age: "18-24", audience_male_percent: 40, audience_female_percent: 60 }),
+    null
+  );
+  assert.equal(audienceMissingKind({ audience_top_age: AUDIENCE_NO_ACCESS }), "no_access");
+  assert.equal(audienceMissingKind({ audience_top_age: null, audience_male_percent: null, audience_female_percent: null }), "empty");
+  assert.equal(audienceMissingKind({ audience_top_age: "18-24", audience_male_percent: 0, audience_female_percent: 0 }), "empty");
+});
+
+test("matchesDemographicsListFilter supports all / missing / no_access / empty", () => {
+  assert.equal(parseDemographicsListFilter("NO_ACCESS"), "no_access");
+  assert.equal(parseDemographicsListFilter("foo"), "all");
+  const complete = { audience_top_age: "18-24", audience_male_percent: 50, audience_female_percent: 50 };
+  const optOut = { audience_top_age: AUDIENCE_NO_ACCESS };
+  const empty = { audience_top_age: null };
+  assert.equal(matchesDemographicsListFilter(complete, "all"), true);
+  assert.equal(matchesDemographicsListFilter(complete, "missing"), false);
+  assert.equal(matchesDemographicsListFilter(optOut, "missing"), true);
+  assert.equal(matchesDemographicsListFilter(optOut, "no_access"), true);
+  assert.equal(matchesDemographicsListFilter(optOut, "empty"), false);
+  assert.equal(matchesDemographicsListFilter(empty, "empty"), true);
+  assert.equal(matchesDemographicsListFilter(empty, "no_access"), false);
+  assert.equal(matchesDemographicsListFilter(empty, "missing"), true);
 });

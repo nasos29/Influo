@@ -179,3 +179,31 @@ export function validateAudienceInput(
     },
   };
 }
+
+export type AudienceMissingKind = "no_access" | "empty";
+
+/** Why a creator is missing usable audience demographics, or null when complete. */
+export function audienceMissingKind(row: AudienceRow | null | undefined): AudienceMissingKind | null {
+  if (!row) return "empty";
+  if (isAudienceNoAccess(row.audience_top_age)) return "no_access";
+  if (hasAudienceDemographics(row)) return null;
+  return "empty";
+}
+
+export type DemographicsListFilter = "all" | "missing" | "no_access" | "empty";
+
+export function parseDemographicsListFilter(raw: string | null | undefined): DemographicsListFilter {
+  const v = String(raw || "all").trim().toLowerCase();
+  if (v === "missing" || v === "no_access" || v === "empty") return v;
+  return "all";
+}
+
+export function matchesDemographicsListFilter(
+  row: AudienceRow | null | undefined,
+  filter: DemographicsListFilter
+): boolean {
+  if (filter === "all") return true;
+  const kind = audienceMissingKind(row);
+  if (filter === "missing") return kind !== null;
+  return kind === filter;
+}

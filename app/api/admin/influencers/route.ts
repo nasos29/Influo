@@ -4,6 +4,10 @@ import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import { sevenDaysAgoIso } from "@/lib/adminPaging";
 import { parseFollowerString } from "@/lib/parseFollowers";
 import { findApprovedDuplicateIds } from "@/lib/socialAccountIdentity";
+import {
+  matchesDemographicsListFilter,
+  parseDemographicsListFilter,
+} from "@/lib/audience";
 
 /** Columns needed by the admin influencers table / row actions (not full profile). */
 const LIST_COLUMNS = [
@@ -23,6 +27,9 @@ const LIST_COLUMNS = [
   "hidden_videos",
   "manual_unapproved_at",
   "manual_unapproved_by",
+  "audience_top_age",
+  "audience_male_percent",
+  "audience_female_percent",
 ].join(",");
 
 const LIST_COLUMNS_WITHOUT_LOCK = [
@@ -40,6 +47,9 @@ const LIST_COLUMNS_WITHOUT_LOCK = [
   "auth_user_id",
   "min_rate",
   "hidden_videos",
+  "audience_top_age",
+  "audience_male_percent",
+  "audience_female_percent",
 ].join(",");
 
 const PICKER_COLUMNS = [
@@ -135,13 +145,17 @@ export async function GET(request: NextRequest) {
     const sort = (url.searchParams.get("sort") || "created_at").toLowerCase();
     const orderAsc = (url.searchParams.get("order") || "desc").toLowerCase() === "asc";
     const sortColumn = sort === "display_name" ? "display_name" : "created_at";
+    const demographics = parseDemographicsListFilter(url.searchParams.get("demographics"));
 
-    const buildListQuery = (columns: string) => {
-      let qy = admin
-        .from("influencers")
-        .select(columns, { count: "exact" })
-        .order(sortColumn, { ascending: orderAsc })
-        .range((page - 1) * pageSize, page * pageSize - 1);
+    const buildListQuery = (columns: string, opts?: { range?: boolean; count?: boolean }) => {
+      const withCount = opts?.count !== false;
+      let qy = withCount
+        ? admin.from("influencers").select(columns, { count: "exact" })
+        : admin.from("influencers").select(columns);
+      qy = qy.order(sortColumn, { ascending: orderAsc });
+      if (opts?.range !== false) {
+        qy = qy.range((page - 1) * pageSize, page * pageSize - 1);
+      }
       qy = applyStatusFilter(qy, status);
       if (q) {
         const pattern = `%${escapeIlike(q)}%`;
@@ -169,13 +183,72 @@ export async function GET(request: NextRequest) {
           );
     };
 
-    let built = buildListQuery(LIST_COLUMNS);
-    let listQuery = applySearch(built.qy, built.pattern);
-    let { data, error, count } = await listQuery;
+    const DEMOGRAPHICS_SCAN_PAGE = 1000;
+
+    async function loadListPage(columns: string): Promise<{
+      data: unknown[] | null;
+      error: { message: string } | null;
+      count: number | null;
+    }> {
+      if (demographics === "all") {
+        const built = buildListQuery(columns);
+        const listQuery = applySearch(built.qy, built.pattern);
+        const result = await listQuery;
+        return { data: result.data, error: result.error, count: result.count };
+      }
+
+      const demoCols = "id, created_at, display_name, audience_top_age, audience_male_percent, audience_female_percent";
+      const matchedIds: string[] = [];
+      for (let from = 0; ; from += DEMOGRAPHICS_SCAN_PAGE) {
+        let scan = admin
+          .from("influencers")
+          .select(demoCols)
+          .order(sortColumn, { ascending: orderAsc })
+          .range(from, from + DEMOGRAPHICS_SCAN_PAGE - 1);
+        scan = applyStatusFilter(scan, status);
+        const builtPattern = q ? `%${escapeIlike(q)}%` : null;
+        scan = applySearch(scan, builtPattern);
+        const scanned = await scan;
+        if (scanned.error) {
+          return { data: null, error: scanned.error, count: null };
+        }
+        const rows = (scanned.data || []) as Array<{
+          id: string | number;
+          audience_top_age?: string | null;
+          audience_male_percent?: number | null;
+          audience_female_percent?: number | null;
+        }>;
+        for (const row of rows) {
+          if (matchesDemographicsListFilter(row, demographics)) {
+            matchedIds.push(String(row.id));
+          }
+        }
+        if (rows.length < DEMOGRAPHICS_SCAN_PAGE) break;
+      }
+
+      const totalMatched = matchedIds.length;
+      const pageIds = matchedIds.slice((page - 1) * pageSize, page * pageSize);
+      if (pageIds.length === 0) {
+        return { data: [], error: null, count: totalMatched };
+      }
+
+      const built = buildListQuery(columns, { range: false });
+      let listQuery = applySearch(built.qy, built.pattern);
+      listQuery = listQuery.in("id", pageIds);
+      const result = await listQuery;
+      if (result.error) {
+        return { data: null, error: result.error, count: null };
+      }
+      const byId = new Map(
+        ((result.data || []) as Array<Record<string, unknown>>).map((row) => [String(row.id ?? ""), row])
+      );
+      const ordered = pageIds.map((id) => byId.get(id)).filter((row): row is Record<string, unknown> => !!row);
+      return { data: ordered, error: null, count: totalMatched };
+    }
+
+    let { data, error, count } = await loadListPage(LIST_COLUMNS);
     if (error && /column|manual_unapproved/i.test(error.message)) {
-      built = buildListQuery(LIST_COLUMNS_WITHOUT_LOCK);
-      listQuery = applySearch(built.qy, built.pattern);
-      ({ data, error, count } = await listQuery);
+      ({ data, error, count } = await loadListPage(LIST_COLUMNS_WITHOUT_LOCK));
     }
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
