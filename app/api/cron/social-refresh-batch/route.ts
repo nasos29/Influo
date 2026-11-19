@@ -26,6 +26,7 @@ import {
   purgeOldSocialRefreshLogs,
   socialAccountsFromRow,
 } from '@/lib/socialRefreshLogs';
+import { handleMissingAccountNoticesForAccounts } from '@/lib/missingAccountEmail';
 
 export const maxDuration = 60;
 
@@ -302,6 +303,10 @@ export async function POST(request: NextRequest) {
         });
         return NextResponse.json({ ok: false, aborted: true, session_dead: true, message });
       }
+
+      await handleMissingAccountNoticesForAccounts(supabaseAdmin, influencerId, influencerName, accounts).catch(
+        (err) => console.warn('[social-refresh-batch] missing account mail', err instanceof Error ? err.message : err)
+      );
 
       const profileErrors = accounts.filter((a) => !a.ok);
       if (profileErrors.length) {

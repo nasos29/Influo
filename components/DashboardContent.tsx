@@ -40,6 +40,7 @@ import { logoutEverywhere } from '@/lib/authSession';
 import { formatStoredCategories, parseStoredCategories } from '@/lib/categories';
 import CategoryCheckboxList from '@/components/CategoryCheckboxList';
 import SkillsPicker from '@/components/SkillsPicker';
+import { isLowRiskOnlyProfileChange } from '@/lib/profileChangeDiff';
 import { sanitizeSkills, type SkillKey } from '@/lib/skills';
 import {
     hasAudienceRequirement,
@@ -715,11 +716,16 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 }
             }
 
+            const lowRiskOnly = isLowRiskOnlyProfileChange(changedFields);
             // Update the profile
             const updateData = {
                 ...newValues,
-                approved: false, // Reset approval status
-                analytics_verified: false, // Reset analytics verification
+                ...(lowRiskOnly
+                    ? {}
+                    : {
+                        approved: false,
+                        analytics_verified: false,
+                    }),
             };
 
             let data: InfluencerData | null = null;
@@ -852,8 +858,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 ...user,
                 ...(data as InfluencerData),
                 ...newValues,
-                approved: false,
-                analytics_verified: false,
+                ...(lowRiskOnly
+                    ? {}
+                    : {
+                        approved: false,
+                        analytics_verified: false,
+                    }),
                 contact_email: user.contact_email,
                 min_rate: syncedMinRate || user.min_rate,
                 birth_date: newValues.birth_date,
@@ -862,7 +872,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 service_packages: priceBody?.service_packages ?? packagesPayload,
                 insights_urls: user.insights_urls,
             });
-            notify(L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again."), 'success');
+            notify(
+                lowRiskOnly
+                    ? L("Οι δεξιότητές σου ενημερώθηκαν.", "Your skills were updated.")
+                    : L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again."),
+                'success'
+            );
             onClose();
         } catch (err: any) {
             setLoading(false);

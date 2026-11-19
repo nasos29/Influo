@@ -1204,10 +1204,8 @@ const EditProfileModal = ({
                 console.log('[Profile Changes] API Response:', data);
                 
                 if (data.success) {
-                    // Hide entries that contain only technical noise (nothing a person would review).
                     const changes = (data.data || []).filter(
-                        (c: { changed_fields?: string[] | null; old_values?: Record<string, unknown> | null; new_values?: Record<string, unknown> | null }) =>
-                            diffProfileChange(c.changed_fields, c.old_values, c.new_values).length > 0
+                        (c: { changed_fields?: string[] | null }) => Array.isArray(c.changed_fields) && c.changed_fields.length > 0
                     );
                     setProfileChanges(changes);
                     console.log('[Profile Changes] ✅ Found', changes.length, 'unreviewed changes');
@@ -1610,30 +1608,26 @@ const EditProfileModal = ({
                                     return (
                                         <div key={change.id} className="rounded-lg border border-amber-200 bg-white p-3">
                                             <div className="text-xs text-slate-500 mb-2">{formatDisplayDateTime(change.created_at)}</div>
-                                            {diffs.length === 0 ? (
-                                                <p className="text-xs text-slate-500">Καμία ουσιαστική αλλαγή.</p>
-                                            ) : (
-                                                <ul className="space-y-2">
-                                                    {diffs.map((d) => (
-                                                        <li key={d.field}>
-                                                            <div className="text-xs font-semibold text-slate-900">{d.label}</div>
-                                                            <ul className="mt-0.5 space-y-0.5">
-                                                                {d.lines.map((l, i) => (
-                                                                    <li key={i} className="text-xs text-slate-700 break-words">
-                                                                        {l.label !== d.label && <span className="text-slate-500">{l.label}: </span>}
-                                                                        {l.from && <span className="text-red-700 line-through decoration-red-300">{l.from}</span>}
-                                                                        {l.from && l.to && <span className="text-slate-400"> → </span>}
-                                                                        {l.to && <span className="text-emerald-700 font-medium">{l.to}</span>}
-                                                                    </li>
-                                                                ))}
-                                                            </ul>
-                                                            {d.notes.map((n, i) => (
-                                                                <p key={i} className="mt-1 text-[11px] text-amber-800">Σημείωση: {n}</p>
+                                            <ul className="space-y-2">
+                                                {diffs.map((d) => (
+                                                    <li key={d.field}>
+                                                        <div className="text-xs font-semibold text-slate-900">{d.label}</div>
+                                                        <ul className="mt-0.5 space-y-0.5">
+                                                            {d.lines.map((l, i) => (
+                                                                <li key={i} className="text-xs text-slate-700 break-words">
+                                                                    {l.label !== d.label && <span className="text-slate-500">{l.label}: </span>}
+                                                                    {l.from && <span className="text-red-700 line-through decoration-red-300">{l.from}</span>}
+                                                                    {l.from && l.to && <span className="text-slate-400"> → </span>}
+                                                                    {l.to && <span className="text-emerald-700 font-medium">{l.to}</span>}
+                                                                </li>
                                                             ))}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            )}
+                                                        </ul>
+                                                        {d.notes.map((n, i) => (
+                                                            <p key={i} className="mt-1 text-[11px] text-amber-800">Σημείωση: {n}</p>
+                                                        ))}
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         </div>
                                     );
                                 })}
