@@ -103,7 +103,7 @@ const t = {
     brand_showcase_cta_text:
       "Βρες τους κατάλληλους δημιουργούς για την επιχείρησή σου και αύξησε κι εσύ τις προβολές σου στα social. Η εγγραφή είναι δωρεάν.",
     brand_showcase_eyebrow: "Πραγματικές συνεργασίες στο Influo",
-    brand_showcase_title: "Θα μπορούσε να είναι η δική σου επιχείρηση!",
+    brand_showcase_title: "Θα μπορούσε να είναι η δική σου επιχείρηση\u00A0!",
     brand_showcase_subtitle:
       "Πραγματικές συνεργασίες του εστιατορίου Athos Athens με creators του Influo.",
     brand_feat_search_title: "Αναζήτηση",
@@ -119,7 +119,7 @@ const t = {
     brand_feat_ai_badge: "Περιλαμβάνεται",
     trusted_by: "ΤΗΝ ΕΜΠΙΣΤΕΥΟΝΤΑΙ CREATORS",
     top_influencers: "Top Influencers",
-    dir_title: "Κατάλογος Influencers",
+    dir_title: "Κατάλογος Δημιουργών",
     dir_desc: "Ανακάλυψε τους πιο δημιουργικούς content creators ανά κατηγορία και πλατφόρμα.",
     feat_1_title: "Analytics",
     feat_1_desc: "Δες τα στατιστικά σου να μεγαλώνουν.",
