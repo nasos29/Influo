@@ -1,5 +1,85 @@
 -- Portfolio URL allowlist (TikTok / Instagram / YouTube / self-hosted) and orphan portfolio media purge.
 
+CREATE OR REPLACE FUNCTION public.is_self_hosted_portfolio_url(u text)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+  t text;
+  base text;
+  rest text;
+BEGIN
+  t := btrim(COALESCE(u, ''));
+  IF t = '' THEN
+    RETURN false;
+  END IF;
+  IF t ~* '^https?://[^/]+/storage/v1/object/public/[^/]+/creators/[0-9a-f-]{36}/portfolio/' THEN
+    RETURN true;
+  END IF;
+  SELECT nullif(btrim(trim(both '"' FROM s.value::text)), '')
+    INTO base
+  FROM public.site_settings s
+  WHERE s.key = 'media_public_base_url'
+  LIMIT 1;
+  IF base IS NOT NULL AND base <> '' THEN
+    base := lower(regexp_replace(base, '/+$', ''));
+    IF length(t) > length(base) AND lower(left(t, length(base))) = base AND substring(t, length(base) + 1, 1) = '/' THEN
+      rest := substring(t FROM length(base) + 2);
+      IF rest ~* '^creators/[0-9a-f-]{36}/portfolio/' THEN
+        RETURN true;
+      END IF;
+    END IF;
+  END IF;
+  RETURN false;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.queue_portfolio_link_downloads()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  u text;
+  k text;
+BEGIN
+  IF NEW.videos IS NULL OR jsonb_typeof(NEW.videos) <> 'array' THEN
+    RETURN NEW;
+  END IF;
+
+  DELETE FROM public.creator_media_jobs j
+  WHERE j.influencer_id = NEW.id
+    AND NOT EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements_text(NEW.videos) AS v(url)
+      WHERE public.portfolio_link_source_key(v.url) = j.source_url_key
+    );
+
+  FOR u IN SELECT jsonb_array_elements_text(NEW.videos) LOOP
+    u := btrim(u);
+    IF u = '' THEN
+      CONTINUE;
+    END IF;
+    IF public.is_self_hosted_portfolio_url(u) OR public.is_portfolio_still_image_url(u) THEN
+      CONTINUE;
+    END IF;
+    IF u !~* '^https?://([a-z0-9-]+\.)*(tiktok\.com|instagram\.com|instagr\.am)/' THEN
+      CONTINUE;
+    END IF;
+    k := public.portfolio_link_source_key(u);
+    INSERT INTO public.creator_media_jobs (influencer_id, source_url, source_url_key)
+    VALUES (NEW.id, u, k)
+    ON CONFLICT (influencer_id, source_url_key) DO NOTHING;
+  END LOOP;
+  RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'queue_portfolio_link_downloads: %', SQLERRM;
+  RETURN NEW;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION public.portfolio_source_norm(u text)
 RETURNS text
 LANGUAGE plpgsql
@@ -102,11 +182,31 @@ BEGIN
     WHERE cm.influencer_id = NEW.id
       AND cm.kind = 'portfolio'
   LOOP
+    IF row_rec.source_video_id IS NOT NULL AND row_rec.source_video_id LIKE 'upload-%' THEN
+      IF EXISTS (
+        SELECT 1
+        FROM public.creator_media_uploads u
+        WHERE u.influencer_id = NEW.id
+          AND ('upload-' || u.id::text) = row_rec.source_video_id
+          AND u.status IN ('uploaded', 'processing')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements_text(NEW.videos) AS v(url)
+        WHERE btrim(v.url) <> ''
+          AND (
+            v.url ILIKE '%' || row_rec.folder_path || '%'
+            OR public.portfolio_source_norm(btrim(v.url)) = lower(row_rec.source_url_norm)
+          )
+      ) THEN
+        CONTINUE;
+      END IF;
+    END IF;
     IF EXISTS (
       SELECT 1
       FROM jsonb_array_elements_text(NEW.videos) AS v(url)
       WHERE btrim(v.url) <> ''
-        AND public.portfolio_source_norm(btrim(v.url)) = row_rec.source_url_norm
+        AND public.portfolio_source_norm(btrim(v.url)) = lower(row_rec.source_url_norm)
     ) THEN
       CONTINUE;
     END IF;
