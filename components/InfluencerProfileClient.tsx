@@ -664,7 +664,8 @@ export default function InfluencerProfile(props: {
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);
-  const profileNameRef = useRef<HTMLHeadingElement | null>(null);
+  const profileCardRef = useRef<HTMLDivElement | null>(null);
+  const profileAvatarRef = useRef<HTMLDivElement | null>(null);
   const profileStatsSectionRef = useRef<HTMLDivElement | null>(null);
   const profileInitialScrollDoneRef = useRef(false);
   const skipInitialProfileScrollRef = useRef(false);
@@ -716,7 +717,7 @@ export default function InfluencerProfile(props: {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  // MAG-5: land with creator name, stats band, and tab row in view (instant scroll; skip back/forward + hash).
+  // MAG-5: land with hero band, full card + avatar, stats band, and tab row in view (instant scroll; skip back/forward + hash).
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!profile || loading) return;
@@ -731,23 +732,23 @@ export default function InfluencerProfile(props: {
     if (skip) return;
 
     const apply = () => {
-      const nameEl = profileNameRef.current;
+      const cardEl = profileCardRef.current;
+      const avatarEl = profileAvatarRef.current;
       const statsEl = profileStatsSectionRef.current;
       const tabsEl = profileTabsNavRef.current;
-      if (!nameEl || !statsEl || !tabsEl) return;
+      if (!cardEl || !statsEl || !tabsEl) return;
 
+      const root = document.documentElement;
+      const rem = parseFloat(getComputedStyle(root).fontSize) || 16;
       const headerEl = document.querySelector<HTMLElement>(".site-header");
-      const headerOffset = headerEl
-        ? headerEl.getBoundingClientRect().height
-        : (() => {
-            const root = document.documentElement;
-            const rem = parseFloat(getComputedStyle(root).fontSize) || 16;
-            return 4.5 * rem;
-          })();
+      const headerOffset = headerEl ? headerEl.getBoundingClientRect().height : 4.5 * rem;
+      const heroBand = 4.5 * rem;
 
       const scrollY = window.scrollY || window.pageYOffset || 0;
-      const nameTop = scrollY + nameEl.getBoundingClientRect().top;
-      const targetY = Math.max(0, Math.round(nameTop - headerOffset));
+      const cardTop = scrollY + cardEl.getBoundingClientRect().top;
+      const avatarTop = avatarEl ? scrollY + avatarEl.getBoundingClientRect().top : cardTop;
+      const contentTop = Math.min(cardTop, avatarTop);
+      const targetY = Math.max(0, Math.round(contentTop - headerOffset - heroBand));
 
       window.scrollTo({ top: targetY, left: 0, behavior: "auto" });
     };
@@ -2335,10 +2336,10 @@ export default function InfluencerProfile(props: {
 
       {/* overflow-x-clip keeps the cover overlap in bounds without a scroll container, so the hire card can stick */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 relative -mt-24 z-10 min-w-0 overflow-x-clip">
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden min-w-0">
+        <div ref={profileCardRef} className="bg-white rounded-2xl shadow-xl overflow-hidden min-w-0">
           {/* Top Section: Avatar, Name, Info */}
           <div className="p-6 md:p-8 flex flex-col md:flex-row items-center md:items-start gap-6 border-b border-slate-100">
-            <div className="relative w-40 h-40 -mt-6 md:mb-0 flex-shrink-0">
+            <div ref={profileAvatarRef} className="relative w-40 h-40 -mt-6 md:mb-0 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => profile.avatar && setAvatarZoom(true)}
@@ -2363,10 +2364,7 @@ export default function InfluencerProfile(props: {
                 )}
             </div>
             <div className="flex-1 text-center md:text-left">
-                <h1
-                  ref={profileNameRef}
-                  className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2"
-                >
+                <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
                     {displayNameForLang(profile.name, lang)}
                 </h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
