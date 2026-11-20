@@ -13,15 +13,18 @@ export const CREATOR_VIDEOS_BUCKET = "creator-videos";
 
 export type CreatorMediaKind = "portfolio" | "top_post" | "collab";
 export type CreatorMediaPlatform = "instagram" | "tiktok" | "youtube";
+export type HostedMediaType = "video" | "photo" | "carousel";
 
 export type HostedMedia = {
   sourceUrl: string;
   kind: CreatorMediaKind;
   folderPath: string;
+  mediaType: HostedMediaType;
   playUrl: string;
   av1Url: string | null;
   hevcUrl: string | null;
   posterUrl: string | null;
+  carouselUrls: string[] | null;
   durationMs: number | null;
   width: number | null;
   height: number | null;
@@ -119,10 +122,28 @@ export function publicMediaUrl(path: string | null | undefined): string | null {
   return buildPublicMediaUrl(path);
 }
 
+function readMediaType(raw: unknown, playPath: string | null | undefined): HostedMediaType {
+  if (raw === "photo" || raw === "carousel" || raw === "video") return raw;
+  const p = String(playPath || "").toLowerCase();
+  if (p.endsWith("photo.webp")) return "photo";
+  if (p.includes("/carousel-")) return "carousel";
+  return "video";
+}
+
+function carouselUrlsFromMetadata(meta: unknown): string[] | null {
+  if (!meta || typeof meta !== "object") return null;
+  const urls = (meta as { carousel_urls?: unknown }).carousel_urls;
+  if (!Array.isArray(urls)) return null;
+  const out = urls.filter((u): u is string => typeof u === "string" && u.length > 0);
+  return out.length ? out : null;
+}
+
 export function mediaFromRow(row: {
   source_url: string;
   kind: string;
   folder_path: string;
+  media_type?: string | null;
+  metadata?: unknown;
   play_path?: string | null;
   av1_path?: string | null;
   hevc_path?: string | null;
@@ -133,14 +154,18 @@ export function mediaFromRow(row: {
 }): HostedMedia | null {
   const playUrl = publicMediaUrl(row.play_path);
   if (!playUrl) return null;
+  const mediaType = readMediaType(row.media_type, row.play_path);
+  const carouselUrls = carouselUrlsFromMetadata(row.metadata);
   return {
     sourceUrl: row.source_url,
     kind: row.kind as CreatorMediaKind,
     folderPath: row.folder_path,
+    mediaType,
     playUrl,
-    av1Url: publicMediaUrl(row.av1_path),
-    hevcUrl: publicMediaUrl(row.hevc_path),
+    av1Url: mediaType === "video" ? publicMediaUrl(row.av1_path) : null,
+    hevcUrl: mediaType === "video" ? publicMediaUrl(row.hevc_path) : null,
     posterUrl: publicMediaUrl(row.poster_path),
+    carouselUrls,
     durationMs: row.duration_ms ?? null,
     width: row.width ?? null,
     height: row.height ?? null,

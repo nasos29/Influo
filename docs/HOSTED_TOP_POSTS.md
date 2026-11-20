@@ -17,7 +17,7 @@ A post that is also in the portfolio still occupies one of these slots. The file
 
 ## Hosting vs embeds
 
-- **Instagram and TikTok** posts in the 3 slots are self-hosted (`creator-videos` bucket, `HostedVideoPlayer`).
+- **Instagram and TikTok** posts in the 3 slots are self-hosted (`creator-videos` bucket). Videos use `HostedVideoPlayer`; single photos and image carousels use `HostedPhotoPlayer` / `HostedMediaPlayer` (swipe + dots for carousels, no play chrome).
 - **YouTube** posts in the 3 slots stay official embeds. They are never downloaded.
 
 The same rule is used by `collectTopPosts` (profile), `collectTopPostsToHost` (which of those slots to download), and `scripts/host_creator_media.py`. When a selected top post is later dropped, the script removes that top-post folder only if no other row still points at it.
@@ -34,6 +34,10 @@ Sync design:
 - Ranking must use the stored views (else likes+comments) so a later refresh can replace a slot when a newer post outranks it.
 
 The profile UI calls `collectTopPosts` and prefers a hosted player when a matching `creator_media` row exists; otherwise it falls back to the official embed.
+
+Photo posts and carousels (Instagram `/p/`, TikTok `/photo/`) are included in the same hosting queues. The worker uses yt-dlp JSON metadata (`entries` / thumbnails) with the same cookies as video downloads, encodes slides to WebP (max 1440px, quality ~82), and stores `creator_media.media_type` as `photo` or `carousel` (`metadata.carousel_urls` for slide order). Mixed carousels that include a video slide are still handled as video.
+
+`scripts/host_creator_media.py` and `scripts/process_creator_media_jobs.py` accept `--retry-failed-photos` to list failed rows whose errors match prior no-video / TikTok 403 patterns; add `--execute` to re-host them (default is dry-run counts only).
 
 
 ## Storage backend

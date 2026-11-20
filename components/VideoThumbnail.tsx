@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import Image from "next/image";
 import { buildOfficialEmbedUrl, getVideoThumbnail, isVideoUrl } from "@/lib/videoThumbnail";
+import { hostedPortfolioPosterUrl } from "@/lib/hostedMediaRender";
 import { refreshVideoThumbnail } from "@/lib/useVideoThumbnail";
 import {
   isCdnThumbnailUrl,
@@ -201,6 +202,16 @@ export default function VideoThumbnail({
         if (!cancelled) {
           setThumbnail(url);
           setMediaType("image");
+          setLoading(false);
+        }
+        return;
+      }
+
+      const hostedPoster = hostedPortfolioPosterUrl(url);
+      if (hostedPoster) {
+        if (!cancelled) {
+          setThumbnail(hostedPoster);
+          setMediaType(hostedPoster.endsWith(".webp") ? "image" : "video");
           setLoading(false);
         }
         return;

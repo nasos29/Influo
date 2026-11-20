@@ -31,9 +31,10 @@ import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
 import type { PortfolioMediaKind } from "@/lib/usePortfolioMediaControls";
-import HostedVideoPlayer from "@/components/HostedVideoPlayer";
+import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import PlatformBrandIcon from "@/components/PlatformBrandIcon";
 import type { HostedMedia } from "@/lib/creatorMedia";
+import { hostedDisplayMode, isHostedPhotoMedia } from "@/lib/hostedMediaRender";
 
 type Provider = "instagram" | "tiktok" | "youtube";
 
@@ -443,7 +444,10 @@ export default function SocialEmbedCard({
   }, [hostedMedia?.playUrl, iframeSrc, originalUrl, mediaIframeRef, releaseTikTokPlayer, tikTokFallbackToEmbed, tikTokIframeRef]);
 
   // /p/ posts: never show ▶ unless meta confirms video. TikTok photos use album icon.
+  const hostedMode = hostedMedia?.playUrl ? hostedDisplayMode(hostedMedia) : null;
   const showPlayButton =
+  hostedMode !== "photo" &&
+  hostedMode !== "carousel" &&
     !isStaticImage &&
     !isInteractiveCarousel &&
     !isTikTokPhoto &&
@@ -607,7 +611,11 @@ export default function SocialEmbedCard({
     setIframeSrc(null);
     setNativeVideoUrl(null);
     setLoading(false);
-  }, [hostedMedia?.playUrl, mediaIframeRef, tikTokIframeRef]);
+    if (isHostedPhotoMedia(hostedMedia)) {
+      setActivated(true);
+      setError(false);
+    }
+  }, [hostedMedia, mediaIframeRef, tikTokIframeRef]);
 
   const activateClickToLoad = useCallback(async () => {
     if (
@@ -846,8 +854,10 @@ export default function SocialEmbedCard({
                 </div>
               ) : null}
 
-              {hostedMedia?.playUrl && activated && showPlayButton ? (
-                <HostedVideoPlayer
+              {hostedMedia?.playUrl &&
+              activated &&
+              (showPlayButton || isHostedPhotoMedia(hostedMedia)) ? (
+                <HostedMediaPlayer
                   media={hostedMedia}
                   lang={uiLang}
                   posterFallback={coverSrc}

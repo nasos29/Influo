@@ -297,6 +297,8 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
                     "platform": None,
                     "source_video_id": f"upload-{upload_id}",
                     "folder_path": folder,
+                    "media_type": "video",
+                    "metadata": {},
                     "play_path": stored["play_path"],
                     "av1_path": stored.get("av1_path"),
                     "hevc_path": stored.get("hevc_path"),
@@ -448,6 +450,12 @@ def main() -> int:
     parser.add_argument("--cookies", default=os.environ.get("YTDLP_COOKIES") or "")
     parser.add_argument("--uploads-only", action="store_true")
     parser.add_argument("--links-only", action="store_true")
+    parser.add_argument(
+        "--retry-failed-photos",
+        action="store_true",
+        help="Count/retry creator_media failures from photo/no-video or TikTok 403 (dry-run unless --execute)",
+    )
+    parser.add_argument("--execute", action="store_true", help="With --retry-failed-photos, run hosting retries")
     args = parser.parse_args()
 
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
@@ -471,6 +479,14 @@ def main() -> int:
     work_root = Path(os.environ.get("WORKDIR") or tempfile.mkdtemp(prefix="media-worker-"))
     work_root.mkdir(parents=True, exist_ok=True)
 
+    if args.retry_failed_photos:
+        hcm.retry_failed_photo_hosts(
+            sb,
+            Path(args.cookies) if args.cookies else None,
+            execute=args.execute,
+            store=store,
+        )
+        return 0
     if not args.links_only:
         requeue_stale(sb)
         for row in sb.rest_get("creator_media_uploads", "select=*&status=eq.uploaded&order=created_at.asc"):
