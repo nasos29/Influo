@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 export type NextStepItem = {
   id: string;
@@ -21,7 +21,6 @@ export default function NextStepsChecklist({
   setupSteps: NextStepItem[];
   alerts?: NextStepItem[];
 }) {
-  const [openHow, setOpenHow] = useState<string | null>(null);
   const total = setupSteps.length;
   const doneCount = setupSteps.filter((step) => step.done).length;
   const remaining = setupSteps.filter((step) => !step.done);
@@ -94,51 +93,20 @@ export default function NextStepsChecklist({
         </p>
       ) : remaining.length > 0 ? (
         <ul className="mt-4 divide-y divide-slate-100">
-          {remaining.map((step) => {
-            const howOpen = openHow === step.id;
-            return (
-              <li key={step.id} className="py-3 first:pt-1 last:pb-0">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-900">{step.title}</p>
-                    {step.why ? (
-                      <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{step.why}</p>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={step.onAction}
-                    className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
-                  >
-                    {step.cta}
-                  </button>
-                </div>
-                {step.how ? (
-                  <div className="mt-2">
-                    <button
-                      type="button"
-                      aria-expanded={howOpen}
-                      onClick={() => setOpenHow(howOpen ? null : step.id)}
-                      className="min-h-9 text-xs font-medium text-slate-600 hover:text-slate-900"
-                    >
-                      {howOpen
-                        ? lang === "el"
-                          ? "Απόκρυψη «Πώς;»"
-                          : "Hide “How?”"
-                        : lang === "el"
-                          ? "Πώς;"
-                          : "How?"}
-                    </button>
-                    {howOpen ? (
-                      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600">
-                        {step.how}
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
+          {remaining.map((step) => (
+            <li key={step.id} className="py-3 first:pt-1 last:pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 text-sm font-medium text-slate-900">{step.title}</p>
+                <button
+                  type="button"
+                  onClick={step.onAction}
+                  className="shrink-0 min-h-11 px-3 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg"
+                >
+                  {step.cta}
+                </button>
+              </div>
+            </li>
+          ))}
         </ul>
       ) : allSetupDone && alerts.length > 0 ? (
         <p className="mt-3 text-sm text-slate-600">
