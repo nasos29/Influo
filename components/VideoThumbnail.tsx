@@ -211,7 +211,10 @@ export default function VideoThumbnail({
       if (hostedPoster) {
         if (!cancelled) {
           setThumbnail(hostedPoster);
-          setMediaType(hostedPoster.endsWith(".webp") ? "image" : "video");
+          const hostedPhotoThumb =
+            /\/photo\.webp(\?|#|$)/i.test(url) ||
+            /\/carousel-\d+\.webp(\?|#|$)/i.test(url);
+          setMediaType(hostedPhotoThumb ? "image" : "video");
           setLoading(false);
         }
         return;

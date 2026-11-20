@@ -325,6 +325,9 @@ RETRY_FAILED_PHOTO_MARKERS = (
     "no video stream",
     "still image",
     "unsupported download",
+    "no video formats found",
+    "there is no video in this post",
+    "no video in this post",
     "403",
     "http error 403",
     "ip address",
@@ -348,16 +351,17 @@ def probe_is_video(probe: dict[str, Any]) -> bool:
 
 def _ytdlp_base_cmds(url: str, platform: str | None, cookies: Path | None) -> list[list[str]]:
     ytdlp = shutil.which("yt-dlp") or which_or_die("yt-dlp")
+    probe_flags = ["--dump-single-json", "--skip-download", "--ignore-no-formats-error"]
     base: list[list[str]] = [
-        [ytdlp, "--no-playlist", "--dump-single-json", "--skip-download", url],
+        [ytdlp, "--no-playlist", *probe_flags, url],
     ]
     if platform == "tiktok":
         base = [
-            [ytdlp, "--no-playlist", "--impersonate", "safari", "--dump-single-json", "--skip-download", url],
-            [ytdlp, "--no-playlist", "--impersonate", "chrome", "--dump-single-json", "--skip-download", url],
+            [ytdlp, "--no-playlist", "--impersonate", "safari", *probe_flags, url],
+            [ytdlp, "--no-playlist", "--impersonate", "chrome", *probe_flags, url],
         ] + base
     if cookies and cookies.is_file():
-        base.insert(0, [ytdlp, "--no-playlist", "--cookies", str(cookies), "--dump-single-json", "--skip-download", url])
+        base.insert(0, [ytdlp, "--no-playlist", "--cookies", str(cookies), *probe_flags, url])
     return base
 
 
@@ -365,14 +369,15 @@ def ytdlp_probe_info(url: str, platform: str | None, cookies: Path | None) -> di
     last_err = "metadata download failed"
     for cmd in _ytdlp_base_cmds(url, platform, cookies):
         proc = run(cmd, timeout=120)
-        if proc.returncode != 0 or not (proc.stdout or "").strip():
-            last_err = (proc.stderr or proc.stdout or last_err).strip().splitlines()
-            last_err = last_err[-1] if last_err else "metadata download failed"
-            continue
-        try:
-            return json.loads(proc.stdout)
-        except json.JSONDecodeError as e:
-            last_err = str(e)
+        stdout = (proc.stdout or "").strip()
+        if stdout:
+            try:
+                return json.loads(stdout)
+            except json.JSONDecodeError as e:
+                last_err = str(e)
+                continue
+        last_err = (proc.stderr or proc.stdout or last_err).strip().splitlines()
+        last_err = last_err[-1] if last_err else "metadata download failed"
     raise RuntimeError(last_err)
 
 
@@ -389,10 +394,37 @@ def _entry_is_video(entry: dict[str, Any]) -> bool:
     return False
 
 
+def _is_social_post_page_url(url: str) -> bool:
+    p = urllib.parse.urlparse(url)
+    host = (p.hostname or "").lower()
+    if not host:
+        return False
+    if host.endswith("cdninstagram.com") or "fbcdn.net" in host:
+        return False
+    if "tiktokcdn" in host or "tiktokv.com" in host:
+        return False
+    if host == "instagr.am" or host == "instagram.com" or host.endswith(".instagram.com"):
+        return True
+    if "tiktok.com" in host or host.endswith(".tiktok.com"):
+        return True
+    if "vm.tiktok" in url.lower():
+        return True
+    return False
+
+
+def _is_direct_media_url(url: str) -> bool:
+    if not url.startswith("http"):
+        return False
+    return not _is_social_post_page_url(url)
+
+
 def _best_url_from_entry(entry: dict[str, Any]) -> str | None:
-    for key in ("url", "webpage_url", "thumbnail", "display_url"):
+    raw_url = entry.get("url")
+    if isinstance(raw_url, str) and _is_direct_media_url(raw_url):
+        return raw_url
+    for key in ("thumbnail", "display_url"):
         raw = entry.get(key)
-        if isinstance(raw, str) and raw.startswith("http"):
+        if isinstance(raw, str) and raw.startswith("http") and _is_direct_media_url(raw):
             return raw
     thumbs = entry.get("thumbnails") or []
     best: tuple[int, str] | None = None
@@ -425,11 +457,8 @@ def _image_urls_from_info(info: dict[str, Any]) -> list[str]:
         return urls
     if _entry_is_video(info):
         return []
-    for key in ("url", "thumbnail", "display_url"):
-        raw = info.get(key)
-        if isinstance(raw, str) and raw.startswith("http"):
-            return [raw]
-    return [_best_url_from_entry(info)] if _best_url_from_entry(info) else []
+    u = _best_url_from_entry(info)
+    return [u] if u else []
 
 
 def classify_ytdlp_info(info: dict[str, Any]) -> tuple[str, list[str]]:
@@ -1551,22 +1580,23 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     log(f"  folder delete warning: {e}")
             sb.rest_delete("creator_media", f"id=eq.{row['id']}")
 
-    for row in current:
-        if row.get("kind") != "top_post":
-            continue
-        if row.get("source_url_norm") in wanted_top:
-            continue
-        folder = row.get("folder_path") or ""
-        still = [r for r in current if r.get("folder_path") == folder and not (r.get("kind") == "top_post" and r.get("id") == row.get("id"))]
-        if not still and folder:
-            log(f"  removing dropped top-post folder {folder}")
-            try:
-                paths = store.storage_list(folder.rstrip("/"))
-                if paths:
-                    store.storage_remove(paths)
-            except Exception as e:
-                log(f"  folder delete warning: {e}")
-        sb.rest_delete("creator_media", f"id=eq.{row['id']}")
+    if not only_url:
+        for row in current:
+            if row.get("kind") != "top_post":
+                continue
+            if row.get("source_url_norm") in wanted_top:
+                continue
+            folder = row.get("folder_path") or ""
+            still = [r for r in current if r.get("folder_path") == folder and not (r.get("kind") == "top_post" and r.get("id") == row.get("id"))]
+            if not still and folder:
+                log(f"  removing dropped top-post folder {folder}")
+                try:
+                    paths = store.storage_list(folder.rstrip("/"))
+                    if paths:
+                        store.storage_remove(paths)
+                except Exception as e:
+                    log(f"  folder delete warning: {e}")
+            sb.rest_delete("creator_media", f"id=eq.{row['id']}")
 
     log(f"Done: {json.dumps({k: summary[k] for k in ('ready', 'reused', 'skipped', 'failed')})}")
     return summary
