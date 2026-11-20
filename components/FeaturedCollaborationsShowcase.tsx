@@ -288,10 +288,12 @@ function HeroSeekBar({
   );
 }
 
+/** Hero/thumb height caps: fill ~1360px row at 1080p (≈40.5rem hero); thumbs ~88% of hero; column matches hero. */
 const HERO_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] h-[min(70vh,31rem)] w-auto max-w-full lg:h-[min(70vh,35rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] h-[min(70vh,31rem)] w-auto max-w-full lg:h-[min(70vh,40.5rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] w-28 sm:w-32 lg:h-[min(52vh,26rem)] lg:w-auto";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] w-28 sm:w-32 md:w-36 lg:h-[min(61.6vh,35.64rem)] lg:w-auto";
+const THUMBS_COLUMN_HEIGHT = "lg:h-[min(70vh,40.5rem)]";
 
 function ShowcaseBrandPill({
   brandName,
@@ -392,7 +394,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   }, []);
 
   return (
-    <div className="relative">
+    <div className="relative mx-auto w-full max-w-full lg:w-fit lg:max-w-[1360px]">
       <div className="relative overflow-visible rounded-2xl md:rounded-3xl">
         <div
           className="pointer-events-none absolute inset-0 z-0 rounded-2xl bg-[#F7F7F7] md:rounded-3xl"
@@ -412,7 +414,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           />
         </div>
         <div className="relative z-10 p-4 sm:p-5 md:p-6">
-        <div className="relative mx-auto flex w-full max-w-[1240px] flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
+        <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-5">
           <div className="relative flex justify-center">
             <div className={HERO_FRAME}>
               <video
@@ -456,11 +458,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex w-full max-w-full flex-col items-center gap-3 lg:h-[min(70vh,35rem)] lg:w-auto lg:max-w-none lg:shrink-0 lg:gap-0">
+            <div
+              className={`flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink-0 lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
+            >
               <div className="flex w-full justify-center lg:min-h-0 lg:flex-1 lg:items-center">
                 <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
               </div>
-              <div className="flex w-full max-w-full shrink-0 flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
+              <div className="flex w-full max-w-full shrink-0 flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-5">
               {thumbnails.map((card) => (
                 <div key={card.applicationId} className={THUMB_FRAME}>
                   <button
