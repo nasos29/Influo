@@ -638,19 +638,6 @@ export default function Home({
                   className="home-section-cv relative overflow-x-hidden overflow-y-visible py-20 px-6 bg-slate-50 border-y border-slate-100"
                   id="brands"
                 >
-                  <div
-                    className="hidden lg:block pointer-events-none select-none absolute z-0 right-[-14vw] top-[32%] w-[30vw] max-w-[480px] h-auto"
-                    aria-hidden
-                  >
-                    <Image
-                      src="/images/athos-food-falling.webp"
-                      alt=""
-                      width={900}
-                      height={1200}
-                      className="w-full h-auto"
-                      sizes="(min-width: 1024px) 30vw, 0px"
-                    />
-                  </div>
                   <div className="max-w-page mx-auto relative">
                     <div className="relative z-10 text-center mb-10 md:mb-12">
                       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
@@ -662,7 +649,7 @@ export default function Home({
                       </p>
                     </div>
                     {featuredCollaborations ? (
-                      <div className="relative z-10 mb-12 md:mb-14">
+                      <div className="relative mb-12 md:mb-14">
                         <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
                       </div>
                     ) : null}

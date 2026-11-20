@@ -393,7 +393,25 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
   return (
     <div className="relative">
-      <div className="relative rounded-2xl md:rounded-3xl bg-[#F7F7F7] p-4 sm:p-5 md:p-6 overflow-hidden">
+      <div className="relative overflow-visible rounded-2xl md:rounded-3xl">
+        <div
+          className="pointer-events-none absolute inset-0 z-0 rounded-2xl bg-[#F7F7F7] md:rounded-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute right-[-12vw] top-0 z-[5] hidden h-auto w-[40vw] max-w-[620px] select-none lg:block"
+          aria-hidden
+        >
+          <Image
+            src="/images/athos-food-falling.webp"
+            alt=""
+            width={900}
+            height={1200}
+            className="h-auto w-full"
+            sizes="(min-width: 1024px) 40vw, 0px"
+          />
+        </div>
+        <div className="relative z-10 p-4 sm:p-5 md:p-6">
         <div className="relative mx-auto flex w-full max-w-[1240px] flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
             <div className={HERO_FRAME}>
@@ -487,6 +505,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <p className="sr-only">
           {data.brandName} {txt.with} Influo creators
         </p>
+        </div>
       </div>
     </div>
   );
