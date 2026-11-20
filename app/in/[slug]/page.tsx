@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import InfluencerProfileClient from "@/components/InfluencerProfileClient";
-import InfluencerProfileSsrShell from "@/components/InfluencerProfileSsrShell";
-import InfluencerProfileSsrShellGate from "@/components/InfluencerProfileSsrShellGate";
 import { supabaseService } from "@/lib/apiAuth";
 import { loadSeoProfileById, loadSeoProfileBySlug, type SeoProfile } from "@/lib/loadSeoProfile";
 import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
@@ -74,9 +72,6 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
           dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsLd).replace(/</g, "\\u003c") }}
         />
       ) : null}
-      <InfluencerProfileSsrShellGate>
-        <InfluencerProfileSsrShell profile={resolved.profile.view} />
-      </InfluencerProfileSsrShellGate>
       <InfluencerProfileClient
         params={Promise.resolve({ id: resolved.profile.id })}
         initialProfile={resolved.profile.view}
