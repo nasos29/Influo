@@ -2,7 +2,7 @@ import { pageMetadata } from "@/lib/pageMetadata";
 import { categorySeoKeywords } from "@/lib/categories";
 
 export const metadata = pageMetadata({
-  title: "Κατάλογος Δημιουργών Ελλάδα: Instagram, TikTok, YouTube | Influo",
+  title: "Κατάλογος Δημιουργών – Influencers στην Ελλάδα | Influo",
   description: "Δες 300+ verified Έλληνες influencers σε Instagram, TikTok και YouTube. Φίλτρα ανά κατηγορία, πόλη, engagement και τιμή. Δωρεάν αναζήτηση.",
   path: "/directory",
   enPath: "/en/directory",
