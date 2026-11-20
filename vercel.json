@@ -48,6 +48,10 @@
     {
       "path": "/api/cron/showcase-optout-deadline",
       "schedule": "20 9 * * *"
+    },
+    {
+      "path": "/api/cron/chat-upload-cleanup",
+      "schedule": "0 * * * *"
     }
   ]
 }

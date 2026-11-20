@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { userFromBearer } from '@/lib/apiAuth';
 import { isChatParticipant, loadChatActor } from '@/lib/chatActor';
+import { parseChatUploadConversationId } from '@/lib/chatAttachmentUploadServer';
+import {
+  attachmentDisplayFilename,
+  attachmentStorageBasename,
+  chatAttachmentKind,
+  MAX_CHAT_FILE_BYTES,
+  validateChatAttachment,
+} from '@/lib/chatAttachmentUpload';
 import {
   convertImageBufferToWebp,
   isConvertibleRasterInput,
@@ -10,6 +18,9 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+/** Multipart overhead tolerance when checking Content-Length before parsing the body. */
+const MULTIPART_LENGTH_SLACK = 64 * 1024;
 
 async function optimizeImage(file: File): Promise<{ buffer: Buffer; contentType: string; extension: string }> {
   const input = Buffer.from(await file.arrayBuffer());
@@ -29,17 +40,44 @@ async function optimizeImage(file: File): Promise<{ buffer: Buffer; contentType:
   return { buffer: output.buffer, contentType: output.contentType, extension: output.extension };
 }
 
+function extensionForKind(kind: ReturnType<typeof chatAttachmentKind>, fileName: string, fallback: string): string {
+  if (kind === 'video') {
+    const ext = (fileName.split('.').pop() || 'mp4').toLowerCase();
+    if (['mp4', 'mov', 'webm', 'm4v', '3gp'].includes(ext)) return ext;
+    return fallback;
+  }
+  return fallback;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const contentLength = Number(req.headers.get('content-length') || NaN);
+    if (!Number.isFinite(contentLength)) {
+      return NextResponse.json(
+        { success: false, error: 'Content-Length required', code: 'length' },
+        { status: 411 }
+      );
+    }
+    if (contentLength > MAX_CHAT_FILE_BYTES + MULTIPART_LENGTH_SLACK) {
+      return NextResponse.json(
+        { success: false, error: 'File too large for direct upload; use resumable upload', code: 'size' },
+        { status: 413 }
+      );
+    }
+
     const user = await userFromBearer(req);
     if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     const actor = await loadChatActor(user);
 
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const conversationId = String(formData.get('conversation_id') || '').trim() || 'temp';
+    const conversationRaw = formData.get('conversation_id');
+    const conversationId = parseChatUploadConversationId(conversationRaw);
+    if (!conversationId) {
+      return NextResponse.json({ success: false, error: 'Invalid conversation' }, { status: 400 });
+    }
 
-    const looksLikeId = /^[0-9a-f-]{36}$/i.test(conversationId);
+    const looksLikeId = conversationId !== 'temp';
     if (looksLikeId) {
       const { data: conv } = await supabaseAdmin
         .from('conversations')
@@ -57,56 +95,59 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing file' }, { status: 400 });
     }
 
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json({ success: false, error: 'File exceeds 10MB' }, { status: 400 });
+    if (file.size > MAX_CHAT_FILE_BYTES) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'File too large for direct upload; use chunked upload',
+          code: 'size',
+        },
+        { status: 413 }
+      );
     }
 
-    const allowed = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/heic',
-      'image/heif',
-      'image/heic-sequence',
-      'image/heif-sequence',
-      'application/octet-stream',
-      'application/pdf',
-      'text/plain',
-    ];
-    const mime = (file.type || '').toLowerCase();
-    const heicExt = /\.(heic|heif)$/i.test(file.name || '');
-    if (mime && !allowed.includes(mime) && !mime.startsWith('image/') && !heicExt) {
-      return NextResponse.json({ success: false, error: 'File type not allowed' }, { status: 400 });
+    const displayName = attachmentDisplayFilename(file.name);
+    const check = validateChatAttachment({ mimeType: file.type, fileName: displayName, size: file.size });
+    if (!check.ok) {
+      return NextResponse.json({ success: false, error: check.message.el, code: check.code }, { status: 400 });
     }
 
-    const { buffer, contentType, extension } = await optimizeImage(file);
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
-    const storagePath = `conversations/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extension}`;
+    const kind = check.kind;
+    let buffer: Buffer;
+    let contentType: string;
+    let extension: string;
+
+    if (kind === 'video') {
+      buffer = Buffer.from(await file.arrayBuffer());
+      contentType = check.mimeType;
+      extension = extensionForKind(kind, displayName, 'mp4');
+    } else if (kind === 'image') {
+      const optimized = await optimizeImage(file);
+      buffer = optimized.buffer;
+      contentType = optimized.contentType;
+      extension = optimized.extension;
+    } else {
+      buffer = Buffer.from(await file.arrayBuffer());
+      contentType = check.mimeType;
+      extension = kind === 'pdf' ? 'pdf' : 'txt';
+    }
+
+    if (buffer.length > MAX_CHAT_FILE_BYTES) {
+      return NextResponse.json(
+        { success: false, error: 'File too large for direct upload', code: 'size' },
+        { status: 413 }
+      );
+    }
+
+    const leaf = attachmentStorageBasename(displayName, extension);
+    const storagePath = `conversations/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${leaf}`;
 
     const { error: upErr } = await supabaseAdmin.storage
       .from('message-attachments')
       .upload(storagePath, buffer, { contentType, upsert: false });
 
     if (upErr) {
-      // Fallback if dedicated bucket is missing
-      const fallback = await supabaseAdmin.storage
-        .from('avatars')
-        .upload(`message-attachments/${storagePath}`, buffer, { contentType, upsert: false });
-      if (fallback.error) {
-        return NextResponse.json({ success: false, error: upErr.message }, { status: 500 });
-      }
-      const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(`message-attachments/${storagePath}`);
-      return NextResponse.json({
-        success: true,
-        attachment: {
-          url: data.publicUrl,
-          filename: safeName || file.name,
-          size: buffer.length,
-          content_type: contentType,
-        },
-      });
+      return NextResponse.json({ success: false, error: upErr.message }, { status: 500 });
     }
 
     const { data } = supabaseAdmin.storage.from('message-attachments').getPublicUrl(storagePath);
@@ -114,7 +155,7 @@ export async function POST(req: NextRequest) {
       success: true,
       attachment: {
         url: data.publicUrl,
-        filename: safeName || file.name,
+        filename: displayName,
         size: buffer.length,
         content_type: contentType,
       },

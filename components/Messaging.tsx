@@ -34,6 +34,13 @@ import ChatBubbleText from '@/components/ChatBubbleText';
 import { openDockedChat } from '@/components/ChatDock';
 import { firstLink } from '@/lib/linkify';
 import {
+  CHAT_FILE_ACCEPT,
+  CHAT_PICK_REJECTED,
+  isChatPickableFile,
+  validateChatAttachment,
+} from '@/lib/chatAttachmentUpload';
+import { cancelChatChunkUpload, uploadChatAttachment } from '@/lib/chatAttachmentUploadClient';
+import {
   ADMIN_CHAT_AVATAR_SRC,
   ADMIN_CHAT_DISPLAY_NAME,
   isAdminConversationKind,
@@ -207,7 +214,7 @@ const t = {
     cancelAgreement: "Ακύρωση συμφωνίας",
     brandFallback: "Επιχείρηση",
     attach: "Επισύναψη",
-    attachHint: "Εικόνα ή PDF (έως 10MB)",
+    attachHint: "Εικόνα, PDF ή βίντεο (έως 10MB, βίντεο έως 2GB)",
     removeFile: "Αφαίρεση",
     dictate: "Φωνητική πληκτρολόγηση",
     micDenied: "Δεν δόθηκε άδεια μικροφώνου.",
@@ -262,7 +269,7 @@ const t = {
     cancelAgreement: "Cancel agreement",
     brandFallback: "Brand",
     attach: "Attach",
-    attachHint: "Image or PDF (up to 10MB)",
+    attachHint: "Image, PDF, or video (up to 10MB, video up to 2GB)",
     removeFile: "Remove",
     dictate: "Voice typing",
     micDenied: "Microphone access was denied.",
@@ -332,6 +339,9 @@ export default function Messaging({
   const [replyTo, setReplyTo] = useState<Message | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<{ key: string; name: string; percent: number }[]>([]);
+  const uploadAbortRef = useRef<AbortController | null>(null);
+  const chunkUploadIdRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -1762,23 +1772,35 @@ export default function Messaging({
 
     try {
       let convId = convAtSend;
+      const uploadLang = lang === 'en' ? 'en' : 'el';
+      const uploadCtrl = new AbortController();
+      uploadAbortRef.current = uploadCtrl;
+      setUploadingFiles(
+        filesToUpload.map((f, i) => ({ key: `${f.name}-${f.size}-${i}`, name: f.name, percent: 0 }))
+      );
+
       const uploadFiles = async (targetConvId: string) => {
         const out: MessageAttachment[] = [];
-        for (const file of filesToUpload) {
-          const fd = new FormData();
-          fd.append('file', file);
-          fd.append('conversation_id', targetConvId);
-          const up = await sessionFetch('/api/messages/upload', { method: 'POST', body: fd });
-          const upJson = await up.json();
-          if (!up.ok || !upJson.success || !upJson.attachment?.url) {
-            throw new Error(upJson.error || 'Upload failed');
-          }
-          out.push(upJson.attachment as MessageAttachment);
+        for (let i = 0; i < filesToUpload.length; i++) {
+          const file = filesToUpload[i];
+          const att = await uploadChatAttachment(
+            file,
+            targetConvId,
+            uploadLang,
+            (pct) => {
+              setUploadingFiles((prev) => prev.map((u, idx) => (idx === i ? { ...u, percent: pct } : u)));
+            },
+            uploadCtrl.signal,
+            chunkUploadIdRef
+          );
+          out.push(att as MessageAttachment);
         }
         return out;
       };
 
       const uploaded = filesToUpload.length ? await uploadFiles(convId || 'temp') : [];
+      setUploadingFiles([]);
+      uploadAbortRef.current = null;
       const response = await sessionFetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1835,14 +1857,47 @@ export default function Messaging({
     } catch (error) {
       console.error('Error sending message:', error);
       setSendError(txt.sendFailed);
+      const chunkId = chunkUploadIdRef.current;
+      if (chunkId) void cancelChatChunkUpload(chunkId);
+      chunkUploadIdRef.current = null;
       if (convAtSend) {
         setMessages((prev) => prev.filter((m) => m.id !== tmpId));
       }
       setNewMessage(text);
       setPendingFiles(filesToUpload);
     } finally {
+      setUploadingFiles([]);
+      uploadAbortRef.current = null;
       setSending(false);
     }
+  };
+
+  const onAttachmentFilesPicked = (list: File[]) => {
+    const langKey = lang === 'en' ? 'en' : 'el';
+    const accepted: File[] = [];
+    for (const file of list) {
+      if (!isChatPickableFile(file.type, file.name)) {
+        pushToast(CHAT_PICK_REJECTED[langKey], 'error');
+        continue;
+      }
+      const check = validateChatAttachment({ mimeType: file.type, fileName: file.name, size: file.size });
+      if (!check.ok) {
+        pushToast(check.message[langKey], 'error');
+        continue;
+      }
+      accepted.push(file);
+    }
+    if (accepted.length) setPendingFiles((prev) => [...prev, ...accepted].slice(0, 5));
+  };
+
+  const cancelInFlightUpload = () => {
+    uploadAbortRef.current?.abort();
+    uploadAbortRef.current = null;
+    const chunkId = chunkUploadIdRef.current;
+    if (chunkId) void cancelChatChunkUpload(chunkId);
+    chunkUploadIdRef.current = null;
+    setUploadingFiles([]);
+    setSending(false);
   };
 
   const scrollToBottom = (force = false) => {
@@ -2147,12 +2202,12 @@ export default function Messaging({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,application/pdf,text/plain"
+        accept={CHAT_FILE_ACCEPT}
         className="hidden"
         multiple
         onChange={(e) => {
           const list = Array.from(e.target.files || []).slice(0, 5);
-          if (list.length) setPendingFiles((prev) => [...prev, ...list].slice(0, 5));
+          if (list.length) onAttachmentFilesPicked(list);
           e.target.value = '';
         }}
       />
@@ -2672,6 +2727,29 @@ export default function Messaging({
                               {msg.attachments.map((att, ai) => {
                                 const isImg = String(att.content_type || '').startsWith('image/') ||
                                   /\.(webp|png|jpe?g|gif)$/i.test(att.url || '');
+                                const isVideo =
+                                  String(att.content_type || '').startsWith('video/') ||
+                                  /\.(mp4|mov|webm|m4v|3gp)(\?|$)/i.test(att.url || '');
+                                if (isVideo) {
+                                  return (
+                                    <div key={`${att.url}-${ai}`} className="max-w-xs">
+                                      <video
+                                        src={att.url}
+                                        controls
+                                        preload="metadata"
+                                        playsInline
+                                        className="max-h-48 w-full rounded-lg border border-white/20 bg-black/20"
+                                      />
+                                      {att.filename ? (
+                                        <span
+                                          className={`mt-0.5 block truncate text-[10px] ${isOwn ? 'text-blue-100/90' : 'text-slate-500'}`}
+                                        >
+                                          {att.filename}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  );
+                                }
                                 return (
                                   <a
                                     key={`${att.url}-${ai}`}
@@ -2780,8 +2858,29 @@ export default function Messaging({
                 {conversationClosed ? (
                   <p className="mb-2 text-xs text-slate-600 text-center">{txt.reopenHint}</p>
                 ) : null}
-                {pendingFiles.length > 0 && (
+                {(pendingFiles.length > 0 || uploadingFiles.length > 0) && (
                   <div className="mb-2 flex flex-wrap gap-2">
+                    {uploadingFiles.map((u) => (
+                      <span
+                        key={u.key}
+                        className="inline-flex min-w-[10rem] flex-col gap-0.5 rounded-lg bg-blue-50 px-2 py-1 text-xs text-blue-900"
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="truncate">📎 {u.name}</span>
+                          <span className="tabular-nums">{u.percent}%</span>
+                        </span>
+                        <span className="h-1 overflow-hidden rounded-full bg-blue-100">
+                          <span className="block h-full bg-blue-600 transition-all" style={{ width: `${u.percent}%` }} />
+                        </span>
+                        <button
+                          type="button"
+                          className="text-left text-[10px] text-blue-700 underline"
+                          onClick={cancelInFlightUpload}
+                        >
+                          {lang === 'en' ? 'Cancel upload' : 'Ακύρωση ανεβάσματος'}
+                        </button>
+                      </span>
+                    ))}
                     {pendingFiles.map((f, i) => (
                       <span
                         key={`${f.name}-${i}`}
@@ -2793,6 +2892,7 @@ export default function Messaging({
                           className="text-slate-500 hover:text-red-600"
                           onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
                           aria-label={txt.removeFile}
+                          disabled={uploadingFiles.length > 0}
                         >
                           ×
                         </button>
@@ -2915,8 +3015,29 @@ export default function Messaging({
 
               {influencerId && brandEmail && (
                 <form onSubmit={sendMessage} className="px-3 sm:px-4 py-3 border-t border-slate-200 bg-white shrink-0">
-                  {pendingFiles.length > 0 && (
+                  {(pendingFiles.length > 0 || uploadingFiles.length > 0) && (
                     <div className="mb-2 flex flex-wrap gap-2">
+                      {uploadingFiles.map((u) => (
+                        <span
+                          key={u.key}
+                          className="inline-flex min-w-[10rem] flex-col gap-0.5 rounded-lg bg-blue-50 px-2 py-1 text-xs text-blue-900"
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="truncate">📎 {u.name}</span>
+                            <span className="tabular-nums">{u.percent}%</span>
+                          </span>
+                          <span className="h-1 overflow-hidden rounded-full bg-blue-100">
+                            <span className="block h-full bg-blue-600 transition-all" style={{ width: `${u.percent}%` }} />
+                          </span>
+                          <button
+                            type="button"
+                            className="text-left text-[10px] text-blue-700 underline"
+                            onClick={cancelInFlightUpload}
+                          >
+                            {lang === 'en' ? 'Cancel upload' : 'Ακύρωση ανεβάσματος'}
+                          </button>
+                        </span>
+                      ))}
                       {pendingFiles.map((f, i) => (
                         <span
                           key={`${f.name}-${i}`}
@@ -2928,6 +3049,7 @@ export default function Messaging({
                             className="text-slate-500 hover:text-red-600"
                             onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
                             aria-label={txt.removeFile}
+                            disabled={uploadingFiles.length > 0}
                           >
                             ×
                           </button>
