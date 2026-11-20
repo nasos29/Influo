@@ -46,6 +46,26 @@ test("allows deliverable talk about Instagram / TikTok", () => {
   assert.equal(looksLikeOffPlatformContact("ο προϋπολογισμός είναι 1500 ευρώ"), false);
 });
 
+test("flags email / mail / Drive / WeTransfer for file transfer", () => {
+  assert.equal(
+    looksLikeOffPlatformContact("στείλε μου το email σου να σου στείλω το βίντεο"),
+    true
+  );
+  assert.equal(looksLikeOffPlatformContact("δώσε μου το mail σου"), true);
+  assert.equal(looksLikeOffPlatformContact("πες μου το μέιλ σου για τα αρχεία"), true);
+  assert.equal(
+    looksLikeOffPlatformContact("send me your email so I can send the files"),
+    true
+  );
+  assert.equal(looksLikeOffPlatformContact("θα σου το στείλω με wetransfer"), true);
+});
+
+test("in-app file talk stays allowed", () => {
+  assert.equal(looksLikeOffPlatformContact("ανέβασα το βίντεο"), false);
+  assert.equal(looksLikeOffPlatformContact("το reel δημοσιεύτηκε"), false);
+  assert.equal(looksLikeOffPlatformContact("έστειλα το βίντεο στο chat"), false);
+});
+
 test("tip message is recognized and not re-flagged", () => {
   const tip = offPlatformTipContent();
   assert.equal(isOffPlatformTipMessage(tip), true);
