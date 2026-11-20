@@ -11,7 +11,7 @@ type Lang = "el" | "en";
 
 const t = {
   el: {
-    title: "Κατάλογος Influencers",
+    title: "Κατάλογος Δημιουργών",
     subtitle: "Ανακαλύψτε τους καλύτερους content creators",
     stats_note: "Όλα τα προφίλ έχουν στατιστικά ελεγμένα από το Influo",
   },

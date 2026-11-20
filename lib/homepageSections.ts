@@ -94,7 +94,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
   },
   {
     id: "directory",
-    title: { el: "Κατάλογος Influencers", en: "Influencer Directory" },
+    title: { el: "Κατάλογος Δημιουργών", en: "Influencer Directory" },
     description: {
       el: "Προεπισκόπηση καταλόγου creators στην αρχική.",
       en: "Directory preview of creators on the homepage.",
