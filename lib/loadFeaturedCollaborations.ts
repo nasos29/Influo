@@ -1,11 +1,17 @@
 import { supabaseService } from "@/lib/apiAuth";
 import { mediaFromRow, normalizeSourceUrl } from "@/lib/creatorMedia";
 import {
+  featuredCollaborationPlatform,
+  type FeaturedCollaborationPlatform,
+} from "@/lib/featuredCollaborationPlatform";
+import {
   DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS,
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { getHomepageFeaturedCollaborationsSetting } from "@/lib/siteSettingsServer";
+
+export type { FeaturedCollaborationPlatform } from "@/lib/featuredCollaborationPlatform";
 
 export type FeaturedCollaborationCard = {
   applicationId: string;
@@ -14,6 +20,7 @@ export type FeaturedCollaborationCard = {
   influencerAvatarUrl: string | null;
   playUrl: string;
   posterUrl: string | null;
+  platform: FeaturedCollaborationPlatform | null;
 };
 
 export type FeaturedCollaborationsShowcaseData = {
@@ -147,6 +154,7 @@ export async function loadFeaturedCollaborations(
   }
 
   const mediaByKey = new Map<string, ReturnType<typeof mediaFromRow>>();
+  const sourceUrlByMediaKey = new Map<string, string>();
   try {
     const { data, error } = await admin
       .from("creator_media")
@@ -162,7 +170,10 @@ export async function loadFeaturedCollaborations(
         const hosted = mediaFromRow(row);
         if (!hosted) continue;
         const key = `${row.influencer_id}:${normalizeSourceUrl(row.source_url)}`;
-        if (!mediaByKey.has(key)) mediaByKey.set(key, hosted);
+        if (!mediaByKey.has(key)) {
+          mediaByKey.set(key, hosted);
+          sourceUrlByMediaKey.set(key, row.source_url);
+        }
       }
     }
   } catch (error) {
@@ -180,6 +191,7 @@ export async function loadFeaturedCollaborations(
     const inf = infById.get(app.influencer_id);
     const displayName = (inf?.display_name || "").trim();
     if (!displayName) continue;
+    const mediaKey = `${app.influencer_id}:${norm}`;
     cards.push({
       applicationId: app.id,
       influencerName: displayName,
@@ -190,6 +202,7 @@ export async function loadFeaturedCollaborations(
           : null,
       playUrl: media.playUrl,
       posterUrl: media.posterUrl,
+      platform: featuredCollaborationPlatform(deliverable, sourceUrlByMediaKey.get(mediaKey)),
     });
   }
 

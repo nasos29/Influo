@@ -1,51 +1,44 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getCachedImageUrl } from "@/lib/imageProxy";
-import type { FeaturedCollaborationsShowcaseData } from "@/lib/loadFeaturedCollaborations";
+import type {
+  FeaturedCollaborationPlatform,
+  FeaturedCollaborationsShowcaseData,
+} from "@/lib/loadFeaturedCollaborations";
 
 type Lang = "el" | "en";
 
 const COPY = {
-  el: { with: "με", unmute: "Ήχος", mute: "Σίγαση", playVideo: "Δες το βίντεο" },
-  en: { with: "with", unmute: "Sound", mute: "Mute", playVideo: "Play video" },
+  el: { with: "με", unmute: "Ήχος", mute: "Σίγαση", playVideo: "Δες το βίντεο", seek: "Γραμμή προόδου βίντεο" },
+  en: { with: "with", unmute: "Sound", mute: "Mute", playVideo: "Play video", seek: "Video progress" },
 } as const;
+
+const PLATFORM_LABEL: Record<FeaturedCollaborationPlatform, string> = {
+  instagram: "Instagram",
+  tiktok: "TikTok",
+};
 
 type Props = {
   data: FeaturedCollaborationsShowcaseData;
   lang: Lang;
 };
 
-function BrandBadge({
-  brandName,
-  brandLogoUrl,
-  className = "",
-}: {
-  brandName: string;
-  brandLogoUrl: string | null;
-  className?: string;
-}) {
-  const logo = brandLogoUrl ? getCachedImageUrl(brandLogoUrl) ?? brandLogoUrl : null;
-  return (
-    <div
-      className={`inline-flex items-center gap-2 rounded-full bg-white/95 border border-slate-200/80 px-3 py-1.5 shadow-sm ${className}`}
-    >
-      {logo ? (
-        <Image
-          src={logo}
-          alt=""
-          width={28}
-          height={28}
-          className="w-7 h-7 rounded-full object-contain bg-white"
-        />
-      ) : (
-        <span className="w-7 h-7 rounded-full bg-slate-100" aria-hidden />
-      )}
-      <span className="text-sm font-semibold text-slate-900 tracking-tight">{brandName}</span>
-    </div>
-  );
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 function CreatorMiniAvatar({ src, name }: { src: string | null; name: string }) {
@@ -74,24 +67,32 @@ function CreatorProfileLink({
   name,
   href,
   avatarUrl,
+  platform,
   className = "",
   onClick,
 }: {
   name: string;
   href: string;
   avatarUrl: string | null;
+  platform?: FeaturedCollaborationPlatform | null;
   className?: string;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
+  const platformLabel = platform ? PLATFORM_LABEL[platform] : null;
   return (
-    <Link
-      href={href}
-      className={`inline-flex min-w-0 items-center gap-2 text-white text-sm font-semibold drop-shadow-sm hover:underline underline-offset-2 ${className}`}
-      onClick={onClick}
-    >
-      <CreatorMiniAvatar src={avatarUrl} name={name} />
-      <span className="truncate">{name}</span>
-    </Link>
+    <div className={`min-w-0 ${className}`}>
+      <Link
+        href={href}
+        className="inline-flex min-w-0 items-center gap-2 text-white text-sm font-semibold drop-shadow-sm hover:underline underline-offset-2"
+        onClick={onClick}
+      >
+        <CreatorMiniAvatar src={avatarUrl} name={name} />
+        <span className="truncate">{name}</span>
+      </Link>
+      {platformLabel ? (
+        <p className="mt-0.5 pl-9 text-[11px] font-medium text-white/80 truncate">{platformLabel}</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -99,22 +100,190 @@ function CreatorLinkOverlay({
   name,
   href,
   avatarUrl,
+  platform,
+  className = "",
 }: {
   name: string;
   href: string;
   avatarUrl: string | null;
+  platform?: FeaturedCollaborationPlatform | null;
+  className?: string;
 }) {
   return (
-    <div className="absolute inset-x-0 bottom-0 z-[5] pt-16 pb-3 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none">
+    <div
+      className={`absolute inset-x-0 z-[5] pt-16 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none ${className}`}
+    >
       <CreatorProfileLink
         name={name}
         href={href}
         avatarUrl={avatarUrl}
+        platform={platform}
         className="pointer-events-auto max-w-full"
       />
     </div>
   );
 }
+
+function HeroSeekBar({
+  videoRef,
+  lang,
+  className = "",
+}: {
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  lang: Lang;
+  className?: string;
+}) {
+  const barRef = useRef<HTMLDivElement>(null);
+  const seekingRef = useRef(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const txt = COPY[lang];
+
+  const seekTo = useCallback(
+    (t: number) => {
+      const el = videoRef.current;
+      if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+      const clamped = Math.min(Math.max(0, t), el.duration);
+      el.currentTime = clamped;
+      setCurrentTime(clamped);
+    },
+    [videoRef]
+  );
+
+  const timeFromClientX = useCallback(
+    (clientX: number) => {
+      const el = videoRef.current;
+      const bar = barRef.current;
+      if (!el || !bar || !Number.isFinite(el.duration) || el.duration <= 0) return 0;
+      const rect = bar.getBoundingClientRect();
+      const ratio =
+        rect.width <= 0 ? 0 : Math.min(Math.max(0, clientX - rect.left), rect.width) / rect.width;
+      return ratio * el.duration;
+    },
+    [videoRef]
+  );
+
+  const onSeekPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      seekingRef.current = true;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      seekTo(timeFromClientX(event.clientX));
+    },
+    [seekTo, timeFromClientX]
+  );
+
+  const onSeekPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!seekingRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      seekTo(timeFromClientX(event.clientX));
+    },
+    [seekTo, timeFromClientX]
+  );
+
+  const onSeekPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!seekingRef.current) return;
+      event.preventDefault();
+      event.stopPropagation();
+      seekingRef.current = false;
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        /* released */
+      }
+      seekTo(timeFromClientX(event.clientX));
+    },
+    [seekTo, timeFromClientX]
+  );
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+
+    const onTimeUpdate = () => {
+      if (seekingRef.current) return;
+      setCurrentTime(el.currentTime);
+    };
+    const onDuration = () => {
+      if (Number.isFinite(el.duration)) setDuration(el.duration);
+    };
+    const onLoaded = () => {
+      onDuration();
+      setCurrentTime(0);
+    };
+
+    el.addEventListener("timeupdate", onTimeUpdate);
+    el.addEventListener("durationchange", onDuration);
+    el.addEventListener("loadedmetadata", onLoaded);
+
+    if (Number.isFinite(el.duration)) setDuration(el.duration);
+
+    return () => {
+      el.removeEventListener("timeupdate", onTimeUpdate);
+      el.removeEventListener("durationchange", onDuration);
+      el.removeEventListener("loadedmetadata", onLoaded);
+    };
+  }, [videoRef]);
+
+  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+
+  return (
+    <div
+      className={`absolute inset-x-0 bottom-0 z-[6] flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-4 pointer-events-none ${className}`}
+    >
+      <span className="pointer-events-none w-10 shrink-0 text-center text-[10px] font-semibold tabular-nums text-white/90">
+        {formatTime(currentTime)}
+      </span>
+      <div
+        ref={barRef}
+        role="slider"
+        tabIndex={0}
+        aria-label={txt.seek}
+        aria-valuemin={0}
+        aria-valuemax={Math.max(0, Math.round(duration))}
+        aria-valuenow={Math.round(currentTime)}
+        aria-valuetext={`${formatTime(currentTime)} / ${formatTime(duration)}`}
+        className="pointer-events-auto relative mx-0.5 flex h-8 min-w-0 flex-1 cursor-pointer touch-none items-center"
+        onPointerDown={onSeekPointerDown}
+        onPointerMove={onSeekPointerMove}
+        onPointerUp={onSeekPointerUp}
+        onPointerCancel={onSeekPointerUp}
+        onKeyDown={(e) => {
+          const step = e.shiftKey ? 10 : 5;
+          if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+            e.preventDefault();
+            seekTo(currentTime + step);
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+            e.preventDefault();
+            seekTo(currentTime - step);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            seekTo(0);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            seekTo(duration);
+          }
+        }}
+      >
+        <div className="h-1 w-full overflow-hidden rounded-full bg-white/35">
+          <div className="h-full rounded-full bg-white" style={{ width: `${progress}%` }} />
+        </div>
+      </div>
+      <span className="pointer-events-none w-10 shrink-0 text-center text-[10px] font-semibold tabular-nums text-white/90">
+        {formatTime(duration)}
+      </span>
+    </div>
+  );
+}
+
+const HERO_FRAME =
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] h-[min(70vh,32rem)] w-auto max-w-full lg:h-[min(70vh,36rem)]";
+const THUMB_FRAME =
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] w-28 sm:w-32 lg:h-[min(53vh,27rem)] lg:w-auto";
 
 export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const [activeId, setActiveId] = useState(data.initialHeroApplicationId);
@@ -131,9 +300,12 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     setHeroMuted(true);
   }, []);
 
-  useEffect(() => {
-    setHeroMuted(true);
-  }, [active.applicationId]);
+  const advanceHero = useCallback(() => {
+    const ids = data.cards.map((c) => c.applicationId);
+    const idx = ids.indexOf(activeId);
+    const nextId = ids[(idx + 1) % ids.length];
+    setActiveId(nextId);
+  }, [data.cards, activeId]);
 
   useEffect(() => {
     const el = heroVideoRef.current;
@@ -153,24 +325,24 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   return (
     <div className="relative">
       <div className="relative rounded-2xl md:rounded-3xl bg-[#F7F7F7] p-4 sm:p-5 md:p-6 overflow-hidden">
-        <div className="relative mx-auto w-full max-w-[800px] flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,58%)_minmax(0,42%)] lg:gap-5 lg:items-stretch">
+        <div className="relative mx-auto flex w-full max-w-[1100px] flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-[18px]">
           <div className="relative flex justify-center">
-            <div className="relative aspect-[9/16] h-[min(70vh,32rem)] w-auto max-w-full rounded-xl md:rounded-2xl overflow-hidden bg-slate-900">
+            <div className={HERO_FRAME}>
               <video
                 key={active.applicationId}
                 ref={heroVideoRef}
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
                 src={active.playUrl}
                 poster={active.posterUrl ?? undefined}
                 autoPlay
-                muted
-                loop
+                muted={heroMuted}
                 playsInline
                 preload="metadata"
+                onEnded={advanceHero}
               />
               <button
                 type="button"
-                className="absolute bottom-14 right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                className="absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
                 aria-label={heroMuted ? txt.unmute : txt.mute}
                 onClick={(e) => {
                   e.preventDefault();
@@ -193,23 +365,20 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 name={active.influencerName}
                 href={active.influencerProfileHref}
                 avatarUrl={active.influencerAvatarUrl}
+                platform={active.platform}
+                className="bottom-[2.75rem] pb-2"
               />
-              <div className="absolute top-3 left-3">
-                <BrandBadge brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
-              </div>
+              <HeroSeekBar key={active.applicationId} videoRef={heroVideoRef} lang={lang} />
             </div>
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex flex-row gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:flex-col lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:h-full lg:min-h-0">
+            <div className="flex w-full max-w-full flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:w-auto lg:max-w-none lg:shrink lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
               {thumbnails.map((card) => (
-                <div
-                  key={card.applicationId}
-                  className="relative shrink-0 w-28 sm:w-32 aspect-[9/16] lg:w-full lg:flex-1 lg:aspect-auto lg:min-h-0 rounded-xl md:rounded-2xl overflow-hidden bg-slate-900"
-                >
+                <div key={card.applicationId} className={THUMB_FRAME}>
                   <button
                     type="button"
-                    className="absolute inset-0 w-full h-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                    className="absolute inset-0 h-full w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
                     onClick={() => onPickThumb(card.applicationId)}
                     aria-label={`${txt.playVideo} — ${card.influencerName}`}
                   >
@@ -218,22 +387,23 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                       <img
                         src={card.posterUrl}
                         alt=""
-                        className="absolute inset-0 w-full h-full object-cover"
+                        className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
                       />
                     ) : (
                       <span className="absolute inset-0 bg-slate-800" aria-hidden />
                     )}
                     <div
-                      className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none"
+                      className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/45 to-transparent"
                       aria-hidden
                     />
                   </button>
-                  <div className="absolute inset-x-0 bottom-0 z-[5] pb-3 px-3 pointer-events-none">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] pb-3 px-3">
                     <CreatorProfileLink
                       name={card.influencerName}
                       href={card.influencerProfileHref}
                       avatarUrl={card.influencerAvatarUrl}
+                      platform={card.platform}
                       className="pointer-events-auto max-w-full"
                       onClick={(e) => {
                         e.stopPropagation();
