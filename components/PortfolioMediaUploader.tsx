@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { PORTFOLIO_FILE_ACCEPT } from "@/lib/portfolioUpload";
+import { PORTFOLIO_FILE_ACCEPT, PORTFOLIO_PICK_REJECTED } from "@/lib/portfolioFilePicker";
+import ToastViewport, { useToasts } from "@/components/ui/Toast";
 import {
   phaseLabel,
   useOptionalPortfolioUploadContext,
@@ -49,6 +50,11 @@ function UploaderBody({
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const { items, pick, cancel, retry } = upload;
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
+
+  const rejectToast = () => {
+    pushToast(lang === "en" ? PORTFOLIO_PICK_REJECTED.en : PORTFOLIO_PICK_REJECTED.el, "error");
+  };
 
   const active = items.filter((i) => ["queued", "checking", "sending", "paused", "processing"].includes(i.phase)).length;
   const free = Math.max(0, slotsLeft - active);
@@ -64,7 +70,7 @@ function UploaderBody({
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          pick(e.dataTransfer.files, slotsLeft);
+          if (pick(e.dataTransfer.files, slotsLeft)) rejectToast();
         }}
         className={`rounded-xl border-2 border-dashed px-4 py-4 text-center transition-colors ${
           dragOver ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-slate-50"
@@ -77,7 +83,7 @@ function UploaderBody({
           multiple
           className="hidden"
           onChange={(e) => {
-            pick(e.target.files, slotsLeft);
+            if (pick(e.target.files, slotsLeft)) rejectToast();
             e.target.value = "";
           }}
         />
@@ -102,6 +108,12 @@ function UploaderBody({
               )}
         </p>
       </div>
+
+      <ToastViewport
+        toasts={toasts}
+        onDismiss={dismissToast}
+        dismissLabel={lang === "en" ? "Dismiss" : "Κλείσιμο"}
+      />
 
       {items.map((it) => (
         <div key={it.key} className="rounded-lg border border-slate-200 bg-white px-3 py-2">

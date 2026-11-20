@@ -13,9 +13,7 @@ export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
 /** Parallel in-flight chunk PUTs (server accepts out-of-order chunk indices). */
 export const UPLOAD_PARALLEL_CHUNKS = 3;
 
-/** Mobile Files / desktop picker — explicit MIME + extensions (avoid `video/*` / `image/*` and `capture`). */
-export const PORTFOLIO_FILE_ACCEPT =
-  "video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm,image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
+export { PORTFOLIO_FILE_ACCEPT, isPortfolioPickableFile } from "./portfolioFilePicker";
 
 /** Abuse guards (uploads only; nothing here limits emails). */
 export const MAX_ACTIVE_UPLOADS_PER_CREATOR = 6;
