@@ -117,11 +117,6 @@ p.campaign-card-desc {
   }
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
 /* Enhanced selection */
 ::selection {
   background-color: rgba(59, 130, 246, 0.3);

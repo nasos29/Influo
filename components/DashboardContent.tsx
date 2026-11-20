@@ -1745,7 +1745,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         const nav = tabsNavRef.current;
         if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
         const btn = nav.querySelector<HTMLElement>(`[data-creator-tab="${activeTab}"]`);
-        btn?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+        btn?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
     }, [activeTab, lang]);
 
     const openCreatorTab = (tab: CreatorTab) => {

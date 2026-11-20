@@ -1091,7 +1091,7 @@ export default function BrandDashboardContent() {
     const nav = tabsNavRef.current;
     if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
     const btn = nav.querySelector<HTMLElement>(`[data-brand-tab="${activeTab}"]`);
-    btn?.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+    btn?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   }, [activeTab, lang]);
 
   useEffect(() => {

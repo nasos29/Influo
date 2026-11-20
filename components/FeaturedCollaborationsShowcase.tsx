@@ -428,9 +428,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
             sizes="(min-width: 1024px) 40vw, 0px"
           />
         </div>
+        <div className="pointer-events-none absolute left-1/2 top-0 z-[6] -translate-x-1/2 -translate-y-1/2">
+          <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
+        </div>
         <div className="relative z-10 p-4 sm:p-5 md:p-6">
         <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
+            <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
             <div className={HERO_FRAME}>
               <video
                 ref={heroVideoRef}
@@ -470,18 +474,20 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               />
               <HeroSeekBar key={active.applicationId} videoRef={heroVideoRef} lang={lang} />
             </div>
+            </div>
           </div>
 
           {thumbnails.length > 0 ? (
             <div
-              className={`flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink-0 lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
+              className={`flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink-0 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
             >
-              <div className="flex w-full justify-center lg:min-h-0 lg:flex-1 lg:items-center">
-                <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
-              </div>
               <div className="flex w-full max-w-full shrink-0 flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
               {thumbnails.map((card) => (
-                <div key={card.applicationId} className={THUMB_FRAME}>
+                <div
+                  key={card.applicationId}
+                  className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl"
+                >
+                <div className={THUMB_FRAME}>
                   <button
                     type="button"
                     className="absolute inset-0 h-full w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
@@ -516,6 +522,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                       }}
                     />
                   </div>
+                </div>
                 </div>
               ))}
               </div>

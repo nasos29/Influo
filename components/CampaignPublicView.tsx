@@ -320,7 +320,7 @@ export default function CampaignPublicView({
     const anchors = Array.from(document.querySelectorAll<HTMLElement>("[data-apply-anchor]"));
     const target = anchors.find((node) => node.offsetParent !== null) || anchors[0];
     if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    target.scrollIntoView({ block: "center" });
     const focusable = target.querySelector<HTMLElement>("textarea, input, select, a[href], button:not([disabled])");
     window.setTimeout(() => focusable?.focus({ preventScroll: true }), 350);
   };

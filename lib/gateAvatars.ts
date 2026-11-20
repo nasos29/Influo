@@ -28,7 +28,7 @@ export function showCampaignInviteButton(input: {
   isBrand: boolean;
   isAdmin: boolean;
 }): boolean {
-  if (!input.sessionChecked) return false;
+  if (!input.sessionChecked) return true;
   if (!input.hasSession) return true;
   return input.isBrand || input.isAdmin;
 }

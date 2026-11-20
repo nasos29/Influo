@@ -151,7 +151,7 @@ export default function ProposalDeliverableField({
   useEffect(() => {
     if (!autoFocus) return;
     requestAnimationFrame(() => {
-      inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      inputRef.current?.scrollIntoView({ block: "center" });
       inputRef.current?.focus();
     });
   }, [autoFocus]);

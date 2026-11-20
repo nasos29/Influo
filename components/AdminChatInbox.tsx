@@ -133,7 +133,7 @@ export default function AdminChatInbox({
 
   useEffect(() => {
     if (!selectedId) return;
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView();
   }, [messages, selectedId]);
 
   const send = async (e: React.FormEvent) => {

@@ -265,7 +265,7 @@ export default function InfluencerCampaignsPanel({
       }));
     }
     requestAnimationFrame(() => {
-      document.getElementById(`deliverable-${target.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById(`deliverable-${target.id}`)?.scrollIntoView({ block: "center" });
       const input = document.querySelector<HTMLInputElement>(`#deliverable-${target.id} input[type="url"]`);
       input?.focus();
     });

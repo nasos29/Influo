@@ -28,7 +28,7 @@ export default function FAQPage() {
     setSelectedCategory("all");
     setOpenIndex(idx);
     requestAnimationFrame(() => {
-      document.getElementById("deliverable")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("deliverable")?.scrollIntoView({ block: "start" });
     });
   }, []);
 

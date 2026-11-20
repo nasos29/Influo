@@ -2429,7 +2429,7 @@ export default function InfluencerProfile(props: {
                   title={displayNameForLang(profile.name, lang)}
                   path={publicPath}
                 />
-                {sessionChecked && hasSession && !isOwnProfile && id ? (
+                {!isOwnProfile && id ? (
                   <ReportUserButton
                     lang={lang}
                     targetType="creator"

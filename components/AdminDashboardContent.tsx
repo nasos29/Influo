@@ -2196,7 +2196,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     const nav = adminTabsRef.current;
     if (!nav || nav.scrollWidth <= nav.clientWidth + 1) return;
     const btn = nav.querySelector<HTMLElement>(`[data-admin-tab="${activeTab}"]`);
-    btn?.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+    btn?.scrollIntoView({ inline: "nearest", block: "nearest" });
   }, [activeTab, lang]);
   const [users, setUsers] = useState<DbInfluencer[]>([]);
   const [proposals, setProposals] = useState<Proposal[]>([]);
