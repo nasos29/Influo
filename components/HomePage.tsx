@@ -17,7 +17,6 @@ import Footer from "@/components/Footer";
 import TopInfluencersSection from "@/components/TopInfluencersSection";
 import NewlyApprovedInfluencersSection from "@/components/NewlyApprovedInfluencersSection";
 import { type CampaignCardData } from "@/components/CampaignCard";
-import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
 import HomeOpenCampaignsSection from "@/components/HomeOpenCampaignsSection";
 import FeaturedCollaborationsShowcase from "@/components/FeaturedCollaborationsShowcase";
@@ -560,7 +559,6 @@ export default function Home({
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl pointer-events-none"></div>
                       </div>
                     </div>
-                    <HomeTrustStatsRow stats={trustStats} lang={lang} />
                   </div>
                 </section>
               );
@@ -582,7 +580,11 @@ export default function Home({
             case "recent_collaborations":
               return (
                 <div key={sectionId} data-homepage-section="recent_collaborations" className="home-section-cv">
-                  <SocialProofStatsRow stats={socialProofStats} lang={lang} />
+                  <SocialProofStatsRow
+                    stats={socialProofStats}
+                    lang={lang}
+                    openCampaignsCount={trustStats.openCampaigns}
+                  />
                 </div>
               );
 

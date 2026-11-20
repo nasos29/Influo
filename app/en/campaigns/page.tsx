@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import PublicCampaignsPage from "@/components/PublicCampaignsPage";
 import { loadOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
+import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
 import { absoluteUrl, languageAlternates } from "@/lib/site";
 import { unstable_cache } from "next/cache";
@@ -18,6 +19,12 @@ const cachedSocialProofStats = unstable_cache(
   () => loadSocialProofStats(),
   ["en-campaigns-social-proof-stats"],
   { revalidate: 86400, tags: ["social-proof-stats"] }
+);
+
+const cachedHomeTrust = unstable_cache(
+  () => loadHomeTrustStats(),
+  ["home-trust-stats"],
+  { revalidate: 3600, tags: ["home-trust"] }
 );
 
 const copy = {
@@ -41,16 +48,18 @@ export const metadata: Metadata = {
 };
 
 export default async function EnPublicCampaignsRoute() {
-  const [initialCampaigns, recentCollaborations, socialProofStats] = await Promise.all([
+  const [initialCampaigns, recentCollaborations, socialProofStats, trustStats] = await Promise.all([
     loadOpenCampaigns(),
     cachedRecentCollaborations(),
     cachedSocialProofStats(),
+    cachedHomeTrust(),
   ]);
   return (
     <PublicCampaignsPage
       initialCampaigns={initialCampaigns}
       recentCollaborations={recentCollaborations}
       socialProofStats={socialProofStats}
+      openCampaignsCount={trustStats.openCampaigns}
     />
   );
 }
