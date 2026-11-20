@@ -18,6 +18,7 @@ import { sendPushAdminAgreementComplete } from "@/lib/push";
 import { partyProposalView, type ProposalParty } from "@/lib/proposalParty";
 import { showcaseAddPostUrl } from "@/lib/showcaseAddPost";
 import { showcaseOptOutUrl } from "@/lib/showcaseOptOut";
+import { parsePublishDeadline } from "@/lib/publishDeadline";
 
 function preferredParty(value: unknown): ProposalParty | null {
   return value === "influencer" || value === "brand" ? value : null;
@@ -67,6 +68,18 @@ export async function POST(request: Request) {
     const party = guarded.party;
     const acceptedAt = new Date().toISOString();
     const updateData: Record<string, unknown> = {};
+    const hasDeadline =
+      typeof proposal.publish_deadline === "string" && proposal.publish_deadline.trim().length > 0;
+    if (!hasDeadline) {
+      const parsed = parsePublishDeadline(body.publishDeadline);
+      if (!parsed.ok || !parsed.date) {
+        return NextResponse.json(
+          { error: "Publication deadline is required before accepting the agreement." },
+          { status: 400 }
+        );
+      }
+      updateData.publish_deadline = parsed.date;
+    }
     if (party === "influencer") {
       updateData.influencer_agreement_accepted = true;
       if (!proposal.influencer_agreement_accepted_at) {
@@ -208,6 +221,7 @@ export async function POST(request: Request) {
               await Promise.all([
                 mailCreatorDealComplete({
                   ...common,
+                  influencerId: proposal.influencer_id,
                   to: influencer.email,
                   creatorName: influencer.name,
                   brandName,
@@ -262,6 +276,7 @@ export async function POST(request: Request) {
       await Promise.all([
         mailAgreement({
           to: influencer.email,
+          influencerId: proposal.influencer_id,
           recipientName: influencer.name,
           otherName: brandName,
           service: proposal.service_type || "",

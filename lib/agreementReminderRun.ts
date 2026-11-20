@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { agreementReminderTarget, type AgreementReminderRow } from "@/lib/agreementReminder";
 import { brandHasAccount, influencerContact } from "@/lib/proposalAccess";
+import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
 import { mailAgreementReminder } from "@/lib/proposalMail";
 import {
   allowRemindersEmail,
@@ -114,6 +115,10 @@ export async function runAgreementReminders(
           continue;
         }
       } else {
+        if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
+          await releaseClaim(admin, row.id);
+          continue;
+        }
         const allows = allowRemindersEmail(
           await loadNotificationPreferences(admin, "influencer", row.influencer_id)
         );

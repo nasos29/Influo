@@ -11,6 +11,7 @@ import {
   DELIVERABLE_REMINDER_AFTER_1_DAYS,
   DELIVERABLE_REMINDER_AFTER_5_DAYS,
   DELIVERABLE_REMINDER_BEFORE_DAYS,
+  DELIVERABLE_REMINDER_GENTLE_DAYS,
   isBrandApproveRemindersEnabled,
   isDeliverableRemindersEnabled,
 } from "@/lib/deliveryFlags";
@@ -21,11 +22,7 @@ import {
 } from "@/lib/notificationPreferences";
 import { influencerContact } from "@/lib/proposalAccess";
 import { isCampaignRealDeliveryComplete } from "@/lib/campaignDealCompletion";
-import {
-  campaignPublishDeadline,
-  isCampaignReminderBacklog,
-  publishDeadlineDueMsForCampaign,
-} from "@/lib/campaignReviewReminder";
+import { isCampaignReminderBacklog } from "@/lib/campaignReviewReminder";
 import { publishDeadlineDueMs } from "@/lib/reviewReminder";
 
 type ProposalRow = {
@@ -43,10 +40,11 @@ type ProposalRow = {
   deliverable_reminder_1d_after_sent_at: string | null;
   deliverable_reminder_5d_after_sent_at: string | null;
   brand_approve_reminder_sent_at: string | null;
+  agreement_accepted_at: string | null;
 };
 
 const SELECT =
-  "id, influencer_id, brand_name, brand_email, publish_deadline, status, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_mode, deliverable_reminder_before_sent_at, deliverable_reminder_1d_after_sent_at, deliverable_reminder_5d_after_sent_at, brand_approve_reminder_sent_at";
+  "id, influencer_id, brand_name, brand_email, publish_deadline, status, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_mode, deliverable_reminder_before_sent_at, deliverable_reminder_1d_after_sent_at, deliverable_reminder_5d_after_sent_at, brand_approve_reminder_sent_at, agreement_accepted_at";
 
 type CampaignAppRow = {
   id: string;
@@ -61,6 +59,7 @@ type CampaignAppRow = {
   deliverable_reminder_1d_after_sent_at: string | null;
   deliverable_reminder_5d_after_sent_at: string | null;
   brand_approve_reminder_sent_at: string | null;
+  reviewed_at: string | null;
   brand_campaigns?: {
     deadline?: string | null;
     opened_at?: string | null;
@@ -78,15 +77,9 @@ type CampaignAppRow = {
 };
 
 const CAMPAIGN_SELECT =
-  "id, influencer_id, status, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_mode, deliverable_status, deliverable_reminder_before_sent_at, deliverable_reminder_1d_after_sent_at, deliverable_reminder_5d_after_sent_at, brand_approve_reminder_sent_at, brand_campaigns ( deadline, opened_at, created_at, brands ( brand_name, contact_email ) )";
+  "id, influencer_id, status, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_mode, deliverable_status, deliverable_reminder_before_sent_at, deliverable_reminder_1d_after_sent_at, deliverable_reminder_5d_after_sent_at, brand_approve_reminder_sent_at, reviewed_at, brand_campaigns ( brands ( brand_name, contact_email ) )";
 
-function campaignBrandBits(row: CampaignAppRow): {
-  brandName: string;
-  brandEmail: string;
-  deadline: string | null;
-  opened_at: string | null;
-  created_at: string | null;
-} {
+function campaignBrandBits(row: CampaignAppRow): { brandName: string; brandEmail: string } {
   const raw = row.brand_campaigns;
   const campaign = Array.isArray(raw) ? raw[0] : raw;
   const brandRaw = campaign?.brands;
@@ -94,9 +87,6 @@ function campaignBrandBits(row: CampaignAppRow): {
   return {
     brandName: brand?.brand_name || "Επιχείρηση",
     brandEmail: (brand?.contact_email || "").trim(),
-    deadline: campaign?.deadline || null,
-    opened_at: campaign?.opened_at ?? null,
-    created_at: campaign?.created_at ?? null,
   };
 }
 
@@ -106,7 +96,7 @@ function dayMs(days: number): number {
 
 export async function runDeliverableReminders(
   admin: SupabaseClient,
-  opts?: { nowMs?: number; limit?: number }
+  opts?: { nowMs?: number }
 ): Promise<{
   creatorScanned: number;
   creatorSent: number;
@@ -117,7 +107,6 @@ export async function runDeliverableReminders(
   flags: { creator: boolean; brand: boolean };
 }> {
   const nowMs = opts?.nowMs ?? Date.now();
-  const limit = Math.min(Math.max(opts?.limit ?? 40, 1), 100);
   const creatorOn = isDeliverableRemindersEnabled();
   const brandOn = isBrandApproveRemindersEnabled();
   const errors: string[] = [];
@@ -144,7 +133,6 @@ export async function runDeliverableReminders(
       return;
     }
     for (const row of (data || []) as CampaignAppRow[]) {
-      if (creatorSent >= limit) break;
       creatorScanned += 1;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
         skipped += 1;
@@ -159,46 +147,23 @@ export async function runDeliverableReminders(
         skipped += 1;
         continue;
       }
-      const { brandName, deadline, opened_at, created_at } = campaignBrandBits(row);
-      const publishDeadline = campaignPublishDeadline(null, deadline);
-      const deadlineEnd = publishDeadlineDueMsForCampaign(null, deadline, {
-        deadline,
-        opened_at,
-        created_at,
-      });
-      if (deadlineEnd == null) {
+      const acceptedAt = row.reviewed_at;
+      const acceptedMs = acceptedAt ? new Date(acceptedAt).getTime() : NaN;
+      if (!Number.isFinite(acceptedMs)) {
         skipped += 1;
         continue;
       }
-      if (isCampaignReminderBacklog(deadlineEnd, { nowMs })) {
+      if (isCampaignReminderBacklog(acceptedMs, { nowMs })) {
         skipped += 1;
         continue;
       }
+      if (row.deliverable_reminder_before_sent_at) continue;
+      const gentleDue = acceptedMs + dayMs(DELIVERABLE_REMINDER_GENTLE_DAYS);
+      if (nowMs < gentleDue) continue;
 
-      type Wave = "before" | "after_1" | "after_5";
-      let wave: Wave | null = null;
-      let stampCol: keyof CampaignAppRow | null = null;
-      if (
-        !row.deliverable_reminder_before_sent_at &&
-        nowMs >= deadlineEnd - dayMs(DELIVERABLE_REMINDER_BEFORE_DAYS) &&
-        nowMs < deadlineEnd
-      ) {
-        wave = "before";
-        stampCol = "deliverable_reminder_before_sent_at";
-      } else if (
-        !row.deliverable_reminder_1d_after_sent_at &&
-        nowMs >= deadlineEnd + dayMs(DELIVERABLE_REMINDER_AFTER_1_DAYS)
-      ) {
-        wave = "after_1";
-        stampCol = "deliverable_reminder_1d_after_sent_at";
-      } else if (
-        !row.deliverable_reminder_5d_after_sent_at &&
-        nowMs >= deadlineEnd + dayMs(DELIVERABLE_REMINDER_AFTER_5_DAYS)
-      ) {
-        wave = "after_5";
-        stampCol = "deliverable_reminder_5d_after_sent_at";
-      }
-      if (!wave || !stampCol) continue;
+      const wave = "gentle_7d" as const;
+      const stampCol: keyof CampaignAppRow = "deliverable_reminder_before_sent_at";
+      const { brandName } = campaignBrandBits(row);
 
       try {
         const prefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
@@ -225,9 +190,9 @@ export async function runDeliverableReminders(
           to: contact.email,
           creatorName: contact.name,
           brandName,
-          publishDeadline,
+          publishDeadline: null,
           wave,
-          dashboardUrl: `${siteUrl()}/dashboard?tab=campaigns&focus=deliverable&applicationId=${encodeURIComponent(String(row.id))}`,
+          dashboardUrl: `${siteUrl()}/dashboard?tab=campaigns&focus=deliverable&application=${encodeURIComponent(String(row.id))}`,
         });
         creatorSent += 1;
       } catch (err) {
@@ -257,7 +222,6 @@ export async function runDeliverableReminders(
       return;
     }
     for (const row of (data || []) as CampaignAppRow[]) {
-      if (brandSent >= limit) break;
       brandScanned += 1;
       if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
         skipped += 1;
@@ -335,7 +299,6 @@ export async function runDeliverableReminders(
       errors.push(`creator query: ${error.message}`);
     } else {
       for (const row of (data || []) as ProposalRow[]) {
-        if (creatorSent >= limit) break;
         creatorScanned += 1;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;
@@ -398,7 +361,7 @@ export async function runDeliverableReminders(
             brandName: row.brand_name || "Επιχείρηση",
             publishDeadline: row.publish_deadline,
             wave,
-            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&deliverable=1&proposalId=${encodeURIComponent(String(row.id))}`,
+            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&focus=deliverable&proposalId=${encodeURIComponent(String(row.id))}`,
           });
           creatorSent += 1;
         } catch (err) {
@@ -407,6 +370,74 @@ export async function runDeliverableReminders(
       }
     }
     await runCampaignCreatorReminders();
+
+    const { data: noDeadline, error: noDlErr } = await admin
+      .from("proposals")
+      .select(SELECT)
+      .eq("status", "completed")
+      .is("publish_deadline", null)
+      .not("agreement_accepted_at", "is", null)
+      .is("delivery_submitted_at", null)
+      .is("delivery_confirmed_at", null)
+      .is("auto_completed_at", null)
+      .is("deliverable_reminder_before_sent_at", null)
+      .order("agreement_accepted_at", { ascending: true })
+      .limit(200);
+    if (noDlErr) {
+      if (!/agreement_accepted_at|deliverable_reminder|schema cache|column|PGRST204|42703/i.test(noDlErr.message || "")) {
+        errors.push(`creator no-deadline query: ${noDlErr.message}`);
+      }
+    } else {
+      for (const row of (noDeadline || []) as ProposalRow[]) {
+        creatorScanned += 1;
+        if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
+          skipped += 1;
+          continue;
+        }
+        const acceptedMs = row.agreement_accepted_at
+          ? new Date(row.agreement_accepted_at).getTime()
+          : NaN;
+        if (!Number.isFinite(acceptedMs)) {
+          skipped += 1;
+          continue;
+        }
+        const gentleDue = acceptedMs + dayMs(DELIVERABLE_REMINDER_GENTLE_DAYS);
+        if (nowMs < gentleDue) continue;
+
+        try {
+          const prefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
+          if (!allowRemindersEmail(prefs)) {
+            skipped += 1;
+            continue;
+          }
+          const sentAt = new Date(nowMs).toISOString();
+          const { data: claimed, error: claimErr } = await admin
+            .from("proposals")
+            .update({ deliverable_reminder_before_sent_at: sentAt })
+            .eq("id", row.id)
+            .is("deliverable_reminder_before_sent_at", null)
+            .is("delivery_submitted_at", null)
+            .select("id")
+            .maybeSingle();
+          if (claimErr || !claimed?.id) {
+            skipped += 1;
+            continue;
+          }
+          const contact = await influencerContact(row.influencer_id);
+          await mailCreatorDeliverableReminder({
+            to: contact.email,
+            creatorName: contact.name,
+            brandName: row.brand_name || "Επιχείρηση",
+            publishDeadline: null,
+            wave: "gentle_7d",
+            dashboardUrl: `${siteUrl()}/dashboard?tab=proposals&focus=deliverable&proposalId=${encodeURIComponent(String(row.id))}`,
+          });
+          creatorSent += 1;
+        } catch (err) {
+          errors.push(`creator gentle ${row.id}: ${err instanceof Error ? err.message : "fail"}`);
+        }
+      }
+    }
   }
 
   if (brandOn) {
@@ -426,7 +457,6 @@ export async function runDeliverableReminders(
       errors.push(`brand query: ${error.message}`);
     } else {
       for (const row of (data || []) as ProposalRow[]) {
-        if (brandSent >= limit) break;
         brandScanned += 1;
         if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
           skipped += 1;

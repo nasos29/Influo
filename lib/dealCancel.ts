@@ -343,6 +343,22 @@ export async function withdrawPendingDeal(args: {
 
   deferAfterResponse(async () => {
     await notifyWithdrawInApp(args.proposal, cancelReason);
+    try {
+      const inf = await influencerContact(args.proposal.influencer_id);
+      if (inf?.email) {
+        const { mailProposalWithdrawn } = await import("@/lib/proposalMail");
+        await mailProposalWithdrawn({
+          influencerId: args.proposal.influencer_id,
+          to: inf.email,
+          creatorName: inf.name,
+          brandName: args.proposal.brand_name || "Επιχείρηση",
+          proposalId: args.proposal.id,
+          reason: cancelReason,
+        });
+      }
+    } catch (err) {
+      console.error("[deal-withdraw mail]", err instanceof Error ? err.message : err);
+    }
   });
 
   return { ok: true, cancelledAt };

@@ -61,6 +61,7 @@ import { downloadSocialRefreshReportExcel } from "@/lib/socialRefreshReport";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { prepareImageForStorage } from "@/lib/prepareImageForStorage";
 import { normalizeGender } from "@/lib/gender";
+import { publicProfilePath } from "@/lib/profileSlug";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
@@ -222,6 +223,8 @@ interface DbInfluencer {
   /** Set when admin manually un-approved; blocks cron auto-approval until manual re-approve. */
   manual_unapproved_at?: string | null;
   manual_unapproved_by?: string | null;
+  last_social_refresh_at?: string | null;
+  social_refresh_profile_failed?: boolean;
   analytics_verified?: boolean;
   accounts: { platform: string; username: string; followers: string }[] | null; 
   avatar_url: string | null;
@@ -4519,6 +4522,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           <button type="button" onClick={() => { void openEditUser(u); }} className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50">
             {txt.edit}
           </button>
+          <a
+            href={publicProfilePath(u.profile_slug, u.id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          >
+            {lang === "el" ? "Προφίλ" : "Profile"}
+          </a>
           <button
             type="button"
             onClick={() => void startAdminChat("influencer", String(u.id))}
@@ -5250,6 +5261,18 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1 min-w-0 max-w-full">
                                   <AudienceMissingBadge kind={audienceMissingKind(u)} lang={lang} />
+                                  {u.social_refresh_profile_failed ? (
+                                    <span
+                                      className="inline-flex items-center rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900"
+                                      title={
+                                        lang === "el"
+                                          ? "Στο τελευταίο SocialRefresh ένας λογαριασμός απέτυχε (οι υπόλοιποι πέρασαν). Δες τα logs."
+                                          : "Last SocialRefresh: one account failed (others OK). See logs."
+                                      }
+                                    >
+                                      {lang === "el" ? "Refresh: λογαριασμός απέτυχε" : "Refresh: account failed"}
+                                    </span>
+                                  ) : null}
                                 </div>
                                 {u.created_at && (
                                   <div
@@ -5260,6 +5283,15 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                     {formatDate(u.created_at, lang)} {formatTime(u.created_at, lang)}
                                   </div>
                                 )}
+                                {u.last_social_refresh_at ? (
+                                  <div
+                                    className="text-[10px] text-slate-400 mt-0.5 tabular-nums"
+                                    title={formatDisplayDateTime(u.last_social_refresh_at)}
+                                  >
+                                    {lang === "el" ? "Refresh: λογαριασμός απέτυχε" : "Refresh: account failed"}{" "}
+                                    {formatDate(u.last_social_refresh_at, lang)}
+                                  </div>
+                                ) : null}
                                 {u.category && (
                                   <div className="flex flex-wrap gap-1 mt-1 max-w-full">
                                     {parseStoredCategories(u.category).map((cat: string, idx: number) => (

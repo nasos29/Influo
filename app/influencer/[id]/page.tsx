@@ -3,7 +3,8 @@ import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import InfluencerProfileClient from "@/components/InfluencerProfileClient";
 import { loadSeoProfileById } from "@/lib/loadSeoProfile";
-import { profileJsonLd, profileMetadata } from "@/lib/profileSeo";
+import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
+import { profileJsonLd, profileMetadata, profileCanonical } from "@/lib/profileSeo";
 import { publicProfilePath } from "@/lib/profileSlug";
 
 export const revalidate = 3600;
@@ -38,12 +39,23 @@ export default async function InfluencerByIdPage({ params }: { params: Params })
   }
 
   const jsonLd = profileJsonLd(profile.view);
+  const reviewsLd = await creatorReviewsJsonLd(
+    profile.id,
+    profile.view.name || "Creator",
+    profileCanonical(profile.view)
+  );
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
+      {reviewsLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsLd).replace(/</g, "\\u003c") }}
+        />
+      ) : null}
       <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
         <InfluencerProfileClient
           params={Promise.resolve({ id: profile.id })}

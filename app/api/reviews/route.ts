@@ -256,7 +256,12 @@ export async function POST(req: Request) {
             reviewText: reviewTextRaw || null,
             profileUrl,
           });
-          jobs.push(send("review_creator", person.email, mail.subject, mail.html));
+          const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
+          jobs.push(
+            sendCheckedCreator(influencerId, "review_creator", person.email, mail.subject, mail.html, {
+              recipientId: influencerId,
+            })
+          );
         }
         await Promise.all(jobs);
       } catch (err) {

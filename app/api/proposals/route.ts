@@ -319,6 +319,7 @@ export async function POST(request: Request) {
     deferAfterResponse(async () => {
       await Promise.all([
         mailNewProposal({
+          influencerId,
           influencerEmail: influencer.email,
           influencerName,
           brandEmail,

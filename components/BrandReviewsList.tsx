@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatDisplayDate } from "@/lib/formatDate";
+import ReviewsSummaryModal, { type ReviewListItem } from "@/components/ReviewsSummaryModal";
 
 export type BrandReviewItem = {
   id: string;
@@ -43,7 +43,8 @@ export default function BrandReviewsList({
   const [avg, setAvg] = useState<number>(Number(avgRating) || 0);
   const [total, setTotal] = useState<number>(Number(totalReviews) || 0);
   const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(!compact);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [fetched, setFetched] = useState(false);
 
   useEffect(() => {
     setAvg(Number(avgRating) || 0);
@@ -51,7 +52,7 @@ export default function BrandReviewsList({
   }, [avgRating, totalReviews]);
 
   useEffect(() => {
-    if (!brandId || !open) return;
+    if (!brandId || !modalOpen || fetched) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -62,6 +63,7 @@ export default function BrandReviewsList({
         if (Array.isArray(data.reviews)) setReviews(data.reviews);
         if (typeof data.avg_rating === "number") setAvg(data.avg_rating);
         if (typeof data.total_reviews === "number") setTotal(data.total_reviews);
+        setFetched(true);
       } catch {
         /* ignore */
       } finally {
@@ -71,7 +73,7 @@ export default function BrandReviewsList({
     return () => {
       cancelled = true;
     };
-  }, [brandId, open]);
+  }, [brandId, modalOpen, fetched]);
 
   if (total <= 0 && avg <= 0) {
     if (compact) return null;
@@ -94,44 +96,31 @@ export default function BrandReviewsList({
   if (compact) {
     if (total <= 0) return null;
     return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
+      <>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setModalOpen(true);
+          }}
+          className="flex w-full items-center gap-2 text-left text-sm text-slate-700 hover:text-slate-900"
+        >
           {summary}
-          {brandId ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen((v) => !v);
-              }}
-              className="text-xs font-semibold text-blue-600 hover:underline"
-            >
-              {open ? (el ? "Απόκρυψη" : "Hide") : el ? "Κείμενα" : "Texts"}
-            </button>
-          ) : null}
-        </div>
-        {open && brandId ? (
-          loading ? (
-            <p className="text-xs text-slate-400">{el ? "Φόρτωση…" : "Loading…"}</p>
-          ) : (
-            <ul className="space-y-2">
-              {reviews.map((r) => (
-                <li key={r.id} className="rounded-lg border border-slate-100 bg-slate-50/80 p-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-slate-800 truncate">
-                      {r.influencer_name || (el ? "Creator" : "Creator")}
-                    </span>
-                    <Stars rating={r.rating} />
-                  </div>
-                  {r.review_text ? (
-                    <p className="mt-1 text-xs text-slate-700 whitespace-pre-wrap break-words">{r.review_text}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )
-        ) : null}
-      </div>
+          <span className="text-xs font-semibold text-blue-600 shrink-0">
+            {el ? "Όλες" : "All"}
+          </span>
+        </button>
+        <ReviewsSummaryModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          lang={lang}
+          avgRating={avg}
+          totalReviews={total}
+          reviews={reviews as ReviewListItem[]}
+          loading={loading && !fetched}
+          title={el ? "Αξιολογήσεις επιχείρησης" : "Brand reviews"}
+        />
+      </>
     );
   }
 
@@ -140,31 +129,28 @@ export default function BrandReviewsList({
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
         {el ? "Αξιολογήσεις" : "Reviews"}
       </p>
-      {summary}
-      {loading ? (
-        <p className="text-xs text-slate-400">{el ? "Φόρτωση…" : "Loading…"}</p>
-      ) : reviews.length === 0 ? null : (
-        <ul className="space-y-3">
-          {reviews.map((r) => (
-            <li key={r.id} className="rounded-xl border border-slate-200 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 truncate">
-                    {r.influencer_name || (el ? "Creator" : "Creator")}
-                  </p>
-                  {r.created_at ? (
-                    <p className="text-xs text-slate-500">{formatDisplayDate(r.created_at)}</p>
-                  ) : null}
-                </div>
-                <Stars rating={r.rating} />
-              </div>
-              {r.review_text ? (
-                <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap break-words">{r.review_text}</p>
-              ) : null}
-            </li>
-          ))}
-        </ul>
+      {total > 0 ? (
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className="flex w-full items-center gap-2 text-left hover:opacity-90"
+        >
+          {summary}
+          <span className="text-xs font-semibold text-blue-600">{el ? "Όλες" : "All"}</span>
+        </button>
+      ) : (
+        summary
       )}
+      <ReviewsSummaryModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        lang={lang}
+        avgRating={avg}
+        totalReviews={total}
+        reviews={reviews as ReviewListItem[]}
+        loading={loading && !fetched}
+        title={el ? "Αξιολογήσεις επιχείρησης" : "Brand reviews"}
+      />
     </div>
   );
 }

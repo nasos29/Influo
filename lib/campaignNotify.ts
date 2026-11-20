@@ -10,7 +10,7 @@ import {
   type RankedAlert,
 } from "@/lib/campaignAlert";
 import { sendPushToInfluencer } from "@/lib/push";
-import { sendTransactional } from "@/lib/transactionalEmail";
+import { sendTransactionalCreator } from "@/lib/collabCreatorMail";
 import { applicationStatusToCreator, newCampaignToCreator, removedToCreator } from "@/lib/campaignMail";
 import {
   isStrongMatchZohoEnabled,
@@ -362,7 +362,14 @@ async function sendCampaignOutreach(
     campaignId: opts.campaignId,
   });
   const mail = await withTimeout(
-    sendTransactional(person.email, outreach.subject, outreach.html),
+    sendTransactionalCreator(
+      person.id,
+      "campaign_new_creator",
+      person.email,
+      outreach.subject,
+      outreach.html,
+      { recipientId: person.id }
+    ),
     SEND_TIMEOUT_MS
   );
   // Push for matched creators is sent once by notifyCampaignPublished (Q4).
@@ -410,7 +417,14 @@ export async function notifyApplicationStatus(opts: {
     campaignId: opts.campaignId,
     status: opts.status,
   });
-  const sent = await sendTransactional(person.email, mail.subject, mail.html).catch((err) => ({
+  const sent = await sendTransactionalCreator(
+    opts.influencerId,
+    "campaign_application_status",
+    person.email,
+    mail.subject,
+    mail.html,
+    { recipientId: opts.influencerId }
+  ).catch((err) => ({
     ok: false,
     error: err instanceof Error ? err.message : "send failed",
   }));
@@ -431,7 +445,14 @@ export async function notifyApplicantsCampaignRemoved(opts: {
   let sent = 0;
   for (const person of people) {
     const removed = removedToCreator({ influencerName: person.name, campaignTitle: opts.campaignTitle });
-    const mail = await sendTransactional(person.email, removed.subject, removed.html).catch(() => ({ ok: false, error: "send failed" }));
+    const mail = await sendTransactionalCreator(
+      person.id,
+      "campaign_removed_creator",
+      person.email,
+      removed.subject,
+      removed.html,
+      { recipientId: person.id }
+    ).catch(() => ({ ok: false, error: "send failed" }));
     if (mail.ok) sent += 1;
     else if ("error" in mail && mail.error) console.error("[campaignNotify] removed mail", mail.error);
     await sendPushToInfluencer(person.id, {

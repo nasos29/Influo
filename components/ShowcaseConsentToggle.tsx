@@ -31,14 +31,14 @@ export default function ShowcaseConsentToggle({
 }: {
   source: Source;
   id: string;
-  initialConsent: boolean;
+  initialConsent?: boolean | null;
   lang: Lang;
   party: Party;
   className?: string;
 }) {
   const txt = COPY[lang];
   const hint = showcaseHelperText(party, lang);
-  const [consent, setConsent] = useState(!!initialConsent);
+  const [consent, setConsent] = useState(initialConsent !== false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
