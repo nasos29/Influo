@@ -41,6 +41,14 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Pause, mute, and tear down decoder so unmounted/stale elements cannot keep playing audio. */
+function releaseVideoMedia(el: HTMLVideoElement) {
+  el.pause();
+  el.muted = true;
+  el.removeAttribute("src");
+  el.load();
+}
+
 function CreatorMiniAvatar({ src, name }: { src: string | null; name: string }) {
   const proxied = src ? getCachedImageUrl(src) : null;
   if (proxied) {
@@ -295,17 +303,39 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const active = cardById.get(activeId) ?? data.cards[0];
   const thumbnails = data.cards.filter((c) => c.applicationId !== active.applicationId);
 
-  const onPickThumb = useCallback((applicationId: string) => {
-    setActiveId(applicationId);
-    setHeroMuted(true);
+  const stopCurrentHeroMedia = useCallback(() => {
+    const el = heroVideoRef.current;
+    if (el) releaseVideoMedia(el);
   }, []);
 
+  const onPickThumb = useCallback(
+    (applicationId: string) => {
+      stopCurrentHeroMedia();
+      setActiveId(applicationId);
+      setHeroMuted(true);
+    },
+    [stopCurrentHeroMedia]
+  );
+
   const advanceHero = useCallback(() => {
+    stopCurrentHeroMedia();
     const ids = data.cards.map((c) => c.applicationId);
     const idx = ids.indexOf(activeId);
     const nextId = ids[(idx + 1) % ids.length];
     setActiveId(nextId);
-  }, [data.cards, activeId]);
+  }, [data.cards, activeId, stopCurrentHeroMedia]);
+
+  useEffect(() => {
+    const el = heroVideoRef.current;
+    if (!el || !active.playUrl) return;
+    el.src = active.playUrl;
+    if (active.posterUrl) el.poster = active.posterUrl;
+    else el.removeAttribute("poster");
+    el.muted = heroMuted;
+    void el.play().catch(() => {
+      setHeroMuted(true);
+    });
+  }, [active.applicationId, active.playUrl, active.posterUrl]);
 
   useEffect(() => {
     const el = heroVideoRef.current;
@@ -316,7 +346,14 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         setHeroMuted(true);
       });
     }
-  }, [heroMuted, active.applicationId]);
+  }, [heroMuted]);
+
+  useEffect(() => {
+    return () => {
+      const el = heroVideoRef.current;
+      if (el) releaseVideoMedia(el);
+    };
+  }, []);
 
   const toggleHeroMute = useCallback(() => {
     setHeroMuted((m) => !m);
@@ -329,12 +366,8 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           <div className="relative flex justify-center">
             <div className={HERO_FRAME}>
               <video
-                key={active.applicationId}
                 ref={heroVideoRef}
                 className="absolute inset-0 h-full w-full object-cover"
-                src={active.playUrl}
-                poster={active.posterUrl ?? undefined}
-                autoPlay
                 muted={heroMuted}
                 playsInline
                 preload="metadata"
