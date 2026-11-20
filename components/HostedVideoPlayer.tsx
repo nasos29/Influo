@@ -10,6 +10,7 @@ import {
   type TransitionEvent as ReactTransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { Maximize2, Minimize2 } from "lucide-react";
 import TikTokSoundPromptButton from "@/components/TikTokSoundPromptButton";
 import { TIKTOK_SOUND_COPY } from "@/lib/useTikTokPlayerHost";
 import { usePortfolioMediaControls } from "@/lib/usePortfolioMediaControls";
@@ -693,13 +694,9 @@ export default function HostedVideoPlayer({
               }}
             >
               {lightbox ? (
-                <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
-                  <path d="M7 14H5v5h5v-2H7v-3zm12-9h-5v2h3v3h2V5zM5 5h5v2H7v3H5V5zm14 9h-2v3h-3v2h5v-5z" />
-                </svg>
+                <Minimize2 className="h-6 w-6" strokeWidth={2.5} aria-hidden />
               ) : (
-                <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
-                  <path d="M7 14H5v5h5v-2H7v-3zm0-9h2v3h3v2H5V5h2zm12 12h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-                </svg>
+                <Maximize2 className="h-6 w-6" strokeWidth={2.5} aria-hidden />
               )}
             </button>
           </div>
