@@ -26,6 +26,7 @@ const COPY = {
     mute: "Σίγαση",
     playVideo: "Δες το βίντεο",
     seek: "Γραμμή προόδου βίντεο",
+    publicViewsLead: "Ήδη",
     publicViews: "προβολές",
   },
   en: {
@@ -34,6 +35,7 @@ const COPY = {
     mute: "Mute",
     playVideo: "Play video",
     seek: "Video progress",
+    publicViewsLead: "Already",
     publicViews: "views",
   },
 } as const;
@@ -536,6 +538,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
         {data.totalViews != null ? (
           <p className="mt-5 text-center text-base font-medium text-slate-600 sm:mt-6 sm:text-lg">
+            {txt.publicViewsLead}{" "}
             <CountUp
               value={data.totalViews}
               formatLocale={lang === "el" ? "el-GR" : "en-GB"}
