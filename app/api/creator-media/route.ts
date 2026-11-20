@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase
     .from("creator_media")
     .select(
-      "source_url, kind, folder_path, play_path, av1_path, hevc_path, poster_path, duration_ms, width, height, status"
+      "source_url, kind, folder_path, media_type, metadata, play_path, av1_path, hevc_path, poster_path, duration_ms, width, height, status"
     )
     .eq("influencer_id", influencerId)
     .eq("status", "ready");

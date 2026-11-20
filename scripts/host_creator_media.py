@@ -314,6 +314,338 @@ def ytdlp_download(url: str, dest: Path, platform: str | None, cookies: Path | N
     raise RuntimeError(last_err)
 
 
+PHOTO_MAX_SIDE = 1440
+PHOTO_WEBP_QUALITY = 82
+SCALE_PHOTO = (
+    f"scale='if(gt(iw,ih),min({PHOTO_MAX_SIDE},iw),-2)':"
+    f"'if(gt(ih,iw),min({PHOTO_MAX_SIDE},ih),-2)'"
+)
+
+RETRY_FAILED_PHOTO_MARKERS = (
+    "no video stream",
+    "still image",
+    "unsupported download",
+    "no video formats found",
+    "there is no video in this post",
+    "no video in this post",
+    "403",
+    "http error 403",
+    "ip address",
+    "unexpected response",
+)
+
+
+def is_retriable_photo_host_failure(error: str | None) -> bool:
+    e = (error or "").lower()
+    return any(m in e for m in RETRY_FAILED_PHOTO_MARKERS)
+
+
+def probe_is_video(probe: dict[str, Any]) -> bool:
+    codec = (probe.get("codec") or "").lower()
+    if codec in {"", "none"}:
+        return False
+    if codec in {"mjpeg", "png", "gif", "webp", "bmp", "apng"}:
+        return False
+    return int(probe.get("width") or 0) >= 1
+
+
+def _ytdlp_base_cmds(url: str, platform: str | None, cookies: Path | None) -> list[list[str]]:
+    ytdlp = shutil.which("yt-dlp") or which_or_die("yt-dlp")
+    probe_flags = ["--dump-single-json", "--skip-download", "--ignore-no-formats-error"]
+    base: list[list[str]] = [
+        [ytdlp, "--no-playlist", *probe_flags, url],
+    ]
+    if platform == "tiktok":
+        base = [
+            [ytdlp, "--no-playlist", "--impersonate", "safari", *probe_flags, url],
+            [ytdlp, "--no-playlist", "--impersonate", "chrome", *probe_flags, url],
+        ] + base
+    if cookies and cookies.is_file():
+        base.insert(0, [ytdlp, "--no-playlist", "--cookies", str(cookies), *probe_flags, url])
+    return base
+
+
+def ytdlp_probe_info(url: str, platform: str | None, cookies: Path | None) -> dict[str, Any]:
+    last_err = "metadata download failed"
+    for cmd in _ytdlp_base_cmds(url, platform, cookies):
+        proc = run(cmd, timeout=120)
+        stdout = (proc.stdout or "").strip()
+        if stdout:
+            try:
+                return json.loads(stdout)
+            except json.JSONDecodeError as e:
+                last_err = str(e)
+                continue
+        last_err = (proc.stderr or proc.stdout or last_err).strip().splitlines()
+        last_err = last_err[-1] if last_err else "metadata download failed"
+    raise RuntimeError(last_err)
+
+
+def _entry_is_video(entry: dict[str, Any]) -> bool:
+    vcodec = str(entry.get("vcodec") or "").lower()
+    if vcodec not in {"", "none"}:
+        return True
+    ext = str(entry.get("ext") or "").lower()
+    if ext in {"mp4", "webm", "mov", "m4v"}:
+        return True
+    for fmt in entry.get("formats") or []:
+        if isinstance(fmt, dict) and str(fmt.get("vcodec") or "").lower() not in {"", "none"}:
+            return True
+    return False
+
+
+def _is_social_post_page_url(url: str) -> bool:
+    p = urllib.parse.urlparse(url)
+    host = (p.hostname or "").lower()
+    if not host:
+        return False
+    if host.endswith("cdninstagram.com") or "fbcdn.net" in host:
+        return False
+    if "tiktokcdn" in host or "tiktokv.com" in host:
+        return False
+    if host == "instagr.am" or host == "instagram.com" or host.endswith(".instagram.com"):
+        return True
+    if "tiktok.com" in host or host.endswith(".tiktok.com"):
+        return True
+    if "vm.tiktok" in url.lower():
+        return True
+    return False
+
+
+def _is_direct_media_url(url: str) -> bool:
+    if not url.startswith("http"):
+        return False
+    return not _is_social_post_page_url(url)
+
+
+def _best_url_from_entry(entry: dict[str, Any]) -> str | None:
+    raw_url = entry.get("url")
+    if isinstance(raw_url, str) and _is_direct_media_url(raw_url):
+        return raw_url
+    for key in ("thumbnail", "display_url"):
+        raw = entry.get(key)
+        if isinstance(raw, str) and raw.startswith("http") and _is_direct_media_url(raw):
+            return raw
+    thumbs = entry.get("thumbnails") or []
+    best: tuple[int, str] | None = None
+    for t in thumbs:
+        if not isinstance(t, dict):
+            continue
+        u = t.get("url")
+        if not isinstance(u, str) or not u.startswith("http"):
+            continue
+        pref = int(t.get("preference") or t.get("width") or 0)
+        if best is None or pref >= best[0]:
+            best = (pref, u)
+    return best[1] if best else None
+
+
+def _image_urls_from_info(info: dict[str, Any]) -> list[str]:
+    entries = info.get("entries")
+    if isinstance(entries, list) and entries:
+        if any(_entry_is_video(e) for e in entries if isinstance(e, dict)):
+            return []
+        urls: list[str] = []
+        seen: set[str] = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            u = _best_url_from_entry(entry)
+            if u and u not in seen:
+                seen.add(u)
+                urls.append(u)
+        return urls
+    if _entry_is_video(info):
+        return []
+    u = _best_url_from_entry(info)
+    return [u] if u else []
+
+
+def classify_ytdlp_info(info: dict[str, Any]) -> tuple[str, list[str]]:
+    """Return (media_kind, image_urls). media_kind is video | photo | carousel."""
+    entries = info.get("entries")
+    if isinstance(entries, list) and entries:
+        if any(_entry_is_video(e) for e in entries if isinstance(e, dict)):
+            return "video", []
+        urls = _image_urls_from_info(info)
+        if len(urls) > 1:
+            return "carousel", urls
+        if urls:
+            return "photo", urls
+        return "photo", []
+    if _entry_is_video(info):
+        return "video", []
+    urls = _image_urls_from_info(info)
+    if len(urls) > 1:
+        return "carousel", urls
+    if urls:
+        return "photo", urls
+    thumbs = info.get("thumbnails") or []
+    if thumbs:
+        u = _best_url_from_entry({"thumbnails": thumbs})
+        if u:
+            return "photo", [u]
+    return "photo", []
+
+
+def download_remote_image(url: str, dest: Path) -> None:
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; InfluoMediaHost/1.0)",
+            "Accept": "image/*,*/*;q=0.8",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = resp.read()
+    if not data:
+        raise RuntimeError("empty image response")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(data)
+
+
+def image_to_webp(source: Path, dest: Path) -> None:
+    candidates = [source]
+    magick = shutil.which("magick") or shutil.which("convert")
+    if magick:
+        oriented = source.with_name("oriented.png")
+        if run([magick, str(source), "-auto-orient", "-strip", str(oriented)], timeout=300).returncode == 0:
+            candidates.insert(0, oriented)
+    last_err = "could not encode photo"
+    for cand in candidates:
+        proc = run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(cand),
+                "-frames:v",
+                "1",
+                "-vf",
+                SCALE_PHOTO,
+                "-c:v",
+                "libwebp",
+                "-quality",
+                str(PHOTO_WEBP_QUALITY),
+                str(dest),
+            ],
+            timeout=300,
+        )
+        if proc.returncode == 0 and dest.exists() and dest.stat().st_size > 0:
+            return
+        lines = (proc.stderr or "").strip().splitlines()
+        if lines:
+            last_err = lines[-1]
+    raise RuntimeError(f"photo encode failed: {last_err}")
+
+
+def store_photo_webps(store: Any, folder: str, webps: list[Path], meta: dict[str, Any]) -> dict[str, Any]:
+    if not webps:
+        raise RuntimeError("no encoded photos to upload")
+    media_type = "carousel" if len(webps) > 1 else "photo"
+    paths: dict[str, str] = {}
+    carousel_paths: list[str] = []
+    import importlib.util
+
+    mspec = importlib.util.spec_from_file_location(
+        "media_storage", Path(__file__).resolve().parent / "media_storage.py"
+    )
+    mmod = importlib.util.module_from_spec(mspec) if mspec and mspec.loader else None
+    if mspec and mspec.loader and mmod:
+        mspec.loader.exec_module(mmod)
+    public_urls: list[str] = []
+    for i, webp in enumerate(webps):
+        name = "photo.webp" if len(webps) == 1 else f"carousel-{i + 1:02d}.webp"
+        key = f"{folder}{name}"
+        store.storage_upload(key, webp.read_bytes(), "image/webp")
+        paths["play_path"] = key
+        carousel_paths.append(key)
+        pub = mmod.public_media_url(key) if mmod else key
+        public_urls.append(pub or key)
+    paths["poster_path"] = paths["play_path"]
+    meta = {
+        **meta,
+        "media_type": media_type,
+        "carousel_paths": carousel_paths,
+        "carousel_urls": public_urls,
+        "photo_bytes": [p.stat().st_size for p in webps],
+    }
+    meta_path = f"{folder}meta.json"
+    store.storage_upload(meta_path, json.dumps(meta, indent=2).encode(), "application/json")
+    first = webps[0]
+    probe = ffprobe_info(first) if first.exists() else {}
+    return {
+        "media_type": media_type,
+        "play_path": paths["play_path"],
+        "poster_path": paths["poster_path"],
+        "byte_size": sum(p.stat().st_size for p in webps),
+        "width": probe.get("width"),
+        "height": probe.get("height"),
+        "metadata": {"carousel_urls": public_urls, "carousel_paths": carousel_paths},
+    }
+
+
+def upload_photo_assets(
+    store: Any,
+    folder: str,
+    image_urls: list[str],
+    work: Path,
+    meta: dict[str, Any],
+) -> dict[str, Any]:
+    if not image_urls:
+        raise RuntimeError("no image URLs to host")
+    webps: list[Path] = []
+    for i, img_url in enumerate(image_urls):
+        raw = work / f"source-{i:02d}.img"
+        download_remote_image(img_url, raw)
+        out = work / (f"carousel-{i + 1:02d}.webp" if len(image_urls) > 1 else "photo.webp")
+        image_to_webp(raw, out)
+        webps.append(out)
+    return store_photo_webps(store, folder, webps, meta)
+
+
+def count_retry_failed_photo_hosts(sb: Supabase, influencer_id: str | None = None) -> list[dict[str, Any]]:
+    q = "select=id,influencer_id,source_url,source_url_norm,kind,error&status=eq.failed"
+    if influencer_id:
+        q += f"&influencer_id=eq.{influencer_id}"
+    rows = sb.rest_get("creator_media", q)
+    return [r for r in rows if is_retriable_photo_host_failure(str(r.get("error") or ""))]
+
+
+def retry_failed_photo_hosts(
+    sb: Supabase,
+    cookies: Path | None,
+    *,
+    execute: bool,
+    influencer_id: str | None = None,
+    store: Any | None = None,
+) -> dict[str, int]:
+    eligible = count_retry_failed_photo_hosts(sb, influencer_id)
+    by_creator: dict[str, int] = {}
+    for row in eligible:
+        key = str(row.get("influencer_id") or "")
+        by_creator[key] = by_creator.get(key, 0) + 1
+    log(
+        f"retry-failed-photos: {len(eligible)} row(s) across {len(by_creator)} creator(s)"
+        + (" — dry run" if not execute else "")
+    )
+    for cid, n in sorted(by_creator.items()):
+        log(f"  {cid}: {n}")
+    if not execute:
+        return {"eligible": len(eligible), "retried": 0}
+    store = store or _load_media_storage()(sb)
+    retried = 0
+    for row in eligible:
+        url = str(row.get("source_url") or "")
+        iid = str(row.get("influencer_id") or "")
+        if not url or not iid:
+            continue
+        log(f"retry {row.get('id')} {url}")
+        process_influencer(sb, iid, cookies, url, force=True, store=store)
+        retried += 1
+    return {"eligible": len(eligible), "retried": retried}
+
+
 def ffprobe_info(path: Path) -> dict[str, Any]:
     proc = run(
         [
@@ -676,16 +1008,15 @@ def _normalize_post_type(raw: Any) -> str:
     return re.sub(r"[^a-z]", "", str(raw or "").lower())
 
 
+def is_hostable_media_url(url: str, post_type: str | None = None) -> bool:
+    """TikTok / Instagram items we can self-host (videos, photos, carousels). Never YouTube."""
+    del post_type  # kept for call-site compatibility; type no longer excludes hosting
+    platform = detect_platform(url)
+    return platform in ("instagram", "tiktok")
+
+
 def is_hostable_video_url(url: str, post_type: str | None = None) -> bool:
-    """Skip TikTok photo paths and image-only posts (same rule as profile top posts)."""
-    n = str(url or "").strip().lower()
-    if "/photo/" in n:
-        return False
-    if post_type:
-        t = _normalize_post_type(post_type)
-        if t in {"image", "photo", "picture", "graphimage"}:
-            return False
-    return True
+    return is_hostable_media_url(url, post_type)
 
 
 def is_self_hosted_media_url(url: str) -> bool:
@@ -954,6 +1285,8 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     "av1_path": reused.get("av1_path"),
                     "hevc_path": reused.get("hevc_path"),
                     "poster_path": reused.get("poster_path"),
+                    "media_type": reused.get("media_type") or "video",
+                    "metadata": reused.get("metadata") or {},
                     "byte_size": reused.get("byte_size"),
                     "duration_ms": reused.get("duration_ms"),
                     "width": reused.get("width"),
@@ -1001,6 +1334,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
         item_dir = work_root / safe_segment(f"{kind}-{platform}-{vid}")
         item_dir.mkdir(parents=True, exist_ok=True)
         try:
+            source: Path | None = None
             local = [p for p in item_dir.glob("source.*") if p.suffix.lower() not in {".part", ".ytdl"}]
             if local:
                 source = max(local, key=lambda p: p.stat().st_size)
@@ -1018,81 +1352,190 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                         ),
                         None,
                     )
-                    if not prior:
-                        raise
-                    play_key = safe_storage_object_path(prior.get("play_path"))
-                    if not play_key:
-                        raise
-                    source = store.storage_download(play_key, item_dir / "source.mp4")
-                    if not source.is_file():
-                        raise RuntimeError(f"re-encode download is not a file: {source}")
-                    log(
-                        f"  yt-dlp failed ({e}); re-encoding from existing {prior['play_path']} "
-                        f"({source.stat().st_size} bytes)"
-                    )
+                    if prior and str(prior.get("media_type") or "video") == "video":
+                        play_key = safe_storage_object_path(prior.get("play_path"))
+                        if not play_key:
+                            raise
+                        source = store.storage_download(play_key, item_dir / "source.mp4")
+                        if not source.is_file():
+                            raise RuntimeError(f"re-encode download is not a file: {source}")
+                        log(
+                            f"  yt-dlp failed ({e}); re-encoding from existing {prior['play_path']} "
+                            f"({source.stat().st_size} bytes)"
+                        )
+                    else:
+                        log(f"  yt-dlp failed ({e}); will try photo/carousel metadata")
+                        source = None
+
+            if source is None:
+                info: dict[str, Any] | None = None
+                try:
+                    info = ytdlp_probe_info(url, platform, cookies)
+                except Exception as e:
+                    raise RuntimeError(f"photo metadata failed: {e}") from e
+                media_kind, image_urls = classify_ytdlp_info(info) if info else ("photo", [])
+                if media_kind == "video" or not image_urls:
+                    raise RuntimeError("no video stream found (still image or unsupported download)")
+                base_meta = {
+                    "source_url": url,
+                    "source_url_norm": norm,
+                    "platform": platform,
+                    "source_video_id": vid,
+                    "kind": kind,
+                    "downloaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                }
+                stored = upload_photo_assets(store, folder, image_urls, item_dir, base_meta)
+                row = {
+                    "influencer_id": influencer_id,
+                    "source_url": url,
+                    "source_url_norm": norm,
+                    "kind": kind,
+                    "platform": platform,
+                    "source_video_id": vid,
+                    "folder_path": folder,
+                    "media_type": stored["media_type"],
+                    "metadata": stored.get("metadata") or {},
+                    "play_path": stored["play_path"],
+                    "av1_path": None,
+                    "hevc_path": None,
+                    "poster_path": stored.get("poster_path"),
+                    "byte_size": stored.get("byte_size"),
+                    "duration_ms": None,
+                    "width": stored.get("width") or None,
+                    "height": stored.get("height") or None,
+                    "status": "ready",
+                    "error": None,
+                }
+                upsert_row(sb, row)
+                ready_map[norm] = row
+                summary["ready"] += 1
+                summary["details"].append({**base_meta, "status": "ready", "folder": folder, "media_type": stored["media_type"]})
+                log(f"  ready {folder} {stored['media_type']} bytes={stored.get('byte_size')}")
+                continue
+
             probe = ffprobe_info(source)
-            if not probe.get("codec") or int(probe.get("width") or 0) < 1:
-                raise RuntimeError("no video stream found (still image or unsupported download)")
-            assets = encode_assets(source, item_dir)
-            meta = {
+            base_meta = {
                 "source_url": url,
                 "source_url_norm": norm,
                 "platform": platform,
                 "source_video_id": vid,
                 "kind": kind,
                 "downloaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "duration_seconds": round(assets["duration"], 3),
-                "width": assets["width"],
-                "height": assets["height"],
-                "source_codec": assets["source_codec"],
-                "original_bytes": assets["original_bytes"],
-                "video_mp4_bytes": assets["play"].stat().st_size,
-                "video_av1_bytes": assets["av1"].stat().st_size if assets.get("av1") else None,
-                "video_hevc_bytes": assets["hevc"].stat().st_size if assets.get("hevc") else None,
-                "poster_bytes": assets["poster"].stat().st_size if assets.get("poster") else None,
             }
-            paths = upload_folder(store, folder, assets, meta)
-            row = {
-                "influencer_id": influencer_id,
-                "source_url": url,
-                "source_url_norm": norm,
-                "kind": kind,
-                "platform": platform,
-                "source_video_id": vid,
-                "folder_path": folder,
-                "play_path": paths["play_path"],
-                "av1_path": paths.get("av1_path"),
-                "hevc_path": paths.get("hevc_path"),
-                "poster_path": paths.get("poster_path"),
-                "byte_size": assets["play"].stat().st_size,
-                "duration_ms": int(assets["duration"] * 1000) if assets["duration"] else None,
-                "width": assets["width"] or None,
-                "height": assets["height"] or None,
-                "status": "ready",
-                "error": None,
-            }
-            upsert_row(sb, row)
-            ready_map[norm] = row
-            keep = {paths["play_path"], paths.get("av1_path"), paths.get("hevc_path"), paths.get("poster_path"), f"{folder}meta.json"}
-            keep = {p for p in keep if p}
-            try:
-                existing_objs = store.storage_list(folder.rstrip("/"))
-                stale = [p for p in existing_objs if p not in keep]
-                if stale:
-                    store.storage_remove(stale)
-                    log(f"  removed {len(stale)} stale object(s) in {folder}")
-            except Exception as e:
-                log(f"  stale-object cleanup warning: {e}")
-            # Drop source and encode temps once the folder is uploaded.
-            for leftover in list(item_dir.glob("*")):
-                if leftover.is_file():
-                    leftover.unlink(missing_ok=True)
-            summary["ready"] += 1
-            summary["details"].append({**meta, "status": "ready", "folder": folder})
-            log(
-                f"  ready {folder} mp4={meta['video_mp4_bytes']} av1={meta.get('video_av1_bytes')} "
-                f"hevc={meta.get('video_hevc_bytes')} orig={meta['original_bytes']}"
-            )
+            if probe_is_video(probe):
+                assets = encode_assets(source, item_dir)
+                meta = {
+                    **base_meta,
+                    "media_type": "video",
+                    "duration_seconds": round(assets["duration"], 3),
+                    "width": assets["width"],
+                    "height": assets["height"],
+                    "source_codec": assets["source_codec"],
+                    "original_bytes": assets["original_bytes"],
+                    "video_mp4_bytes": assets["play"].stat().st_size,
+                    "video_av1_bytes": assets["av1"].stat().st_size if assets.get("av1") else None,
+                    "video_hevc_bytes": assets["hevc"].stat().st_size if assets.get("hevc") else None,
+                    "poster_bytes": assets["poster"].stat().st_size if assets.get("poster") else None,
+                }
+                paths = upload_folder(store, folder, assets, meta)
+                row = {
+                    "influencer_id": influencer_id,
+                    "source_url": url,
+                    "source_url_norm": norm,
+                    "kind": kind,
+                    "platform": platform,
+                    "source_video_id": vid,
+                    "folder_path": folder,
+                    "media_type": "video",
+                    "metadata": {},
+                    "play_path": paths["play_path"],
+                    "av1_path": paths.get("av1_path"),
+                    "hevc_path": paths.get("hevc_path"),
+                    "poster_path": paths.get("poster_path"),
+                    "byte_size": assets["play"].stat().st_size,
+                    "duration_ms": int(assets["duration"] * 1000) if assets["duration"] else None,
+                    "width": assets["width"] or None,
+                    "height": assets["height"] or None,
+                    "status": "ready",
+                    "error": None,
+                }
+                upsert_row(sb, row)
+                ready_map[norm] = row
+                keep = {paths["play_path"], paths.get("av1_path"), paths.get("hevc_path"), paths.get("poster_path"), f"{folder}meta.json"}
+                keep = {p for p in keep if p}
+                try:
+                    existing_objs = store.storage_list(folder.rstrip("/"))
+                    stale = [p for p in existing_objs if p not in keep]
+                    if stale:
+                        store.storage_remove(stale)
+                        log(f"  removed {len(stale)} stale object(s) in {folder}")
+                except Exception as e:
+                    log(f"  stale-object cleanup warning: {e}")
+                for leftover in list(item_dir.glob("*")):
+                    if leftover.is_file():
+                        leftover.unlink(missing_ok=True)
+                summary["ready"] += 1
+                summary["details"].append({**meta, "status": "ready", "folder": folder})
+                log(
+                    f"  ready {folder} mp4={meta['video_mp4_bytes']} av1={meta.get('video_av1_bytes')} "
+                    f"hevc={meta.get('video_hevc_bytes')} orig={meta['original_bytes']}"
+                )
+            else:
+                info: dict[str, Any] | None = None
+                try:
+                    info = ytdlp_probe_info(url, platform, cookies)
+                except Exception as e:
+                    log(f"  yt-dlp metadata failed ({e})")
+                media_kind, image_urls = classify_ytdlp_info(info) if info else ("photo", [])
+                if media_kind == "video":
+                    raise RuntimeError("no video stream found (still image or unsupported download)")
+                if image_urls:
+                    stored = upload_photo_assets(store, folder, image_urls, item_dir, base_meta)
+                else:
+                    webp = item_dir / "photo.webp"
+                    image_to_webp(source, webp)
+                    stored = store_photo_webps(store, folder, [webp], {**base_meta, "source_still": True})
+                row = {
+                    "influencer_id": influencer_id,
+                    "source_url": url,
+                    "source_url_norm": norm,
+                    "kind": kind,
+                    "platform": platform,
+                    "source_video_id": vid,
+                    "folder_path": folder,
+                    "media_type": stored["media_type"],
+                    "metadata": stored.get("metadata") or {},
+                    "play_path": stored["play_path"],
+                    "av1_path": None,
+                    "hevc_path": None,
+                    "poster_path": stored.get("poster_path"),
+                    "byte_size": stored.get("byte_size"),
+                    "duration_ms": None,
+                    "width": stored.get("width") or None,
+                    "height": stored.get("height") or None,
+                    "status": "ready",
+                    "error": None,
+                }
+                upsert_row(sb, row)
+                ready_map[norm] = row
+                keep = {stored["play_path"], stored.get("poster_path"), f"{folder}meta.json"}
+                for p in (stored.get("metadata") or {}).get("carousel_paths") or []:
+                    keep.add(p)
+                keep = {p for p in keep if p}
+                try:
+                    existing_objs = store.storage_list(folder.rstrip("/"))
+                    stale = [p for p in existing_objs if p not in keep]
+                    if stale:
+                        store.storage_remove(stale)
+                        log(f"  removed {len(stale)} stale object(s) in {folder}")
+                except Exception as e:
+                    log(f"  stale-object cleanup warning: {e}")
+                for leftover in list(item_dir.glob("*")):
+                    if leftover.is_file():
+                        leftover.unlink(missing_ok=True)
+                summary["ready"] += 1
+                summary["details"].append({**base_meta, "status": "ready", "folder": folder, "media_type": stored["media_type"]})
+                log(f"  ready {folder} {stored['media_type']} bytes={stored.get('byte_size')}")
         except Exception as e:
             err = str(e)[:500]
             upsert_row(
@@ -1137,22 +1580,23 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     log(f"  folder delete warning: {e}")
             sb.rest_delete("creator_media", f"id=eq.{row['id']}")
 
-    for row in current:
-        if row.get("kind") != "top_post":
-            continue
-        if row.get("source_url_norm") in wanted_top:
-            continue
-        folder = row.get("folder_path") or ""
-        still = [r for r in current if r.get("folder_path") == folder and not (r.get("kind") == "top_post" and r.get("id") == row.get("id"))]
-        if not still and folder:
-            log(f"  removing dropped top-post folder {folder}")
-            try:
-                paths = store.storage_list(folder.rstrip("/"))
-                if paths:
-                    store.storage_remove(paths)
-            except Exception as e:
-                log(f"  folder delete warning: {e}")
-        sb.rest_delete("creator_media", f"id=eq.{row['id']}")
+    if not only_url:
+        for row in current:
+            if row.get("kind") != "top_post":
+                continue
+            if row.get("source_url_norm") in wanted_top:
+                continue
+            folder = row.get("folder_path") or ""
+            still = [r for r in current if r.get("folder_path") == folder and not (r.get("kind") == "top_post" and r.get("id") == row.get("id"))]
+            if not still and folder:
+                log(f"  removing dropped top-post folder {folder}")
+                try:
+                    paths = store.storage_list(folder.rstrip("/"))
+                    if paths:
+                        store.storage_remove(paths)
+                except Exception as e:
+                    log(f"  folder delete warning: {e}")
+            sb.rest_delete("creator_media", f"id=eq.{row['id']}")
 
     log(f"Done: {json.dumps({k: summary[k] for k in ('ready', 'reused', 'skipped', 'failed')})}")
     return summary
@@ -1161,20 +1605,40 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
 def main() -> int:
     parser = argparse.ArgumentParser(description="Host creator videos in the creator-videos bucket")
     parser.add_argument("--influencer-id", default=os.environ.get("INFLUENCER_ID"), required=False)
-    parser.add_argument("--cookies", default=os.environ.get("YTDLP_COOKIES") or "", help="Netscape cookies.txt for TikTok")
+    parser.add_argument("--cookies", default=os.environ.get("YTDLP_COOKIES") or "", help="Netscape cookies.txt for TikTok/Instagram")
     parser.add_argument("--only-url", default="")
     parser.add_argument("--force", action="store_true", help="Re-encode even if a ready row already exists")
     parser.add_argument("--prune-only", action="store_true", help="Only delete leftover top-post folders/rows; do not encode")
     parser.add_argument("--skip-collabs", action="store_true", help="Do not host collaboration deliverables")
+    parser.add_argument(
+        "--retry-failed-photos",
+        action="store_true",
+        help="Retry failed rows whose errors look like photo/no-video or TikTok 403/IP block (dry-run unless --execute)",
+    )
+    parser.add_argument(
+        "--execute",
+        action="store_true",
+        help="With --retry-failed-photos, actually re-run hosting for matching failed rows",
+    )
     args = parser.parse_args()
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL") or ""
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SERVICE_ROLE_KEY") or ""
-    if not args.influencer_id or not url or not key:
-        raise SystemExit("Need --influencer-id and SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY")
+    if not url or not key:
+        raise SystemExit("Need SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY")
+    if not args.influencer_id and not args.retry_failed_photos:
+        raise SystemExit("Need --influencer-id (or use --retry-failed-photos)")
     which_or_die("ffmpeg")
     which_or_die("ffprobe")
     cookies = Path(args.cookies) if args.cookies else None
     sb = Supabase(url, key)
+    if args.retry_failed_photos:
+        retry_failed_photo_hosts(
+            sb,
+            cookies,
+            execute=args.execute,
+            influencer_id=args.influencer_id.strip() or None,
+        )
+        return 0
     process_influencer(
         sb,
         args.influencer_id.strip(),

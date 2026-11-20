@@ -26,7 +26,7 @@ import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
 import { useHostedCreatorMedia, lookupHostedMedia } from "@/lib/useCreatorMedia";
-import HostedVideoPlayer from "@/components/HostedVideoPlayer";
+import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import CreatorReviewsList from "@/components/CreatorReviewsList";
@@ -3299,7 +3299,7 @@ export default function InfluencerProfile(props: {
                                         const embedUrl = provider ? getVideoEmbedApiUrl(vid) : null;
 
                                         // Direct uploads: our own hosted file, no platform embed.
-                                        const uploadedHosted = !provider && !isImage ? lookupHostedMedia(hostedByUrl, vid) : null;
+                                        const uploadedHosted = !provider ? lookupHostedMedia(hostedByUrl, vid) : null;
                                         if (uploadedHosted) {
                                             const ratio =
                                                 uploadedHosted.width && uploadedHosted.height
@@ -3311,7 +3311,7 @@ export default function InfluencerProfile(props: {
                                                         className="relative mx-auto w-full max-w-[360px] overflow-hidden rounded-xl bg-black shadow-md"
                                                         style={{ aspectRatio: ratio }}
                                                     >
-                                                        <HostedVideoPlayer media={uploadedHosted} lang={lang} />
+                                                        <HostedMediaPlayer media={uploadedHosted} lang={lang} />
                                                     </div>
                                                 </div>
                                             );
