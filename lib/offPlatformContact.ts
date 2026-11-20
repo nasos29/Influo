@@ -9,10 +9,10 @@ import { findContactInfo } from "@/lib/contactFilter";
 export const OFF_PLATFORM_TIP_MARKER = "⟦influo:keep-in-app⟧";
 
 export const OFF_PLATFORM_TIP_EL =
-  "Για τη δική σας ασφάλεια, προτιμήστε να γίνεται η συζήτηση μέσα στο Influo και όχι εκτός πλατφόρμας. Έτσι διατηρείται το ιστορικό της συμφωνίας.";
+  "Για τη δική σας ασφάλεια, προτιμήστε να γίνεται η συζήτηση μέσα στο Influo και όχι εκτός πλατφόρμας. Έτσι διατηρείται το ιστορικό της συμφωνίας. Αν θέλετε να στείλετε κάποιο αρχείο ή βίντεο, χρησιμοποιήστε την επισύναψη στο chat.";
 
 export const OFF_PLATFORM_TIP_EN =
-  "For your safety, please keep this conversation inside Influo rather than off-platform. That preserves the agreement history.";
+  "For your safety, please keep this conversation inside Influo rather than off-platform. That preserves the agreement history. If you want to send a file or video, use the attachment button in the chat.";
 
 /** Instagram + common typos (instagrm, instgram, …) + Greeklish. */
 const IG =
