@@ -12,7 +12,12 @@ import {
   birthDateLangFromRequest,
   validateBirthDate,
 } from '@/lib/validateBirthDate';
-import { FACEBOOK_VIDEO_LINK_ERROR, prepareVideosForSave, portfolioPostLimit, portfolioLimitMessage } from '@/lib/videoLinks';
+import {
+  portfolioLinkValidationError,
+  prepareVideosForSave,
+  portfolioPostLimit,
+  portfolioLimitMessage,
+} from '@/lib/videoLinks';
 import { syncHiddenVideosWithVideos } from '@/lib/hiddenVideos';
 import { FIXED_PRICE_MESSAGE, hasUnfixedCreatorPrice, minRateFromPackages, packagesForViewer } from '@/lib/servicePackages';
 import {
@@ -128,7 +133,7 @@ export async function POST(request: NextRequest) {
       const lang = birthDateLangFromRequest(request);
       if (!prepared.ok) {
         return NextResponse.json(
-          { error: FACEBOOK_VIDEO_LINK_ERROR[lang] },
+          { error: portfolioLinkValidationError(prepared.reason, lang === 'en' ? 'en' : 'el') },
           { status: 400 }
         );
       }

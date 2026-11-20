@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
-import { validateUploadRequest } from "@/lib/portfolioUpload";
+import { UPLOAD_CHUNK_BYTES, UPLOAD_PARALLEL_CHUNKS, chunkCount, validateUploadRequest } from "@/lib/portfolioUpload";
 
 export type PortfolioUploadLang = "el" | "en";
 
@@ -187,48 +187,79 @@ export function usePortfolioMediaUpload({
       let failures = 0;
       update(key, { phase: "sending", upload: current, message: undefined });
       try {
-        while (current.receivedBytes < current.totalBytes) {
-          const offset = current.receivedBytes;
-          const end = Math.min(offset + current.chunkBytes, current.totalBytes);
+        const totalChunks = chunkCount(current.totalBytes, current.chunkBytes || UPLOAD_CHUNK_BYTES);
+        const inflight = new Map<number, Promise<void>>();
+
+        const sendChunk = async (index: number) => {
+          const offset = index * (current.chunkBytes || UPLOAD_CHUNK_BYTES);
+          const end = Math.min(offset + (current.chunkBytes || UPLOAD_CHUNK_BYTES), current.totalBytes);
           const token = await authHeader();
+          const { status, json } = await putChunk(
+            `/api/portfolio-media/uploads/${current.id}?${activeQs}&offset=${offset}`,
+            file.slice(offset, end),
+            token,
+            (sent) => update(key, { percent: Math.floor(((offset + sent) / current.totalBytes) * 100) }),
+            ctrl.signal
+          );
+          if (status === 200 && json.upload) {
+            current = json.upload;
+            failures = 0;
+            update(key, { upload: current, percent: Math.floor((current.receivedBytes / current.totalBytes) * 100) });
+            return;
+          }
+          if (status === 409 && json.upload) {
+            current = json.upload;
+            if (current.status !== "uploading") throw Object.assign(new Error("status"), { fatal: true });
+            return;
+          }
+          if (status >= 400 && status < 500 && status !== 408 && status !== 429) {
+            throw Object.assign(new Error(json.error || "rejected"), { fatal: true });
+          }
+          throw new Error("server");
+        };
+
+        const pump = async () => {
+          const startIdx = Math.floor(current.receivedBytes / (current.chunkBytes || UPLOAD_CHUNK_BYTES));
+          for (let idx = startIdx; idx < totalChunks && inflight.size < UPLOAD_PARALLEL_CHUNKS; idx++) {
+            if (inflight.has(idx)) continue;
+            const job = sendChunk(idx)
+              .catch(async (err) => {
+                if ((err as Error).name === "AbortError" || (err as { fatal?: boolean }).fatal) throw err;
+                failures += 1;
+                if (failures > 8) throw err;
+                update(key, {
+                  phase: "paused",
+                  message: T(lang, "Η σύνδεση διακόπηκε, συνεχίζω αυτόματα…", "Connection dropped, resuming automatically…"),
+                });
+                await sleep(Math.min(30000, 1000 * 2 ** failures));
+                if (typeof navigator !== "undefined" && !navigator.onLine) {
+                  await new Promise<void>((r) => window.addEventListener("online", () => r(), { once: true }));
+                }
+                const st = await sessionFetch(`/api/portfolio-media/uploads/${current.id}?${activeQs}`, { cache: "no-store" }).catch(() => null);
+                if (st?.ok) current = ((await st.json()) as { upload: ServerUpload }).upload;
+                update(key, { phase: "sending", message: undefined });
+                throw err;
+              })
+              .finally(() => {
+                inflight.delete(idx);
+              });
+            inflight.set(idx, job);
+          }
+        };
+
+        while (current.receivedBytes < current.totalBytes || inflight.size > 0) {
           try {
-            const { status, json } = await putChunk(
-              `/api/portfolio-media/uploads/${current.id}?${activeQs}&offset=${offset}`,
-              file.slice(offset, end),
-              token,
-              (sent) => update(key, { percent: Math.floor(((offset + sent) / current.totalBytes) * 100) }),
-              ctrl.signal
-            );
-            if (status === 200 && json.upload) {
-              current = json.upload;
-              failures = 0;
-              update(key, { upload: current, percent: Math.floor((current.receivedBytes / current.totalBytes) * 100) });
+            await pump();
+            if (inflight.size === 0) {
+              if (current.receivedBytes < current.totalBytes) await sleep(50);
+              else break;
               continue;
             }
-            if (status === 409 && json.upload) {
-              current = json.upload;
-              if (current.status !== "uploading") break;
-              continue;
-            }
-            if (status >= 400 && status < 500 && status !== 408 && status !== 429) {
-              throw Object.assign(new Error(json.error || "rejected"), { fatal: true });
-            }
-            throw new Error("server");
+            await Promise.race(inflight.values());
+            if (current.status !== "uploading") break;
           } catch (err) {
             if ((err as Error).name === "AbortError" || (err as { fatal?: boolean }).fatal) throw err;
-            failures += 1;
-            if (failures > 8) throw err;
-            update(key, {
-              phase: "paused",
-              message: T(lang, "Η σύνδεση διακόπηκε, συνεχίζω αυτόματα…", "Connection dropped, resuming automatically…"),
-            });
-            await sleep(Math.min(30000, 1000 * 2 ** failures));
-            if (typeof navigator !== "undefined" && !navigator.onLine) {
-              await new Promise<void>((r) => window.addEventListener("online", () => r(), { once: true }));
-            }
-            const st = await sessionFetch(`/api/portfolio-media/uploads/${current.id}?${activeQs}`, { cache: "no-store" }).catch(() => null);
-            if (st?.ok) current = ((await st.json()) as { upload: ServerUpload }).upload;
-            update(key, { phase: "sending", message: undefined });
+            if (inflight.size === 0) await pump();
           }
         }
         if (current.status === "uploading") {

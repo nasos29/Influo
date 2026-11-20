@@ -1,12 +1,27 @@
+import { detectMediaPlatform } from "@/lib/creatorMedia";
+import { isPortfolioStillImageUrl, isSelfHostedPortfolioUrl } from "@/lib/portfolioHosted";
+
 /** Inline copy for Facebook portfolio-link rejection (no translation files). */
 export const FACEBOOK_VIDEO_LINK_ERROR = {
   el: "Τα βίντεο από Facebook δεν μπορούν να προβληθούν. Βάλε link από Instagram, TikTok ή YouTube.",
   en: "Facebook videos can't be played. Please use an Instagram, TikTok or YouTube link.",
 } as const;
 
+/** Reject Canva, Drive, profile pages, etc. — suggest direct upload. */
+export const UNSUPPORTED_VIDEO_LINK_ERROR = {
+  el: "Δεκτά είναι μόνο links από TikTok, Instagram ή YouTube, ή αρχείο που ανεβάζεις απευθείας εδώ. Για άλλες σελίδες (Canva, Google Drive κ.λπ.) πάτα «Ανέβασμα αρχείου».",
+  en: "Only TikTok, Instagram, or YouTube links are allowed, or a file you upload here. For other sites (Canva, Google Drive, etc.) use “Upload file”.",
+} as const;
+
+export type PortfolioLinkRejectReason = "facebook" | "unsupported";
+
+export function portfolioLinkValidationError(reason: PortfolioLinkRejectReason, lang: "el" | "en"): string {
+  return reason === "facebook" ? FACEBOOK_VIDEO_LINK_ERROR[lang] : UNSUPPORTED_VIDEO_LINK_ERROR[lang];
+}
+
 export type CleanVideoLinkResult =
   | { ok: true; url: string }
-  | { ok: false; reason: "empty" | "facebook" };
+  | { ok: false; reason: "empty" | PortfolioLinkRejectReason };
 
 const URL_IN_TEXT_RE = /https?:\/\/[^\s<>"']+/i;
 const BARE_URL_RE =
@@ -43,6 +58,31 @@ export function ensureHttps(url: string): string {
 }
 
 /** True for facebook.com, m.facebook.com, fb.com, fb.watch (and www). */
+/** Portfolio save/display: TikTok, Instagram, YouTube, or our own hosted portfolio URLs only. */
+export function isAllowedPortfolioUrl(url: string | null | undefined): boolean {
+  const raw = String(url || "").trim();
+  if (!raw) return false;
+  const u = ensureHttps(raw);
+  if (isSelfHostedPortfolioUrl(u)) return true;
+  if (isPortfolioStillImageUrl(u)) return false;
+  if (isFacebookVideoUrl(u)) return false;
+  const platform = detectMediaPlatform(u);
+  return platform === "tiktok" || platform === "instagram" || platform === "youtube";
+}
+
+/** Drop empty / unsupported entries before public profile, directory, or media kit. */
+export function filterPublicPortfolioVideos(videos: unknown): string[] {
+  if (!Array.isArray(videos)) return [];
+  const out: string[] = [];
+  for (const item of videos) {
+    const raw = typeof item === "string" ? item.trim() : "";
+    if (!raw) continue;
+    if (!isAllowedPortfolioUrl(raw)) continue;
+    out.push(raw);
+  }
+  return out;
+}
+
 export function isFacebookVideoUrl(url: string): boolean {
   const raw = String(url || "").trim();
   if (!raw) return false;
@@ -72,12 +112,13 @@ export function cleanVideoLink(raw: string): CleanVideoLinkResult {
 
   const url = ensureHttps(extracted);
   if (isFacebookVideoUrl(url)) return { ok: false, reason: "facebook" };
+  if (!isAllowedPortfolioUrl(url)) return { ok: false, reason: "unsupported" };
   return { ok: true, url };
 }
 
 export type PrepareVideosResult =
   | { ok: true; videos: string[] }
-  | { ok: false; reason: "facebook" };
+  | { ok: false; reason: PortfolioLinkRejectReason };
 
 /** Clean a list of video fields for persistence (skips blanks; fails on Facebook). */
 export function prepareVideosForSave(videos: unknown): PrepareVideosResult {
@@ -88,7 +129,9 @@ export function prepareVideosForSave(videos: unknown): PrepareVideosResult {
     if (!raw.trim()) continue;
     const cleaned = cleanVideoLink(raw);
     if (!cleaned.ok) {
-      if (cleaned.reason === "facebook") return { ok: false, reason: "facebook" };
+      if (cleaned.reason === "facebook" || cleaned.reason === "unsupported") {
+        return { ok: false, reason: cleaned.reason };
+      }
       continue;
     }
     out.push(cleaned.url);

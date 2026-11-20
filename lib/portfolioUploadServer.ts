@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isAdminUser, supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { loadChatActor } from "@/lib/chatActor";
+import { normalizeSourceUrl } from "@/lib/creatorMedia";
+import {
+  isDownloadablePortfolioLinkUrl,
+  portfolioLinkSourceKey,
+  type PortfolioLinkJob,
+} from "@/lib/portfolioHosted";
 import { IN_FLIGHT_UPLOAD_STATUSES, PORTFOLIO_UPLOAD_BUCKET, chunkCount, chunkObjectPath } from "@/lib/portfolioUpload";
+import { removeUploadStaging } from "@/lib/portfolioUploadStaging";
 
 export type UploadRow = {
   id: string;
@@ -76,6 +83,87 @@ export async function loadUpload(
   return (data as UploadRow | null) || null;
 }
 
+export type LinkJobRow = {
+  id: string;
+  influencer_id: string;
+  source_url: string;
+  source_url_key: string;
+  status: string;
+  attempts: number;
+  error: string | null;
+  next_retry_at: string | null;
+  updated_at: string;
+};
+
+const LINK_JOB_COLUMNS =
+  "id, influencer_id, source_url, source_url_key, status, attempts, error, next_retry_at, updated_at";
+
+export async function loadPortfolioLinkJobs(
+  admin: SupabaseClient,
+  influencerId: string,
+  sourceUrls: string[]
+): Promise<PortfolioLinkJob[]> {
+  const keys = new Set(
+    sourceUrls
+      .filter((u) => isDownloadablePortfolioLinkUrl(u))
+      .map((u) => portfolioLinkSourceKey(u))
+      .filter(Boolean)
+  );
+  if (!keys.size) return [];
+
+  const { data: jobRows, error: jobErr } = await admin
+    .from("creator_media_jobs")
+    .select(LINK_JOB_COLUMNS)
+    .eq("influencer_id", influencerId)
+    .in("source_url_key", [...keys]);
+  if (jobErr) return [];
+
+  const norms = new Set(sourceUrls.map((u) => normalizeSourceUrl(u)).filter(Boolean));
+  const { data: mediaRows } = await admin
+    .from("creator_media")
+    .select("source_url, status")
+    .eq("influencer_id", influencerId)
+    .eq("kind", "portfolio")
+    .eq("status", "ready");
+
+  const readyNorms = new Set(
+    (mediaRows || [])
+      .map((r) => normalizeSourceUrl(String(r.source_url || "")))
+      .filter((n) => n && norms.has(n))
+  );
+
+  const jobByKey = new Map<string, LinkJobRow>();
+  for (const row of (jobRows || []) as LinkJobRow[]) jobByKey.set(row.source_url_key, row);
+
+  const out: PortfolioLinkJob[] = [];
+  for (const url of sourceUrls) {
+    if (!isDownloadablePortfolioLinkUrl(url)) continue;
+    const key = portfolioLinkSourceKey(url);
+    const mediaReady = readyNorms.has(normalizeSourceUrl(url));
+    const row = jobByKey.get(key);
+    if (row) {
+      out.push({
+        sourceUrl: row.source_url,
+        sourceKey: row.source_url_key,
+        jobStatus: row.status,
+        attempts: Number(row.attempts) || 0,
+        error: row.error,
+        mediaReady: mediaReady || row.status === "done",
+      });
+      continue;
+    }
+    out.push({
+      sourceUrl: url,
+      sourceKey: key,
+      jobStatus: mediaReady ? "done" : "queued",
+      attempts: 0,
+      error: null,
+      mediaReady,
+    });
+  }
+  return out;
+}
+
 export async function countInFlightUploads(admin: SupabaseClient, influencerId: string): Promise<number> {
   const { count } = await admin
     .from("creator_media_uploads")
@@ -87,6 +175,7 @@ export async function countInFlightUploads(admin: SupabaseClient, influencerId: 
 
 /** Best effort: remove staged chunks for an upload. */
 export async function removeUploadChunks(admin: SupabaseClient, row: UploadRow): Promise<void> {
+  await removeUploadStaging(row.influencer_id, row.id);
   const paths: string[] = [];
   const n = chunkCount(Number(row.total_bytes), Number(row.chunk_bytes));
   for (let i = 0; i < n; i++) paths.push(chunkObjectPath(row.influencer_id, row.id, i));

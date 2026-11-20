@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
   MAX_UPLOAD_PHOTO_BYTES,
   MAX_UPLOAD_VIDEO_BYTES,
   UPLOAD_CHUNK_BYTES,
+  UPLOAD_PARALLEL_CHUNKS,
   chunkCount,
   chunkObjectPath,
   isUploadedPortfolioUrl,
@@ -14,6 +18,10 @@ import {
   validateUploadRequest,
   PORTFOLIO_FILE_ACCEPT,
 } from "../lib/portfolioUpload.ts";
+
+test("parallel upload window is 2–4", () => {
+  assert.ok(UPLOAD_PARALLEL_CHUNKS >= 2 && UPLOAD_PARALLEL_CHUNKS <= 4);
+});
 
 test("file input accept lists explicit MIME and extensions (no wildcards)", () => {
   assert.match(PORTFOLIO_FILE_ACCEPT, /video\/mp4/);
@@ -77,9 +85,47 @@ test("6-item portfolio: saved + in-flight uploads", () => {
   assert.equal(portfolioSlotsLeft(8, 0), 0);
 });
 
+test("staging: contiguous received bytes from chunk parts", async () => {
+  const {
+    chunkPartPath,
+    contiguousReceivedBytes,
+    ensureUploadDir,
+    expectedChunkLength,
+  } = await import("../lib/portfolioUploadStaging.ts");
+  const root = await mkdtemp(path.join(os.tmpdir(), "influo-staging-"));
+  const prev = process.env.PORTFOLIO_UPLOAD_STAGING_DIR;
+  process.env.PORTFOLIO_UPLOAD_STAGING_DIR = root;
+  try {
+    const inf = "11111111-2222-3333-4444-555555555555";
+    const up = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+    const dir = await ensureUploadDir(inf, up);
+    const total = UPLOAD_CHUNK_BYTES * 2 + 11;
+    const len0 = expectedChunkLength(0, total, UPLOAD_CHUNK_BYTES);
+    const len1 = expectedChunkLength(1, total, UPLOAD_CHUNK_BYTES);
+    assert.equal(await contiguousReceivedBytes(dir, total, UPLOAD_CHUNK_BYTES), 0);
+    await writeFile(chunkPartPath(dir, 0), Buffer.alloc(len0, 1));
+    assert.equal(await contiguousReceivedBytes(dir, total, UPLOAD_CHUNK_BYTES), len0);
+    await writeFile(chunkPartPath(dir, 1), Buffer.alloc(len1, 2));
+    assert.equal(await contiguousReceivedBytes(dir, total, UPLOAD_CHUNK_BYTES), len0 + len1);
+    await writeFile(chunkPartPath(dir, 2), Buffer.alloc(11, 3));
+    assert.equal(await contiguousReceivedBytes(dir, total, UPLOAD_CHUNK_BYTES), total);
+  } finally {
+    if (prev === undefined) delete process.env.PORTFOLIO_UPLOAD_STAGING_DIR;
+    else process.env.PORTFOLIO_UPLOAD_STAGING_DIR = prev;
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("uploaded portfolio URL detection", () => {
   const id = "11111111-2222-3333-4444-555555555555";
   assert.equal(isUploadedPortfolioUrl(`https://db.influo.gr/storage/v1/object/public/creator-videos/creators/${id}/portfolio/upload-${id}/video.mp4`), true);
   assert.equal(isUploadedPortfolioUrl(`https://media.influo.gr/creators/${id}/portfolio/upload-${id}/photo.webp`), true);
   assert.equal(isUploadedPortfolioUrl("https://www.tiktok.com/@a/video/1"), false);
+});
+
+test("re-exported isUploadedPortfolioUrl matches portfolioHosted", async () => {
+  const { isSelfHostedPortfolioUrl } = await import("../lib/portfolioHosted.ts");
+  const id = "11111111-2222-3333-4444-555555555555";
+  const url = `https://api.influo.gr/creators/${id}/portfolio/upload-${id}/photo.webp`;
+  assert.equal(isSelfHostedPortfolioUrl(url), true);
 });

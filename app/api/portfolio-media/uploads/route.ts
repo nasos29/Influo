@@ -10,6 +10,7 @@ import { MAX_PORTFOLIO_POSTS } from "@/lib/videoLinks";
 import {
   UPLOAD_COLUMNS,
   countInFlightUploads,
+  loadPortfolioLinkJobs,
   resolveUploadActor,
   uploadJson,
   type UploadRow,
@@ -32,7 +33,19 @@ export async function GET(request: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(20);
   if (error) return NextResponse.json({ error: "lookup failed" }, { status: 500 });
-  return NextResponse.json({ uploads: ((data || []) as UploadRow[]).map(uploadJson) });
+
+  const includeLinks = request.nextUrl.searchParams.get("links") !== "0";
+  let links: Awaited<ReturnType<typeof loadPortfolioLinkJobs>> = [];
+  if (includeLinks) {
+    const { data: inf } = await actor.admin.from("influencers").select("videos").eq("id", actor.influencerId).maybeSingle();
+    const videos = Array.isArray(inf?.videos) ? (inf.videos as string[]).map(String) : [];
+    links = await loadPortfolioLinkJobs(actor.admin, actor.influencerId, videos);
+  }
+
+  return NextResponse.json({
+    uploads: ((data || []) as UploadRow[]).map(uploadJson),
+    links,
+  });
 }
 
 /** Start a resumable upload. Body: { fileName, mimeType, size, durationSec?, influencerId? (admin) } */

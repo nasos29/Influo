@@ -47,3 +47,4 @@ tmp/
 # runtime state on the server (persistent email queue)
 /.data/
 .media-worker.lock
+.portfolio-upload-staging/

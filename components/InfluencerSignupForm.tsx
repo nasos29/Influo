@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import Image from "next/image";
 import { getStoredLanguage, setStoredLanguage } from '@/lib/language';
 import {
   FACEBOOK_VIDEO_LINK_ERROR,
+  UNSUPPORTED_VIDEO_LINK_ERROR,
+  portfolioLinkValidationError,
   prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioLimitMessage,
 } from "@/lib/videoLinks";
 import { isDefinitelyImage, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
@@ -27,6 +29,7 @@ import CategoryCheckboxList from "./CategoryCheckboxList";
 import SkillsPicker from "@/components/SkillsPicker";
 import { sanitizeSkills, type SkillKey } from "@/lib/skills";
 import PortfolioVideoLinkRow from "./PortfolioVideoLinkRow";
+import { usePortfolioLinkStatus } from "@/lib/usePortfolioLinkStatus";
 import PortfolioMediaUploader from "@/components/PortfolioMediaUploader";
 import { usePortfolioMediaUpload } from "@/lib/usePortfolioMediaUpload";
 import { clearLoggedOutMark } from "@/lib/authSession";
@@ -263,6 +266,14 @@ export default function InfluencerSignupForm() {
   const [insightFiles, setInsightFiles] = useState<File[]>([]); 
   const [videoRows, setVideoRows] = useState<VideoRow[]>(() => toVideoRows([""]));
   const [signupInfluencerId, setSignupInfluencerId] = useState<string | null>(null);
+  const signupPortfolioUrls = useMemo(
+    () => videoRows.map((r) => r.url).filter((u) => u.trim()),
+    [videoRows]
+  );
+  const { phaseForUrl: signupLinkPhase, jobs: signupLinkJobs } = usePortfolioLinkStatus(
+    signupInfluencerId,
+    signupPortfolioUrls
+  );
   const signupPortfolioUpload = usePortfolioMediaUpload({
     influencerId: signupInfluencerId,
     lang,
@@ -369,7 +380,11 @@ export default function InfluencerSignupForm() {
 
   const handleVideoChange = (id: string, val: string) => {
     setVideoLinkError(null);
-    if (message === notPlayableMessage || message === FACEBOOK_VIDEO_LINK_ERROR[lang]) {
+    if (
+      message === notPlayableMessage ||
+      message === FACEBOOK_VIDEO_LINK_ERROR[lang] ||
+      message === UNSUPPORTED_VIDEO_LINK_ERROR[lang]
+    ) {
       setMessage("");
     }
     setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: val } : r)));
@@ -386,8 +401,8 @@ export default function InfluencerSignupForm() {
   };
   const applyVideoCleanResult = (id: string, raw: string, cleaned: Awaited<ReturnType<typeof runCheck>>) => {
     if (!cleaned.ok) {
-      if (cleaned.reason === "facebook") {
-        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+      if (cleaned.reason === "facebook" || cleaned.reason === "unsupported") {
+        setVideoLinkError(portfolioLinkValidationError(cleaned.reason, lang));
         setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: "" } : r)));
         clearId(id);
       }
@@ -648,8 +663,9 @@ export default function InfluencerSignupForm() {
       // Portfolio links — validate BEFORE creating an auth account.
       const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
       if (!preparedVideos.ok) {
-        setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
-        setMessage(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+        const linkErr = portfolioLinkValidationError(preparedVideos.reason, lang);
+        setVideoLinkError(linkErr);
+        setMessage(linkErr);
         setLoading(false);
         return;
       }
@@ -1341,6 +1357,8 @@ export default function InfluencerSignupForm() {
                         onChange={(val) => handleVideoChange(row.id, val)}
                         onBlur={() => handleVideoBlur(row.id)}
                         onRemove={() => removeVideo(row.id)}
+                        linkHostingPhase={signupLinkPhase(row.url)}
+                        linkJobs={signupLinkJobs}
                       />
                     ))}
                     {videoLinkError ? (

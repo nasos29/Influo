@@ -21,7 +21,7 @@ import { counterpartyInfluencerPresence } from "@/lib/presenceIdentity";
 import { getVideoThumbnail, isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import { collectTopPosts } from "@/lib/topPosts";
 import { pickReplacementPortfolioVideo, samePortfolioMediaUrl } from "@/lib/portfolioReplace";
-import { isFacebookVideoUrl } from "@/lib/videoLinks";
+import { isAllowedPortfolioUrl } from "@/lib/videoLinks";
 import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
@@ -669,13 +669,7 @@ export default function InfluencerProfile(props: {
   const basePortfolioItems = useMemo(() => {
     return (profile?.videos || [])
       .map((vid: unknown) => String(vid || "").trim())
-      .filter((vid: string) => {
-        if (!vid) return false;
-        if (isFacebookVideoUrl(vid)) return false;
-        if (isDefinitelyImage(vid)) return true;
-        if (isEmbeddableVideoUrl(vid)) return true;
-        return !detectProvider(vid);
-      });
+      .filter((vid: string) => isAllowedPortfolioUrl(vid));
   }, [profile?.videos]);
 
   const portfolioItems = portfolioVideoList ?? basePortfolioItems;

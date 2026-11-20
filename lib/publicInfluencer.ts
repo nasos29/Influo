@@ -13,6 +13,7 @@ import { formatEuro } from "@/lib/formatEuro";
 import { isListedPrice, listedPriceMin } from "@/lib/parsePrice";
 import { sanitizeTopPosts } from "@/lib/topPosts";
 import { accountsWithoutHiddenTopPosts, visibleVideos } from "@/lib/hiddenVideos";
+import { filterPublicPortfolioVideos } from "@/lib/videoLinks";
 import {
   RATE_CARD_PRICE_KEYS,
   commercialExtrasFromRateCard,
@@ -391,7 +392,11 @@ function withFilterFields(base: Record<string, unknown>, row: Record<string, unk
 }
 
 export function toPublicDirectoryCard(row: Record<string, unknown>): Record<string, unknown> {
-  return withFilterFields(pickColumns(row, DIRECTORY_CARD_COLUMNS), row, true);
+  const out = withFilterFields(pickColumns(row, DIRECTORY_CARD_COLUMNS), row, true);
+  if ("videos" in out) {
+    out.videos = filterPublicPortfolioVideos(visibleVideos(row.videos, row.hidden_videos));
+  }
+  return out;
 }
 
 export function toPublicNewlyApproved(row: Record<string, unknown>): Record<string, unknown> {
@@ -400,7 +405,7 @@ export function toPublicNewlyApproved(row: Record<string, unknown>): Record<stri
     row,
     false
   );
-  out.videos = visibleVideos(row.videos, row.hidden_videos);
+  out.videos = filterPublicPortfolioVideos(visibleVideos(row.videos, row.hidden_videos));
   delete out.hidden_videos;
   return out;
 }
@@ -411,7 +416,7 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
     row,
     false
   );
-  base.videos = visibleVideos(row.videos, row.hidden_videos);
+  base.videos = filterPublicPortfolioVideos(visibleVideos(row.videos, row.hidden_videos));
   // Drop hidden posts before the per-account cap, so a hidden URL does not
   // take one of the three saved slots the profile can still show.
   base.accounts = sanitizeAccounts(accountsWithoutHiddenTopPosts(row.accounts, row.hidden_videos));

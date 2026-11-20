@@ -9,12 +9,14 @@ import { sessionFetch } from '@/lib/sessionFetch';
 import PortfolioMediaUploader from '@/components/PortfolioMediaUploader';
 import { usePortfolioUploadContext } from '@/components/PortfolioUploadProvider';
 import { isUploadedPortfolioUrl } from '@/lib/portfolioUpload';
+import { usePortfolioLinkStatus } from '@/lib/usePortfolioLinkStatus';
+import { PORTFOLIO_LINK_STATUS_COPY } from '@/lib/portfolioHosted';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
-    FACEBOOK_VIDEO_LINK_ERROR,
+    portfolioLinkValidationError,
     prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioPostLimit, portfolioLimitMessage,
 } from '@/lib/videoLinks';
 import { normalizeVideoUrlKey } from '@/lib/checkVideoPlayable';
@@ -264,9 +266,15 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const [topAge, setTopAge] = useState(initialNoAccess ? "" : (user.audience_top_age || ""));
     const [audienceNoAccess, setAudienceNoAccess] = useState(initialNoAccess);
     const [audienceError, setAudienceError] = useState("");
+
     const [videoRows, setVideoRows] = useState<VideoRow[]>(() =>
         toVideoRows(Array.isArray(user.videos) && user.videos.length ? user.videos : [""])
     );
+    const portfolioUrlsForLinkStatus = useMemo(
+        () => videoRows.map((r) => r.url).filter((u) => u.trim()),
+        [videoRows]
+    );
+    const { phaseForUrl: portfolioLinkPhase } = usePortfolioLinkStatus(String(user.id), portfolioUrlsForLinkStatus);
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
@@ -458,8 +466,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             }
             const cleaned = await runCheck(id, raw);
             if (!cleaned.ok) {
-                if (cleaned.reason === 'facebook') {
-                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+                if (cleaned.reason === 'facebook' || cleaned.reason === 'unsupported') {
+                    setVideoLinkError(portfolioLinkValidationError(cleaned.reason, lang));
                     setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: '' } : r)));
                     clearId(id);
                 }
@@ -557,8 +565,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
 
             const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
             if (!preparedVideos.ok) {
-                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
-                notify(FACEBOOK_VIDEO_LINK_ERROR[lang], 'error');
+                const linkErr = portfolioLinkValidationError(preparedVideos.reason, lang);
+                setVideoLinkError(linkErr);
+                notify(linkErr, 'error');
                 setSection('portfolio');
                 setLoading(false);
                 return;
@@ -1279,6 +1288,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                   !!detectProvider(video) &&
                                   !isImage &&
                                   !isEmbeddableVideoUrl(video);
+                                const linkHostingPhase = video?.trim() ? portfolioLinkPhase(video) : "none";
+                                const hideEmbedForHosting =
+                                  linkHostingPhase === "pending" || linkHostingPhase === "failed";
                                 const isHiddenRow =
                                   !!video?.trim() &&
                                   parseHiddenVideos(user.hidden_videos).some(
@@ -1307,6 +1319,19 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                             {isUploadedPortfolioUrl(video) ? (
                                               <p className="mt-1 text-xs text-slate-500">{L('Ανεβασμένο αρχείο, φιλοξενείται στο Influo.', 'Uploaded file, hosted on Influo.')}</p>
                                             ) : null}
+                                            {linkHostingPhase !== "none" ? (
+                                              <p
+                                                className={
+                                                  linkHostingPhase === "failed"
+                                                    ? "mt-1 text-xs text-amber-800"
+                                                    : linkHostingPhase === "ready"
+                                                      ? "mt-1 text-xs text-emerald-700"
+                                                      : "mt-1 text-xs text-slate-500"
+                                                }
+                                              >
+                                                {PORTFOLIO_LINK_STATUS_COPY[linkHostingPhase === "ready" ? "ready" : linkHostingPhase === "failed" ? "failed" : "pending"][lang]}
+                                              </p>
+                                            ) : null}
                                             {checkingById[row.id] ? (
                                               <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
                                             ) : null}
@@ -1320,7 +1345,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                 {videoProfileWarn[lang]}
                                               </p>
                                             )}
-                                            {!rejected && video && isEmbeddableVideoUrl(video) && (
+                                            {!rejected && video && isEmbeddableVideoUrl(video) && !hideEmbedForHosting && (
                                                 <div className="relative mt-2 flex max-h-64 min-h-[8rem] w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}

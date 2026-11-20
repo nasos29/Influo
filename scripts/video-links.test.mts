@@ -5,6 +5,8 @@ import {
   cleanVideoLink,
   ensureHttps,
   extractFirstUrl,
+  filterPublicPortfolioVideos,
+  isAllowedPortfolioUrl,
   isFacebookVideoUrl,
   prepareVideosForSave,
 } from "../lib/videoLinks.ts";
@@ -61,6 +63,29 @@ test("cleanVideoLink rejects Facebook and cleans others", () => {
   });
 });
 
+test("isAllowedPortfolioUrl accepts social hosts and rejects drive/canva", () => {
+  assert.equal(isAllowedPortfolioUrl("https://www.tiktok.com/@u/video/1"), true);
+  assert.equal(isAllowedPortfolioUrl("https://drive.google.com/file/d/x/view"), false);
+  assert.equal(isAllowedPortfolioUrl("https://www.canva.com/design/abc/view"), false);
+  assert.equal(
+    isAllowedPortfolioUrl(
+      "https://media.example.com/creators/00000000-0000-4000-8000-000000000001/portfolio/upload-00000000-0000-4000-8000-000000000002/video.mp4"
+    ),
+    true
+  );
+});
+
+test("filterPublicPortfolioVideos drops empty and unsupported", () => {
+  assert.deepEqual(
+    filterPublicPortfolioVideos([
+      "",
+      "https://drive.google.com/x",
+      "https://www.instagram.com/reel/AbC/",
+    ]),
+    ["https://www.instagram.com/reel/AbC/"]
+  );
+});
+
 test("prepareVideosForSave cleans list and fails on Facebook", () => {
   assert.deepEqual(
     prepareVideosForSave([
@@ -79,5 +104,9 @@ test("prepareVideosForSave cleans list and fails on Facebook", () => {
   assert.deepEqual(
     prepareVideosForSave(["https://www.facebook.com/watch/?v=1"]),
     { ok: false, reason: "facebook" }
+  );
+  assert.deepEqual(
+    prepareVideosForSave(["https://www.canva.com/design/abc/view"]),
+    { ok: false, reason: "unsupported" }
   );
 });
