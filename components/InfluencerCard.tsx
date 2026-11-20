@@ -31,6 +31,8 @@ interface InfluencerCardProps {
   location?: string | null;
   /** Exact lowest price. Shown as «Από X €» / «From X €». */
   from_price?: number | null;
+  /** Above-the-fold directory cards (LCP). */
+  priority?: boolean;
 }
 
 const InstagramIcon = ({ className = "w-3.5 h-3.5" }: { className?: string }) => (
@@ -138,6 +140,7 @@ export default function InfluencerCard({
   location,
   from_price,
   skills = [],
+  priority = false,
 }: InfluencerCardProps) {
   const available = isAvailableStatus(availabilityStatus);
   const displayName = displayNameForLang(name, lang || "el");
@@ -246,6 +249,7 @@ export default function InfluencerCard({
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             quality={75}
+            priority={priority}
             className="creator-card-media__img transition-transform duration-300 ease-out group-hover:scale-105"
           />
         ) : (

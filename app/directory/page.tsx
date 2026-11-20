@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import DirectoryPageView from "@/components/DirectoryPageView";
+import { directoryElMetadata } from "@/lib/directoryMetadata";
 import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { unstable_cache } from "next/cache";
 
@@ -16,9 +17,9 @@ type Search = Promise<{ q?: string }>;
 export async function generateMetadata({ searchParams }: { searchParams: Search }): Promise<Metadata> {
   const params = await searchParams;
   if ((params.q || "").trim()) {
-    return { robots: { index: false, follow: true } };
+    return { ...directoryElMetadata, robots: { index: false, follow: true } };
   }
-  return {};
+  return directoryElMetadata;
 }
 
 export default async function DirectoryPage() {

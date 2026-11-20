@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -104,6 +105,8 @@ export default async function RootLayout({
   const siteSettings = await getSiteSettings();
   const publicSettings = publicSiteSettings(siteSettings);
   const settingsCss = siteSettingsCssVars(siteSettings);
+  const pathname = (await headers()).get("x-pathname") || "";
+  const htmlLang = pathname.startsWith("/en") ? "en" : "el";
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -140,7 +143,7 @@ export default async function RootLayout({
   };
 
   return (
-    <html lang="el" suppressHydrationWarning>
+    <html lang={htmlLang} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: HEADER_AVATAR_BOOT_SCRIPT }} />
         <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48 256x256" type="image/x-icon" />

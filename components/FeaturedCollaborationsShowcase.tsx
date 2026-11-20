@@ -72,7 +72,7 @@ function CreatorMiniAvatar({ src, name }: { src: string | null; name: string }) 
     return (
       <Image
         src={proxied}
-        alt=""
+        alt={name}
         width={28}
         height={28}
         className="w-7 h-7 shrink-0 rounded-full object-cover ring-1 ring-white/30"
@@ -357,7 +357,7 @@ function ShowcaseBrandPill({
       {logo ? (
         <Image
           src={logo}
-          alt=""
+          alt={`${brandName} logo`}
           width={36}
           height={36}
           className="h-8 w-8 shrink-0 rounded-full object-contain sm:h-9 sm:w-9"
@@ -373,8 +373,11 @@ function ShowcaseBrandPill({
 export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const [activeId, setActiveId] = useState(data.initialHeroApplicationId);
   const [heroMuted, setHeroMuted] = useState(true);
+  const [heroInView, setHeroInView] = useState(false);
+  const [heroVideoSrc, setHeroVideoSrc] = useState<string | null>(null);
   const heroMutedRef = useRef(true);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
+  const heroFrameRef = useRef<HTMLDivElement>(null);
   const txt = COPY[lang];
 
   heroMutedRef.current = heroMuted;
@@ -391,6 +394,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const onPickThumb = useCallback(
     (applicationId: string) => {
       stopCurrentHeroMedia();
+      setHeroVideoSrc(null);
       setActiveId(applicationId);
     },
     [stopCurrentHeroMedia]
@@ -398,6 +402,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
   const advanceHero = useCallback(() => {
     stopCurrentHeroMedia();
+    setHeroVideoSrc(null);
     const ids = data.cards.map((c) => c.applicationId);
     const idx = ids.indexOf(activeId);
     const nextId = ids[(idx + 1) % ids.length];
@@ -405,9 +410,38 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   }, [data.cards, activeId, stopCurrentHeroMedia]);
 
   useEffect(() => {
+    const root = heroFrameRef.current;
+    if (!root) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) setHeroInView(true);
+      },
+      { rootMargin: "120px" }
+    );
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!heroInView || !active.playUrl) {
+      setHeroVideoSrc(null);
+      return;
+    }
+    setHeroVideoSrc(active.playUrl);
+  }, [heroInView, active.applicationId, active.playUrl]);
+
+  const startHeroVideo = useCallback(() => {
+    if (!active.playUrl) return;
+    if (!heroInView) setHeroInView(true);
+    setHeroVideoSrc(active.playUrl);
+  }, [active.playUrl, heroInView]);
+
+  useEffect(() => {
     const el = heroVideoRef.current;
-    if (!el || !active.playUrl) return;
-    el.src = active.playUrl;
+    if (!el || !heroVideoSrc) return;
+    if (el.getAttribute("src") !== heroVideoSrc) {
+      el.src = heroVideoSrc;
+    }
     if (active.posterUrl) el.poster = active.posterUrl;
     else el.removeAttribute("poster");
     el.muted = heroMutedRef.current;
@@ -418,7 +452,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         /* still blocked */
       });
     });
-  }, [active.applicationId, active.playUrl, active.posterUrl]);
+  }, [heroVideoSrc, active.applicationId, active.posterUrl]);
 
   useEffect(() => {
     const el = heroVideoRef.current;
@@ -455,7 +489,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         >
           <Image
             src="/images/athos-food-falling.webp"
-            alt=""
+            alt="Decorative collage of Greek food ingredients"
             width={900}
             height={1200}
             className="h-auto w-full"
@@ -469,14 +503,23 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
-            <div className={`group/hero ${HERO_FRAME}`}>
+            <div ref={heroFrameRef} className={`group/hero ${HERO_FRAME}`}>
+              {active.posterUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={active.posterUrl}
+                  alt={`${active.influencerName} — ${data.brandName}`}
+                  className={`absolute inset-0 h-full w-full object-cover ${heroVideoSrc ? "opacity-0" : ""}`}
+                />
+              ) : null}
               <video
                 ref={heroVideoRef}
                 className="absolute inset-0 h-full w-full object-cover"
                 muted={heroMuted}
                 playsInline
-                preload="metadata"
+                preload="none"
                 onEnded={advanceHero}
+                onClick={startHeroVideo}
               />
               <button
                 type="button"
@@ -533,7 +576,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={card.posterUrl}
-                        alt=""
+                        alt={`${card.influencerName} — ${data.brandName}`}
                         className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
                       />

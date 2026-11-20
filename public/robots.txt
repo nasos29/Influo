@@ -7,5 +7,11 @@ Disallow: /messages
 Disallow: /reset-password
 Disallow: /brand/dashboard
 Disallow: /brand/login
+Disallow: /login
+Disallow: /help-desk
+Disallow: /brand/signup
+Disallow: /notifications
+Disallow: /chat-embed
+Disallow: /showcase
 
 Sitemap: https://www.influo.gr/sitemap.xml
