@@ -192,7 +192,35 @@ export async function POST(req: Request) {
     const hasAgreement = matched.some(
       (p) => p.influencer_agreement_accepted === true && p.brand_agreement_accepted === true
     );
+    // Campaign deals: creators may review the brand once the campaign deliverable is done
+    // (same rule brands use to review creators in /api/reviews).
+    let eligibleViaCampaign = false;
     if (!hasAgreement) {
+      const brandIds = new Set<string>();
+      const { data: privRows } = await admin.from("brand_private").select("brand_id").ilike("contact_email", brandEmail);
+      for (const r of privRows || []) if (r.brand_id) brandIds.add(String(r.brand_id));
+      const { data: legacyRows } = await admin.from("brands").select("id").ilike("contact_email", brandEmail);
+      for (const r of legacyRows || []) if (r.id) brandIds.add(String(r.id));
+      if (brandIds.size > 0) {
+        const { data: campaigns } = await admin.from("brand_campaigns").select("id").in("brand_id", [...brandIds]);
+        const campaignIds = (campaigns || []).map((c) => c.id).filter(Boolean);
+        if (campaignIds.length > 0) {
+          const { data: apps } = await admin
+            .from("campaign_applications")
+            .select("id, deliverable_status, delivery_confirmed_at, auto_completed_at")
+            .eq("influencer_id", influencerId)
+            .in("campaign_id", campaignIds)
+            .eq("status", "accepted");
+          eligibleViaCampaign = (apps || []).some(
+            (a) =>
+              !!a.delivery_confirmed_at ||
+              !!a.auto_completed_at ||
+              String(a.deliverable_status || "").toLowerCase() === "approved"
+          );
+        }
+      }
+    }
+    if (!hasAgreement && !eligibleViaCampaign) {
       return NextResponse.json(
         {
           error:
