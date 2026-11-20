@@ -385,6 +385,7 @@ export default function Messaging({
   const [endingConversation, setEndingConversation] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
+  const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
   const [savingAgreement, setSavingAgreement] = useState(false);
   const [showActionsMenu, setShowActionsMenu] = useState(false);
   const actionsMenuRef = useRef<HTMLDivElement>(null);
@@ -1422,6 +1423,13 @@ export default function Messaging({
         : 'Read and accept the agreement terms.', 'error');
       return;
     }
+  if (!proposalInfo?.publish_deadline && !draftAgreementDeadline.trim()) {
+    notify(
+      lang === 'el' ? 'Επιλέξτε προθεσμία δημοσίευσης.' : 'Choose a publication deadline.',
+      'error'
+    );
+    return;
+  }
 
     setSavingAgreement(true);
     try {
@@ -1432,6 +1440,9 @@ export default function Messaging({
           proposalId: activeProposalId,
           userType: mode,
           accepted: true,
+          ...(proposalInfo?.publish_deadline
+            ? {}
+            : { publishDeadline: draftAgreementDeadline.trim() }),
         })
       });
 
@@ -1441,6 +1452,7 @@ export default function Messaging({
         await loadProposalInfo();
         setShowAgreementModal(false);
         setAgreementAccepted(false);
+        setDraftAgreementDeadline("");
         notify(lang === 'el'
           ? mode === 'influencer'
             ? 'Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σας όταν αποδεχτεί και εκείνη.'
@@ -3020,9 +3032,12 @@ export default function Messaging({
           onAcceptedChange={setAgreementAccepted}
           showcaseParty={mode === "brand" ? "brand" : "influencer"}
           saving={savingAgreement}
+          draftPublishDeadline={draftAgreementDeadline}
+          onDraftPublishDeadlineChange={setDraftAgreementDeadline}
           onCancel={() => {
             setShowAgreementModal(false);
             setAgreementAccepted(false);
+            setDraftAgreementDeadline("");
           }}
           onAccept={handleAcceptAgreement}
         />

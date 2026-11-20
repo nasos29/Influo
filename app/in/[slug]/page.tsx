@@ -4,7 +4,8 @@ import { notFound, permanentRedirect } from "next/navigation";
 import InfluencerProfileClient from "@/components/InfluencerProfileClient";
 import { supabaseService } from "@/lib/apiAuth";
 import { loadSeoProfileById, loadSeoProfileBySlug, type SeoProfile } from "@/lib/loadSeoProfile";
-import { profileJsonLd, profileMetadata } from "@/lib/profileSeo";
+import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
+import { profileJsonLd, profileMetadata, profileCanonical } from "@/lib/profileSeo";
 import { retiredSlugInfluencerId } from "@/lib/profileSlugAssign";
 import { publicProfilePath } from "@/lib/profileSlug";
 
@@ -55,12 +56,23 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
   }
 
   const jsonLd = profileJsonLd(resolved.profile.view);
+  const reviewsLd = await creatorReviewsJsonLd(
+    resolved.profile.id,
+    resolved.profile.view.name || "Creator",
+    profileCanonical(resolved.profile.view)
+  );
   return (
     <>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
+      {reviewsLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsLd).replace(/</g, "\\u003c") }}
+        />
+      ) : null}
       {/* useSearchParams() inside the client tree needs a Suspense boundary for ISR. */}
       <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
         <InfluencerProfileClient

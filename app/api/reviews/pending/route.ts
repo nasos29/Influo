@@ -44,8 +44,7 @@ export async function GET(req: Request) {
       .eq("status", "completed")
       .eq("influencer_agreement_accepted", true)
       .eq("brand_agreement_accepted", true)
-      .or("delivery_confirmed_at.not.is.null,auto_completed_at.not.is.null")
-      .order("delivery_confirmed_at", { ascending: false, nullsFirst: false })
+      .order("agreement_accepted_at", { ascending: false, nullsFirst: false })
       .limit(40);
 
     if (party === "influencer") {
@@ -81,7 +80,6 @@ export async function GET(req: Request) {
     }> = [];
 
     for (const row of rows || []) {
-      if (!isRealDeliveryComplete(row)) continue;
       const brandEmail = String(row.brand_email || "").trim();
       const influencerId = String(row.influencer_id || "");
       if (!brandEmail || !influencerId) continue;

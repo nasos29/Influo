@@ -5,6 +5,8 @@ export type EmailLogInsert = {
   ok: boolean;
   provider?: string;
   recipientId?: string | null;
+  dealRef?: string | null;
+  party?: string | null;
 };
 
 export async function persistEmailLog(entry: EmailLogInsert): Promise<void> {
@@ -16,6 +18,8 @@ export async function persistEmailLog(entry: EmailLogInsert): Promise<void> {
       ok: entry.ok,
       provider: (entry.provider || "resend").slice(0, 32),
       recipient_id: entry.recipientId ?? null,
+      deal_ref: entry.dealRef ? String(entry.dealRef).slice(0, 64) : null,
+      party: entry.party ? String(entry.party).slice(0, 16) : null,
     });
   } catch (err) {
     console.error("[email_log]", err instanceof Error ? err.message : err);

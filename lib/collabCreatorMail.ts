@@ -13,7 +13,7 @@ export async function sendCheckedCreator(
   to: string | null | undefined,
   subject: string,
   html: string,
-  opts?: { recipientId?: string | null }
+  opts?: { recipientId?: string | null; dealRef?: string | null; party?: string | null }
 ): Promise<"ok" | "quota" | "error" | "skipped"> {
   if (creatorCollabEmailBlocked(influencerId)) return "skipped";
   return sendChecked(type, to, subject, html, opts);

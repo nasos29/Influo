@@ -44,15 +44,24 @@ export async function sendChecked(
   to: string | null | undefined,
   subject: string,
   html: string,
-  opts?: { recipientId?: string | null }
+  opts?: { recipientId?: string | null; dealRef?: string | null; party?: string | null }
 ): Promise<"ok" | "quota" | "error"> {
   const address = (to || "").trim();
   const key = process.env.RESEND_API_KEY;
-  if (!address || !address.includes("@") || !key) {
+  const logFail = () => {
     logEmail(type, false);
     void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
-      persistEmailLog({ type, ok: false, recipientId: opts?.recipientId })
+      persistEmailLog({
+        type,
+        ok: false,
+        recipientId: opts?.recipientId,
+        dealRef: opts?.dealRef,
+        party: opts?.party,
+      })
     );
+  };
+  if (!address || !address.includes("@") || !key) {
+    logFail();
     return "error";
   }
   try {
@@ -67,17 +76,20 @@ export async function sendChecked(
     const ok = !error;
     logEmail(type, ok);
     void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
-      persistEmailLog({ type, ok, recipientId: opts?.recipientId })
+      persistEmailLog({
+        type,
+        ok,
+        recipientId: opts?.recipientId,
+        dealRef: opts?.dealRef,
+        party: opts?.party,
+      })
     );
     if (ok) return "ok";
     const name = String((error as { name?: string }).name || "");
     return /quota|rate_limit|daily/i.test(`${name} ${error.message}`) ? "quota" : "error";
   } catch (err) {
     console.error("[mail]", type, err instanceof Error ? err.message : "send failed");
-    logEmail(type, false);
-    void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
-      persistEmailLog({ type, ok: false, recipientId: opts?.recipientId })
-    );
+    logFail();
     return "error";
   }
 }
@@ -926,7 +938,9 @@ export async function mailBrandReviewReminder(input: {
   helperHtml?: string;
   /** When true, subject/body note this is the final reminder. */
   isSecond?: boolean;
-}): Promise<void> {
+  source?: "proposal" | "campaign";
+  dealRef?: string | number;
+}): Promise<"ok" | "quota" | "error"> {
   const creator = escapeHtml(input.creatorName);
   const article = input.creatorFemale == null ? "τον/την" : input.creatorFemale ? "την" : "τον";
   const id = escapeHtml(String(input.proposalId));
@@ -936,8 +950,9 @@ export async function mailBrandReviewReminder(input: {
   const leadExtra = input.isSecond
     ? " Αυτή είναι η τελευταία υπενθύμιση."
     : "";
-  await send(
-    input.isSecond ? "review_reminder_brand_2" : "review_reminder_brand",
+  const type = input.isSecond ? "review_reminder_brand_2" : "review_reminder_brand";
+  return sendChecked(
+    type,
     input.to,
     subject,
     shell(
@@ -961,7 +976,11 @@ export async function mailBrandReviewReminder(input: {
         declineUrl: input.declineUrl,
         helperHtml: input.helperHtml,
       })
-    )
+    ),
+    {
+      dealRef: String(input.dealRef ?? input.proposalId),
+      party: "brand",
+    }
   );
 }
 
@@ -981,7 +1000,10 @@ export async function mailCreatorReviewReminder(input: {
   declineUrl?: string | null;
   helperHtml?: string;
   isSecond?: boolean;
-}): Promise<void> {
+  influencerId?: string;
+  source?: "proposal" | "campaign";
+  dealRef?: string | number;
+}): Promise<"ok" | "quota" | "error" | "skipped"> {
   const brand = escapeHtml(input.brandName);
   const id = escapeHtml(String(input.proposalId));
   const subject = input.isSecond
@@ -990,31 +1012,33 @@ export async function mailCreatorReviewReminder(input: {
   const leadExtra = input.isSecond
     ? " Αυτή είναι η τελευταία υπενθύμιση."
     : "";
-  await send(
-    input.isSecond ? "review_reminder_creator_2" : "review_reminder_creator",
-    input.to,
-    subject,
-    shell(
-      "Ώρα για μια σύντομη αξιολόγηση",
-      projectWrapUpBody({
-        greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
-        leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν όλα πήγαν καλά, μια σύντομη αξιολόγηση βοηθά άλλους creators.${leadExtra}</p>`,
-        deal: {
-          proposalId: input.proposalId,
-          service: input.service,
-          budget: input.budget,
-          extras: input.extras,
-          publishDeadline: input.publishDeadline,
-        },
-        ctaUrl: input.dashboardUrl,
-        ctaLabel: `Αξιολόγησε την ${input.brandName}`,
-        nextStepsKey: "review_reminder_creator",
-        mention: { forCreator: true, profileUrl: input.profileUrl },
-        closing: "Καλή συνέχεια,",
-        starUrls: input.starUrls,
-        declineUrl: input.declineUrl,
-        helperHtml: input.helperHtml,
-      })
-    )
+  const type = input.isSecond ? "review_reminder_creator_2" : "review_reminder_creator";
+  const html = shell(
+    "Ώρα για μια σύντομη αξιολόγηση",
+    projectWrapUpBody({
+      greetingHtml: `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>`,
+      leadHtml: `<p>Η συμφωνημένη περίοδος για τη συνεργασία σου με την <strong>${brand}</strong> (συμφωνία <strong>#${id}</strong>) έχει περάσει. Αν όλα πήγαν καλά, μια σύντομη αξιολόγηση βοηθά άλλους creators.${leadExtra}</p>`,
+      deal: {
+        proposalId: input.proposalId,
+        service: input.service,
+        budget: input.budget,
+        extras: input.extras,
+        publishDeadline: input.publishDeadline,
+      },
+      ctaUrl: input.dashboardUrl,
+      ctaLabel: `Αξιολόγησε την ${input.brandName}`,
+      nextStepsKey: "review_reminder_creator",
+      mention: { forCreator: true, profileUrl: input.profileUrl },
+      closing: "Καλή συνέχεια,",
+      starUrls: input.starUrls,
+      declineUrl: input.declineUrl,
+      helperHtml: input.helperHtml,
+    })
   );
+  const { sendCheckedCreator } = await import("@/lib/collabCreatorMail");
+  return sendCheckedCreator(input.influencerId, type, input.to, subject, html, {
+    recipientId: input.influencerId,
+    dealRef: String(input.dealRef ?? input.proposalId),
+    party: "influencer",
+  });
 }

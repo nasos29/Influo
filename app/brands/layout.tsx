@@ -1,3 +1,4 @@
+import BrandsListingJsonLd from "./BrandsListingJsonLd";
 import { pageMetadata } from "@/lib/pageMetadata";
 import { categorySeoKeywords } from "@/lib/categories";
 
@@ -9,6 +10,13 @@ export const metadata = pageMetadata({
   keywords: ["brands Ελλάδα", "επιχειρήσεις influencers", ...categorySeoKeywords()],
 });
 
+export const revalidate = 3600;
+
 export default function BrandsLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return (
+    <>
+      <BrandsListingJsonLd />
+      {children}
+    </>
+  );
 }
