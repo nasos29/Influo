@@ -101,7 +101,7 @@ const t = {
     hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
     brand_showcase_cta_text:
-      "Βρες τους κατάλληλους δημιουργούς για την επιχείρησή σου και ξεκίνα την πρώτη σου συνεργασία. Η εγγραφή είναι δωρεάν.",
+      "Βρες τους κατάλληλους δημιουργούς για την επιχείρησή σου και αύξησε κι εσύ τις προβολές σου στα social. Η εγγραφή είναι δωρεάν.",
     brand_showcase_eyebrow: "Πραγματικές συνεργασίες στο Influo",
     brand_showcase_title: "Θα μπορούσε να είναι η δική σου επιχείρηση!",
     brand_showcase_subtitle:
@@ -153,7 +153,7 @@ const t = {
     hero_brand_desc: "Own a business? Find influencers that match your audience, promote your products or services and start successful collaborations through Influo. Registration is free.",
     brand_section_btn: "Create Company Account",
     brand_showcase_cta_text:
-      "Find the right creators for your business and start your first collaboration. Registration is free.",
+      "Find the right creators for your business and grow your social media views too. Registration is free.",
     brand_showcase_eyebrow: "Real collaborations on Influo",
     brand_showcase_title: "This could be your business!",
     brand_showcase_subtitle:
@@ -651,7 +651,7 @@ export default function Home({
                       </p>
                     </div>
                     {featuredCollaborations ? (
-                      <div className="relative mb-12 md:mb-14">
+                      <div className="relative mb-3 md:mb-4">
                         <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
                       </div>
                     ) : null}

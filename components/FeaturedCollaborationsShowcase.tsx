@@ -88,6 +88,14 @@ function CreatorMiniAvatar({ src, name }: { src: string | null; name: string }) 
   );
 }
 
+/** Fine-pointer desktops: fade chrome when pointer leaves hero; touch keeps controls visible. */
+const HERO_IDLE_HIDE_FINE =
+  "transition-opacity duration-200 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:pointer-events-none";
+
+/** Fine-pointer idle: name only at bottom-left; coarse/touch keeps full chrome via hover overlay. */
+const HERO_IDLE_NAME_FINE =
+  "opacity-0 pointer-events-none transition-opacity duration-200 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:pointer-events-auto";
+
 function CreatorProfileLink({
   name,
   href,
@@ -95,6 +103,7 @@ function CreatorProfileLink({
   platform,
   className = "",
   onClick,
+  hideAvatarOnHeroIdle = false,
 }: {
   name: string;
   href: string;
@@ -102,8 +111,12 @@ function CreatorProfileLink({
   platform?: FeaturedCollaborationPlatform | null;
   className?: string;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  hideAvatarOnHeroIdle?: boolean;
 }) {
   const platformLabel = platform ? PLATFORM_LABEL[platform] : null;
+  const avatarIdleCollapse = hideAvatarOnHeroIdle
+    ? "[@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:hidden"
+    : "";
   return (
     <div className={`min-w-0 ${className}`}>
       <Link
@@ -111,21 +124,21 @@ function CreatorProfileLink({
         className="inline-flex min-w-0 items-center gap-2 text-white text-xs font-semibold drop-shadow-sm hover:underline underline-offset-2 sm:text-sm"
         onClick={onClick}
       >
-        <CreatorMiniAvatar src={avatarUrl} name={name} />
+        <span className={avatarIdleCollapse}>
+          <CreatorMiniAvatar src={avatarUrl} name={name} />
+        </span>
         <span className="truncate">{name}</span>
       </Link>
       {platformLabel ? (
-        <p className="mt-0.5 pl-9 text-[10px] font-medium text-white/80 truncate sm:text-[11px]">
+        <p
+          className={`mt-0.5 pl-9 text-[10px] font-medium text-white/80 truncate sm:text-[11px] ${hideAvatarOnHeroIdle ? HERO_IDLE_HIDE_FINE : ""}`}
+        >
           {platformLabel}
         </p>
       ) : null}
     </div>
   );
 }
-
-/** Fine-pointer desktops: fade chrome when pointer leaves hero; touch keeps controls visible. */
-const HERO_IDLE_HIDE_FINE =
-  "transition-opacity duration-200 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:pointer-events-none";
 
 function CreatorLinkOverlay({
   name,
@@ -140,25 +153,31 @@ function CreatorLinkOverlay({
   platform?: FeaturedCollaborationPlatform | null;
   className?: string;
 }) {
-  const platformLabel = platform ? PLATFORM_LABEL[platform] : null;
   return (
-    <div
-      className={`absolute inset-x-0 z-[5] pt-16 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none ${className}`}
-    >
-      <CreatorProfileLink
-        name={name}
-        href={href}
-        avatarUrl={avatarUrl}
-        className="pointer-events-auto max-w-full"
+    <>
+      <div
+        className={`absolute inset-x-0 z-[5] px-3 pt-16 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none ${HERO_IDLE_HIDE_FINE} ${className}`}
+        aria-hidden
       />
-      {platformLabel ? (
-        <p
-          className={`mt-0.5 pl-9 text-[10px] font-medium text-white/80 truncate sm:text-[11px] pointer-events-none ${HERO_IDLE_HIDE_FINE}`}
-        >
-          {platformLabel}
-        </p>
-      ) : null}
-    </div>
+      <div
+        className={`absolute inset-x-0 z-[5] px-3 pointer-events-none ${HERO_IDLE_HIDE_FINE} ${className}`}
+      >
+        <CreatorProfileLink
+          name={name}
+          href={href}
+          avatarUrl={avatarUrl}
+          platform={platform}
+          className="pointer-events-auto max-w-full"
+          hideAvatarOnHeroIdle
+        />
+      </div>
+      <Link
+        href={href}
+        className={`absolute bottom-3 left-3 z-[5] max-w-[calc(100%-1.5rem)] truncate text-xs font-semibold text-white sm:text-sm [text-shadow:0_1px_3px_rgba(0,0,0,0.85),0_0_8px_rgba(0,0,0,0.45)] hover:underline underline-offset-2 ${HERO_IDLE_NAME_FINE}`}
+      >
+        {name}
+      </Link>
+    </>
   );
 }
 
@@ -461,7 +480,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               />
               <button
                 type="button"
-                className="absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-[opacity,bottom] duration-200 hover:bg-black/65 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent [@media(hover:hover)_and_(pointer:fine)]:bottom-3 [@media(hover:hover)_and_(pointer:fine)]:opacity-70 [@media(hover:hover)_and_(pointer:fine)]:group-hover/hero:bottom-[3.25rem] [@media(hover:hover)_and_(pointer:fine)]:group-hover/hero:opacity-100"
+                className={`absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${HERO_IDLE_HIDE_FINE}`}
                 aria-label={heroMuted ? txt.unmute : txt.mute}
                 onClick={(e) => {
                   e.preventDefault();

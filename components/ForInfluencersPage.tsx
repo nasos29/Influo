@@ -23,7 +23,7 @@ import FeatureGrid from "@/components/marketing/FeatureGrid";
 import HowSteps from "@/components/marketing/HowSteps";
 import MarketingClosing from "@/components/marketing/MarketingClosing";
 import MarketingSection from "@/components/marketing/MarketingSection";
-import StatsStrip from "@/components/marketing/StatsStrip";
+import SocialProofStatsRow from "@/components/SocialProofStatsRow";
 import { bi, resolveCopy, type Bilingual } from "@/lib/bilingual";
 import {
   localizeFeatures,
@@ -31,15 +31,8 @@ import {
   type BiFeature,
   type BiStep,
 } from "@/lib/localizeMarketingItems";
-import {
-  marketingStatItems,
-  type PlatformMarketingStats,
-} from "@/lib/loadPlatformMarketingStats";
-import {
-  MARKETING_SHARED,
-  PLATFORM_STAT_LABELS,
-} from "@/lib/marketingSharedCopy";
-import { openCampaignsLabel } from "@/lib/pluralize";
+import type { SocialProofStats } from "@/lib/loadSocialProofStats";
+import { MARKETING_SHARED } from "@/lib/marketingSharedCopy";
 import { useAuthLoggedIn } from "@/lib/useAuthLoggedIn";
 import { useMarketingLang } from "@/lib/useMarketingLang";
 
@@ -253,9 +246,12 @@ const CREATOR_STEPS: BiStep[] = [
   },
 ];
 
-type Props = Readonly<{ stats: PlatformMarketingStats }>;
+type Props = Readonly<{
+  socialProofStats: SocialProofStats;
+  openCampaignsCount: number | null;
+}>;
 
-export default function ForInfluencersPage({ stats }: Props) {
+export default function ForInfluencersPage({ socialProofStats, openCampaignsCount }: Props) {
   const [lang, setLang] = useMarketingLang();
   const txt = resolveCopy(lang, UI);
   const isLoggedIn = useAuthLoggedIn();
@@ -263,11 +259,6 @@ export default function ForInfluencersPage({ stats }: Props) {
   const signupHref = lang === "en" ? "/en?signup=influencer" : "/?signup=influencer";
   const directoryHref = lang === "en" ? "/en/directory" : "/directory";
   const campaignsHref = lang === "en" ? "/en/campaigns" : "/campaigns";
-  const statItems = marketingStatItems(stats, {
-    influencers: bi(lang, PLATFORM_STAT_LABELS.influencers),
-    brands: bi(lang, PLATFORM_STAT_LABELS.brands),
-    campaigns: openCampaignsLabel(stats.openCampaigns ?? 0, lang),
-  });
 
   return (
     <div className="min-h-screen bg-white">
@@ -313,7 +304,12 @@ export default function ForInfluencersPage({ stats }: Props) {
         </div>
       </section>
 
-      <StatsStrip items={statItems} />
+      <SocialProofStatsRow
+        stats={socialProofStats}
+        lang={lang}
+        openCampaignsCount={openCampaignsCount}
+        showAverageRating={false}
+      />
 
       <MarketingSection tone="slate">
         <FeatureGrid
