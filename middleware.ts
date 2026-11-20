@@ -40,6 +40,15 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
+  const q = (request.nextUrl.searchParams.get("q") || "").trim();
+  if (
+    request.method === "GET" &&
+    q &&
+    (pathname === "/directory" || pathname === "/en/directory")
+  ) {
+    response.headers.set("X-Robots-Tag", "noindex, follow");
+  }
+
   if (request.method === "GET" && !isPrivatePath(pathname) && !request.nextUrl.search) {
     response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");
   }

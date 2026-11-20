@@ -133,7 +133,7 @@ export default async function RootLayout({
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${SITE_URL}/directory?search={search_term_string}`,
+        urlTemplate: `${SITE_URL}/directory?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },

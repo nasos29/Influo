@@ -219,7 +219,7 @@ export default function BlogPage() {
       {/* Hero */}
       <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="max-w-page mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-4xl font-bold mb-4">
             {lang === "el" ? "Blog Influencer Marketing" : "Influencer Marketing Blog"}
           </h1>
           <p className="text-xl text-blue-100">

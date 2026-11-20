@@ -335,7 +335,7 @@ export default function ForBrandsPage({ socialProofStats, openCampaignsCount }: 
           <p className="mb-3 text-sm font-semibold tracking-wide text-blue-300">
             {MARKETING_SHARED.brand}
           </p>
-          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-white md:text-5xl">
+          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-white">
             {txt.headline}
           </h1>
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-slate-200">{txt.hero_desc}</p>

@@ -1,8 +1,10 @@
+import SeoDiscoverLinks from "@/components/SeoDiscoverLinks";
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "For Influencers: Brand Collaborations in Greece | Influo",
-  description: "Create a free influencer profile, apply to campaigns and close paid collaborations with Greek brands.",
+  title: "Find paid brand collaborations — free creator profile | Influo",
+  description:
+    "Build a free professional influencer profile, apply to campaigns and close collaborations with Greek brands, with payment protection.",
   path: "/en/for-influencers",
   elPath: "/for-influencers",
   enPath: "/en/for-influencers",
@@ -10,5 +12,10 @@ export const metadata = pageMetadata({
 });
 
 export default function EnForInfluencersLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <SeoDiscoverLinks lang="en" />
+    </>
+  );
 }

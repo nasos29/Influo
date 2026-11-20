@@ -44,7 +44,7 @@ export default function FAQPage() {
       {/* Hero */}
       <section className="py-16 px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-4xl font-bold mb-4">
             {lang === "el" ? "Συχνές Ερωτήσεις (FAQ)" : "Frequently Asked Questions"}
           </h1>
           <p className="text-xl text-blue-100">

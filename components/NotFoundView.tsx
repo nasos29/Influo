@@ -40,7 +40,7 @@ export default function NotFoundView() {
     <main className="min-h-screen bg-slate-50 flex items-center justify-center px-6 py-16">
       <div className="max-w-lg text-center">
         <p className="text-sm font-semibold tracking-wide text-blue-600 mb-3">404</p>
-        <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">{copy.title}</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-4">{copy.title}</h1>
         <p className="text-slate-600 mb-8">{copy.body}</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href={copy.homeHref} className="px-6 py-3 rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800">

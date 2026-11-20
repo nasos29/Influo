@@ -73,7 +73,7 @@ export default function HomeHeroSearch({
 
   return (
     <div className="flex h-full min-w-0 flex-col justify-center text-center lg:text-left">
-      <h1 className="!text-[34px] sm:!text-[44px] lg:!text-[52px] font-extrabold !leading-[1.08] tracking-tight text-slate-900">
+      <h1 className="!text-[34px] sm:!text-[44px] lg:!text-[48px] font-extrabold !leading-[1.08] tracking-tight text-slate-900">
         {t.title}
       </h1>
       <p className="mt-5 text-base md:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto lg:mx-0">

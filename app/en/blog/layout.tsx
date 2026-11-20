@@ -1,8 +1,10 @@
+import SeoDiscoverLinks from "@/components/SeoDiscoverLinks";
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Influencer Marketing Blog: Guides & Tips | Influo",
-  description: "Guides to influencer marketing in Greece: rates, engagement, contracts, micro vs macro influencers and measuring ROI.",
+  title: "Influencer marketing guides for Greece: rates, ROI, contracts | Influo",
+  description:
+    "Practical guides for brands and creators: influencer rates, engagement, micro vs macro, contracts and measuring ROI.",
   path: "/en/blog",
   elPath: "/blog",
   enPath: "/en/blog",
@@ -10,5 +12,10 @@ export const metadata = pageMetadata({
 });
 
 export default function EnBlogLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <SeoDiscoverLinks lang="en" />
+    </>
+  );
 }

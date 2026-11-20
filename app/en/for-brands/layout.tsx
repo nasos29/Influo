@@ -1,8 +1,10 @@
+import SeoDiscoverLinks from "@/components/SeoDiscoverLinks";
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Influencer Marketing for Businesses in Greece | Influo",
-  description: "Find influencers for your business, publish campaigns and manage collaborations from one dashboard.",
+  title: "Find Greek influencers for your business | Influo",
+  description:
+    "Find verified influencers in Greece, publish campaigns and manage collaborations from one dashboard. AI matching, free sign-up.",
   path: "/en/for-brands",
   elPath: "/for-brands",
   enPath: "/en/for-brands",
@@ -10,5 +12,10 @@ export const metadata = pageMetadata({
 });
 
 export default function EnForBrandsLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <SeoDiscoverLinks lang="en" />
+    </>
+  );
 }

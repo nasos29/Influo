@@ -88,7 +88,7 @@ function SectionHeading({
   return (
     <h2
       id={id}
-      className="scroll-mt-28 text-2xl md:text-3xl font-bold text-slate-900 mb-6 flex items-center gap-3 tracking-tight"
+      className="scroll-mt-28 text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3 tracking-tight"
     >
       <IconBox>{icon}</IconBox>
       <span>{children}</span>
@@ -495,7 +495,7 @@ export default function DocsPage() {
       <div className="max-w-page mx-auto px-4 sm:px-6 py-12 overflow-x-hidden">
         {/* Title */}
         <div className="mb-8" id="top">
-          <h1 className="text-3xl md:text-5xl font-bold text-slate-900 mb-2 tracking-tight">{txt.title}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 tracking-tight">{txt.title}</h1>
           <p className="text-lg text-slate-600">{txt.subtitle}</p>
         </div>
 

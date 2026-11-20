@@ -2,8 +2,9 @@ import { pageMetadata } from "@/lib/pageMetadata";
 import { categorySeoKeywords } from "@/lib/categories";
 
 export const metadata = pageMetadata({
-  title: "Brands Looking for Influencers in Greece | Influo",
-  description: "See Greek businesses looking for influencers for collaborations and campaigns. Free sign-up for creators.",
+  title: "Greek brands seeking influencer collaborations | Influo",
+  description:
+    "Browse businesses looking for creators for campaigns in Greece. Apply and land paid collaborations — free sign-up.",
   path: "/en/brands",
   elPath: "/brands",
   enPath: "/en/brands",

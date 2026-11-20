@@ -1,28 +1,13 @@
-import type { Metadata } from "next";
-import DirectoryPageView from "@/components/DirectoryPageView";
-import { directoryElMetadata } from "@/lib/directoryMetadata";
-import { loadPublicDirectoryCards } from "@/lib/directoryCards";
-import { unstable_cache } from "next/cache";
+import DirectoryTopicLinks from "@/components/DirectoryTopicLinks";
+import DirectoryMain from "./DirectoryMain";
 
 export const revalidate = 3600;
 
-const cachedDirectory = unstable_cache(
-  () => loadPublicDirectoryCards(40),
-  ["directory-cards-page"],
-  { revalidate: 3600, tags: ["directory"] }
-);
-
-type Search = Promise<{ q?: string }>;
-
-export async function generateMetadata({ searchParams }: { searchParams: Search }): Promise<Metadata> {
-  const params = await searchParams;
-  if ((params.q || "").trim()) {
-    return { ...directoryElMetadata, robots: { index: false, follow: true } };
-  }
-  return directoryElMetadata;
-}
-
 export default async function DirectoryPage() {
-  const { influencers, total } = await cachedDirectory();
-  return <DirectoryPageView initialInfluencers={influencers} initialTotal={total} />;
+  return (
+    <>
+      <DirectoryMain />
+      <DirectoryTopicLinks lang="el" />
+    </>
+  );
 }

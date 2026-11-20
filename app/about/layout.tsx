@@ -1,24 +1,24 @@
-import { Metadata } from 'next';
+import SeoDiscoverLinks from "@/components/SeoDiscoverLinks";
+import { pageMetadata } from "@/lib/pageMetadata";
 
-export const metadata: Metadata = {
-  title: "Σχετικά με εμάς",
-  description: "Η αποστολή μας είναι να κάνουμε το influencer marketing πιο έξυπνο, δίκαιο και αποδοτικό. Γνωρίστε το Influo.",
+export const metadata = pageMetadata({
+  title: "Η πλατφόρμα influencer marketing στην Ελλάδα | Influo",
+  description:
+    "Το Influo συνδέει ελληνικά brands με verified influencers. Καμπάνιες, προτάσεις και συνεργασίες σε μία πλατφόρμα — πιο δίκαια και πιο αποδοτικά.",
+  path: "/about",
+  enPath: "/en/about",
   keywords: ["influo", "σχετικά με εμάς", "about", "influencer marketing", "πλατφόρμα"],
-  openGraph: {
-    title: "Σχετικά με εμάς",
-    description: "Η αποστολή μας είναι να κάνουμε το influencer marketing πιο έξυπνο και δίκαιο.",
-    url: "/about",
-  },
-  alternates: {
-    canonical: "/about",
-    languages: { el: "/about", en: "/en/about", "x-default": "/about" },
-  },
-};
+});
 
 export default function AboutLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      {children}
+      <SeoDiscoverLinks lang="el" />
+    </>
+  );
 }

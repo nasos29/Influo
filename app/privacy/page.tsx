@@ -139,7 +139,7 @@ export default function PrivacyPage() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.title}</h1>
+        <h1 className="text-4xl font-bold text-slate-900 mb-4">{txt.title}</h1>
         <p className="text-slate-600 mb-8">{txt.lastUpdated} {LEGAL_LAST_UPDATED}</p>
 
         <div className="prose prose-slate max-w-none space-y-8">

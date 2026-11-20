@@ -111,7 +111,7 @@ export default function AboutPage() {
       <SiteHeader lang={lang} onLangChange={setLang} />
 
       <main className="flex-1 max-w-3xl mx-auto px-4 sm:px-6 py-12 md:py-16">
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-8">{t.title}</h1>
+        <h1 className="text-4xl font-bold text-slate-900 mb-8">{t.title}</h1>
 
         <div className="space-y-10 text-slate-700 leading-relaxed">
           <p className="text-lg">{t.intro1}</p>
