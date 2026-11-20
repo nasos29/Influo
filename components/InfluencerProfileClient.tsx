@@ -743,7 +743,8 @@ export default function InfluencerProfile(props: {
       const rem = parseFloat(getComputedStyle(root).fontSize) || 16;
       const headerEl = document.querySelector<HTMLElement>(".site-header");
       const headerOffset = headerEl ? headerEl.getBoundingClientRect().height : 4.5 * rem;
-      const heroBand = 4.5 * rem;
+      const heroBand =
+        (window.matchMedia("(min-width: 768px)").matches ? 4.5 : 6.5) * rem;
 
       const scrollY = window.scrollY || window.pageYOffset || 0;
       const cardTop = scrollY + cardEl.getBoundingClientRect().top;
@@ -2276,9 +2277,8 @@ export default function InfluencerProfile(props: {
           aria-hidden
         />
 
-        {/* Back controls — z above sticky SiteHeader (z-40) so scroll never steals clicks.
-            Bottom-left on desktop; top-left on mobile to clear overlapping avatar. */}
-        <div className="absolute z-50 left-4 sm:left-6 top-4 md:top-auto md:bottom-4 flex flex-col items-start gap-2">
+        {/* Back controls — desktop bottom-left; mobile sits in the purple band below the sticky header (MAG-5). */}
+        <div className="absolute z-50 left-4 sm:left-6 top-24 md:top-auto md:bottom-4 flex flex-col items-start gap-2">
           {fromRecommendations ? (
             <button type="button" onClick={goBackToRecommendations} className={profileBackBtnClass}>
               <ArrowLeft className="h-4 w-4 shrink-0" aria-hidden />
