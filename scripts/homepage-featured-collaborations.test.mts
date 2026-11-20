@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { featuredCollaborationPlatform } from "../lib/featuredCollaborationPlatform.ts";
 import {
   DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS,
   parseHomepageFeaturedCollaborationsSetting,
@@ -12,6 +13,22 @@ test("default featured collaborations uses Athos brand and four application ids"
     DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.heroApplicationId,
     "a0b953c0-bae2-44d4-9222-d5b5fbc385ab"
   );
+});
+
+test("featuredCollaborationPlatform detects IG and TikTok from deliverable or source", () => {
+  assert.equal(
+    featuredCollaborationPlatform("https://www.instagram.com/reel/ABC123/"),
+    "instagram"
+  );
+  assert.equal(
+    featuredCollaborationPlatform("https://www.tiktok.com/@u/video/123"),
+    "tiktok"
+  );
+  assert.equal(
+    featuredCollaborationPlatform("https://example.com/x", "https://vm.tiktok.com/ZZZZ/"),
+    "tiktok"
+  );
+  assert.equal(featuredCollaborationPlatform("https://youtube.com/watch?v=x"), null);
 });
 
 test("parse falls back when value is missing or invalid", () => {
