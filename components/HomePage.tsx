@@ -655,11 +655,24 @@ export default function Home({
                 <section
                   key={sectionId}
                   data-homepage-section="brand_cta"
-                  className="home-section-cv relative py-20 px-6 bg-slate-50 border-y border-slate-100"
+                  className="home-section-cv relative overflow-x-hidden overflow-y-visible py-20 px-6 bg-slate-50 border-y border-slate-100"
                   id="brands"
                 >
+                  <div
+                    className="hidden lg:block pointer-events-none select-none absolute z-0 right-[-10vw] top-[32%] w-[30vw] max-w-[480px] h-auto"
+                    aria-hidden
+                  >
+                    <Image
+                      src="/images/athos-food-falling.webp"
+                      alt=""
+                      width={900}
+                      height={1200}
+                      className="w-full h-auto"
+                      sizes="(min-width: 1024px) 30vw, 0px"
+                    />
+                  </div>
                   <div className="max-w-page mx-auto relative">
-                    <div className="text-center mb-10 md:mb-12">
+                    <div className="relative z-10 text-center mb-10 md:mb-12">
                       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
                         {txt.brand_showcase_eyebrow}
                       </p>
@@ -673,28 +686,15 @@ export default function Home({
                             brandName={featuredCollaborations.brandName}
                             brandLogoUrl={featuredCollaborations.brandLogoUrl}
                           />
-                          {featuredCollaborations.decorativeCoverUrl ? (
-                            <Image
-                              src={
-                                getCachedImageUrl(featuredCollaborations.decorativeCoverUrl) ??
-                                featuredCollaborations.decorativeCoverUrl
-                              }
-                              alt=""
-                              width={160}
-                              height={90}
-                              className="hidden md:block w-28 sm:w-32 h-auto rounded-xl shadow-md ring-2 ring-white object-cover rotate-3"
-                              sizes="128px"
-                            />
-                          ) : null}
                         </div>
                       ) : null}
                     </div>
                     {featuredCollaborations ? (
-                      <div className="mb-12 md:mb-14">
+                      <div className="relative z-10 mb-12 md:mb-14">
                         <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
                       </div>
                     ) : null}
-                    <div className="text-center mb-10 md:mb-12">
+                    <div className="relative z-10 text-center mb-10 md:mb-12">
                       <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-5 leading-relaxed">
                         {txt.brand_showcase_cta_text}
                       </p>
