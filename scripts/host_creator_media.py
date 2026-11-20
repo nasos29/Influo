@@ -293,8 +293,8 @@ def ytdlp_download(url: str, dest: Path, platform: str | None, cookies: Path | N
         # Contabo IPs often get "Unexpected response from webpage request"
         # unless yt-dlp impersonates a real browser (needs curl_cffi).
         attempts = [
-            [ytdlp, "--no-playlist", "--impersonate", "chrome", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
             [ytdlp, "--no-playlist", "--impersonate", "safari", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
+            [ytdlp, "--no-playlist", "--impersonate", "chrome", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
             [ytdlp, "--no-playlist", "--extractor-args", "tiktok:webpage_download=True", "--impersonate", "chrome", "-f", fmt, "--merge-output-format", "mp4", "-o", outtmpl, url],
         ] + attempts
     if cookies and cookies.is_file():
@@ -416,7 +416,7 @@ def remux_faststart(source: Path, dest: Path, audio_aac: bool = True) -> bool:
     return proc.returncode == 0 and dest.exists() and dest.stat().st_size > 0
 
 
-def encode_h264(source: Path, dest: Path, crf: str = H264_CRF) -> bool:
+def encode_h264(source: Path, dest: Path, crf: str = H264_CRF, preset: str = "slow") -> bool:
     proc = run(
         [
             "ffmpeg",
@@ -442,7 +442,7 @@ def encode_h264(source: Path, dest: Path, crf: str = H264_CRF) -> bool:
             "-bufsize",
             H264_BUFSIZE,
             "-preset",
-            "slow",
+            preset,
             "-c:a",
             "aac",
             "-b:a",
@@ -499,7 +499,7 @@ def safe_storage_object_path(path: str | None) -> str | None:
     return p
 
 
-def encode_assets(source: Path, work: Path) -> dict[str, Any]:
+def encode_assets(source: Path, work: Path, *, h264_preset: str = "slow") -> dict[str, Any]:
     """Build a compact, card-sized rendition set.
 
     Always produce a web-safe H.264 video.mp4 at max 720p (shorter side) with
@@ -548,9 +548,9 @@ def encode_assets(source: Path, work: Path) -> dict[str, Any]:
     used_original_h264 = False
     # Always transcode to the 720p / maxrate 2 Mbps budget. A remux of an
     # already-compliant original is used only when it is also smaller.
-    if not encode_h264(source, avc, H264_CRF):
+    if not encode_h264(source, avc, H264_CRF, h264_preset):
         log("  h264 CRF 30 failed, trying CRF 28 with the same 2 Mbps cap")
-        if not encode_h264(source, avc, "28"):
+        if not encode_h264(source, avc, "28", h264_preset):
             raise RuntimeError("could not produce an H.264 video.mp4")
     chosen = avc
     if can_keep_original_h264(info):
@@ -688,6 +688,45 @@ def is_hostable_video_url(url: str, post_type: str | None = None) -> bool:
     return True
 
 
+def is_self_hosted_media_url(url: str) -> bool:
+    """True when the URL already points at our creator-videos portfolio storage."""
+    u = str(url or "").strip()
+    if not u:
+        return False
+    mstore = _load_media_storage()
+    base = (mstore.media_public_base_url() or "").rstrip("/")
+    if base and u.lower().startswith(base.lower() + "/"):
+        rest = u[len(base) + 1 :]
+        if rest.lower().startswith("creators/") and "/portfolio/" in rest.lower():
+            return True
+    if re.search(
+        r"^https?://[^/]+/storage/v1/object/public/[^/]+/creators/[0-9a-f-]{36}/portfolio/",
+        u,
+        re.I,
+    ):
+        return True
+    return False
+
+
+def wanted_portfolio_url_norms(inf: dict[str, Any]) -> set[str]:
+    """Every non-empty influencers.videos URL (including self-hosted uploads)."""
+    out: set[str] = set()
+    for url in inf.get("videos") or []:
+        url = str(url or "").strip()
+        if url:
+            out.add(normalize_source_url(url))
+    return out
+
+
+def is_portfolio_still_image_url(url: str) -> bool:
+    u = str(url or "").strip()
+    if not u:
+        return False
+    if re.search(r"/photo\.webp(\?|#|$)", u, re.I):
+        return True
+    return bool(re.search(r"\.(jpe?g|png|gif|webp|bmp|heic|heif|svg)(\?|#|$)", u, re.I))
+
+
 def select_top_posts_for_display(accounts: list[Any] | None, limit: int = TOP_POSTS_DISPLAY_LIMIT) -> list[dict[str, Any]]:
     """Best of each platform, then next-best overall, up to `limit` slots."""
     from functools import cmp_to_key
@@ -772,6 +811,8 @@ def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
     for url in inf.get("videos") or []:
         url = str(url or "").strip()
         if not url:
+            continue
+        if is_self_hosted_media_url(url) or is_portfolio_still_image_url(url):
             continue
         if not is_hostable_video_url(url):
             continue
@@ -877,6 +918,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
     existing = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
     ready_map = {} if force else existing_ready_by_norm(existing)
     wanted_top = {normalize_source_url(i["url"]) for i in items if i["kind"] == "top_post"}
+    wanted_portfolio = wanted_portfolio_url_norms(inf)
 
     summary = {"ready": 0, "failed": 0, "reused": 0, "skipped": 0, "details": []}
     work_root = Path(os.environ.get("WORKDIR") or tempfile.mkdtemp(prefix="host-media-"))
@@ -935,6 +977,12 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             log("  already ready")
             continue
 
+        if is_self_hosted_media_url(url) or is_portfolio_still_image_url(url):
+            summary["skipped"] += 1
+            summary["details"].append({"url": url, "kind": kind, "status": "skipped", "folder": folder, "error": "already hosted"})
+            log("  skip already-hosted / still image")
+            continue
+
         upsert_row(
             sb,
             {
@@ -982,6 +1030,9 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                         f"  yt-dlp failed ({e}); re-encoding from existing {prior['play_path']} "
                         f"({source.stat().st_size} bytes)"
                     )
+            probe = ffprobe_info(source)
+            if not probe.get("codec") or int(probe.get("width") or 0) < 1:
+                raise RuntimeError("no video stream found (still image or unsupported download)")
             assets = encode_assets(source, item_dir)
             meta = {
                 "source_url": url,
@@ -1062,8 +1113,30 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             summary["details"].append({"url": url, "kind": kind, "status": "failed", "error": err, "folder": folder})
             log(f"  FAILED: {err}")
 
-    # Drop leftover top-post folders that are no longer referenced.
     current = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
+    if not only_url:
+        # Drop leftover portfolio rows/folders no longer in influencers.videos (never top-post / collab).
+        for row in current:
+            if row.get("kind") != "portfolio":
+                continue
+            if normalize_source_url(str(row.get("source_url") or "")) in wanted_portfolio:
+                continue
+            folder = row.get("folder_path") or ""
+            still = [
+                r
+                for r in current
+                if r.get("folder_path") == folder and r.get("id") != row.get("id")
+            ]
+            if not still and folder:
+                log(f"  removing dropped portfolio folder {folder}")
+                try:
+                    paths = store.storage_list(folder.rstrip("/"))
+                    if paths:
+                        store.storage_remove(paths)
+                except Exception as e:
+                    log(f"  folder delete warning: {e}")
+            sb.rest_delete("creator_media", f"id=eq.{row['id']}")
+
     for row in current:
         if row.get("kind") != "top_post":
             continue

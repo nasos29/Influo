@@ -23,7 +23,11 @@ Env: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY,
 from __future__ import annotations
 
 import argparse
-import fcntl
+import calendar
+try:
+    import fcntl
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
 import importlib.util
 import json
 import os
@@ -42,9 +46,56 @@ HERE = Path(__file__).resolve().parent
 UPLOAD_BUCKET = "creator-uploads"
 MAX_VIDEO_SECONDS = 180
 MAX_ATTEMPTS = 3
+LINK_MAX_ATTEMPTS = 4
+LINK_BACKOFF_SECONDS = [10 * 60, 60 * 60, 6 * 60 * 60]
 PHOTO_MAX_SIDE = 1600
 STALE_PROCESSING_SECONDS = 2 * 60 * 60
 STALE_UPLOADING_SECONDS = 48 * 60 * 60
+UPLOAD_H264_PRESET = os.environ.get("PORTFOLIO_UPLOAD_H264_PRESET", "fast")
+
+
+def local_staging_root() -> Path:
+    raw = (os.environ.get("PORTFOLIO_UPLOAD_STAGING_DIR") or "").strip()
+    if raw:
+        return Path(raw)
+    return Path(__file__).resolve().parent.parent / ".portfolio-upload-staging"
+
+
+def local_upload_dir(influencer_id: str, upload_id: str) -> Path:
+    return local_staging_root() / "uploads" / influencer_id.lower() / upload_id.lower()
+
+
+def join_upload_source(sb: Any, row: dict[str, Any], work: Path) -> Path:
+    """Prefer a pre-assembled local source; else join remote or local chunk parts."""
+    influencer_id = str(row["influencer_id"])
+    upload_id = str(row["id"])
+    total = int(row["total_bytes"])
+    local_dir = local_upload_dir(influencer_id, upload_id)
+    if local_dir.is_dir():
+        for p in sorted(local_dir.glob("source*")):
+            if p.is_file() and p.stat().st_size == total:
+                dest = work / p.name
+                shutil.copy2(p, dest)
+                return dest
+        chunks_dir = local_dir / "chunks"
+        if chunks_dir.is_dir():
+            paths = chunk_paths(row)
+            source = work / f"source{suffix_for(row)}"
+            with source.open("wb") as out:
+                for i, remote in enumerate(paths):
+                    part = chunks_dir / f"{i:05d}.part"
+                    if part.is_file():
+                        with part.open("rb") as inp:
+                            shutil.copyfileobj(inp, out)
+                    else:
+                        out.write(staging_get(sb, remote))
+            if source.stat().st_size == total:
+                return source
+    source = work / f"source{suffix_for(row)}"
+    with source.open("wb") as out:
+        for p in chunk_paths(row):
+            out.write(staging_get(sb, p))
+    return source
 
 
 def _load(name: str):
@@ -67,6 +118,10 @@ def log(msg: str) -> None:
 
 def now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def iso_in(seconds: int) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(time.time() + seconds))
 
 
 def iso_ago(seconds: int) -> str:
@@ -205,10 +260,7 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
     work.mkdir(parents=True, exist_ok=True)
     paths = chunk_paths(row)
     try:
-        source = work / f"source{suffix_for(row)}"
-        with source.open("wb") as out:
-            for p in paths:
-                out.write(staging_get(sb, p))
+        source = join_upload_source(sb, row, work)
         if source.stat().st_size != int(row["total_bytes"]):
             raise RuntimeError("joined file size does not match the upload")
 
@@ -219,7 +271,7 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
                 raise RuntimeError("no video stream found")
             if info["duration"] > MAX_VIDEO_SECONDS + 0.5:
                 raise RuntimeError("video is longer than 3 minutes")
-            assets = hcm.encode_assets(source, work)
+            assets = hcm.encode_assets(source, work, h264_preset=UPLOAD_H264_PRESET)
             meta = {
                 "source": "upload",
                 "upload_id": upload_id,
@@ -273,6 +325,7 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
             raise RuntimeError("creator not found")
         patch_upload(sb, upload_id, {"status": "ready", "error": None, "folder_path": folder, "portfolio_url": public_url})
         staging_remove(sb, paths)
+        shutil.rmtree(local_upload_dir(influencer_id, upload_id), ignore_errors=True)
         log(f"  ready -> {result}")
     except Exception as e:
         err = str(e)[:500]
@@ -289,21 +342,90 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
 
 # ---------- link jobs ----------
 
+def link_job_done(sb: Any, job_id: str, err: str | None = None) -> None:
+    sb.rest_patch(
+        "creator_media_jobs",
+        f"id=eq.{job_id}",
+        {"status": "done", "error": err, "next_retry_at": None, "updated_at": now_iso()},
+    )
+
+
+def schedule_link_job_failure(sb: Any, job: dict[str, Any], err: str) -> None:
+    attempts = int(job.get("attempts") or 0)
+    err = err[:500]
+    if attempts >= LINK_MAX_ATTEMPTS:
+        sb.rest_patch(
+            "creator_media_jobs",
+            f"id=eq.{job['id']}",
+            {"status": "failed", "error": err, "next_retry_at": None, "updated_at": now_iso()},
+        )
+        return
+    delay = LINK_BACKOFF_SECONDS[min(max(attempts - 1, 0), len(LINK_BACKOFF_SECONDS) - 1)]
+    sb.rest_patch(
+        "creator_media_jobs",
+        f"id=eq.{job['id']}",
+        {
+            "status": "queued",
+            "error": err,
+            "next_retry_at": iso_in(delay),
+            "updated_at": now_iso(),
+        },
+    )
+
+
+def finalize_link_job(sb: Any, job: dict[str, Any], detail: dict[str, Any] | None) -> None:
+    if detail is None:
+        link_job_done(sb, job["id"], "not in portfolio any more")
+        return
+    st = str(detail.get("status") or "")
+    if st == "failed":
+        schedule_link_job_failure(sb, job, str(detail.get("error") or "download failed"))
+        return
+    if st in {"ready", "reused", "already-ready", "skipped"}:
+        link_job_done(sb, job["id"], None)
+        return
+    link_job_done(sb, job["id"], None)
+
+
+def _retry_due(job: dict[str, Any]) -> bool:
+    raw = job.get("next_retry_at")
+    if not raw:
+        return True
+    try:
+        return calendar.timegm(time.strptime(str(raw)[:19], "%Y-%m-%dT%H:%M:%S")) <= time.time()
+    except ValueError:
+        return True
+
+
 def process_link_jobs(sb: Any, store: Any, cookies: Path | None) -> None:
-    jobs = sb.rest_get("creator_media_jobs", "select=id,influencer_id,source_url,attempts&status=eq.queued&order=created_at.asc")
+    jobs = sb.rest_get(
+        "creator_media_jobs",
+        "select=id,influencer_id,source_url,attempts,next_retry_at&status=eq.queued&order=created_at.asc",
+    )
+    jobs = [j for j in jobs if _retry_due(j)]
     by_creator: dict[str, list[dict[str, Any]]] = {}
     for job in jobs:
         by_creator.setdefault(str(job["influencer_id"]), []).append(job)
     for influencer_id, group in by_creator.items():
-        claimed = []
+        claimed: list[dict[str, Any]] = []
         for job in group:
+            src = str(job.get("source_url") or "")
+            if hcm.is_self_hosted_media_url(src) or hcm.is_portfolio_still_image_url(src):
+                link_job_done(sb, job["id"], "already hosted")
+                log(f"  skip hosted portfolio url job {job['id']}")
+                continue
             rows = sb.rest_patch(
                 "creator_media_jobs",
                 f"id=eq.{job['id']}&status=eq.queued",
-                {"status": "processing", "attempts": int(job.get("attempts") or 0) + 1, "updated_at": now_iso()},
+                {
+                    "status": "processing",
+                    "attempts": int(job.get("attempts") or 0) + 1,
+                    "next_retry_at": None,
+                    "updated_at": now_iso(),
+                },
             )
             if rows:
-                claimed.append(job)
+                claimed.append({**job, "attempts": int(job.get("attempts") or 0) + 1})
         if not claimed:
             continue
         log(f"links for {influencer_id}: {len(claimed)} queued")
@@ -313,18 +435,12 @@ def process_link_jobs(sb: Any, store: Any, cookies: Path | None) -> None:
         except BaseException as e:  # SystemExit when the creator is gone
             err = str(e)[:500] or e.__class__.__name__
             for job in claimed:
-                sb.rest_patch("creator_media_jobs", f"id=eq.{job['id']}", {"status": "failed", "error": err, "updated_at": now_iso()})
+                schedule_link_job_failure(sb, job, err)
             log(f"  FAILED: {err}")
             continue
         for job in claimed:
             d = details.get(hcm.normalize_source_url(job["source_url"]))
-            if d is None:
-                status, err = "done", "not in portfolio any more"
-            elif d.get("status") == "failed":
-                status, err = "failed", str(d.get("error") or "download failed")[:500]
-            else:
-                status, err = "done", None
-            sb.rest_patch("creator_media_jobs", f"id=eq.{job['id']}", {"status": status, "error": err, "updated_at": now_iso()})
+            finalize_link_job(sb, job, d)
 
 
 def main() -> int:
@@ -342,10 +458,11 @@ def main() -> int:
     # Lock lives in the repo root (not world-writable /tmp).
     lock_path = Path(__file__).resolve().parent.parent / ".media-worker.lock"
     lock_file = open(lock_path, "w")
-    try:
-        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        return 0  # another run is active
+    if fcntl is not None:
+        try:
+            fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return 0  # another run is active
 
     hcm.which_or_die("ffmpeg")
     hcm.which_or_die("ffprobe")

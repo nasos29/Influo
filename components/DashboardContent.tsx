@@ -1,20 +1,24 @@
 // components/DashboardContent.tsx
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import PortfolioMediaUploader from '@/components/PortfolioMediaUploader';
+import { usePortfolioUploadContext } from '@/components/PortfolioUploadProvider';
 import { isUploadedPortfolioUrl } from '@/lib/portfolioUpload';
+import { usePortfolioLinkStatus } from '@/lib/usePortfolioLinkStatus';
+import { isSelfHostedPortfolioUrl, PORTFOLIO_LINK_STATUS_COPY } from '@/lib/portfolioHosted';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
 import {
-    FACEBOOK_VIDEO_LINK_ERROR,
+    portfolioLinkValidationError,
     prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioPostLimit, portfolioLimitMessage,
+    filterPublicPortfolioVideos,
 } from '@/lib/videoLinks';
 import { normalizeVideoUrlKey } from '@/lib/checkVideoPlayable';
 import {
@@ -197,8 +201,21 @@ const HIDDEN_VIDEO_NOTICE = {
 } as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
+function accountEditableSig(list: Account[] | null | undefined): string {
+    return JSON.stringify(
+        (Array.isArray(list) ? list : [])
+            .filter((acc) => acc.username && acc.platform && acc.platform !== 'Facebook')
+            .map((acc) => [
+                String(acc.platform || '').trim().toLowerCase(),
+                String(acc.username || '').replace(/^@+/, '').trim().toLowerCase(),
+                String(acc.followers ?? '').trim(),
+            ])
+    );
+}
+
 const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics', focusSkills = false, focusPhoto = false, focusBio = false, focusAudience = false }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection, focusSkills?: boolean, focusPhoto?: boolean, focusBio?: boolean, focusAudience?: boolean }) => {
     const L = (el: string, en: string) => (lang === 'en' ? en : el);
+    const portfolioUpload = usePortfolioUploadContext();
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
     const [location, setLocation] = useState(user.location || "");
@@ -250,9 +267,18 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const [topAge, setTopAge] = useState(initialNoAccess ? "" : (user.audience_top_age || ""));
     const [audienceNoAccess, setAudienceNoAccess] = useState(initialNoAccess);
     const [audienceError, setAudienceError] = useState("");
+
     const [videoRows, setVideoRows] = useState<VideoRow[]>(() =>
         toVideoRows(Array.isArray(user.videos) && user.videos.length ? user.videos : [""])
     );
+    const initialVideosRef = useRef<string[]>(
+        (Array.isArray(user.videos) ? user.videos : []).map((u) => String(u || "").trim()).filter(Boolean)
+    );
+    const portfolioUrlsForLinkStatus = useMemo(
+        () => videoRows.map((r) => r.url).filter((u) => u.trim()),
+        [videoRows]
+    );
+    const { phaseForUrl: portfolioLinkPhase } = usePortfolioLinkStatus(String(user.id), portfolioUrlsForLinkStatus);
     const [loading, setLoading] = useState(false);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar_url || null);
@@ -392,6 +418,24 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const baselineRef = useRef<string | null>(null);
     if (baselineRef.current === null) baselineRef.current = formSignature;
     const unsaved = formSignature !== baselineRef.current;
+    const canSave = unsaved || portfolioUpload.hasBackgroundWork;
+
+    const socialAccountsWillChange = useMemo(
+        () => accountEditableSig(accounts) !== accountEditableSig(user.accounts),
+        [accounts, user.accounts]
+    );
+
+    useEffect(() => {
+        portfolioUpload.setOnReady((url) => {
+            setVideoRows((rows) => {
+                if (rows.some((r) => r.url.trim() === url)) return rows;
+                const empty = rows.findIndex((r) => !r.url.trim());
+                if (empty >= 0) return rows.map((r, i) => (i === empty ? { ...r, url } : r));
+                return [...rows, { id: newVideoRowId(), url }];
+            });
+        });
+        return () => portfolioUpload.setOnReady(null);
+    }, [portfolioUpload]);
 
     const requestClose = () => {
         if (loading) return;
@@ -427,8 +471,8 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             }
             const cleaned = await runCheck(id, raw);
             if (!cleaned.ok) {
-                if (cleaned.reason === 'facebook') {
-                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
+                if (cleaned.reason === 'facebook' || cleaned.reason === 'unsupported') {
+                    setVideoLinkError(portfolioLinkValidationError(cleaned.reason, lang));
                     setVideoRows((rows) => rows.map((r) => (r.id === id ? { ...r, url: '' } : r)));
                     clearId(id);
                 }
@@ -524,10 +568,24 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 (currentData.accounts || []) as Account[]
             );
 
-            const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
+            const initialVideoSet = new Set(initialVideosRef.current);
+            const draftUrls = videoRowsToUrls(videoRows);
+            const preparedSet = new Set(draftUrls.map((u) => u.trim()).filter(Boolean));
+            let mergedUrls = [...draftUrls];
+            for (const raw of currentData.videos || []) {
+                const url = String(raw || "").trim();
+                if (!url || !isSelfHostedPortfolioUrl(url)) continue;
+                if (initialVideoSet.has(url)) continue;
+                if (preparedSet.has(url)) continue;
+                if (mergedUrls.filter((u) => u.trim()).length >= portfolioMax) break;
+                mergedUrls.push(url);
+                preparedSet.add(url);
+            }
+            const preparedVideos = prepareVideosForSave(mergedUrls);
             if (!preparedVideos.ok) {
-                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR[lang]);
-                notify(FACEBOOK_VIDEO_LINK_ERROR[lang], 'error');
+                const linkErr = portfolioLinkValidationError(preparedVideos.reason, lang);
+                setVideoLinkError(linkErr);
+                notify(linkErr, 'error');
                 setSection('portfolio');
                 setLoading(false);
                 return;
@@ -885,11 +943,23 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!unsaved && portfolioUpload.hasBackgroundWork) {
+            notify(
+                L("Το βίντεο θα εμφανιστεί μόλις ολοκληρωθεί η επεξεργασία", "The video will appear once processing finishes"),
+                'info'
+            );
+            onClose();
+            return;
+        }
         if (!unsaved) {
             notify(L("Δεν υπάρχουν αλλαγές για αποθήκευση.", "There are no changes to save."), 'info');
             return;
         }
-        setConfirmSave(true);
+        if (socialAccountsWillChange) {
+            setConfirmSave(true);
+        } else {
+            void performSave();
+        }
     };
 
     const platforms = ["Instagram", "TikTok", "YouTube", "Twitter"];
@@ -1244,6 +1314,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                   !!detectProvider(video) &&
                                   !isImage &&
                                   !isEmbeddableVideoUrl(video);
+                                const linkHostingPhase = video?.trim() ? portfolioLinkPhase(video) : "none";
+                                const hideEmbedForHosting =
+                                  linkHostingPhase === "pending" || linkHostingPhase === "failed";
                                 const isHiddenRow =
                                   !!video?.trim() &&
                                   parseHiddenVideos(user.hidden_videos).some(
@@ -1272,6 +1345,19 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                             {isUploadedPortfolioUrl(video) ? (
                                               <p className="mt-1 text-xs text-slate-500">{L('Ανεβασμένο αρχείο, φιλοξενείται στο Influo.', 'Uploaded file, hosted on Influo.')}</p>
                                             ) : null}
+                                            {linkHostingPhase !== "none" ? (
+                                              <p
+                                                className={
+                                                  linkHostingPhase === "failed"
+                                                    ? "mt-1 text-xs text-amber-800"
+                                                    : linkHostingPhase === "ready"
+                                                      ? "mt-1 text-xs text-emerald-700"
+                                                      : "mt-1 text-xs text-slate-500"
+                                                }
+                                              >
+                                                {PORTFOLIO_LINK_STATUS_COPY[linkHostingPhase === "ready" ? "ready" : linkHostingPhase === "failed" ? "failed" : "pending"][lang]}
+                                              </p>
+                                            ) : null}
                                             {checkingById[row.id] ? (
                                               <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
                                             ) : null}
@@ -1285,14 +1371,23 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                 {videoProfileWarn[lang]}
                                               </p>
                                             )}
-                                            {!rejected && video && isEmbeddableVideoUrl(video) && (
-                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                            {!rejected && video && isEmbeddableVideoUrl(video) && !hideEmbedForHosting && (
+                                                <div className="relative mt-2 flex max-h-64 min-h-[8rem] w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}
                                                         alt="Video/Photo thumbnail"
                                                         fill
-                                                        className={isImage ? "object-contain" : "object-cover"}
+                                                        className="object-contain"
                                                     />
+                                                    {portfolioUpload.items.some(
+                                                        (it) =>
+                                                            it.phase === "processing" &&
+                                                            it.upload?.portfolioUrl === video
+                                                    ) ? (
+                                                        <span className="absolute left-2 top-2 z-10 rounded-md bg-slate-900/80 px-2 py-0.5 text-xs font-medium text-white">
+                                                            {L("Επεξεργάζεται…", "Processing…")}
+                                                        </span>
+                                                    ) : null}
                                                     {isVideo && !isInstagramPost && !isTikTokPhoto && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
                                                             <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
@@ -1303,7 +1398,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                 </div>
                                             )}
                                             {!rejected && video && isImage && (
-                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                <div className="relative mt-2 flex max-h-64 min-h-[8rem] w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail
                                                         url={video}
                                                         alt="Video/Photo thumbnail"
@@ -1332,14 +1427,6 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 influencerId={String(user.id)}
                                 lang={lang}
                                 slotsLeft={Math.max(0, MAX_PORTFOLIO_POSTS - videoRows.filter((r) => r.url.trim()).length)}
-                                onReady={(url) =>
-                                    setVideoRows((rows) => {
-                                        if (rows.some((r) => r.url.trim() === url)) return rows;
-                                        const empty = rows.findIndex((r) => !r.url.trim());
-                                        if (empty >= 0) return rows.map((r, i) => (i === empty ? { ...r, url } : r));
-                                        return [...rows, { id: newVideoRowId(), url }];
-                                    })
-                                }
                             />
                         </div>
                     </div>
@@ -1348,16 +1435,18 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                     </div>
 
                     <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
-                        <p className="mb-2 text-xs text-amber-800">
-                            {L('Μετά την αποθήκευση το προφίλ μπαίνει σε εκκρεμότητα μέχρι τον νέο έλεγχο.', 'After saving, the profile stays pending until it is reviewed again.')}
-                        </p>
+                        {socialAccountsWillChange ? (
+                            <p className="mb-2 text-xs text-amber-800">
+                                {L('Μετά την αποθήκευση το προφίλ μπαίνει σε εκκρεμότητα μέχρι τον νέο έλεγχο.', 'After saving, the profile stays pending until it is reviewed again.')}
+                            </p>
+                        ) : null}
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-xs font-medium text-slate-500">
                                 {unsaved ? L('Μη αποθηκευμένες αλλαγές', 'Unsaved changes') : L('Όλα αποθηκευμένα', 'All changes saved')}
                             </p>
                             <div className="flex gap-2">
                                 <button type="button" onClick={requestClose} className="inline-flex min-h-11 items-center px-4 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">{L("Ακύρωση", "Cancel")}</button>
-                                <button type="submit" disabled={loading || !unsaved || videosChecking || videosNotPlayable} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                                <button type="submit" disabled={loading || !canSave || videosChecking || videosNotPlayable} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
                                     {loading ? L('Αποθήκευση...', 'Saving...') : L('Αποθήκευση', 'Save')}
                                 </button>
                             </div>
@@ -1414,8 +1503,22 @@ function tabBadgeText(count: number): string {
   return String(count);
 }
 
+function mergePortfolioUrlIntoVideos(videos: string[] | null | undefined, url: string, max: number): string[] {
+    const list = Array.isArray(videos) ? [...videos.map((v) => String(v || "").trim())] : [];
+    if (list.includes(url)) return list;
+    const emptyIdx = list.findIndex((u) => !u);
+    if (emptyIdx >= 0) {
+        list[emptyIdx] = url;
+        return list;
+    }
+  const filled = list.filter(Boolean);
+    if (filled.length >= max) return list;
+    return [...filled, url];
+}
+
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
+    const portfolioUpload = usePortfolioUploadContext();
     const [showEditModal, setShowEditModal] = useState(false);
     const [editSection, setEditSection] = useState<EditSection>('basics');
     const [editFocus, setEditFocus] = useState<'skills' | 'photo' | 'bio' | 'audience' | null>(null);
@@ -1614,6 +1717,19 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             setAvailabilitySaving(false);
         }
     };
+
+    useEffect(() => {
+        return portfolioUpload.registerOnReady((url) => {
+            setProfile((p) => ({
+                ...p,
+                videos: mergePortfolioUrlIntoVideos(
+                    Array.isArray(p.videos) ? p.videos : [],
+                    url,
+                    MAX_PORTFOLIO_POSTS
+                ),
+            }));
+        });
+    }, [portfolioUpload]);
 
     useEffect(() => {
         const tab = searchParams?.get('tab');
@@ -2178,63 +2294,52 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const creatorSetupSteps: NextStepItem[] = [
         {
             id: 'photo',
-            title: T('Προσθήκη φωτογραφίας προφίλ', 'Add a profile photo'),
-            why: T('Μια καθαρή φωτογραφία κάνει το προφίλ σου αναγνωρίσιμο στις προτάσεις των brands.', 'A clear photo makes your profile recognizable in brand recommendations.'),
-            how: T('Προτίμησε καλό φως, καθαρό πλαίσιο και το πρόσωπό σου ευκρινές. Η τετράγωνη φωτογραφία δουλεύει καλύτερα.', 'Use good light, a clear frame, and a sharp view of your face. A square photo works best.'),
+            title: T('Φωτογραφία προφίλ', 'Profile photo'),
             cta: T('Φωτογραφία', 'Photo'),
             done: Boolean(profile.avatar_url),
             onAction: () => openEdit('basics', 'photo'),
         },
         {
             id: 'bio',
-            title: T('Συμπλήρωση βιογραφικού', 'Write your bio'),
-            why: T('Ένα σύντομο βιογραφικό βοηθά τα brands να καταλάβουν το ύφος και τη θεματολογία σου.', 'A short bio helps brands understand your style and topics.'),
-            how: T('Γράψε σε 2–3 γραμμές ποιος/α είσαι, τι περιεχόμενο φτιάχνεις και με ποιους θέλεις να συνεργαστείς. Απόφυγε τηλέφωνα και links.', 'In two or three lines, say who you are, what you create, and who you want to work with. Avoid phone numbers and links.'),
+            title: T('Βιογραφικό', 'Bio'),
             cta: T('Βιογραφικό', 'Bio'),
             done: Boolean((profile.bio || '').trim()),
             onAction: () => openEdit('basics', 'bio'),
         },
         {
             id: 'accounts',
-            title: T('Σύνδεση κοινωνικών λογαριασμών', 'Connect social accounts'),
-            why: T('Χωρίς κανάλια, τα brands δεν βλέπουν το κοινό και τα στατιστικά σου.', 'Without channels, brands cannot see your audience or stats.'),
-            how: T('Βάλε το ακριβές όνομα χρήστη, χωρίς @, μόνο για κανάλια που χρησιμοποιείς ενεργά.', 'Enter the exact username, without @, only for channels you actually use.'),
+            title: T('Κοινωνικά κανάλια', 'Social channels'),
             cta: T('Κανάλια', 'Channels'),
             done: (profile.accounts || []).some((account) => String(account.username || '').trim()),
             onAction: () => openEdit('platforms'),
         },
         {
             id: 'portfolio',
-            title: T('Προσθήκη portfolio (έως 6)', 'Add a portfolio (up to 6)'),
-            why: T('Τα δείγματα δουλειάς δείχνουν το επίπεδο και το στυλ σου πριν τη συνεργασία.', 'Work samples show your level and style before a collaboration.'),
-            how: T(`Πρόσθεσε έως ${MAX_PORTFOLIO_POSTS} από τα καλύτερά σου posts (TikTok, Reels, YouTube ή φωτογραφίες).`, `Add up to ${MAX_PORTFOLIO_POSTS} of your best posts (TikTok, Reels, YouTube, or photos).`),
-            cta: T('Portfolio', 'Portfolio'),
-            done: (profile.videos || []).some((url) => String(url || '').trim()),
+            title: T(
+                'Ανέβασε βίντεο και φωτογραφίες στο portfolio (έως 6)',
+                'Upload videos and photos to your portfolio (up to 6)',
+            ),
+            cta: T('Ανέβασε', 'Upload'),
+            done: filterPublicPortfolioVideos(profile.videos || []).length >= 1,
             onAction: () => openEdit('portfolio'),
         },
         {
             id: 'demographics',
-            title: T('Στοιχεία κοινού', 'Audience demographics'),
-            why: T('Τα brands κοιτάζουν πρώτα το κοινό σου πριν στείλουν πρόταση.', 'Brands look at your audience first before sending a proposal.'),
-            how: <AudienceDemographicsHelp lang={lang} />,
+            title: T('Στοιχεία κοινού', 'Audience info'),
             cta: T('Κοινό', 'Audience'),
             done: hasAudienceRequirement(profile),
             onAction: () => openEdit('platforms', 'audience'),
         },
         {
             id: 'packages',
-            title: T('Τιμές και πακέτα υπηρεσιών', 'Prices and service packages'),
-            why: T('Με τιμές στο προφίλ, τα brands μπορούν να σε βρουν και να σου στείλουν προσφορά πιο εύκολα.', 'Listed prices make it easier for brands to find you and send an offer.'),
-            how: T('Όρισε μία τιμή σε ευρώ ανά υπηρεσία που προσφέρεις. Άφησε κενό ό,τι δεν προσφέρεις.', 'Set one euro price for each service you offer. Leave blank what you do not offer.'),
+            title: T('Τιμές και πακέτα', 'Prices and packages'),
             cta: T('Πακέτα', 'Packages'),
             done: packagesForSave(profile.service_packages || []).length >= 1,
             onAction: () => openEdit('packages'),
         },
         {
             id: 'skills',
-            title: T('Προσθήκη δεξιοτήτων', 'Add your skills'),
-            why: T('Οι δεξιότητες εμφανίζονται στα φίλτρα αναζήτησης των brands.', 'Skills appear in brand search filters.'),
-            how: T('Διάλεξε τις δεξιότητες που αντιπροσωπεύουν πραγματικά τη δουλειά σου.', 'Choose the skills that actually represent your work.'),
+            title: T('Δεξιότητες', 'Skills'),
             cta: T('Δεξιότητες', 'Skills'),
             done: sanitizeSkills(profile.skills).length > 0,
             onAction: () => openEdit('basics', 'skills'),

@@ -37,7 +37,7 @@ import Image from "next/image";
 import AdminNoticesPanel from "@/components/AdminNoticesPanel";
 import { isDefinitelyVideo, isDefinitelyImage, detectProvider, getVideoEmbedApiUrl, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
 import {
-  FACEBOOK_VIDEO_LINK_ERROR,
+  portfolioLinkValidationError,
   prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioPostLimit, portfolioLimitMessage,
 } from "@/lib/videoLinks";
 import {
@@ -1059,8 +1059,8 @@ const EditProfileModal = ({
             }
             const cleaned = await runCheck(id, raw);
             if (!cleaned.ok) {
-                if (cleaned.reason === "facebook") {
-                    setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
+                if (cleaned.reason === "facebook" || cleaned.reason === "unsupported") {
+                    setVideoLinkError(portfolioLinkValidationError(cleaned.reason, "el"));
                     markSensitiveTouched("videos");
                     setVideoRows((rows) => {
                         const oldUrl = rows.find((r) => r.id === id)?.url || "";
@@ -1375,8 +1375,9 @@ const EditProfileModal = ({
                 });
             const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
             if (!preparedVideos.ok) {
-                setVideoLinkError(FACEBOOK_VIDEO_LINK_ERROR.el);
-                notify(FACEBOOK_VIDEO_LINK_ERROR.el);
+                const linkErr = portfolioLinkValidationError(preparedVideos.reason, "el");
+                setVideoLinkError(linkErr);
+                notify(linkErr);
                 setLoading(false);
                 return;
             }

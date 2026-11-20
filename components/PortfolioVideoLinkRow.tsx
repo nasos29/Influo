@@ -1,6 +1,8 @@
 "use client";
 
 import SocialEmbedCard from "@/components/SocialEmbedCard";
+import PortfolioLinkHostingStatus from "@/components/PortfolioLinkHostingStatus";
+import { type PortfolioLinkJob, type PortfolioLinkUiPhase } from "@/lib/portfolioHosted";
 import {
   detectProvider,
   getVideoEmbedApiUrl,
@@ -30,6 +32,8 @@ type Props = {
   onRemove: () => void;
   /** signup uses SocialEmbedCard preview; dashboard may pass custom preview */
   showEmbedPreview?: boolean;
+  linkHostingPhase?: PortfolioLinkUiPhase;
+  linkJobs?: PortfolioLinkJob[];
 };
 
 /**
@@ -49,6 +53,8 @@ export default function PortfolioVideoLinkRow({
   onPaste,
   onRemove,
   showEmbedPreview = true,
+  linkHostingPhase = "none",
+  linkJobs = [],
 }: Props) {
   const uiLang = lang === "en" ? "en" : "el";
   const provider = detectProvider(value);
@@ -57,9 +63,11 @@ export default function PortfolioVideoLinkRow({
   const isProfileNotVideo =
     !!value.trim() && !!provider && !isImage && !isEmbeddableVideoUrl(value);
   const rejected = !!error;
+  const hideEmbedForHosting = linkHostingPhase === "pending" || linkHostingPhase === "failed";
   const showPreview =
     showEmbedPreview &&
     !rejected &&
+    !hideEmbedForHosting &&
     !!value &&
     !!provider &&
     !!embedUrl &&
@@ -91,6 +99,7 @@ export default function PortfolioVideoLinkRow({
           </button>
         ) : null}
       </div>
+      {linkJobs.length > 0 ? <PortfolioLinkHostingStatus url={value} lang={uiLang} jobs={linkJobs} /> : null}
       {checking && checkingLabel ? (
         <p className="text-sm text-slate-500 px-1">{checkingLabel}</p>
       ) : null}
