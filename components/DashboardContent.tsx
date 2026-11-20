@@ -18,6 +18,7 @@ import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, de
 import {
     portfolioLinkValidationError,
     prepareVideosForSave, MAX_PORTFOLIO_POSTS, portfolioPostLimit, portfolioLimitMessage,
+    filterPublicPortfolioVideos,
 } from '@/lib/videoLinks';
 import { normalizeVideoUrlKey } from '@/lib/checkVideoPlayable';
 import {
@@ -2268,11 +2269,14 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         },
         {
             id: 'portfolio',
-            title: T('Προσθήκη portfolio (έως 6)', 'Add a portfolio (up to 6)'),
+            title: T('Ανέβασε βίντεο στο portfolio (έως 6)', 'Upload videos to your portfolio (up to 6)'),
             why: T('Τα δείγματα δουλειάς δείχνουν το επίπεδο και το στυλ σου πριν τη συνεργασία.', 'Work samples show your level and style before a collaboration.'),
-            how: T(`Πρόσθεσε έως ${MAX_PORTFOLIO_POSTS} από τα καλύτερά σου posts (TikTok, Reels, YouTube ή φωτογραφίες).`, `Add up to ${MAX_PORTFOLIO_POSTS} of your best posts (TikTok, Reels, YouTube, or photos).`),
-            cta: T('Portfolio', 'Portfolio'),
-            done: (profile.videos || []).some((url) => String(url || '').trim()),
+            how: T(
+                'Ανέβασε έως 6 από τα καλύτερά σου βίντεο ή φωτογραφίες απευθείας από το κινητό ή τον υπολογιστή, ή πρόσθεσε link από TikTok, Reels ή YouTube. Τα brands επιλέγουν πιο εύκολα δημιουργούς με portfolio.',
+                'Upload up to 6 of your best videos or photos directly from your phone or computer, or add a link from TikTok, Reels, or YouTube. Brands find it easier to choose creators with a portfolio.',
+            ),
+            cta: T('Ανέβασε βίντεο', 'Upload video'),
+            done: filterPublicPortfolioVideos(profile.videos || []).length >= 1,
             onAction: () => openEdit('portfolio'),
         },
         {
