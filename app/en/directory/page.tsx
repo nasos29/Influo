@@ -1,19 +1,13 @@
-import type { Metadata } from "next";
-import DirectoryPage from "../../directory/page";
-import { directoryEnMetadata } from "@/lib/directoryMetadata";
+import DirectoryTopicLinks from "@/components/DirectoryTopicLinks";
+import DirectoryMain from "../../directory/DirectoryMain";
 
 export const revalidate = 3600;
 
-type Search = Promise<{ q?: string }>;
-
-export async function generateMetadata({ searchParams }: { searchParams: Search }): Promise<Metadata> {
-  const params = await searchParams;
-  if ((params.q || "").trim()) {
-    return { ...directoryEnMetadata, robots: { index: false, follow: true } };
-  }
-  return directoryEnMetadata;
-}
-
-export default function EnDirectoryPage() {
-  return <DirectoryPage />;
+export default async function EnDirectoryPage() {
+  return (
+    <>
+      <DirectoryMain />
+      <DirectoryTopicLinks lang="en" />
+    </>
+  );
 }

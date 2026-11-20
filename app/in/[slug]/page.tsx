@@ -4,6 +4,9 @@ import InfluencerProfileClient from "@/components/InfluencerProfileClient";
 import { supabaseService } from "@/lib/apiAuth";
 import { loadSeoProfileById, loadSeoProfileBySlug, type SeoProfile } from "@/lib/loadSeoProfile";
 import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
+import JsonLdScript from "@/components/JsonLdScript";
+import RelatedCreatorsServer from "@/components/RelatedCreatorsServer";
+import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
 import { profileJsonLd, profileMetadata, profileCanonical } from "@/lib/profileSeo";
 import { retiredSlugInfluencerId } from "@/lib/profileSlugAssign";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -55,6 +58,11 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
   }
 
   const jsonLd = profileJsonLd(resolved.profile.view);
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Αρχική", path: "/" },
+    { name: "Κατάλογος Δημιουργών", path: "/directory" },
+    { name: resolved.profile.view.name || "Creator", path },
+  ]);
   const reviewsLd = await creatorReviewsJsonLd(
     resolved.profile.id,
     resolved.profile.view.name || "Creator",
@@ -62,6 +70,7 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
   );
   return (
     <>
+      <JsonLdScript data={breadcrumbLd} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
@@ -76,6 +85,11 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
         params={Promise.resolve({ id: resolved.profile.id })}
         initialProfile={resolved.profile.view}
         publicPath={path}
+      />
+      <RelatedCreatorsServer
+        influencerId={resolved.profile.id}
+        categories={resolved.profile.view.categories}
+        accounts={resolved.profile.view.accounts}
       />
     </>
   );

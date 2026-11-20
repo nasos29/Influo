@@ -1,12 +1,18 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import BlogPostPage from "../../../blog/[slug]/page";
+import JsonLdScript from "@/components/JsonLdScript";
+import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
 import { blogPostingJsonLd, blogPostMetadata } from "@/lib/blogSeo";
 import { initialBlogPosts } from "@/lib/blogPosts";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export const revalidate = 86400;
+
+export function generateStaticParams(): { slug: string }[] {
+  return initialBlogPosts.map((post) => ({ slug: post.slug }));
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -20,8 +26,14 @@ export default async function EnBlogPostPage(props: Props) {
   const post = initialBlogPosts.find((item) => item.slug === slug);
   if (!post) notFound();
   const jsonLd = blogPostingJsonLd(post, "en");
+  const breadcrumbLd = breadcrumbJsonLd([
+    { name: "Home", path: "/en" },
+    { name: "Blog", path: "/en/blog" },
+    { name: post.title.en, path: `/en/blog/${post.slug}` },
+  ]);
   return (
     <>
+      <JsonLdScript data={breadcrumbLd} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}

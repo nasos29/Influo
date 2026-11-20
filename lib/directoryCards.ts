@@ -5,7 +5,7 @@ import { parseStoredCategories } from "@/lib/categories";
 import { resolveCompletionRate } from "@/lib/completionRate";
 import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import { loadDirectoryPage } from "@/lib/directoryPage";
-import { DEFAULT_DIRECTORY_FILTERS } from "@/lib/directoryQuery";
+import { DEFAULT_DIRECTORY_FILTERS, type DirectoryFilters } from "@/lib/directoryQuery";
 import { sanitizeSkills } from "@/lib/skills";
 
 function asLanguages(value: unknown): string[] {
@@ -69,20 +69,37 @@ export function mapDirectoryCard(row: Record<string, unknown>): Influencer {
   };
 }
 
+async function mapDirectoryPage(limit: number, filters: DirectoryFilters) {
+  const page = await loadDirectoryPage(filters, 1, limit);
+  const cards = page.data.map((row) => mapDirectoryCard(row));
+  for (const card of cards) {
+    const leaks = findPrivateFieldPaths(card);
+    if (leaks.length) {
+      throw new Error(`Directory card contained private fields: ${leaks.join(", ")}`);
+    }
+  }
+  return { influencers: cards, total: page.total };
+}
+
 /** First directory page under the same default filters as the directory UI. */
 export async function loadPublicDirectoryCards(limit = 24): Promise<{ influencers: Influencer[]; total: number }> {
   try {
-    const page = await loadDirectoryPage(DEFAULT_DIRECTORY_FILTERS, 1, limit);
-    const cards = page.data.map((row) => mapDirectoryCard(row));
-    for (const card of cards) {
-      const leaks = findPrivateFieldPaths(card);
-      if (leaks.length) {
-        throw new Error(`Directory card contained private fields: ${leaks.join(", ")}`);
-      }
-    }
-    return { influencers: cards, total: page.total };
+    return await mapDirectoryPage(limit, DEFAULT_DIRECTORY_FILTERS);
   } catch (error) {
     console.error("loadPublicDirectoryCards", error);
+    return { influencers: [], total: 0 };
+  }
+}
+
+/** Landing pages: same filters as Directory UI preset. */
+export async function loadFilteredDirectoryCards(
+  filters: Partial<DirectoryFilters>,
+  limit = 40
+): Promise<{ influencers: Influencer[]; total: number }> {
+  try {
+    return await mapDirectoryPage(limit, { ...DEFAULT_DIRECTORY_FILTERS, ...filters });
+  } catch (error) {
+    console.error("loadFilteredDirectoryCards", error);
     return { influencers: [], total: 0 };
   }
 }
