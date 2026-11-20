@@ -9,7 +9,11 @@ import {
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
 import { publicProfilePath } from "@/lib/profileSlug";
-import { getHomepageFeaturedCollaborationsSetting } from "@/lib/siteSettingsServer";
+import { featuredCollaborationViewsTotal } from "@/lib/homepageFeaturedCollaborationViews";
+import {
+  getHomepageFeaturedCollaborationViewsSetting,
+  getHomepageFeaturedCollaborationsSetting,
+} from "@/lib/siteSettingsServer";
 
 export type { FeaturedCollaborationPlatform } from "@/lib/featuredCollaborationPlatform";
 
@@ -30,6 +34,8 @@ export type FeaturedCollaborationsShowcaseData = {
   cards: FeaturedCollaborationCard[];
   /** First card in layout order (hero preference applied). */
   initialHeroApplicationId: string;
+  /** Sum of public views for all curated application ids; hidden in UI when null. */
+  totalViews: number | null;
 };
 
 type AppRow = {
@@ -244,11 +250,15 @@ export async function loadFeaturedCollaborations(
       "https://api.influo.gr/storage/v1/object/public/campaign-covers/4d7f24f5-fa4d-4601-bc6a-6a7da8331d49/1793732424284-gz6aia.webp";
   }
 
+  const viewsSetting = await getHomepageFeaturedCollaborationViewsSetting();
+  const totalViews = featuredCollaborationViewsTotal(setting.applicationIds, viewsSetting);
+
   return {
     brandName,
     brandLogoUrl,
     decorativeCoverUrl,
     cards,
     initialHeroApplicationId,
+    totalViews,
   };
 }

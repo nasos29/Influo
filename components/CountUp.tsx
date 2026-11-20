@@ -8,7 +8,18 @@ type CountUpProps = {
   /** Animation duration in ms (default ~1.5s). */
   durationMs?: number;
   className?: string;
+  /** Optional BCP 47 locale for grouped digits (e.g. el-GR, en-GB). Default: plain integer string. */
+  formatLocale?: string;
 };
+
+function formatCount(n: number, locale?: string): string {
+  if (!locale) return String(n);
+  try {
+    return new Intl.NumberFormat(locale).format(n);
+  } catch {
+    return String(n);
+  }
+}
 
 function easeOutCubic(t: number): number {
   return 1 - Math.pow(1 - t, 3);
@@ -18,7 +29,7 @@ function easeOutCubic(t: number): number {
  * Count from 0 → value once when the element enters the viewport.
  * SSR / no-JS: final value is in the HTML. Reduced motion: no animation.
  */
-export default function CountUp({ value, durationMs = 1500, className }: CountUpProps) {
+export default function CountUp({ value, durationMs = 1500, className, formatLocale }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [display, setDisplay] = useState(value);
   const played = useRef(false);
@@ -90,7 +101,7 @@ export default function CountUp({ value, durationMs = 1500, className }: CountUp
       className={className}
       style={{ fontVariantNumeric: "tabular-nums" }}
     >
-      {display}
+      {formatCount(display, formatLocale)}
     </span>
   );
 }

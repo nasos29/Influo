@@ -1,0 +1,4 @@
+# Daily public view refresh for homepage Athos featured collaborations (08:20 Europe/Athens winter ≈ 06:20 UTC).
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+20 6 * * * root /usr/bin/env python3 /opt/influo/scripts/refresh_featured_collaboration_views.py >>/var/log/influo-featured-collaboration-views.log 2>&1

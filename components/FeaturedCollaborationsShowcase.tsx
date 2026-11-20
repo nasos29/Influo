@@ -10,6 +10,7 @@ import {
 } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import CountUp from "@/components/CountUp";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import type {
   FeaturedCollaborationPlatform,
@@ -19,8 +20,22 @@ import type {
 type Lang = "el" | "en";
 
 const COPY = {
-  el: { with: "με", unmute: "Ήχος", mute: "Σίγαση", playVideo: "Δες το βίντεο", seek: "Γραμμή προόδου βίντεο" },
-  en: { with: "with", unmute: "Sound", mute: "Mute", playVideo: "Play video", seek: "Video progress" },
+  el: {
+    with: "με",
+    unmute: "Ήχος",
+    mute: "Σίγαση",
+    playVideo: "Δες το βίντεο",
+    seek: "Γραμμή προόδου βίντεο",
+    publicViews: "προβολές",
+  },
+  en: {
+    with: "with",
+    unmute: "Sound",
+    mute: "Mute",
+    playVideo: "Play video",
+    seek: "Video progress",
+    publicViews: "views",
+  },
 } as const;
 
 const PLATFORM_LABEL: Record<FeaturedCollaborationPlatform, string> = {
@@ -507,6 +522,17 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
             </div>
           ) : null}
         </div>
+
+        {data.totalViews != null ? (
+          <p className="mt-5 text-center text-base font-medium text-slate-600 sm:mt-6 sm:text-lg">
+            <CountUp
+              value={data.totalViews}
+              formatLocale={lang === "el" ? "el-GR" : "en-GB"}
+              className="font-semibold text-slate-800"
+            />{" "}
+            {txt.publicViews}
+          </p>
+        ) : null}
 
         <p className="sr-only">
           {data.brandName} {txt.with} Influo creators

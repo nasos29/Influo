@@ -4,6 +4,7 @@ import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { loadFeaturedCollaborations } from "@/lib/loadFeaturedCollaborations";
 import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
+import { HOMEPAGE_FEATURED_COLLABORATION_VIEWS_CACHE_TAG } from "@/lib/homepageFeaturedCollaborationViews";
 import {
   getHomepageSectionOrderSetting,
   getSiteSettings,
@@ -22,7 +23,10 @@ const cachedHomeTrust = unstable_cache(
 const cachedFeaturedCollaborations = unstable_cache(
   () => loadFeaturedCollaborations(),
   ["home-featured-collaborations-v1"],
-  { revalidate: 3600, tags: ["recent-collaborations", SITE_SETTINGS_CACHE_TAG] }
+  {
+    revalidate: 3600,
+    tags: ["recent-collaborations", SITE_SETTINGS_CACHE_TAG, HOMEPAGE_FEATURED_COLLABORATION_VIEWS_CACHE_TAG],
+  }
 );
 
 /** Daily social-proof numbers (DB cache inside loader + ISR). */
