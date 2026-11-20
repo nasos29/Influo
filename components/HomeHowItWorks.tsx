@@ -92,7 +92,7 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-6 md:p-8">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-6 md:p-8 transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl">
             <h3 className="text-xl font-semibold text-slate-900 mb-6 tracking-tight">
               {txt.brands_title}
             </h3>
@@ -113,7 +113,7 @@ export default function HomeHowItWorks({ lang }: { lang: Lang }) {
             </div>
           </div>
 
-          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-6 md:p-8">
+          <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-6 md:p-8 transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl">
             <h3 className="text-xl font-semibold text-slate-900 mb-6 tracking-tight">
               {txt.influencers_title}
             </h3>

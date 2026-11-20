@@ -98,7 +98,7 @@ export default function HomeHeroSearch({
           onBlur={() => setFocused(false)}
           placeholder={placeholder}
           aria-label={t.searchLabel}
-          className="min-w-0 flex-1 bg-transparent px-1 py-3 text-base text-slate-900 placeholder:text-slate-400 outline-none focus:outline-none focus:ring-0 focus:shadow-none"
+          className="min-w-0 flex-1 bg-transparent px-1 py-3 text-base text-slate-900 placeholder:text-xs placeholder:text-slate-400 md:placeholder:text-base outline-none focus:outline-none focus:ring-0 focus:shadow-none"
         />
         <button
           type="submit"

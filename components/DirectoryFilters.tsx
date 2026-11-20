@@ -103,7 +103,9 @@ const ChevronDown = () => (
 const pillSelect =
   "h-11 w-full appearance-none rounded-full border border-slate-200 bg-white px-4 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/20 cursor-pointer";
 const pillInput =
-  "h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm font-medium text-slate-700 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-900 focus:shadow-[0_0_0_3px_rgba(15,23,42,0.08)]";
+  "h-11 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-base font-medium text-slate-700 outline-none transition-colors placeholder:text-xs placeholder:text-slate-400 md:placeholder:text-base hover:border-slate-300 focus:border-slate-900 focus:shadow-[0_0_0_3px_rgba(15,23,42,0.08)]";
+const directorySearchInput =
+  "text-base font-medium text-slate-700 placeholder:text-xs placeholder:text-slate-400 md:placeholder:text-base";
 const fieldLabel = "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500";
 const chipBtn =
   "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-900/20";
@@ -649,7 +651,7 @@ function SidebarVariant(props: DirectoryFiltersProps) {
     <div className="space-y-4">
       <SearchField
         props={props}
-        inputClass="h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/15"
+        inputClass={`h-10 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-3 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/15 ${directorySearchInput}`}
       />
       <div>
         <label className={fieldLabel}>{txt.platAll}</label>
@@ -749,7 +751,7 @@ function DropdownVariant(props: DirectoryFiltersProps) {
         <div className="flex flex-col gap-2">
           <SearchField
             props={props}
-            inputClass="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/80 pl-10 pr-3 text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/15"
+            inputClass={`h-10 w-full rounded-lg border border-slate-200 bg-slate-50/80 pl-10 pr-3 outline-none focus:border-slate-900 focus:bg-white focus:ring-2 focus:ring-slate-900/15 ${directorySearchInput}`}
           />
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <select
