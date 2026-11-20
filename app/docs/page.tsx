@@ -853,6 +853,11 @@ export default function DocsPage() {
                   ? "Στο προφίλ μπορείτε να δείξετε έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες). Το Influo μπορεί να κατεβάσει και να φιλοξενήσει αυτό το υλικό στους διακομιστές του, για σταθερή αναπαραγωγή στο προφίλ. Αν έχετε ήδη περισσότερα από 6, τα κρατάτε και μπορείτε μόνο να αφαιρέσετε μέχρι να μείνουν 6 ή λιγότερα."
                   : "Your profile can show up to 6 items in total (videos and photos). Influo may download and host this media on its own servers, so it plays reliably on your profile. If you already have more than 6, you keep them and may only remove items until you are at 6 or fewer."}
               </p>
+              <p className="text-sm text-slate-700 mt-3 mb-0">
+                {lang === "el"
+                  ? "Προσθήκη υλικού: βάλτε σύνδεσμο από TikTok, Instagram ή YouTube, ή ανεβάστε αρχείο από Επεξεργασία προφίλ → Portfolio. Στο κινητό το κουμπί «Ανέβασε βίντεο ή φωτογραφία» ανοίγει τη συλλογή σας· στον υπολογιστή μπορείτε επίσης να σύρετε το αρχείο στο πλαίσιο. Βίντεο έως 500 MB και 3 λεπτά, φωτογραφίες JPG, PNG, HEIC ή WebP έως 20 MB. Το ανέβασμα δείχνει ποσοστό, συνεχίζει μόνο του αν κοπεί για λίγο η σύνδεση και μπορείτε να το ακυρώσετε. Μετά το ανέβασμα το αρχείο περνά από επεξεργασία και εμφανίζεται στο portfolio μόλις είναι έτοιμο. Οι σύνδεσμοι TikTok και Instagram που δηλώνετε στην εγγραφή ή στο προφίλ αντιγράφονται αυτόματα στο Influo· τα βίντεο YouTube παίζουν από το YouTube."
+                  : "Adding media: paste a TikTok, Instagram, or YouTube link, or upload a file from Edit profile → Portfolio. On mobile, “Upload a video or photo” opens your gallery; on a computer you can also drag the file onto the box. Videos up to 500 MB and 3 minutes, JPG, PNG, HEIC, or WebP photos up to 20 MB. The upload shows a percentage, resumes by itself after a short connection drop, and can be cancelled. After uploading, the file is processed and appears in your portfolio once it is ready. TikTok and Instagram links you add at signup or in your profile are copied to Influo automatically; YouTube videos play from YouTube."}
+              </p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4 mb-6">

@@ -49,3 +49,9 @@ Env (all optional; omit them to keep current behaviour):
 - When `MEDIA_STORAGE_BACKEND=r2`, the hosting and purge jobs also need `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` (defaults to `creator-videos`), and `R2_ACCOUNT_ID` or `R2_ENDPOINT`. The `creator_media` rows stay in Supabase; only the files move.
 
 Helpers: `lib/mediaStorage.ts` (public URLs), `lib/mediaObjectStore.ts` and `scripts/media_storage.py` (upload / list / delete).
+
+## Portfolio uploads and link queue
+
+- **Direct uploads** (Edit profile → Portfolio): `POST /api/portfolio-media/uploads` starts an upload, `PUT /api/portfolio-media/uploads/<id>?offset=N` sends 8 MB chunks (resumable; a repeated chunk is acknowledged), `POST … {action:"complete"}` queues it, `DELETE` cancels. Only the creator or an admin (`influencerId`) may call them. Limits: video ≤ 500 MB and ≤ 3 min, photo ≤ 20 MB JPG/PNG/HEIC/WebP, 6 portfolio items in total (saved + in-flight). Chunks are staged in the private `creator-uploads` bucket.
+- **Link queue**: the `influencers` trigger queues new TikTok/Instagram portfolio links (signup or profile save) into `creator_media_jobs`. YouTube is never queued.
+- **Worker**: `scripts/process_creator_media_jobs.py` (host cron, file-locked) encodes uploads with the same pipeline (H.264 ≤ 720p ~2 Mbps + poster; photos → WebP ≤ 1600px) into `creators/<id>/portfolio/upload-<upload_id>/`, appends the public URL to `influencers.videos` (atomic `append_portfolio_item`, cap 6), and runs `process_influencer` once per creator for queued links. HEIC photos need `heif-convert` (`apt install libheif-examples`); EXIF rotation uses ImageMagick when installed.

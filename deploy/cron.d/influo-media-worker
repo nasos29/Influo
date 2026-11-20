@@ -1,0 +1,4 @@
+# Portfolio uploads + link downloads (PR #482). Worker holds a flock, so overlapping runs exit at once.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+*/2 * * * * root /opt/influo/deploy/run-media-worker.sh >>/var/log/influo-media-worker.log 2>&1

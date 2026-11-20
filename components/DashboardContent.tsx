@@ -6,6 +6,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
+import PortfolioMediaUploader from '@/components/PortfolioMediaUploader';
+import { isUploadedPortfolioUrl } from '@/lib/portfolioUpload';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
@@ -1256,6 +1258,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                             <input 
                                                 type="url" 
                                                 value={video} 
+                                                readOnly={isUploadedPortfolioUrl(video)}
                                                 onChange={e => handleVideoChange(row.id, e.target.value)}
                                                 onBlur={() => handleVideoBlur(row.id)}
                                                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-slate-900/10 text-slate-900 ${
@@ -1266,6 +1269,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                 placeholder={L("https://youtube.com/... ή https://image.com/...", "https://youtube.com/... or https://image.com/...")} 
                                                 autoComplete="off"
                                             />
+                                            {isUploadedPortfolioUrl(video) ? (
+                                              <p className="mt-1 text-xs text-slate-500">{L('Ανεβασμένο αρχείο, φιλοξενείται στο Influo.', 'Uploaded file, hosted on Influo.')}</p>
+                                            ) : null}
                                             {checkingById[row.id] ? (
                                               <p className="mt-2 text-sm text-slate-500">{checkingLabel}</p>
                                             ) : null}
@@ -1322,6 +1328,19 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                             {videoRows.length < portfolioMax ? (
                             <button type="button" onClick={addVideo} className="text-sm text-blue-600 hover:text-blue-700 font-medium">{L("+ Προσθήκη Video Link / Φωτογραφίας", "+ Add Video Link / Photo")}</button>
                             ) : null}
+                            <PortfolioMediaUploader
+                                influencerId={String(user.id)}
+                                lang={lang}
+                                slotsLeft={Math.max(0, MAX_PORTFOLIO_POSTS - videoRows.filter((r) => r.url.trim()).length)}
+                                onReady={(url) =>
+                                    setVideoRows((rows) => {
+                                        if (rows.some((r) => r.url.trim() === url)) return rows;
+                                        const empty = rows.findIndex((r) => !r.url.trim());
+                                        if (empty >= 0) return rows.map((r, i) => (i === empty ? { ...r, url } : r));
+                                        return [...rows, { id: newVideoRowId(), url }];
+                                    })
+                                }
+                            />
                         </div>
                     </div>
 

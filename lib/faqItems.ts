@@ -56,8 +56,8 @@ export const faqs: FAQItem[] = [
       en: "How many items can I add to my portfolio?"
     },
     answer: {
-      el: "Έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες μαζί), ως συνδέσμους από τους λογαριασμούς που δηλώνετε. Το Influo μπορεί να κατεβάσει και να φιλοξενήσει αυτό το υλικό στους διακομιστές του, για εμφάνιση στο προφίλ σας. Αν το portfolio σας έχει ήδη περισσότερα από 6, τα κρατάτε· μπορείτε μόνο να αφαιρέσετε, όχι να προσθέσετε, μέχρι να μείνουν 6 ή λιγότερα.",
-      en: "Up to 6 items in total (videos and photos combined), as links from the accounts you provide. Influo may download and host this media on its own servers, for display on your profile. If your portfolio already has more than 6 items, you keep them; you may only remove items, not add, until you are at 6 or fewer."
+      el: "Έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες μαζί): σύνδεσμοι από τους λογαριασμούς που δηλώνετε ή αρχεία που ανεβάζετε από Επεξεργασία προφίλ → Portfolio (από κινητό ή υπολογιστή, και με σύρσιμο). Βίντεο έως 500 MB και 3 λεπτά, φωτογραφίες JPG, PNG, HEIC ή WebP έως 20 MB. Το Influo κατεβάζει και φιλοξενεί αυτό το υλικό στους διακομιστές του, για εμφάνιση στο προφίλ σας· τα βίντεο YouTube παίζουν από το YouTube. Αν το portfolio σας έχει ήδη περισσότερα από 6, τα κρατάτε· μπορείτε μόνο να αφαιρέσετε, όχι να προσθέσετε, μέχρι να μείνουν 6 ή λιγότερα.",
+      en: "Up to 6 items in total (videos and photos combined): links from the accounts you provide, or files you upload from Edit profile → Portfolio (from mobile or a computer, including drag and drop). Videos up to 500 MB and 3 minutes, JPG, PNG, HEIC, or WebP photos up to 20 MB. Influo downloads and hosts this media on its own servers for display on your profile; YouTube videos play from YouTube. If your portfolio already has more than 6 items, you keep them; you may only remove items, not add, until you are at 6 or fewer."
     }
   },
   {
@@ -67,8 +67,8 @@ export const faqs: FAQItem[] = [
       en: "How many items can I add to my portfolio?"
     },
     answer: {
-      el: "Έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες μαζί), ως συνδέσμους από τους λογαριασμούς που δηλώνετε. Το Influo μπορεί να κατεβάσει και να φιλοξενήσει αυτό το υλικό στους διακομιστές του, για εμφάνιση στο προφίλ σας. Αν το portfolio σας έχει ήδη περισσότερα από 6, τα κρατάτε· μπορείτε μόνο να αφαιρέσετε, όχι να προσθέσετε, μέχρι να μείνουν 6 ή λιγότερα.",
-      en: "Up to 6 items in total (videos and photos combined), as links from the accounts you provide. Influo may download and host this media on its own servers, for display on your profile. If your portfolio already has more than 6 items, you keep them; you may only remove items, not add, until you are at 6 or fewer."
+      el: "Έως 6 στοιχεία συνολικά (βίντεο και φωτογραφίες μαζί): σύνδεσμοι από τους λογαριασμούς που δηλώνετε ή αρχεία που ανεβάζετε από Επεξεργασία προφίλ → Portfolio (από κινητό ή υπολογιστή, και με σύρσιμο). Βίντεο έως 500 MB και 3 λεπτά, φωτογραφίες JPG, PNG, HEIC ή WebP έως 20 MB. Το Influo κατεβάζει και φιλοξενεί αυτό το υλικό στους διακομιστές του, για εμφάνιση στο προφίλ σας· τα βίντεο YouTube παίζουν από το YouTube. Αν το portfolio σας έχει ήδη περισσότερα από 6, τα κρατάτε· μπορείτε μόνο να αφαιρέσετε, όχι να προσθέσετε, μέχρι να μείνουν 6 ή λιγότερα.",
+      en: "Up to 6 items in total (videos and photos combined): links from the accounts you provide, or files you upload from Edit profile → Portfolio (from mobile or a computer, including drag and drop). Videos up to 500 MB and 3 minutes, JPG, PNG, HEIC, or WebP photos up to 20 MB. Influo downloads and hosts this media on its own servers for display on your profile; YouTube videos play from YouTube. If your portfolio already has more than 6 items, you keep them; you may only remove items, not add, until you are at 6 or fewer."
     }
   },
   {
