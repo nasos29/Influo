@@ -124,6 +124,7 @@ test("uploaded portfolio URL detection", () => {
 });
 
 test("re-exported isUploadedPortfolioUrl matches portfolioHosted", async () => {
+  process.env.NEXT_PUBLIC_MEDIA_PUBLIC_BASE_URL = "https://api.influo.gr";
   const { isSelfHostedPortfolioUrl } = await import("../lib/portfolioHosted.ts");
   const id = "11111111-2222-3333-4444-555555555555";
   const url = `https://api.influo.gr/creators/${id}/portfolio/upload-${id}/photo.webp`;

@@ -8,6 +8,7 @@ export function triggerPortfolioMediaWorker(): void {
   const script = path.join(process.cwd(), "scripts", "process_creator_media_jobs.py");
   const py = process.env.PYTHON_PATH || (process.platform === "win32" ? "python" : "python3");
   try {
+    let loggedSpawnError = false;
     const child = spawn(py, [script, "--uploads-only"], {
       detached: true,
       stdio: "ignore",
@@ -16,6 +17,11 @@ export function triggerPortfolioMediaWorker(): void {
         PORTFOLIO_UPLOAD_STAGING_DIR: stagingRoot(),
         PORTFOLIO_UPLOAD_H264_PRESET: process.env.PORTFOLIO_UPLOAD_H264_PRESET || "fast",
       },
+    });
+    child.on("error", (err) => {
+      if (loggedSpawnError) return;
+      loggedSpawnError = true;
+      console.warn("[portfolio-upload] media worker spawn failed (cron will retry):", err.message);
     });
     child.unref();
   } catch {

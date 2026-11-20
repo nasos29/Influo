@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+
+process.env.NEXT_PUBLIC_MEDIA_PUBLIC_BASE_URL = "https://media.influo.gr";
 import {
   isDownloadablePortfolioLinkUrl,
   isSelfHostedPortfolioUrl,
@@ -7,6 +9,15 @@ import {
   portfolioLinkSourceKey,
   portfolioLinkUiPhase,
 } from "../lib/portfolioHosted.ts";
+
+test("portfolio path on foreign host is not treated as self-hosted", () => {
+  assert.equal(
+    isSelfHostedPortfolioUrl(
+      "https://evil.example/creators/11111111-2222-3333-4444-555555555555/portfolio/tiktok-1/video.mp4"
+    ),
+    false
+  );
+});
 
 test("self-hosted portfolio URLs are not re-queued as link jobs", () => {
   const id = "11111111-2222-3333-4444-555555555555";

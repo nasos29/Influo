@@ -87,11 +87,14 @@ export async function writeChunkPart(
 ): Promise<"written" | "exists"> {
   const part = chunkPartPath(dir, index);
   if (await chunkOnDisk(dir, index, expectedLen)) return "exists";
-  const written = await streamToFile(part, body, expectedLen);
+  const tmp = `${part}.tmp`;
+  await rm(tmp, { force: true }).catch(() => undefined);
+  const written = await streamToFile(tmp, body, expectedLen);
   if (written !== expectedLen) {
-    await rm(part, { force: true }).catch(() => undefined);
+    await rm(tmp, { force: true }).catch(() => undefined);
     throw new Error("chunk length mismatch");
   }
+  await rename(tmp, part);
   return "written";
 }
 

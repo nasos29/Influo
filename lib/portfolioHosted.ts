@@ -22,23 +22,29 @@ export function isUploadedPortfolioUrl(url: string | null | undefined): boolean 
   return UPLOAD_ITEM_RE.test(String(url || "").trim());
 }
 
+function isOnOurMediaStorageHost(u: string): boolean {
+  const base = mediaPublicBaseUrl();
+  if (base && u.toLowerCase().startsWith(`${base.replace(/\/+$/, "").toLowerCase()}/`)) {
+    return true;
+  }
+  const bucket = mediaBucket();
+  if (bucket && STORAGE_PUBLIC_PORTFOLIO_RE.test(u) && new RegExp(`/object/public/${bucket}/`, "i").test(u)) {
+    return true;
+  }
+  return false;
+}
+
 /** Any portfolio folder on our media storage (uploads or hosted TikTok/IG copies). */
 export function isSelfHostedPortfolioUrl(url: string | null | undefined): boolean {
   const u = String(url || "").trim();
-  if (!u) return false;
+  if (!u || !isOnOurMediaStorageHost(u)) return false;
   if (UPLOAD_ITEM_RE.test(u) || HOSTED_PORTFOLIO_PATH_RE.test(u)) return true;
   if (STORAGE_PUBLIC_PORTFOLIO_RE.test(u)) return true;
   const base = mediaPublicBaseUrl();
   if (base) {
     const prefix = `${base.replace(/\/+$/, "")}/`;
-    if (u.startsWith(prefix)) {
-      const rest = u.slice(prefix.length);
-      if (rest.toLowerCase().startsWith(`creators/`) && rest.includes("/portfolio/")) return true;
-    }
-  }
-  const bucket = mediaBucket();
-  if (bucket && new RegExp(`/object/public/${bucket}/creators/[0-9a-f-]{36}/portfolio/`, "i").test(u)) {
-    return true;
+    const rest = u.slice(prefix.length);
+    if (rest.toLowerCase().startsWith(`creators/`) && rest.includes("/portfolio/")) return true;
   }
   return false;
 }

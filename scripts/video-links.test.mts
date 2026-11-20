@@ -64,6 +64,7 @@ test("cleanVideoLink rejects Facebook and cleans others", () => {
 });
 
 test("isAllowedPortfolioUrl accepts social hosts and rejects drive/canva", () => {
+  process.env.MEDIA_PUBLIC_BASE_URL = "https://media.example.com";
   assert.equal(isAllowedPortfolioUrl("https://www.tiktok.com/@u/video/1"), true);
   assert.equal(isAllowedPortfolioUrl("https://drive.google.com/file/d/x/view"), false);
   assert.equal(isAllowedPortfolioUrl("https://www.canva.com/design/abc/view"), false);
