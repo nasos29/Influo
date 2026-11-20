@@ -189,26 +189,6 @@ const t = {
   }
 };
 
-function BrandShowcaseHeaderBadge({
-  brandName,
-  brandLogoUrl,
-}: {
-  brandName: string;
-  brandLogoUrl: string | null;
-}) {
-  const logo = brandLogoUrl ? getCachedImageUrl(brandLogoUrl) ?? brandLogoUrl : null;
-  return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm">
-      {logo ? (
-        <Image src={logo} alt="" width={24} height={24} className="h-6 w-6 rounded-full object-contain" />
-      ) : (
-        <span className="h-6 w-6 rounded-full bg-slate-100" aria-hidden />
-      )}
-      {brandName}
-    </span>
-  );
-}
-
 interface VerifiedBrand {
   id: string;
   brand_name: string;
@@ -659,7 +639,7 @@ export default function Home({
                   id="brands"
                 >
                   <div
-                    className="hidden lg:block pointer-events-none select-none absolute z-0 right-[-10vw] top-[32%] w-[30vw] max-w-[480px] h-auto"
+                    className="hidden lg:block pointer-events-none select-none absolute z-0 right-[-14vw] top-[32%] w-[30vw] max-w-[480px] h-auto"
                     aria-hidden
                   >
                     <Image
@@ -677,17 +657,9 @@ export default function Home({
                         {txt.brand_showcase_eyebrow}
                       </p>
                       <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_showcase_title}</h2>
-                      <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-5 leading-relaxed">
+                      <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
                         {txt.brand_showcase_subtitle}
                       </p>
-                      {featuredCollaborations ? (
-                        <div className="flex flex-wrap items-center justify-center gap-4">
-                          <BrandShowcaseHeaderBadge
-                            brandName={featuredCollaborations.brandName}
-                            brandLogoUrl={featuredCollaborations.brandLogoUrl}
-                          />
-                        </div>
-                      ) : null}
                     </div>
                     {featuredCollaborations ? (
                       <div className="relative z-10 mb-12 md:mb-14">
