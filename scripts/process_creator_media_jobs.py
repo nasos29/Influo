@@ -23,6 +23,7 @@ Env: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL), SUPABASE_SERVICE_ROLE_KEY,
 from __future__ import annotations
 
 import argparse
+import calendar
 try:
     import fcntl
 except ImportError:
@@ -391,7 +392,7 @@ def _retry_due(job: dict[str, Any]) -> bool:
     if not raw:
         return True
     try:
-        return time.mktime(time.strptime(str(raw)[:19], "%Y-%m-%dT%H:%M:%S")) <= time.time()
+        return calendar.timegm(time.strptime(str(raw)[:19], "%Y-%m-%dT%H:%M:%S")) <= time.time()
     except ValueError:
         return True
 

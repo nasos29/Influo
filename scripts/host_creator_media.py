@@ -693,17 +693,29 @@ def is_self_hosted_media_url(url: str) -> bool:
     u = str(url or "").strip()
     if not u:
         return False
-    if re.search(r"/creators/[0-9a-f-]{36}/portfolio/", u, re.I):
-        return True
     mstore = _load_media_storage()
     base = (mstore.media_public_base_url() or "").rstrip("/")
-    if base and u.startswith(base + "/"):
+    if base and u.lower().startswith(base.lower() + "/"):
         rest = u[len(base) + 1 :]
         if rest.lower().startswith("creators/") and "/portfolio/" in rest.lower():
             return True
-    if re.search(r"/storage/v1/object/public/[^/]+/creators/[0-9a-f-]{36}/portfolio/", u, re.I):
+    if re.search(
+        r"^https?://[^/]+/storage/v1/object/public/[^/]+/creators/[0-9a-f-]{36}/portfolio/",
+        u,
+        re.I,
+    ):
         return True
     return False
+
+
+def wanted_portfolio_url_norms(inf: dict[str, Any]) -> set[str]:
+    """Every non-empty influencers.videos URL (including self-hosted uploads)."""
+    out: set[str] = set()
+    for url in inf.get("videos") or []:
+        url = str(url or "").strip()
+        if url:
+            out.add(normalize_source_url(url))
+    return out
 
 
 def is_portfolio_still_image_url(url: str) -> bool:
@@ -906,7 +918,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
     existing = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
     ready_map = {} if force else existing_ready_by_norm(existing)
     wanted_top = {normalize_source_url(i["url"]) for i in items if i["kind"] == "top_post"}
-    wanted_portfolio = {normalize_source_url(i["url"]) for i in items if i["kind"] == "portfolio"}
+    wanted_portfolio = wanted_portfolio_url_norms(inf)
 
     summary = {"ready": 0, "failed": 0, "reused": 0, "skipped": 0, "details": []}
     work_root = Path(os.environ.get("WORKDIR") or tempfile.mkdtemp(prefix="host-media-"))
@@ -1101,28 +1113,29 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             summary["details"].append({"url": url, "kind": kind, "status": "failed", "error": err, "folder": folder})
             log(f"  FAILED: {err}")
 
-    # Drop leftover portfolio rows/folders no longer in influencers.videos (never top-post / collab).
     current = sb.rest_get("creator_media", f"select=*&influencer_id=eq.{influencer_id}")
-    for row in current:
-        if row.get("kind") != "portfolio":
-            continue
-        if row.get("source_url_norm") in wanted_portfolio:
-            continue
-        folder = row.get("folder_path") or ""
-        still = [
-            r
-            for r in current
-            if r.get("folder_path") == folder and r.get("id") != row.get("id")
-        ]
-        if not still and folder:
-            log(f"  removing dropped portfolio folder {folder}")
-            try:
-                paths = store.storage_list(folder.rstrip("/"))
-                if paths:
-                    store.storage_remove(paths)
-            except Exception as e:
-                log(f"  folder delete warning: {e}")
-        sb.rest_delete("creator_media", f"id=eq.{row['id']}")
+    if not only_url:
+        # Drop leftover portfolio rows/folders no longer in influencers.videos (never top-post / collab).
+        for row in current:
+            if row.get("kind") != "portfolio":
+                continue
+            if normalize_source_url(str(row.get("source_url") or "")) in wanted_portfolio:
+                continue
+            folder = row.get("folder_path") or ""
+            still = [
+                r
+                for r in current
+                if r.get("folder_path") == folder and r.get("id") != row.get("id")
+            ]
+            if not still and folder:
+                log(f"  removing dropped portfolio folder {folder}")
+                try:
+                    paths = store.storage_list(folder.rstrip("/"))
+                    if paths:
+                        store.storage_remove(paths)
+                except Exception as e:
+                    log(f"  folder delete warning: {e}")
+            sb.rest_delete("creator_media", f"id=eq.{row['id']}")
 
     for row in current:
         if row.get("kind") != "top_post":
