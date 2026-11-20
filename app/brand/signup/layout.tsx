@@ -4,6 +4,7 @@ export const metadata = pageMetadata({
   title: "Εγγραφή Επιχείρησης | Influo",
   description: "Δωρεάν εγγραφή επιχείρησης στο Influo για αναζήτηση influencers και καμπάνιες.",
   path: "/brand/signup",
+  index: false,
 });
 
 export default function BrandSignupLayout({ children }: { children: React.ReactNode }) {

@@ -1075,7 +1075,7 @@ export default function Directory({
       ) : influencers.length > 0 ? (
         <>
           <div className={cardGridClass}>
-            {displayedInfluencers.map((inf) => {
+            {displayedInfluencers.map((inf, cardIndex) => {
               const badges = badgesForInfluencer(inf, lang, newBadgeMaxDays);
 
               return (
@@ -1106,6 +1106,7 @@ export default function Directory({
                     availabilityStatus={inf.availability_status}
                     location={displayLocation(inf.location, lang) || inf.location}
                     from_price={inf.from_price}
+                    priority={!isHomePreview && cardIndex < 8}
                   />
                 </Link>
               );

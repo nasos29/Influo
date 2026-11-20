@@ -73,7 +73,7 @@ function Avatar({
     return (
       <Image
         src={proxied}
-        alt=""
+        alt={name}
         width={size}
         height={size}
         className={`h-full w-full object-cover ${radius}`}

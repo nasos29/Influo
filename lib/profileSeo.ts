@@ -4,6 +4,7 @@ import { displayNameForLang } from "@/lib/greeklish";
 import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
 import { publicProfilePath } from "@/lib/profileSlug";
+import { greekFromPlace, greekInCity } from "@/lib/greekPlaceGrammar";
 import { absoluteUrl, languageAlternates, SITE_NAME, SITE_URL } from "@/lib/site";
 import { youtubeChannelUrl, type YoutubeAccountLike } from "@/lib/youtubeHandle";
 
@@ -70,10 +71,7 @@ function cityOrGreece(location?: string): string {
 }
 
 function fromPlace(location?: string): string {
-  const city = (location || "").trim();
-  if (!city) return "την Ελλάδα";
-  if (/^(την|τη|τον|το|στην|στη|στο)\s/i.test(city)) return city;
-  return `την ${city}`;
+  return greekFromPlace(location);
 }
 
 export function profilePath(profile: ProfileViewModel): string {
@@ -92,9 +90,12 @@ function ogImage(profile: ProfileViewModel): string {
 
 export function profileTitle(profile: ProfileViewModel): string {
   const category = categoryLabel(profile.categories?.[0]);
-  const city = cityOrGreece(profile.location);
   const name = seoDisplayName(profile);
-  return `${name} – ${category} Influencer στην ${city} | Influo`;
+  const where =
+    cityOrGreece(profile.location) === "Ελλάδα"
+      ? "στην Ελλάδα"
+      : greekInCity(profile.location);
+  return `${name} – ${category} Influencer ${where} | Influo`;
 }
 
 export function profileDescription(profile: ProfileViewModel): string {
@@ -167,12 +168,16 @@ function socialProfileUrl(
   return null;
 }
 
-function publicBio(profile: ProfileViewModel): string {
+export function publicProfileBio(profile: ProfileViewModel): string {
   return (profile.bio || "")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 300);
+}
+
+function publicBio(profile: ProfileViewModel): string {
+  return publicProfileBio(profile);
 }
 
 export function profileJsonLd(profile: ProfileViewModel): Record<string, unknown> {

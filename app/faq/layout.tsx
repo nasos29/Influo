@@ -2,7 +2,7 @@ import { pageMetadata } from "@/lib/pageMetadata";
 import { faqJsonLd } from "@/lib/faqJsonLd";
 
 export const metadata = pageMetadata({
-  title: "Συχνές Ερωτήσεις για το Influo | Influo",
+  title: "Συχνές Ερωτήσεις | Influo",
   description: "Απαντήσεις για εγγραφή, κόστος, verified προφίλ, καμπάνιες και συνεργασίες brands και influencers στο Influo.",
   path: "/faq",
   enPath: "/en/faq",

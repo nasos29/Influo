@@ -4,7 +4,8 @@ import { useEffect, useState, use, Suspense, useRef, useCallback, useMemo, type 
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import ImageLightbox from "@/components/ImageLightbox";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useClientSearchParams } from "@/lib/useClientSearchParams";
 import { ArrowLeft } from "lucide-react";
 import { heroGradientForCategory } from "@/lib/heroTheme";
 import SimilarInfluencers from "@/components/SimilarInfluencers";
@@ -647,8 +648,8 @@ export default function InfluencerProfile(props: {
   const params = use(props.params);
   const id = params.id;
   const publicPath = props.publicPath || publicProfilePath(props.initialProfile?.profile_slug, id);
-  const searchParams = useSearchParams();
   const router = useRouter();
+  const searchParams = useClientSearchParams();
   
   const [lang, setLang] = useState<"el" | "en">("el"); // Default to Greek, will be updated in useEffect
   const txt = { ...t[lang], ...statsUiFor(lang) };
@@ -656,11 +657,11 @@ export default function InfluencerProfile(props: {
   const [activeTab, setActiveTab] = useState("overview");
   const [avatarZoom, setAvatarZoom] = useState(false);
   const closeAvatarZoom = useCallback(() => setAvatarZoom(false), []);
-  // Deep link from emails: ?tab=reviews (or overview/audience/pricing) opens that tab.
   useEffect(() => {
-    const tab = searchParams?.get("tab");
+    const tab = searchParams.get("tab");
     if (tab && ["overview", "audience", "pricing", "reviews"].includes(tab)) setActiveTab(tab);
   }, [searchParams]);
+
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);

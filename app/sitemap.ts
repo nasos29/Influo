@@ -118,6 +118,42 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.6,
     })),
     {
+      url: `${baseUrl}/campaigns`,
+      lastModified: currentDate,
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/collaborations`,
+      lastModified: currentDate,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/get-app`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
+      url: `${baseUrl}/en/campaigns`,
+      lastModified: currentDate,
+      changeFrequency: 'daily',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/en/collaborations`,
+      lastModified: currentDate,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/en/get-app`,
+      lastModified: currentDate,
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    },
+    {
       url: `${baseUrl}/directory`,
       lastModified: currentDate,
       changeFrequency: 'daily',
@@ -196,25 +232,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = supabaseForSitemap()
   try {
     if (!supabase) throw new Error('Supabase is not configured')
+    type InfluencerSitemapRow = {
+      id: string
+      profile_slug?: string | null
+      created_at?: string | null
+      updated_at?: string | null
+    }
+
+    const selectWithUpdated = 'id, profile_slug, created_at, updated_at'
     const { data: influencers, error } = await supabase
       .from('influencers')
-      .select('id, profile_slug, created_at')
+      .select(selectWithUpdated)
       .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(10000)
 
     if (error) {
       console.error('Sitemap: Error fetching influencers:', error.message)
-      // Fallback without profile_slug column
       const fallback = await supabase
         .from('influencers')
-        .select('id, created_at')
+        .select('id, profile_slug, created_at')
         .eq('approved', true)
         .order('created_at', { ascending: false })
         .limit(10000)
       if (fallback.data?.length) {
         influencerPages = fallback.data.map((influencer) => ({
-          url: `${baseUrl}/influencer/${influencer.id}`,
+          url: influencer.profile_slug
+            ? `${baseUrl}/in/${influencer.profile_slug}`
+            : `${baseUrl}/influencer/${influencer.id}`,
           lastModified: influencer.created_at
             ? new Date(influencer.created_at)
             : currentDate,
@@ -223,16 +268,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }))
       }
     } else if (influencers && influencers.length > 0) {
-      influencerPages = influencers.map((influencer) => ({
-        url: influencer.profile_slug
-          ? `${baseUrl}/in/${influencer.profile_slug}`
-          : `${baseUrl}/influencer/${influencer.id}`,
-        lastModified: influencer.created_at
-          ? new Date(influencer.created_at)
-          : currentDate,
-        changeFrequency: 'weekly' as const,
-        priority: 0.7,
-      }))
+      influencerPages = (influencers as InfluencerSitemapRow[]).map((influencer) => {
+        const rawLast = influencer.updated_at || influencer.created_at
+        return {
+          url: influencer.profile_slug
+            ? `${baseUrl}/in/${influencer.profile_slug}`
+            : `${baseUrl}/influencer/${influencer.id}`,
+          lastModified: rawLast ? new Date(rawLast) : currentDate,
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        }
+      })
       console.log(`Sitemap: Added ${influencerPages.length} influencer pages`)
     }
   } catch (error: any) {

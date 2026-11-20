@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 import InfluencerProfileClient from "@/components/InfluencerProfileClient";
+import InfluencerProfileSsrShell from "@/components/InfluencerProfileSsrShell";
+import InfluencerProfileSsrShellGate from "@/components/InfluencerProfileSsrShellGate";
 import { loadSeoProfileById } from "@/lib/loadSeoProfile";
 import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
 import { profileJsonLd, profileMetadata, profileCanonical } from "@/lib/profileSeo";
@@ -56,13 +57,14 @@ export default async function InfluencerByIdPage({ params }: { params: Params })
           dangerouslySetInnerHTML={{ __html: JSON.stringify(reviewsLd).replace(/</g, "\\u003c") }}
         />
       ) : null}
-      <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
-        <InfluencerProfileClient
-          params={Promise.resolve({ id: profile.id })}
-          initialProfile={profile.view}
-          publicPath={path}
-        />
-      </Suspense>
+      <InfluencerProfileSsrShellGate>
+        <InfluencerProfileSsrShell profile={profile.view} />
+      </InfluencerProfileSsrShellGate>
+      <InfluencerProfileClient
+        params={Promise.resolve({ id: profile.id })}
+        initialProfile={profile.view}
+        publicPath={path}
+      />
     </>
   );
 }

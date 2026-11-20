@@ -1,13 +1,6 @@
-import { pageMetadata } from "@/lib/pageMetadata";
-import { categorySeoKeywords } from "@/lib/categories";
+import { directoryElMetadata } from "@/lib/directoryMetadata";
 
-export const metadata = pageMetadata({
-  title: "Κατάλογος Δημιουργών – Influencers στην Ελλάδα | Influo",
-  description: "Δες 300+ verified Έλληνες influencers σε Instagram, TikTok και YouTube. Φίλτρα ανά κατηγορία, πόλη, engagement και τιμή. Δωρεάν αναζήτηση.",
-  path: "/directory",
-  enPath: "/en/directory",
-  keywords: ["influencers Ελλάδα", "κατάλογος influencers", ...categorySeoKeywords()],
-});
+export const metadata = directoryElMetadata;
 
 export default function DirectoryLayout({ children }: { children: React.ReactNode }) {
   return children;
