@@ -153,9 +153,9 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   return (
     <div className="relative">
       <div className="relative rounded-2xl md:rounded-3xl bg-[#F7F7F7] p-4 sm:p-5 md:p-6 overflow-hidden">
-        <div className="relative mx-auto w-full max-w-[800px] flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,58%)_minmax(0,42%)] lg:gap-5 lg:items-stretch lg:max-h-[70vh] lg:h-[min(70vh,100%)]">
-          <div className="relative flex justify-center min-h-0 lg:h-full lg:max-h-[70vh]">
-            <div className="relative aspect-[9/16] w-full max-h-[min(70vh,28rem)] max-w-[min(100%,calc(min(70vh,28rem)*9/16))] lg:max-h-[70vh] lg:max-w-none lg:h-full lg:w-auto rounded-xl md:rounded-2xl overflow-hidden bg-slate-900">
+        <div className="relative mx-auto w-full max-w-[800px] flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,58%)_minmax(0,42%)] lg:gap-5 lg:items-stretch">
+          <div className="relative flex justify-center">
+            <div className="relative aspect-[9/16] h-[min(70vh,32rem)] w-auto max-w-full rounded-xl md:rounded-2xl overflow-hidden bg-slate-900">
               <video
                 key={active.applicationId}
                 ref={heroVideoRef}
@@ -201,7 +201,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex flex-row gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:flex-col lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:h-full lg:max-h-[70vh] lg:min-h-0">
+            <div className="flex flex-row gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:flex-col lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:h-full lg:min-h-0">
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
