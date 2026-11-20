@@ -2449,7 +2449,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <InfluoLogo className="h-6 sm:h-8 w-auto" title="Influo" />
                             </Link>
                             <div className="min-w-0">
-                                <h1 className="text-base sm:text-2xl font-bold text-slate-900 truncate">{T('Πίνακας δημιουργού', 'Creator dashboard')}</h1>
+                                <h1 className="text-sm leading-tight sm:text-2xl sm:leading-normal font-bold text-slate-900 sm:truncate">{T('Πίνακας δημιουργού', 'Creator dashboard')}</h1>
                                 <p className="text-sm text-slate-500 truncate">{ui.welcome} {displayNameForLang(profile.display_name, lang)}</p>
                             </div>
                         </div>

@@ -2233,7 +2233,7 @@ export default function BrandDashboardContent() {
                 <InfluoLogo className="h-6 sm:h-8 w-auto" title="Influo" />
               </Link>
               <div className="min-w-0">
-                <h1 className="text-base sm:text-2xl font-bold text-slate-900 truncate">{txt.title}</h1>
+                <h1 className="text-sm leading-tight sm:text-2xl sm:leading-normal font-bold text-slate-900 sm:truncate">{txt.title}</h1>
                 {brandData?.brand_name ? (
                   <p className="truncate text-sm font-medium text-slate-500">{brandData.brand_name}</p>
                 ) : null}
