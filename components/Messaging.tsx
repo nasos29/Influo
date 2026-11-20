@@ -39,7 +39,7 @@ import {
   isChatPickableFile,
   validateChatAttachment,
 } from '@/lib/chatAttachmentUpload';
-import { uploadChatAttachment } from '@/lib/chatAttachmentUploadClient';
+import { cancelChatChunkUpload, uploadChatAttachment } from '@/lib/chatAttachmentUploadClient';
 import {
   ADMIN_CHAT_AVATAR_SRC,
   ADMIN_CHAT_DISPLAY_NAME,
@@ -341,6 +341,7 @@ export default function Messaging({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<{ key: string; name: string; percent: number }[]>([]);
   const uploadAbortRef = useRef<AbortController | null>(null);
+  const chunkUploadIdRef = useRef<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -1789,7 +1790,8 @@ export default function Messaging({
             (pct) => {
               setUploadingFiles((prev) => prev.map((u, idx) => (idx === i ? { ...u, percent: pct } : u)));
             },
-            uploadCtrl.signal
+            uploadCtrl.signal,
+            chunkUploadIdRef
           );
           out.push(att as MessageAttachment);
         }
@@ -1888,6 +1890,9 @@ export default function Messaging({
   const cancelInFlightUpload = () => {
     uploadAbortRef.current?.abort();
     uploadAbortRef.current = null;
+    const chunkId = chunkUploadIdRef.current;
+    if (chunkId) void cancelChatChunkUpload(chunkId);
+    chunkUploadIdRef.current = null;
     setUploadingFiles([]);
     setSending(false);
   };

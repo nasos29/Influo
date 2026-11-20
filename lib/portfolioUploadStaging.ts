@@ -6,7 +6,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir, open, readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { finished, pipeline } from "node:stream/promises";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { chunkCount, uploadMediaType } from "@/lib/portfolioUpload";
 
 export function stagingRoot(): string {
@@ -64,15 +64,21 @@ async function streamToFile(
 ): Promise<number> {
   if (!body) throw new Error("empty body");
   const nodeStream = Readable.fromWeb(body as Parameters<typeof Readable.fromWeb>[0]);
+  let written = 0;
+  const limiter = new Transform({
+    transform(chunk, _enc, cb) {
+      written += chunk.length;
+      if (written > maxBytes) {
+        cb(new Error("chunk too large"));
+        return;
+      }
+      cb(null, chunk);
+    },
+  });
   const out = createWriteStream(dest, { flags: "w" });
   try {
-    await pipeline(nodeStream, out);
-    const st = await stat(dest);
-    if (st.size > maxBytes) {
-      await rm(dest, { force: true }).catch(() => undefined);
-      throw new Error("chunk too large");
-    }
-    return st.size;
+    await pipeline(nodeStream, limiter, out);
+    return written;
   } catch (e) {
     await rm(dest, { force: true }).catch(() => undefined);
     throw e;

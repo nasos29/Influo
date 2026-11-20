@@ -26,6 +26,17 @@ export type ChatUploadRow = {
 export const CHAT_UPLOAD_COLUMNS =
   "id, conversation_id, created_by, attachment_kind, mime_type, file_name, total_bytes, chunk_bytes, received_bytes, status, storage_path, public_url, error, created_at, updated_at";
 
+const CHAT_CONVERSATION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Allowed conversation id for chat uploads: a UUID or the literal `temp`. */
+export function parseChatUploadConversationId(raw: unknown): string | null {
+  const id = String(raw ?? "").trim() || "temp";
+  if (id === "temp") return id;
+  if (CHAT_CONVERSATION_UUID_RE.test(id)) return id;
+  return null;
+}
+
 export function chatUploadJson(row: ChatUploadRow) {
   return {
     id: row.id,
@@ -56,7 +67,10 @@ export async function resolveChatUploadActor(
   const user = await userFromBearer(request);
   if (!user) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   const actor = await loadChatActor(user);
-  const looksLikeId = /^[0-9a-f-]{36}$/i.test(conversationId);
+  if (!parseChatUploadConversationId(conversationId)) {
+    return NextResponse.json({ success: false, error: "Invalid conversation" }, { status: 400 });
+  }
+  const looksLikeId = CHAT_CONVERSATION_UUID_RE.test(conversationId);
   if (looksLikeId) {
     const admin = supabaseService();
     const { data: conv } = await admin

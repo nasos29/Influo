@@ -9,6 +9,7 @@ import {
   CHAT_UPLOAD_COLUMNS,
   chatUploadJson,
   countActiveChatUploads,
+  parseChatUploadConversationId,
   resolveChatUploadActor,
   type ChatUploadRow,
 } from "@/lib/chatAttachmentUploadServer";
@@ -19,7 +20,10 @@ export const dynamic = "force-dynamic";
 /** Start a resumable chat attachment upload (large videos). */
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const conversationId = String(body.conversationId || body.conversation_id || "temp").trim() || "temp";
+  const conversationId = parseChatUploadConversationId(body.conversationId ?? body.conversation_id);
+  if (!conversationId) {
+    return NextResponse.json({ success: false, error: "Invalid conversation" }, { status: 400 });
+  }
   const actor = await resolveChatUploadActor(request, conversationId);
   if (actor instanceof NextResponse) return actor;
   const lang = body.lang === "en" ? "en" : "el";

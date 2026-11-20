@@ -94,7 +94,8 @@ async function uploadLargeVideo(
   conversationId: string,
   lang: "el" | "en",
   onPercent: (pct: number) => void,
-  signal: AbortSignal
+  signal: AbortSignal,
+  trackChunkUploadId?: { current: string | null }
 ): Promise<ChatUploadAttachment> {
   const start = await sessionFetch("/api/messages/uploads", {
     method: "POST",
@@ -118,6 +119,18 @@ async function uploadLargeVideo(
   }
 
   let current = startJson.upload;
+  trackChunkUploadId && (trackChunkUploadId.current = current.id);
+  const onAbortCancel = () => {
+    void cancelChatChunkUpload(current.id);
+    trackChunkUploadId && (trackChunkUploadId.current = null);
+  };
+  signal.addEventListener("abort", onAbortCancel, { once: true });
+  const clearChunkTracking = () => {
+    trackChunkUploadId && (trackChunkUploadId.current = null);
+    signal.removeEventListener("abort", onAbortCancel);
+  };
+
+  try {
   const chunkBytes = current.chunkBytes || CHAT_UPLOAD_CHUNK_BYTES;
   const totalChunks = chunkCount(current.totalBytes, chunkBytes);
   const pumpState = createChunkPumpState(
@@ -222,6 +235,9 @@ async function uploadLargeVideo(
 
   if (current.attachment?.url) return current.attachment;
   throw new Error(current.error || "Upload failed");
+  } finally {
+    clearChunkTracking();
+  }
 }
 
 export async function uploadChatAttachment(
@@ -229,7 +245,8 @@ export async function uploadChatAttachment(
   conversationId: string,
   lang: "el" | "en",
   onPercent: (pct: number) => void,
-  signal: AbortSignal
+  signal: AbortSignal,
+  trackChunkUploadId?: { current: string | null }
 ): Promise<ChatUploadAttachment> {
   const kind = chatAttachmentKind(file.type, file.name);
   if (!kind) throw new Error(lang === "en" ? "File type not allowed" : "Μη επιτρεπόμενος τύπος αρχείου");
@@ -238,7 +255,7 @@ export async function uploadChatAttachment(
 
   onPercent(0);
   if (needsChunkedChatUpload(file.size, check.kind)) {
-    return uploadLargeVideo(file, conversationId, lang, onPercent, signal);
+    return uploadLargeVideo(file, conversationId, lang, onPercent, signal, trackChunkUploadId);
   }
   const att = await uploadSmallFile(file, conversationId, signal);
   onPercent(100);

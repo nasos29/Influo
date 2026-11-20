@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { openAsBlob } from "node:fs";
-import { rm } from "node:fs/promises";
+import { rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { validateChunk } from "@/lib/portfolioUpload";
@@ -27,6 +26,7 @@ import {
   resolveChatUploadActor,
   type ChatUploadRow,
 } from "@/lib/chatAttachmentUploadServer";
+import { tusUploadFileFromPath } from "@/lib/storageTusUpload";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -145,38 +145,43 @@ function storageExtension(fileName: string | null, mimeType: string): string {
   return "mp4";
 }
 
+async function failUploadAndCleanup(
+  actor: { admin: ReturnType<typeof supabaseService>; userId: string },
+  row: ChatUploadRow,
+  error: string
+): Promise<NextResponse> {
+  await actor.admin
+    .from("message_attachment_uploads")
+    .update({ status: "failed", error, updated_at: new Date().toISOString() })
+    .eq("id", row.id)
+    .in("status", ["uploading"]);
+  await removeChatUploadStaging(actor.userId, row.id);
+  return NextResponse.json(
+    { success: false, error, upload: chatUploadJson({ ...row, status: "failed", error }) },
+    { status: 500 }
+  );
+}
+
 async function uploadAssembledToBucket(
   actor: { admin: ReturnType<typeof supabaseService> },
   row: ChatUploadRow,
-  sourcePath: string
-): Promise<{ storagePath: string; publicUrl: string } | NextResponse> {
+  sourcePath: string,
+  fileSize: number
+): Promise<{ storagePath: string; publicUrl: string }> {
   const displayName = attachmentDisplayFilename(row.file_name);
   const ext = storageExtension(displayName, row.mime_type);
   const leaf = attachmentStorageBasename(displayName, ext);
   const storagePath = `conversations/${row.conversation_id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${leaf}`;
 
-  let blob: Blob;
-  try {
-    blob = await openAsBlob(sourcePath);
-  } catch {
-    return NextResponse.json({ success: false, error: "Could not read assembled file" }, { status: 500 });
-  }
-
-  const { error: upErr } = await actor.admin.storage
-    .from(MESSAGE_ATTACHMENTS_BUCKET)
-    .upload(storagePath, blob, { contentType: row.mime_type, upsert: false });
-
-  if (upErr) {
-    const fallbackPath = `message-attachments/${storagePath}`;
-    const fallback = await actor.admin.storage
-      .from("avatars")
-      .upload(fallbackPath, blob, { contentType: row.mime_type, upsert: false });
-    if (fallback.error) {
-      return NextResponse.json({ success: false, error: upErr.message }, { status: 500 });
-    }
-    const { data } = actor.admin.storage.from("avatars").getPublicUrl(fallbackPath);
-    return { storagePath: fallbackPath, publicUrl: data.publicUrl };
-  }
+  await tusUploadFileFromPath({
+    filePath: sourcePath,
+    fileSize,
+    bucketName: MESSAGE_ATTACHMENTS_BUCKET,
+    objectName: storagePath,
+    contentType: row.mime_type,
+    cacheControl: "3600",
+    upsert: false,
+  });
 
   const { data } = actor.admin.storage.from(MESSAGE_ATTACHMENTS_BUCKET).getPublicUrl(storagePath);
   return { storagePath, publicUrl: data.publicUrl };
@@ -209,11 +214,24 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   try {
     sourcePath = await assembleSourceFile(dir, totalBytes, chunkBytes, row.file_name, row.mime_type);
   } catch {
-    return NextResponse.json({ success: false, error: "Assembly failed" }, { status: 500 });
+    return failUploadAndCleanup(actor, row, "Assembly failed");
   }
 
-  const uploaded = await uploadAssembledToBucket(actor, row, sourcePath);
-  if (uploaded instanceof NextResponse) return uploaded;
+  let fileSize = totalBytes;
+  try {
+    const st = await stat(sourcePath);
+    fileSize = st.size;
+  } catch {
+    return failUploadAndCleanup(actor, row, "Could not read assembled file");
+  }
+
+  let uploaded: { storagePath: string; publicUrl: string };
+  try {
+    uploaded = await uploadAssembledToBucket(actor, row, sourcePath, fileSize);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Storage upload failed";
+    return failUploadAndCleanup(actor, row, msg);
+  }
 
   await rm(sourcePath, { force: true }).catch(() => undefined);
   await removeChatUploadStaging(actor.userId, row.id);
