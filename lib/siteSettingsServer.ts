@@ -23,6 +23,12 @@ import {
   parseHomepageFeaturedCollaborationsSetting,
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
+import {
+  HOMEPAGE_FEATURED_COLLABORATION_VIEWS_CACHE_TAG,
+  HOMEPAGE_FEATURED_COLLABORATION_VIEWS_KEY,
+  parseHomepageFeaturedCollaborationViewsSetting,
+  type HomepageFeaturedCollaborationViewsSetting,
+} from "@/lib/homepageFeaturedCollaborationViews";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 
 export const SITE_SETTINGS_CACHE_TAG = "site-settings";
@@ -142,6 +148,60 @@ export const getHomepageFeaturedCollaborationsSetting = unstable_cache(
   ["homepage-featured-collaborations-v1"],
   { revalidate: 300, tags: [SITE_SETTINGS_CACHE_TAG] }
 );
+
+function featuredCollaborationViewsFromRows(
+  rows: SettingsRow[]
+): HomepageFeaturedCollaborationViewsSetting | null {
+  const row = rows.find((r) => r.key === HOMEPAGE_FEATURED_COLLABORATION_VIEWS_KEY);
+  return parseHomepageFeaturedCollaborationViewsSetting(row?.value);
+}
+
+async function loadHomepageFeaturedCollaborationViewsFromDb(): Promise<HomepageFeaturedCollaborationViewsSetting | null> {
+  return featuredCollaborationViewsFromRows(await loadSettingsRows());
+}
+
+/** Stored public view counts for curated homepage collaborations (jsonb site_settings). */
+export const getHomepageFeaturedCollaborationViewsSetting = unstable_cache(
+  loadHomepageFeaturedCollaborationViewsFromDb,
+  ["homepage-featured-collaboration-views-v1"],
+  { revalidate: 300, tags: [SITE_SETTINGS_CACHE_TAG, HOMEPAGE_FEATURED_COLLABORATION_VIEWS_CACHE_TAG] }
+);
+
+export type JsonSiteSettingUpsertResult =
+  | { ok: true; previous: unknown }
+  | { ok: false; error: string; status: number };
+
+/** Upsert a non-numeric json site_settings row; returns the previous value when readable. */
+export async function upsertJsonSiteSetting(
+  key: string,
+  value: unknown,
+  updatedBy: string | null,
+  options?: { revalidatePaths?: string[]; extraTags?: string[] }
+): Promise<JsonSiteSettingUpsertResult> {
+  const rows = await loadSettingsRows();
+  const previous = rows.find((r) => r.key === key)?.value ?? null;
+
+  const upsert = await upsertSettingValue(key, value, updatedBy);
+  if (!upsert.ok) {
+    if (!upsert.missingTable) {
+      return { ok: false, error: upsert.error, status: upsert.status };
+    }
+    const wrote = await writeFileFallbackKey(key, value);
+    if (!wrote) {
+      return { ok: false, error: "Update failed (no site_settings table yet)", status: 500 };
+    }
+  }
+
+  revalidateTag(SITE_SETTINGS_CACHE_TAG, { expire: 0 });
+  for (const tag of options?.extraTags ?? []) {
+    revalidateTag(tag, { expire: 0 });
+  }
+  for (const pathName of options?.revalidatePaths ?? []) {
+    revalidatePath(pathName);
+  }
+
+  return { ok: true, previous };
+}
 
 export async function getHomepageSectionOrder(): Promise<HomepageSectionId[]> {
   const { order } = await getHomepageSectionOrderSetting();
