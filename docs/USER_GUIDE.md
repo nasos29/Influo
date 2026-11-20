@@ -262,7 +262,7 @@
    - Όλες οι συνομιλίες σας
    - Unread messages counter
    - Quick reply
-   - Attachments (εικόνες / PDF έως 10MB)
+   - Attachments: εικόνες, PDF ή αρχεία κειμένου (έως 10MB)· βίντεο MP4, MOV, WebM, M4V, 3GP (έως 2GB, αποστολή στο παρασκήνιο με γραμμή προόδου)
 
 5. **Proposals Tab:**
    - Όλες οι προσφορές από brands
@@ -309,7 +309,7 @@
 6. **Conversations / Messages:**
    - Όλες οι συνομιλίες με influencers
    - Unread messages
-   - Attachments
+   - Attachments: εικόνες, PDF ή αρχεία κειμένου (έως 10MB)· βίντεο MP4, MOV, WebM, M4V, 3GP (έως 2GB, αποστολή στο παρασκήνιο με γραμμή προόδου)
 
 ---
 
