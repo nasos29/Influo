@@ -18,6 +18,10 @@ test("chat attachment kinds and size limits", () => {
   const smallVideo = validateChatAttachment({ mimeType: "video/mp4", fileName: "a.mp4", size: 5_000_000 });
   assert.equal(smallVideo.ok, true);
 
+  const octetMov = validateChatAttachment({ mimeType: "application/octet-stream", fileName: "clip.mov", size: 50_000_000 });
+  assert.equal(octetMov.ok, true);
+  if (octetMov.ok) assert.equal(octetMov.mimeType, "video/quicktime");
+
   const bigVideo = validateChatAttachment({ mimeType: "video/mp4", fileName: "a.mp4", size: MAX_CHAT_VIDEO_BYTES + 1 });
   assert.equal(bigVideo.ok, false);
   if (!bigVideo.ok) assert.match(bigVideo.message.el, /2GB/i);

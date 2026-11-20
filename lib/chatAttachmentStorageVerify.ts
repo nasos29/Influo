@@ -1,27 +1,31 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-function splitObjectPath(objectName: string): { folder: string; name: string } {
-  const normalized = objectName.replace(/^\/+/, "");
-  const i = normalized.lastIndexOf("/");
-  if (i < 0) return { folder: "", name: normalized };
-  return { folder: normalized.slice(0, i), name: normalized.slice(i + 1) };
-}
+export type ChatStorageVerifyResult =
+  | { ok: true; size: number; contentType: string }
+  | { ok: false; reason: "missing" | "size" | "mime" };
 
-/** Confirm an object exists at the exact path and matches the expected byte size. */
-export async function verifyStorageObjectSize(
+/** Confirm object exists at the exact path with expected byte size and content type (via Storage info API). */
+export async function verifyChatStorageObject(
   admin: SupabaseClient,
   bucket: string,
   objectName: string,
-  expectedBytes: number
-): Promise<boolean> {
-  const { folder, name } = splitObjectPath(objectName);
-  const { data, error } = await admin.storage.from(bucket).list(folder || undefined, {
-    limit: 100,
-    search: name,
-  });
-  if (error || !data?.length) return false;
-  const match = data.find((f) => f.name === name);
-  if (!match) return false;
-  const size = Number((match as { metadata?: { size?: number } }).metadata?.size);
-  return Number.isFinite(size) && size === expectedBytes;
+  expectedBytes: number,
+  expectedMime: string
+): Promise<ChatStorageVerifyResult> {
+  const { data, error } = await admin.storage.from(bucket).info(objectName);
+  if (error || !data) return { ok: false, reason: "missing" };
+
+  const meta = data.metadata as { size?: number; mimetype?: string } | undefined;
+  const size = Number(data.size ?? meta?.size);
+  const contentType = String(data.contentType ?? meta?.mimetype ?? "")
+    .toLowerCase()
+    .trim();
+  const wantMime = String(expectedMime || "")
+    .toLowerCase()
+    .trim();
+
+  if (!Number.isFinite(size) || size !== expectedBytes) return { ok: false, reason: "size" };
+  if (!contentType || !wantMime || contentType !== wantMime) return { ok: false, reason: "mime" };
+
+  return { ok: true, size, contentType };
 }

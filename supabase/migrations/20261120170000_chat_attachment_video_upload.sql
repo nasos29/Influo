@@ -11,8 +11,7 @@ VALUES (
     'image/jpeg', 'image/png', 'image/gif', 'image/webp',
     'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence',
     'application/pdf', 'text/plain',
-    'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/3gpp',
-    'application/octet-stream'
+    'video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/3gpp'
   ]
 )
 ON CONFLICT (id) DO UPDATE SET

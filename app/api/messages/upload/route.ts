@@ -52,7 +52,13 @@ function extensionForKind(kind: ReturnType<typeof chatAttachmentKind>, fileName:
 export async function POST(req: NextRequest) {
   try {
     const contentLength = Number(req.headers.get('content-length') || NaN);
-    if (Number.isFinite(contentLength) && contentLength > MAX_CHAT_FILE_BYTES + MULTIPART_LENGTH_SLACK) {
+    if (!Number.isFinite(contentLength)) {
+      return NextResponse.json(
+        { success: false, error: 'Content-Length required', code: 'length' },
+        { status: 411 }
+      );
+    }
+    if (contentLength > MAX_CHAT_FILE_BYTES + MULTIPART_LENGTH_SLACK) {
       return NextResponse.json(
         { success: false, error: 'File too large for direct upload; use resumable upload', code: 'size' },
         { status: 413 }

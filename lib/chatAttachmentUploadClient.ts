@@ -1,6 +1,5 @@
 import Uppy from "@uppy/core";
 import Tus from "@uppy/tus";
-import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import {
   CHAT_UPLOAD_CHUNK_BYTES,
@@ -36,13 +35,6 @@ type CompleteChatUpload = {
   error?: string;
   success?: boolean;
 };
-
-async function authHeader(): Promise<string | null> {
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  return session?.access_token ? `Bearer ${session.access_token}` : null;
-}
 
 async function uploadSmallFile(
   file: File,
@@ -139,20 +131,8 @@ async function tusUploadWithUppy(
   onPercent: (pct: number) => void,
   signal: AbortSignal
 ): Promise<void> {
-  const bearer = (await authHeader())?.replace(/^Bearer\s+/i, "") || null;
   const signed = supabaseResumableTusTarget({ mode: "signed", signature: init.token });
-
-  try {
-    await runUppyTusUpload(file, init, mimeType, signed.endpoint, signed.headers, onPercent, signal);
-  } catch (first) {
-    if (bearer && (first as Error).name !== "AbortError") {
-      const jwt = supabaseResumableTusTarget({ mode: "bearer", accessToken: bearer });
-      await runUppyTusUpload(file, init, mimeType, jwt.endpoint, jwt.headers, onPercent, signal);
-    } else {
-      throw first;
-    }
-  }
-
+  await runUppyTusUpload(file, init, mimeType, signed.endpoint, signed.headers, onPercent, signal);
   onPercent(100);
 }
 
@@ -171,7 +151,7 @@ async function uploadLargeVideo(
     body: JSON.stringify({
       conversationId,
       fileName: file.name,
-      mimeType: file.type,
+      mimeType,
       size: file.size,
       lang,
     }),
@@ -209,6 +189,11 @@ async function uploadLargeVideo(
       throw new Error(data.error || data.upload?.error || "Complete failed");
     }
     return data.upload.attachment;
+  } catch (err) {
+    if ((err as Error).name !== "AbortError") {
+      void cancelChatChunkUpload(uploadId);
+    }
+    throw err;
   } finally {
     clearChunkTracking();
   }

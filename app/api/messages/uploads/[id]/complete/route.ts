@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { MESSAGE_ATTACHMENTS_BUCKET } from "@/lib/chatAttachmentUpload";
-import { verifyStorageObjectSize } from "@/lib/chatAttachmentStorageVerify";
+import { verifyChatStorageObject } from "@/lib/chatAttachmentStorageVerify";
 import {
   CHAT_UPLOAD_COLUMNS,
   chatUploadJson,
@@ -47,9 +47,38 @@ export async function POST(request: NextRequest, { params }: { params: Params })
   }
 
   const expected = Number(row.total_bytes);
-  const ok = await verifyStorageObjectSize(admin, MESSAGE_ATTACHMENTS_BUCKET, objectName, expected);
-  if (!ok) {
-    return NextResponse.json({ success: false, error: "Object not found or size mismatch" }, { status: 409 });
+  const verified = await verifyChatStorageObject(
+    admin,
+    MESSAGE_ATTACHMENTS_BUCKET,
+    objectName,
+    expected,
+    row.mime_type
+  );
+  if (!verified.ok) {
+    await admin.storage.from(MESSAGE_ATTACHMENTS_BUCKET).remove([objectName]).catch(() => undefined);
+    const verifyErr =
+      verified.reason === "mime"
+        ? "Stored object MIME type mismatch"
+        : verified.reason === "size"
+          ? "Stored object size mismatch"
+          : "Object not found";
+    await actor.admin
+      .from("message_attachment_uploads")
+      .update({
+        status: "failed",
+        error: verifyErr,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+      .eq("status", "uploading");
+    return NextResponse.json(
+      {
+        success: false,
+        error: verifyErr,
+        upload: chatUploadJson({ ...row, status: "failed", error: verifyErr }),
+      },
+      { status: 409 }
+    );
   }
 
   const { data: pub } = admin.storage.from(MESSAGE_ATTACHMENTS_BUCKET).getPublicUrl(objectName);

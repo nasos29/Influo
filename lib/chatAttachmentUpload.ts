@@ -44,6 +44,18 @@ const IMAGE_MIME = new Set([
   "image/heif-sequence",
 ]);
 const VIDEO_EXT = new Set(["mp4", "mov", "webm", "m4v", "3gp"]);
+const VIDEO_EXT_MIME: Record<string, string> = {
+  mp4: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  m4v: "video/x-m4v",
+  "3gp": "video/3gpp",
+};
+
+function videoMimeFromFileName(fileName?: string | null): string | null {
+  const ext = extOf(fileName);
+  return VIDEO_EXT_MIME[ext] ?? null;
+}
 const IMAGE_EXT = new Set(["jpg", "jpeg", "png", "gif", "webp", "heic", "heif"]);
 
 function extOf(name: string | null | undefined): string {
@@ -116,7 +128,15 @@ export function validateChatAttachment(input: {
         : kind === "text"
           ? "text/plain"
           : "image/jpeg";
-  return { ok: true, kind, mimeType: mime || defaultMime };
+  let mimeType = mime || defaultMime;
+  if (!mime || mime === "application/octet-stream") {
+    if (kind === "video") {
+      mimeType = videoMimeFromFileName(input.fileName) || defaultMime;
+    } else {
+      mimeType = defaultMime;
+    }
+  }
+  return { ok: true, kind, mimeType };
 }
 
 /** Client-side pick validation (MIME first, extension fallback). */

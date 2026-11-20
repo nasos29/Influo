@@ -1857,6 +1857,9 @@ export default function Messaging({
     } catch (error) {
       console.error('Error sending message:', error);
       setSendError(txt.sendFailed);
+      const chunkId = chunkUploadIdRef.current;
+      if (chunkId) void cancelChatChunkUpload(chunkId);
+      chunkUploadIdRef.current = null;
       if (convAtSend) {
         setMessages((prev) => prev.filter((m) => m.id !== tmpId));
       }
