@@ -26,6 +26,7 @@ import {
   purgeOldSocialRefreshLogs,
   socialAccountsFromRow,
 } from '@/lib/socialRefreshLogs';
+import { handleMissingAccountNoticesForAccounts } from '@/lib/missingAccountEmail';
 
 export const maxDuration = 60;
 
@@ -303,15 +304,48 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: false, aborted: true, session_dead: true, message });
       }
 
+      await handleMissingAccountNoticesForAccounts(supabaseAdmin, influencerId, influencerName, accounts).catch(
+        (err) => console.warn('[social-refresh-batch] missing account mail', err instanceof Error ? err.message : err)
+      );
+
       const profileErrors = accounts.filter((a) => !a.ok);
+      const successCount = accounts.filter((a) => a.ok).length;
       if (profileErrors.length) {
+        const detail = profileErrors
+          .map((a) => `${a.platform} @${a.username}: ${a.error || 'error'}`)
+          .join(' | ');
+        if (successCount > 0) {
+          await appendSocialRefreshLog(supabaseAdmin, {
+            run_id: runId,
+            level: 'warn',
+            influencer_id: influencerId,
+            influencer_name: influencerName,
+            event: 'profile_failed',
+            message: `Partial social refresh failure for ${influencerName}: ${detail}`,
+          });
+          for (const acc of profileErrors) {
+            await appendSocialRefreshLog(supabaseAdmin, {
+              run_id: runId,
+              level: 'error',
+              influencer_id: influencerId,
+              influencer_name: influencerName,
+              platform: acc.platform || null,
+              username: acc.username || null,
+              event: 'profile_failed',
+              message: String(acc.error || 'Unknown profile error'),
+            });
+          }
+          return NextResponse.json({
+            ok: true,
+            partial: true,
+            profile_failed: true,
+            errors: profileErrors.map((a) => a.error),
+          });
+        }
         const { error: unapproveErr } = await supabaseAdmin
           .from('influencers')
           .update({ approved: false })
           .eq('id', influencerId);
-        const detail = profileErrors
-          .map((a) => `${a.platform} @${a.username}: ${a.error || 'error'}`)
-          .join(' | ');
         await appendSocialRefreshLog(supabaseAdmin, {
           run_id: runId,
           level: 'error',
@@ -320,7 +354,7 @@ export async function POST(request: NextRequest) {
           event: 'unapproved',
           message: unapproveErr
             ? `Failed to unapprove ${influencerName}: ${unapproveErr.message}. Profile errors: ${detail}`
-            : `Unapproved ${influencerName} because at least one social profile failed. ${detail}`,
+            : `Unapproved ${influencerName} because all social profiles failed. ${detail}`,
         });
         for (const acc of profileErrors) {
           await appendSocialRefreshLog(supabaseAdmin, {

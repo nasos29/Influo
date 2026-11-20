@@ -71,7 +71,6 @@ import {
   isActiveCampaignDealRow,
   isActiveCollaborationDisplayKey,
 } from '@/lib/proposalDisplayStatus';
-import ShowcaseConsentToggle from '@/components/ShowcaseConsentToggle';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
@@ -717,11 +716,14 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 }
             }
 
+            const needsReapproval = changedFields.includes("accounts");
+
             // Update the profile
             const updateData = {
                 ...newValues,
-                approved: false, // Reset approval status
-                analytics_verified: false, // Reset analytics verification
+                ...(needsReapproval
+                    ? { approved: false, analytics_verified: false }
+                    : {}),
             };
 
             let data: InfluencerData | null = null;
@@ -854,8 +856,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 ...user,
                 ...(data as InfluencerData),
                 ...newValues,
-                approved: false,
-                analytics_verified: false,
+                ...(needsReapproval
+                    ? { approved: false, analytics_verified: false }
+                    : {
+                        approved: user.approved,
+                        analytics_verified: (user as InfluencerData & { analytics_verified?: boolean }).analytics_verified,
+                    }),
                 contact_email: user.contact_email,
                 min_rate: syncedMinRate || user.min_rate,
                 birth_date: newValues.birth_date,
@@ -864,7 +870,12 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 service_packages: priceBody?.service_packages ?? packagesPayload,
                 insights_urls: user.insights_urls,
             });
-            notify(L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again."), 'success');
+            notify(
+                needsReapproval
+                    ? L("Το προφίλ σου ενημερώθηκε. Θα ελέγξουμε τις αλλαγές και θα σε ενημερώσουμε όταν εγκριθεί ξανά.", "Your profile was updated. We will review the changes and let you know when it is approved again.")
+                    : L("Το προφίλ σου ενημερώθηκε.", "Your profile was updated."),
+                'success'
+            );
             onClose();
         } catch (err: any) {
             setLoading(false);
@@ -1644,7 +1655,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
     const [showAgreementModal, setShowAgreementModal] = useState(false);
     const [agreementAccepted, setAgreementAccepted] = useState(false);
-    const [showcaseConsent, setShowcaseConsent] = useState(true);
+    const [draftAgreementDeadline, setDraftAgreementDeadline] = useState("");
     const [savingAgreement, setSavingAgreement] = useState(false);
     const [showCounterProposalModal, setShowCounterProposalModal] = useState(false);
     const [counterBudget, setCounterBudget] = useState('');
@@ -2083,6 +2094,10 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             notify(T('Διάβασε και αποδέξου τους όρους της συμφωνίας.', 'Read and accept the agreement terms.'), 'error');
             return;
         }
+        if (!selectedProposal.publish_deadline && !draftAgreementDeadline.trim()) {
+            notify(T('Επιλέξτε προθεσμία δημοσίευσης.', 'Choose a publication deadline.'), 'error');
+            return;
+        }
 
         setSavingAgreement(true);
         try {
@@ -2093,7 +2108,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     proposalId: selectedProposal.id,
                     userType: 'influencer',
                     accepted: true,
-                    showcaseConsent,
+                    ...(selectedProposal.publish_deadline
+                        ? {}
+                        : { publishDeadline: draftAgreementDeadline.trim() }),
                 })
             });
 
@@ -2116,7 +2133,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 setShowAgreementModal(false);
                 setSelectedProposal(null);
                 setAgreementAccepted(false);
-                setShowcaseConsent(true);
+                setDraftAgreementDeadline("");
                 notify(T('Η συμφωνία έγινε αποδεκτή. Η επιχείρηση θα προστεθεί στις συνεργασίες σου όταν αποδεχτεί και εκείνη.', 'Agreement accepted. The brand will be added to your collaborations once they accept too.'), 'success');
             } else {
                 throw new Error(result.error || T('Σφάλμα αποδοχής συμφωνίας', 'Could not accept the agreement'));
@@ -2588,6 +2605,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                 <ProposalDeliverableField
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}
+                                                                  initialShowcaseConsent={prop.influencer_showcase_consent}
                                                                   lang={lang}
                                                                   showStepLabel={
                                                                     prop.status === 'completed' &&
@@ -2623,15 +2641,6 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                       : null
                                                                   }
                                                                 />
-                                                                {prop.status === 'completed' ? (
-                                                                  <ShowcaseConsentToggle
-                                                                    source="proposal"
-                                                                    id={String(prop.id)}
-                                                                    initialConsent={!!prop.influencer_showcase_consent}
-                                                                    lang={lang}
-                                                                    party="influencer"
-                                                                  />
-                                                                ) : null}
                                                               </div>
                                                             ) : null}
                                                             <p className="text-sm text-slate-600 mb-2">
@@ -3272,15 +3281,15 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                     publishDeadline={selectedProposal.publish_deadline}
                     accepted={agreementAccepted}
                     onAcceptedChange={setAgreementAccepted}
-                    showcaseConsent={showcaseConsent}
-                    onShowcaseConsentChange={setShowcaseConsent}
                     showcaseParty="influencer"
                     saving={savingAgreement}
+                    draftPublishDeadline={draftAgreementDeadline}
+                    onDraftPublishDeadlineChange={setDraftAgreementDeadline}
                     onCancel={() => {
                         setShowAgreementModal(false);
                         setSelectedProposal(null);
                         setAgreementAccepted(false);
-                        setShowcaseConsent(true);
+                        setDraftAgreementDeadline("");
                     }}
                     onAccept={handleAcceptAgreement}
                 />

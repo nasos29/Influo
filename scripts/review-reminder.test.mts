@@ -113,6 +113,29 @@ test("second reminder due 7 days after first", () => {
   );
 });
 
+test("second reminder waits for real completion when REVIEW_FROM_REAL_COMPLETION is on", () => {
+  assert.equal(
+    shouldSendSecondReviewReminder({
+      status: "completed",
+      reviewReminderSentAt: "2026-11-01T00:00:00.000Z",
+      publishDeadline: "2026-12-06",
+      nowMs: Date.parse("2026-11-20T10:00:00.000Z"),
+      fromRealCompletion: true,
+    }),
+    false
+  );
+  assert.equal(
+    shouldSendSecondReviewReminder({
+      status: "completed",
+      reviewReminderSentAt: "2026-11-01T00:00:00.000Z",
+      realCompletedAt: "2026-11-05T12:00:00.000Z",
+      nowMs: Date.parse("2026-11-20T10:00:00.000Z"),
+      fromRealCompletion: true,
+    }),
+    true
+  );
+});
+
 test("second review-reminder wave is off unless REVIEW_REMINDER_SECOND_WAVE is set", () => {
   const prev = process.env.REVIEW_REMINDER_SECOND_WAVE;
   try {

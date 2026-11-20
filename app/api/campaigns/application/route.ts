@@ -9,6 +9,7 @@ import { acceptedToBrand, acceptedToCreator, applicationToBrand, applicationToCr
 import { enqueueAdminApplicationDigest } from "@/lib/adminApplicationDigest";
 import { enqueueAdminDigestItem } from "@/lib/adminDailyDigest";
 import { enqueueOrSendBrandApplicationEmail } from "@/lib/brandApplicationDigest";
+import { sendCheckedCreator } from "@/lib/collabCreatorMail";
 import { mailAdminEvent, send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushAdminNewCampaignApplication, sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
@@ -147,7 +148,16 @@ function notifyNewApplication(applicationId: string, influencerId: string): void
           campaignId: bc?.id || "",
           proposedPrice: row.proposed_price ?? null,
         });
-        jobs.push(send("campaign_application_creator", person.email, toCreator.subject, toCreator.html));
+        jobs.push(
+          sendCheckedCreator(
+            influencerId,
+            "campaign_application_creator",
+            person.email,
+            toCreator.subject,
+            toCreator.html,
+            { recipientId: influencerId }
+          )
+        );
       }
       {
         const priceLabel =
@@ -204,8 +214,24 @@ function notifyAcceptedApplication(input: {
       const influencerName = person?.name || "Influencer";
       const toCreator = acceptedToCreator({ influencerName, brandName: input.brandName, campaignTitle: input.campaignTitle, budget: input.budget, proposalId: input.proposalId });
       const toBrand = acceptedToBrand({ brandEmail: input.brandEmail, brandName: input.brandName, influencerName, campaignTitle: input.campaignTitle, budget: input.budget, proposalId: input.proposalId });
+      const admin = supabaseService();
+      const queuedAccept = await enqueueAdminDigestItem(admin, "campaign_accepted", {
+        campaignTitle: input.campaignTitle,
+        brandName: input.brandName,
+        creatorName: influencerName,
+        proposalId: input.proposalId,
+      });
       await Promise.all([
-        person?.email ? send("campaign_accepted_creator", person.email, toCreator.subject, toCreator.html) : Promise.resolve(),
+        person?.email
+          ? sendCheckedCreator(
+              input.influencerId,
+              "campaign_accepted_creator",
+              person.email,
+              toCreator.subject,
+              toCreator.html,
+              { recipientId: input.influencerId }
+            )
+          : Promise.resolve(),
         input.brandEmail ? send("campaign_accepted_brand", input.brandEmail, toBrand.subject, toBrand.html) : Promise.resolve(),
         sendPushToInfluencer(input.influencerId, {
           title: "Η αίτησή σου έγινε αποδεκτή",
@@ -213,18 +239,20 @@ function notifyAcceptedApplication(input: {
           url: "/dashboard?tab=proposals",
           tag: `campaign-accepted-${input.proposalId ?? input.campaignTitle}`,
         }).catch((err) => console.error("[campaign accept] creator push", err)),
-        mailAdminEvent(
-          "campaign_accepted_admin",
-          `Αίτηση αποδεκτή, νέα συνεργασία: ${influencerName} / ${input.brandName}`,
-          "Η επιχείρηση αποδέχτηκε αίτηση καμπάνιας (δημιουργήθηκε πρόταση)",
-          [
-            ["Πρόταση", input.proposalId != null ? `#${input.proposalId}` : "δεν δημιουργήθηκε"],
-            ["Καμπάνια", input.campaignTitle],
-            ["Επιχείρηση", input.brandName],
-            ["Δημιουργός", influencerName],
-            ["Ποσό", `${Math.round(input.budget)} €`],
-          ]
-        ),
+        queuedAccept
+          ? Promise.resolve()
+          : mailAdminEvent(
+              "campaign_accepted_admin",
+              `Αίτηση αποδεκτή, νέα συνεργασία: ${influencerName} / ${input.brandName}`,
+              "Η επιχείρηση αποδέχτηκε αίτηση καμπάνιας (δημιουργήθηκε πρόταση)",
+              [
+                ["Πρόταση", input.proposalId != null ? `#${input.proposalId}` : "δεν δημιουργήθηκε"],
+                ["Καμπάνια", input.campaignTitle],
+                ["Επιχείρηση", input.brandName],
+                ["Δημιουργός", influencerName],
+                ["Ποσό", `${Math.round(input.budget)} €`],
+              ]
+            ),
         input.brandEmail
           ? sendPushToBrand(input.brandEmail, {
               title: "Η συνεργασία δημιουργήθηκε",

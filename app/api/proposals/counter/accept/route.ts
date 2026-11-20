@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       await Promise.all([
         mailCounterDecision({
           accepted: true,
+          influencerId: proposal.influencer_id,
           influencerEmail: influencer.email,
           influencerName: influencer.name,
           brandName,

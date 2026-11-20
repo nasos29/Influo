@@ -87,6 +87,8 @@ export const DELIVERABLE_REMINDER_BEFORE_DAYS = 2;
 export const DELIVERABLE_REMINDER_AFTER_1_DAYS = 1;
 /** Days after publish_deadline for second overdue reminder. */
 export const DELIVERABLE_REMINDER_AFTER_5_DAYS = 5;
+/** Days after acceptance / agreement for a single gentle deliverable nudge (no publish deadline). */
+export const DELIVERABLE_REMINDER_GENTLE_DAYS = 7;
 /** Days after submission before brand approve reminder. */
 export const BRAND_APPROVE_REMINDER_DAYS = 2;
 /** Days after submission before link auto-complete / event admin notify. */

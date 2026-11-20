@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getStoredLanguage } from "@/lib/language";
 import FollowerGapNotice from "@/components/FollowerGapNotice";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
@@ -17,8 +18,8 @@ import { formatDate, formatTime } from "@/lib/formatDateTime";
 import { formatDisplayTime, pad2, type DateInput } from "@/lib/formatDate";
 import { isTimeoutError, withTimeout } from "@/lib/withTimeout";
 import { campaignField } from "@/lib/campaignLocalized";
-import ShowcaseConsentToggle from "@/components/ShowcaseConsentToggle";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
+import { creatorCampaignBrandMessagesHref } from "@/lib/campaignBrandMessage";
 import DealCancelDialog from "@/components/DealCancelDialog";
 import { canCancelCampaignDeal } from "@/lib/campaignDealCancelEligibility";
 import { cancelledByDisplay } from "@/lib/dealCancelEligibility";
@@ -71,7 +72,7 @@ type MyApplication = {
     title: string;
     title_en?: string | null;
     status: string;
-    brands: { brand_name: string } | null;
+    brands: { brand_name: string; contact_email?: string | null } | null;
   } | null;
 };
 
@@ -191,7 +192,9 @@ export default function InfluencerCampaignsPanel({
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts();
   const notify = (message: string, tone: "success" | "error" | "info" = "info") => pushToast(message, tone);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const deliverableFocusDone = useRef(false);
+  const [messageOpeningId, setMessageOpeningId] = useState<string | null>(null);
 
   const [campaigns, setCampaigns] = useState<CampaignWithBrand[]>([]);
   const [mine, setMine] = useState<MyApplication[]>([]);
@@ -256,7 +259,8 @@ export default function InfluencerCampaignsPanel({
         [target.id]: {
           url: prefill,
           note: prev[target.id]?.note || target.deliverable_note || "",
-          showcaseConsent: prev[target.id]?.showcaseConsent !== false,
+          showcaseConsent:
+            prev[target.id]?.showcaseConsent ?? target.influencer_showcase_consent !== false,
         },
       }));
     }
@@ -326,7 +330,7 @@ export default function InfluencerCampaignsPanel({
           title,
           title_en,
           status,
-          brands ( brand_name )
+          brands ( brand_name, contact_email )
         )
       `;
           const mineSelectBasic = `
@@ -344,7 +348,7 @@ export default function InfluencerCampaignsPanel({
           title,
           title_en,
           status,
-          brands ( brand_name )
+          brands ( brand_name, contact_email )
         )
       `;
           const mineWithSeen = await supabase
@@ -403,6 +407,35 @@ export default function InfluencerCampaignsPanel({
     }
     load();
   }, [approved, load]);
+
+  const openBrandMessage = async (applicationId: string) => {
+    setMessageOpeningId(applicationId);
+    try {
+      const res = await sessionFetch("/api/campaigns/application/thread", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        conversationId?: string;
+        error?: string;
+      };
+      if (res.ok && body.conversationId) {
+        router.push(creatorCampaignBrandMessagesHref(body.conversationId));
+        return;
+      }
+      notify(
+        uiLang === "el"
+          ? "Δεν βρέθηκε συνομιλία ακόμα. Γράψε από τα Μηνύματα όταν η επιχείρηση απαντήσει."
+          : "No conversation yet. Use Messages once the brand has replied.",
+        "error"
+      );
+    } catch {
+      notify(uiLang === "el" ? "Δεν άνοιξε η συνομιλία." : "Could not open the conversation.", "error");
+    } finally {
+      setMessageOpeningId(null);
+    }
+  };
 
   const submitApply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -802,7 +835,7 @@ export default function InfluencerCampaignsPanel({
               const draft = deliverDraft[m.id] || {
                 url: m.deliverable_url || "",
                 note: m.deliverable_note || "",
-                showcaseConsent: true,
+                showcaseConsent: m.influencer_showcase_consent !== false,
               };
               const showDeliver = canShowDeliverable(m);
               return (
@@ -844,6 +877,15 @@ export default function InfluencerCampaignsPanel({
                           </span>
                         </>
                       )}
+                      {m.brand_campaigns?.status === "closed" &&
+                      (m.status === "accepted" || m.status === "shortlisted") ? (
+                        <>
+                          {" · "}
+                          <span className="font-medium text-amber-800">
+                            {uiLang === "el" ? "Η καμπάνια έκλεισε" : "Campaign closed"}
+                          </span>
+                        </>
+                      ) : null}
                     </p>
                     {m.deliverable_review_note && dStatus === "changes_requested" && (
                       <p className="text-xs text-amber-700 mt-1">{m.deliverable_review_note}</p>
@@ -879,6 +921,20 @@ export default function InfluencerCampaignsPanel({
                         {uiLang === "el" ? "Ακύρωση συμφωνίας" : "Cancel agreement"}
                       </button>
                     )}
+                    {m.status === "accepted" && m.brand_campaigns?.brands?.contact_email ? (
+                      <button
+                        type="button"
+                        disabled={messageOpeningId === m.id}
+                        onClick={() => void openBrandMessage(m.id)}
+                        className="inline-flex min-h-11 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {messageOpeningId === m.id
+                          ? "…"
+                          : uiLang === "el"
+                            ? "Μήνυμα προς την επιχείρηση"
+                            : "Message the brand"}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
                 {(m.status === "cancelled" || m.status === "canceled") && m.cancel_reason ? (
@@ -992,13 +1048,6 @@ export default function InfluencerCampaignsPanel({
                         {m.deliverable_url}
                       </a>
                     )}
-                    <ShowcaseConsentToggle
-                      source="campaign"
-                      id={m.id}
-                      initialConsent={!!m.influencer_showcase_consent}
-                      lang={uiLang}
-                      party="influencer"
-                    />
                   </div>
                 )}
               </li>
