@@ -60,7 +60,7 @@ export default function BrandActionInbox({
     <section className="mb-6">
       <div className="flex items-end justify-between gap-3 mb-3">
         <div>
-          <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
+          <h2 className="text-base sm:text-xl font-semibold text-slate-900">
             {el ? "Χρειάζεται ενέργεια" : "Needs action"}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">

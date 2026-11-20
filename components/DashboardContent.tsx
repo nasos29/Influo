@@ -2449,7 +2449,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                 <InfluoLogo className="h-6 sm:h-8 w-auto" title="Influo" />
                             </Link>
                             <div className="min-w-0">
-                                <h1 className="text-base sm:text-2xl font-bold text-slate-900 truncate">{T('Πίνακας δημιουργού', 'Creator dashboard')}</h1>
+                                <h1 className="text-sm leading-tight sm:text-2xl sm:leading-normal font-bold text-slate-900 sm:truncate">{T('Πίνακας δημιουργού', 'Creator dashboard')}</h1>
                                 <p className="text-sm text-slate-500 truncate">{ui.welcome} {displayNameForLang(profile.display_name, lang)}</p>
                             </div>
                         </div>
@@ -2641,7 +2641,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             />
                         ) : activeTab === 'campaigns' ? (
                             <div className="space-y-4">
-                                <h2 className="text-xl font-semibold text-slate-900">{ui.campaignsTitle}</h2>
+                                <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{ui.campaignsTitle}</h2>
                                 <InfluencerCampaignsPanel
                                   influencerId={profile.id}
                                   approved={!!profile.approved}
@@ -2651,7 +2651,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             </div>
                         ) : activeTab === 'proposals' ? (
                             <div className="space-y-4">
-                                <h2 className="text-xl font-semibold text-slate-900">{ui.offersTitle}</h2>
+                                <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{ui.offersTitle}</h2>
                                 
                                 {proposalsLoading && proposals.length === 0 ? (
                                     <div className="space-y-3" aria-busy="true">
@@ -2890,7 +2890,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                             <Analytics influencerId={profile.id} lang={lang} />
                         ) : activeTab === 'announcements' ? (
                             <div className="space-y-4">
-                                <h2 className="text-xl font-semibold text-slate-900">{ui.announcementsTitle}</h2>
+                                <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{ui.announcementsTitle}</h2>
                                 {announcementsLoading ? (
                                     <div className="space-y-3" aria-busy="true">
                                         <div className="h-20 rounded-lg bg-slate-100 animate-pulse" />
@@ -2998,7 +2998,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                         ) : activeTab === 'profile' ? (
                             <div className="space-y-6">
                                 <div className="flex items-center justify-between">
-                                    <h2 className="text-xl font-semibold text-slate-900">{ui.profileOverview}</h2>
+                                    <h2 className="text-lg sm:text-xl font-semibold text-slate-900">{ui.profileOverview}</h2>
                                     <button onClick={() => openEdit('basics')} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors">
                                         ✏️ {ui.editProfile}
                                     </button>
@@ -3203,7 +3203,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
                         <div className="px-6 py-5 border-b border-slate-200">
-                            <h2 className="text-xl font-bold text-slate-900">{ui.deleteAccountTitle}</h2>
+                            <h2 className="text-lg sm:text-xl font-bold text-slate-900">{ui.deleteAccountTitle}</h2>
                         </div>
                         <div className="px-6 py-5 space-y-4">
                             <p className="text-sm text-slate-600 leading-relaxed">
@@ -3405,7 +3405,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
                         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-900">{T('Υποβολή αντιπρότασης', 'Send a counter-offer')}</h2>
+                            <h2 className="text-lg sm:text-xl font-bold text-slate-900">{T('Υποβολή αντιπρότασης', 'Send a counter-offer')}</h2>
                             <button 
                                 type="button"
                                 onClick={() => {

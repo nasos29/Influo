@@ -37,7 +37,7 @@ export default function NextStepsChecklist({
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-900">
+        <h2 className="text-base sm:text-lg font-semibold text-slate-900">
           {lang === "el" ? "Επόμενα βήματα" : "Next steps"}
         </h2>
         {total > 0 ? (

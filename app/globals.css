@@ -65,34 +65,36 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Skroutz.gr inspired typography */
-h1 {
-  font-size: 32px;
-  font-weight: 700;
-  line-height: 1.2;
-}
+/* Skroutz.gr inspired typography — in @layer base so Tailwind text-* utilities can override */
+@layer base {
+  h1 {
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
 
-h2 {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-}
+  h2 {
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
 
-h3 {
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 1.4;
-}
+  h3 {
+    font-size: 18px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
 
-h4 {
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.5;
-}
+  h4 {
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
 
-p {
-  font-size: 16px;
-  line-height: 1.5;
+  p {
+    font-size: 16px;
+    line-height: 1.5;
+  }
 }
 
 small, .text-sm {
