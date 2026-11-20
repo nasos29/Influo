@@ -44,7 +44,8 @@ test("merge keeps last-good on fetch failure; success overwrites lower counts", 
   ]);
   assert.equal(afterFail.items.find((i) => i.applicationId === A)?.views, 10);
   assert.equal(afterFail.items.find((i) => i.applicationId === B)?.views, 5);
-  assert.equal(computeFeaturedCollaborationViewsTotal(IDS, afterFail.items), 10 + 5);
+  assert.equal(computeFeaturedCollaborationViewsTotal(IDS, afterFail.items), null);
+  assert.equal(afterFail.total, null);
 
   const afterAll = mergeFeaturedCollaborationViews(IDS, afterFail, [
     { applicationId: A, url: "https://tiktok.com/a", views: 8 },
