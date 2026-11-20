@@ -2,7 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueueAdminDigestItem } from "@/lib/adminDailyDigest";
 import { adminInboxAddress } from "@/lib/adminMessageSummary";
 import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
-import { persistEmailLog } from "@/lib/emailLog";
 import { buttonHtml, sendChecked, shell, siteUrl } from "@/lib/proposalMail";
 import { escapeHtml } from "@/lib/proposalParty";
 import {
@@ -116,7 +115,7 @@ async function notifyAdminMissingAccount(
   });
 }
 
-function buildCreatorMail(name: string, handle: string): { subject: string; html: string } {
+export function buildCreatorMail(name: string, handle: string): { subject: string; html: string } {
   const editUrl = `${siteUrl()}/dashboard`;
   const atHandle = handle.startsWith("@") ? handle : `@${handle}`;
   const body = `<p>Γεια σου ${escapeHtml(name)},</p>
@@ -163,12 +162,11 @@ export async function maybeNotifyMissingSocialAccount(
   const name = opts.influencerName || row?.display_name || "Creator";
   const mail = buildCreatorMail(name, handle);
 
-  const outcome = await sendChecked("missing_social_account", email, mail.subject, mail.html);
-  await persistEmailLog(supabaseAdmin, {
-    emailType: "missing_social_account",
-    ok: outcome === "ok",
-    influencerId: opts.influencerId,
-    meta: { platform: platform.toLowerCase(), handle },
+  // sendChecked writes email_log (type/ok/recipient_id/deal_ref/party).
+  const outcome = await sendChecked("missing_social_account", email, mail.subject, mail.html, {
+    recipientId: opts.influencerId,
+    dealRef: `${platform.toLowerCase()}:${handle}`.slice(0, 64),
+    party: "influencer",
   });
   if (outcome !== "ok") return;
 
