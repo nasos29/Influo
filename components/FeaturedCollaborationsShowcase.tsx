@@ -9,8 +9,8 @@ import type { FeaturedCollaborationsShowcaseData } from "@/lib/loadFeaturedColla
 type Lang = "el" | "en";
 
 const COPY = {
-  el: { with: "με", unmute: "Ήχος", mute: "Σίγαση" },
-  en: { with: "with", unmute: "Sound", mute: "Mute" },
+  el: { with: "με", unmute: "Ήχος", mute: "Σίγαση", playVideo: "Δες το βίντεο" },
+  en: { with: "with", unmute: "Sound", mute: "Mute", playVideo: "Play video" },
 } as const;
 
 type Props = {
@@ -48,23 +48,70 @@ function BrandBadge({
   );
 }
 
-function CreatorLinkOverlay({ name, href }: { name: string; href: string }) {
+function CreatorMiniAvatar({ src, name }: { src: string | null; name: string }) {
+  const proxied = src ? getCachedImageUrl(src) : null;
+  if (proxied) {
+    return (
+      <Image
+        src={proxied}
+        alt=""
+        width={28}
+        height={28}
+        className="w-7 h-7 shrink-0 rounded-full object-cover ring-1 ring-white/30"
+        loading="lazy"
+        unoptimized={proxied.startsWith("/api/image-proxy")}
+      />
+    );
+  }
   return (
-    <div className="absolute inset-x-0 bottom-0 pt-16 pb-3 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none">
-      <Link
-        href={href}
-        className="pointer-events-auto text-white text-sm font-semibold drop-shadow-sm hover:underline underline-offset-2"
-      >
-        {name}
-      </Link>
-    </div>
+    <span className="flex w-7 h-7 shrink-0 items-center justify-center rounded-full bg-white/20 text-xs font-semibold text-white ring-1 ring-white/30">
+      {(name || "?").slice(0, 1).toUpperCase()}
+    </span>
   );
 }
 
-function CreatorNameOverlay({ name }: { name: string }) {
+function CreatorProfileLink({
+  name,
+  href,
+  avatarUrl,
+  className = "",
+  onClick,
+}: {
+  name: string;
+  href: string;
+  avatarUrl: string | null;
+  className?: string;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}) {
   return (
-    <div className="absolute inset-x-0 bottom-0 pt-16 pb-3 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none">
-      <span className="text-white text-sm font-semibold drop-shadow-sm">{name}</span>
+    <Link
+      href={href}
+      className={`inline-flex min-w-0 items-center gap-2 text-white text-sm font-semibold drop-shadow-sm hover:underline underline-offset-2 ${className}`}
+      onClick={onClick}
+    >
+      <CreatorMiniAvatar src={avatarUrl} name={name} />
+      <span className="truncate">{name}</span>
+    </Link>
+  );
+}
+
+function CreatorLinkOverlay({
+  name,
+  href,
+  avatarUrl,
+}: {
+  name: string;
+  href: string;
+  avatarUrl: string | null;
+}) {
+  return (
+    <div className="absolute inset-x-0 bottom-0 z-[5] pt-16 pb-3 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none">
+      <CreatorProfileLink
+        name={name}
+        href={href}
+        avatarUrl={avatarUrl}
+        className="pointer-events-auto max-w-full"
+      />
     </div>
   );
 }
@@ -142,7 +189,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                   </svg>
                 )}
               </button>
-              <CreatorLinkOverlay name={active.influencerName} href={active.influencerProfileHref} />
+              <CreatorLinkOverlay
+                name={active.influencerName}
+                href={active.influencerProfileHref}
+                avatarUrl={active.influencerAvatarUrl}
+              />
               <div className="absolute top-3 left-3">
                 <BrandBadge brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
               </div>
@@ -152,26 +203,44 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           {thumbnails.length > 0 ? (
             <div className="flex flex-row gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:flex-col lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:h-full lg:max-h-[70vh] lg:min-h-0">
               {thumbnails.map((card) => (
-                <button
+                <div
                   key={card.applicationId}
-                  type="button"
-                  className="relative shrink-0 w-28 sm:w-32 aspect-[9/16] lg:w-full lg:flex-1 lg:aspect-auto lg:min-h-0 rounded-xl md:rounded-2xl overflow-hidden bg-slate-900 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-                  onClick={() => onPickThumb(card.applicationId)}
-                  aria-label={card.influencerName}
+                  className="relative shrink-0 w-28 sm:w-32 aspect-[9/16] lg:w-full lg:flex-1 lg:aspect-auto lg:min-h-0 rounded-xl md:rounded-2xl overflow-hidden bg-slate-900"
                 >
-                  {card.posterUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={card.posterUrl}
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover"
-                      loading="lazy"
+                  <button
+                    type="button"
+                    className="absolute inset-0 w-full h-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+                    onClick={() => onPickThumb(card.applicationId)}
+                    aria-label={`${txt.playVideo} — ${card.influencerName}`}
+                  >
+                    {card.posterUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={card.posterUrl}
+                        alt=""
+                        className="absolute inset-0 w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="absolute inset-0 bg-slate-800" aria-hidden />
+                    )}
+                    <div
+                      className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none"
+                      aria-hidden
                     />
-                  ) : (
-                    <span className="absolute inset-0 bg-slate-800" aria-hidden />
-                  )}
-                  <CreatorNameOverlay name={card.influencerName} />
-                </button>
+                  </button>
+                  <div className="absolute inset-x-0 bottom-0 z-[5] pb-3 px-3 pointer-events-none">
+                    <CreatorProfileLink
+                      name={card.influencerName}
+                      href={card.influencerProfileHref}
+                      avatarUrl={card.influencerAvatarUrl}
+                      className="pointer-events-auto max-w-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
           ) : null}

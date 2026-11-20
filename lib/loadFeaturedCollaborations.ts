@@ -11,6 +11,7 @@ export type FeaturedCollaborationCard = {
   applicationId: string;
   influencerName: string;
   influencerProfileHref: string;
+  influencerAvatarUrl: string | null;
   playUrl: string;
   posterUrl: string | null;
 };
@@ -122,13 +123,13 @@ export async function loadFeaturedCollaborations(
   const influencerIds = [...new Set(orderedApps.map((a) => a.influencer_id).filter(Boolean))];
   const infById = new Map<
     string,
-    { display_name: string | null; profile_slug: string | null }
+    { display_name: string | null; profile_slug: string | null; avatar_url: string | null }
   >();
 
   try {
     const { data, error } = await admin
       .from("influencers")
-      .select("id, display_name, profile_slug")
+      .select("id, display_name, profile_slug, avatar_url")
       .in("id", influencerIds);
     if (!error && Array.isArray(data)) {
       for (const row of data) {
@@ -136,6 +137,7 @@ export async function loadFeaturedCollaborations(
           infById.set(row.id, {
             display_name: row.display_name,
             profile_slug: row.profile_slug,
+            avatar_url: row.avatar_url,
           });
         }
       }
@@ -182,6 +184,10 @@ export async function loadFeaturedCollaborations(
       applicationId: app.id,
       influencerName: displayName,
       influencerProfileHref: publicProfilePath(inf?.profile_slug ?? null, app.influencer_id),
+      influencerAvatarUrl:
+        typeof inf?.avatar_url === "string" && inf.avatar_url.trim()
+          ? inf.avatar_url.trim()
+          : null,
       playUrl: media.playUrl,
       posterUrl: media.posterUrl,
     });
