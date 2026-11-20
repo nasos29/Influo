@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 export type DockedChat = { id: string; name: string; min?: boolean };
 export const DOCK_KEY = "influo_docked_chats";
 export const DOCK_EVENT = "influo:dock-chat";
+export const DOCK_CHANGE_EVENT = "influo:dock-chats-change";
 const MAX = 3;
 
 export function openDockedChat(chat: DockedChat) {
@@ -55,6 +56,7 @@ export default function ChatDock() {
   const save = (next: DockedChat[]) => {
     setChats(next);
     localStorage.setItem(DOCK_KEY, JSON.stringify(next));
+    window.dispatchEvent(new Event(DOCK_CHANGE_EVENT));
   };
 
   if (!desktop || !chats.length || pathname.startsWith("/chat-embed") || pathname.startsWith("/admin")) return null;

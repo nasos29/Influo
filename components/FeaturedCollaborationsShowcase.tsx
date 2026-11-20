@@ -26,6 +26,7 @@ const COPY = {
     mute: "Σίγαση",
     playVideo: "Δες το βίντεο",
     seek: "Γραμμή προόδου βίντεο",
+    publicViewsLead: "Ήδη",
     publicViews: "προβολές",
   },
   en: {
@@ -34,6 +35,7 @@ const COPY = {
     mute: "Mute",
     playVideo: "Play video",
     seek: "Video progress",
+    publicViewsLead: "Already",
     publicViews: "views",
   },
 } as const;
@@ -121,6 +123,10 @@ function CreatorProfileLink({
   );
 }
 
+/** Fine-pointer desktops: fade chrome when pointer leaves hero; touch keeps controls visible. */
+const HERO_IDLE_HIDE_FINE =
+  "transition-opacity duration-200 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:pointer-events-none";
+
 function CreatorLinkOverlay({
   name,
   href,
@@ -134,6 +140,7 @@ function CreatorLinkOverlay({
   platform?: FeaturedCollaborationPlatform | null;
   className?: string;
 }) {
+  const platformLabel = platform ? PLATFORM_LABEL[platform] : null;
   return (
     <div
       className={`absolute inset-x-0 z-[5] pt-16 px-3 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none ${className}`}
@@ -142,9 +149,15 @@ function CreatorLinkOverlay({
         name={name}
         href={href}
         avatarUrl={avatarUrl}
-        platform={platform}
         className="pointer-events-auto max-w-full"
       />
+      {platformLabel ? (
+        <p
+          className={`mt-0.5 pl-9 text-[10px] font-medium text-white/80 truncate sm:text-[11px] pointer-events-none ${HERO_IDLE_HIDE_FINE}`}
+        >
+          {platformLabel}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -258,7 +271,7 @@ function HeroSeekBar({
 
   return (
     <div
-      className={`absolute inset-x-0 bottom-0 z-[6] flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-4 pointer-events-none ${className}`}
+      className={`absolute inset-x-0 bottom-0 z-[6] flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-4 pointer-events-none ${HERO_IDLE_HIDE_FINE} ${className}`}
     >
       <span className="pointer-events-none w-10 shrink-0 text-center text-[10px] font-semibold tabular-nums text-white/90">
         {formatTime(currentTime)}
@@ -433,11 +446,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <div className="pointer-events-none absolute left-1/2 top-0 z-[6] -translate-x-1/2 -translate-y-1/2">
           <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
         </div>
-        <div className="relative z-10 p-4 sm:p-5 md:p-6">
+        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6">
         <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
-            <div className={HERO_FRAME}>
+            <div className={`group/hero ${HERO_FRAME}`}>
               <video
                 ref={heroVideoRef}
                 className="absolute inset-0 h-full w-full object-cover"
@@ -448,7 +461,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               />
               <button
                 type="button"
-                className="absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+                className="absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-[opacity,bottom] duration-200 hover:bg-black/65 hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent [@media(hover:hover)_and_(pointer:fine)]:bottom-3 [@media(hover:hover)_and_(pointer:fine)]:opacity-70 [@media(hover:hover)_and_(pointer:fine)]:group-hover/hero:bottom-[3.25rem] [@media(hover:hover)_and_(pointer:fine)]:group-hover/hero:opacity-100"
                 aria-label={heroMuted ? txt.unmute : txt.mute}
                 onClick={(e) => {
                   e.preventDefault();
@@ -536,6 +549,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
         {data.totalViews != null ? (
           <p className="mt-5 text-center text-base font-medium text-slate-600 sm:mt-6 sm:text-lg">
+            {txt.publicViewsLead}{" "}
             <CountUp
               value={data.totalViews}
               formatLocale={lang === "el" ? "el-GR" : "en-GB"}

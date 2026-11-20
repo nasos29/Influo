@@ -3,6 +3,7 @@ import { Roboto } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import ChunkErrorReload from "@/components/ChunkErrorReload";
+import BackToTop from "@/components/BackToTop";
 import ChatDock from "@/components/ChatDock";
 import CookieConsent from "@/components/CookieConsent";
 import FeedbackHost from "@/components/Feedback";
@@ -189,6 +190,7 @@ export default async function RootLayout({
         <SiteSettingsProvider settings={publicSettings}>
           {children}
           <ChatDock />
+          <BackToTop />
           <ChunkErrorReload />
           <HtmlLang />
           <FeedbackHost />
