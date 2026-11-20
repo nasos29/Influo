@@ -33,10 +33,12 @@ export default function PublicCampaignsPage({
     computedAt: null,
     fromCache: false,
   },
+  openCampaignsCount = null,
 }: {
   initialCampaigns?: CampaignCardData[];
   recentCollaborations?: RecentCollaborationCard[];
   socialProofStats?: SocialProofStats;
+  openCampaignsCount?: number | null;
 }) {
   const pathname = usePathname();
   const [lang, setLang] = useState<"el" | "en">(pathname?.startsWith("/en") ? "en" : "el");
@@ -196,7 +198,11 @@ export default function PublicCampaignsPage({
 
         {recentCollaborations.length > 0 ? (
           <div className="mt-16 border-t border-slate-200 pt-4">
-            <SocialProofStatsRow stats={socialProofStats} lang={lang} />
+            <SocialProofStatsRow
+              stats={socialProofStats}
+              lang={lang}
+              openCampaignsCount={openCampaignsCount}
+            />
             <RecentCollaborationsSection items={recentCollaborations} lang={lang} className="!px-0" />
           </div>
         ) : null}

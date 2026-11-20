@@ -2,7 +2,8 @@
 
 import CountUp from "@/components/CountUp";
 import type { SocialProofStats } from "@/lib/loadSocialProofStats";
-import { Building2, Handshake, Star, Users } from "lucide-react";
+import { openCampaignsLabel } from "@/lib/pluralize";
+import { Building2, Handshake, Megaphone, Star, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 type Lang = "el" | "en";
@@ -26,6 +27,7 @@ const STAT_ICONS: Record<string, LucideIcon> = {
   completed: Handshake,
   creators: Users,
   brands: Building2,
+  openCampaigns: Megaphone,
   rating: Star,
 };
 
@@ -42,15 +44,20 @@ function listLayoutClass(count: number): string {
   if (count === 3) {
     return "grid grid-cols-3 gap-2 sm:gap-3 max-w-4xl mx-auto sm:flex sm:gap-0";
   }
+  if (count === 4) {
+    return "grid grid-cols-2 gap-4 max-w-2xl mx-auto sm:flex sm:max-w-6xl sm:gap-0";
+  }
   return "grid grid-cols-2 gap-3 max-w-lg mx-auto sm:flex sm:max-w-5xl sm:gap-0";
 }
 
 export default function SocialProofStatsRow({
   stats,
   lang,
+  openCampaignsCount,
 }: {
   stats: SocialProofStats;
   lang: Lang;
+  openCampaignsCount?: number | null;
 }) {
   const txt = COPY[lang];
   const items: Array<{ key: string; value: number; label: string; kind: "int" | "rating" }> = [];
@@ -68,6 +75,14 @@ export default function SocialProofStatsRow({
   }
   if (typeof stats.brandsCount === "number" && stats.brandsCount > 0) {
     items.push({ key: "brands", value: stats.brandsCount, label: txt.brands, kind: "int" });
+  }
+  if (typeof openCampaignsCount === "number" && openCampaignsCount > 0) {
+    items.push({
+      key: "openCampaigns",
+      value: openCampaignsCount,
+      label: openCampaignsLabel(openCampaignsCount, lang),
+      kind: "int",
+    });
   }
   if (typeof stats.averageRating === "number" && stats.averageRating > 0) {
     items.push({
