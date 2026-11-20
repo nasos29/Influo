@@ -76,8 +76,8 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     id: "recent_collaborations",
     title: { el: "Πρόσφατες συνεργασίες", en: "Recent collaborations" },
     description: {
-      el: "Προαιρετικό — δεν εμφανίζεται πλέον στην αρχική (η λίστα μένει στο /collaborations).",
-      en: "Optional — no longer rendered on the homepage (listing remains at /collaborations).",
+      el: "Γραμμή social proof (ολοκληρωμένες συνεργασίες, creators, brands, αξιολόγηση). Το featured video showcase είναι στο brand_cta· η λίστα στο /collaborations.",
+      en: "Social-proof stats row (completed collaborations, creators, brands, rating). Featured video showcase lives in brand_cta; listing at /collaborations.",
     },
     defaultIndex: 3,
     optional: true,

@@ -3,6 +3,7 @@ import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { loadFeaturedCollaborations } from "@/lib/loadFeaturedCollaborations";
+import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
 import {
   getHomepageSectionOrderSetting,
   getSiteSettings,
@@ -24,6 +25,13 @@ const cachedFeaturedCollaborations = unstable_cache(
   { revalidate: 3600, tags: ["recent-collaborations", SITE_SETTINGS_CACHE_TAG] }
 );
 
+/** Daily social-proof numbers (DB cache inside loader + ISR). */
+const cachedSocialProofStats = unstable_cache(
+  () => loadSocialProofStats(),
+  ["home-social-proof-stats"],
+  { revalidate: 86400, tags: ["social-proof-stats"] }
+);
+
 export default async function Page() {
   const [settings, sectionOrderSetting] = await Promise.all([
     getSiteSettings(),
@@ -32,7 +40,8 @@ export default async function Page() {
   const creatorsLimit = settings.homepage_creators_count;
   const campaignsLimit = settings.homepage_campaigns_count;
 
-  const [directoryPage, openCampaigns, trustStats, featuredCollaborations] = await Promise.all([
+  const [directoryPage, openCampaigns, trustStats, featuredCollaborations, socialProofStats] =
+    await Promise.all([
       unstable_cache(
         () => loadPublicDirectoryCards(creatorsLimit),
         ["home-directory-cards-page", String(creatorsLimit)],
@@ -46,6 +55,7 @@ export default async function Page() {
       )(),
       cachedHomeTrust(),
       cachedFeaturedCollaborations(),
+      cachedSocialProofStats(),
     ]);
   return (
     <HomePage
@@ -54,6 +64,7 @@ export default async function Page() {
       openCampaigns={openCampaigns}
       trustStats={trustStats}
       featuredCollaborations={featuredCollaborations}
+      socialProofStats={socialProofStats}
       homeCreatorsLimit={creatorsLimit}
       homeNewlyApprovedLimit={settings.homepage_newly_approved_count}
       homeTopInfluencersLimit={settings.homepage_top_influencers_count}

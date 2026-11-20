@@ -21,6 +21,7 @@ import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
 import HomeOpenCampaignsSection from "@/components/HomeOpenCampaignsSection";
 import FeaturedCollaborationsShowcase from "@/components/FeaturedCollaborationsShowcase";
+import SocialProofStatsRow from "@/components/SocialProofStatsRow";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -28,6 +29,7 @@ import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 import type { FeaturedCollaborationsShowcaseData } from "@/lib/loadFeaturedCollaborations";
+import type { SocialProofStats } from "@/lib/loadSocialProofStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
@@ -216,6 +218,14 @@ export default function Home({
   openCampaigns = [],
   trustStats = { approvedInfluencers: null, openCampaigns: null },
   featuredCollaborations = null,
+  socialProofStats = {
+    completedCollaborations: null,
+    activeCreators: null,
+    brandsCount: null,
+    averageRating: null,
+    computedAt: null,
+    fromCache: false,
+  },
   homeCreatorsLimit = 8,
   homeNewlyApprovedLimit = 8,
   homeTopInfluencersLimit = 10,
@@ -228,6 +238,7 @@ export default function Home({
   openCampaigns?: CampaignCardData[];
   trustStats?: HomeTrustStats;
   featuredCollaborations?: FeaturedCollaborationsShowcaseData | null;
+  socialProofStats?: SocialProofStats;
   homeCreatorsLimit?: number;
   homeNewlyApprovedLimit?: number;
   homeTopInfluencersLimit?: number;
@@ -585,7 +596,11 @@ export default function Home({
               );
 
             case "recent_collaborations":
-              return null;
+              return (
+                <div key={sectionId} data-homepage-section="recent_collaborations" className="home-section-cv">
+                  <SocialProofStatsRow stats={socialProofStats} lang={lang} />
+                </div>
+              );
 
             case "open_campaigns":
               return (
