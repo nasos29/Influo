@@ -3,6 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 import { userFromBearer } from '@/lib/apiAuth';
 import { isChatParticipant, loadChatActor } from '@/lib/chatActor';
 import {
+  attachmentDisplayFilename,
+  attachmentStorageBasename,
+  chatAttachmentKind,
+  validateChatAttachment,
+} from '@/lib/chatAttachmentUpload';
+import {
   convertImageBufferToWebp,
   isConvertibleRasterInput,
 } from '@/lib/serverImageConvert';
@@ -27,6 +33,15 @@ async function optimizeImage(file: File): Promise<{ buffer: Buffer; contentType:
   }
   const output = await convertImageBufferToWebp(input, { maxSide: 1600, webpQuality: 0.78 });
   return { buffer: output.buffer, contentType: output.contentType, extension: output.extension };
+}
+
+function extensionForKind(kind: ReturnType<typeof chatAttachmentKind>, fileName: string, fallback: string): string {
+  if (kind === 'video') {
+    const ext = (fileName.split('.').pop() || 'mp4').toLowerCase();
+    if (['mp4', 'mov', 'webm', 'm4v', '3gp'].includes(ext)) return ext;
+    return fallback;
+  }
+  return fallback;
 }
 
 export async function POST(req: NextRequest) {
@@ -57,40 +72,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing file' }, { status: 400 });
     }
 
-    const maxSize = 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      return NextResponse.json({ success: false, error: 'File exceeds 10MB' }, { status: 400 });
+    const displayName = attachmentDisplayFilename(file.name);
+    const check = validateChatAttachment({ mimeType: file.type, fileName: displayName, size: file.size });
+    if (!check.ok) {
+      return NextResponse.json({ success: false, error: check.message.el, code: check.code }, { status: 400 });
     }
 
-    const allowed = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'image/heic',
-      'image/heif',
-      'image/heic-sequence',
-      'image/heif-sequence',
-      'application/octet-stream',
-      'application/pdf',
-      'text/plain',
-    ];
-    const mime = (file.type || '').toLowerCase();
-    const heicExt = /\.(heic|heif)$/i.test(file.name || '');
-    if (mime && !allowed.includes(mime) && !mime.startsWith('image/') && !heicExt) {
-      return NextResponse.json({ success: false, error: 'File type not allowed' }, { status: 400 });
+    const kind = check.kind;
+    let buffer: Buffer;
+    let contentType: string;
+    let extension: string;
+
+    if (kind === 'video') {
+      buffer = Buffer.from(await file.arrayBuffer());
+      contentType = check.mimeType;
+      extension = extensionForKind(kind, displayName, 'mp4');
+    } else if (kind === 'image') {
+      const optimized = await optimizeImage(file);
+      buffer = optimized.buffer;
+      contentType = optimized.contentType;
+      extension = optimized.extension;
+    } else {
+      buffer = Buffer.from(await file.arrayBuffer());
+      contentType = check.mimeType;
+      extension = kind === 'pdf' ? 'pdf' : 'txt';
     }
 
-    const { buffer, contentType, extension } = await optimizeImage(file);
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
-    const storagePath = `conversations/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${extension}`;
+    const leaf = attachmentStorageBasename(displayName, extension);
+    const storagePath = `conversations/${conversationId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${leaf}`;
 
     const { error: upErr } = await supabaseAdmin.storage
       .from('message-attachments')
       .upload(storagePath, buffer, { contentType, upsert: false });
 
     if (upErr) {
-      // Fallback if dedicated bucket is missing
       const fallback = await supabaseAdmin.storage
         .from('avatars')
         .upload(`message-attachments/${storagePath}`, buffer, { contentType, upsert: false });
@@ -102,7 +117,7 @@ export async function POST(req: NextRequest) {
         success: true,
         attachment: {
           url: data.publicUrl,
-          filename: safeName || file.name,
+          filename: displayName,
           size: buffer.length,
           content_type: contentType,
         },
@@ -114,7 +129,7 @@ export async function POST(req: NextRequest) {
       success: true,
       attachment: {
         url: data.publicUrl,
-        filename: safeName || file.name,
+        filename: displayName,
         size: buffer.length,
         content_type: contentType,
       },

@@ -66,15 +66,15 @@ export function looksLikeOffPlatformContact(text: string): boolean {
 
   if (new RegExp(FILE_TRANSFER_OFF_PLATFORM, "i").test(t)) {
     const asksForEmailMail =
-      (/(?:δωσ(?:ε|τε)|πε(?:ς|τε)|στε\\s*ιλ(?:ε|τε)?|γραψ(?:ε|τε)|give\\s+me|send\\s+me|tell\\s+me)/i.test(t) &&
+      (/(?:δωσ(?:ε|τε)|πε(?:ς|τε)|στε\s*ιλ(?:ε|τε)?|γραψ(?:ε|τε)|give\s+me|send\s+me|tell\s+me)/i.test(t) &&
         new RegExp(EMAIL_MAIL, "i").test(t)) ||
       new RegExp(`${EMAIL_MAIL}.{0,30}(?:σου|σας|your)`, "i").test(t);
     const sendViaFileHost =
       new RegExp(FILE_HOST, "i").test(t) &&
-      /(?:στε\\s*ιλ|στειλ|send|θα\\s+(?:σου|σας|το)|με\\s+)/i.test(t);
+      /(?:στε\s*ιλ|στειλ|send|θα\s+(?:σου|σας|το)|με\s+)/i.test(t);
     const emailMailForFiles =
       new RegExp(EMAIL_MAIL, "i").test(t) &&
-      /(?:για\\s+τα\\s+αρχει|αρχει|file|files|so\\s+i\\s+can\\s+send)/i.test(t);
+      /(?:για\s+τα\s+αρχει|αρχει|file|files|so\s+i\s+can\s+send)/i.test(t);
     if (asksForEmailMail || sendViaFileHost || emailMailForFiles) return true;
   }
 

@@ -57,6 +57,10 @@ test("flags email / mail / Drive / WeTransfer for file transfer", () => {
     looksLikeOffPlatformContact("send me your email so I can send the files"),
     true
   );
+  assert.equal(
+    looksLikeOffPlatformContact("give me your email so I can send the file"),
+    true
+  );
   assert.equal(looksLikeOffPlatformContact("θα σου το στείλω με wetransfer"), true);
 });
 
