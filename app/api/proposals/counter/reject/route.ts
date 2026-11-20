@@ -27,6 +27,7 @@ export async function POST(request: Request) {
       await Promise.all([
         mailCounterDecision({
           accepted: false,
+          influencerId: proposal.influencer_id,
           influencerEmail: influencer.email,
           influencerName: influencer.name,
           brandName,

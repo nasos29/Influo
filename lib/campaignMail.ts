@@ -474,6 +474,8 @@ export function deliverableReviewToCreator(input: {
   reviewNote?: string | null;
   /** When consent is true for this creator, include Πρόσφατες συνεργασίες opt-out line. */
   showcaseOptOutUrl?: string | null;
+  /** Override dashboard CTA (e.g. direct proposal deliverable tab). */
+  ctaUrl?: string | null;
 }): Mail {
   const approved = input.status === "approved";
   const showcaseNotice =
@@ -502,7 +504,10 @@ export function deliverableReviewToCreator(input: {
          ["Ημερομηνία", todayAthens()],
        ])}
        ${quoteHtml(approved ? "Σχόλιο:" : "Τι ζητήθηκε:", input.reviewNote)}
-       ${buttonHtml(creatorCampaignsTab(), "Δες τις καμπάνιες σου")}
+       ${buttonHtml(
+         input.ctaUrl || creatorCampaignsTab(),
+         input.ctaUrl ? "Δες το παραδοτέο" : "Δες τις καμπάνιες σου"
+       )}
        ${showcaseNotice}
        ${emailNextSteps(approved ? "campaign_deliverable_approved_creator" : "campaign_deliverable_changes_creator")}`
     ),

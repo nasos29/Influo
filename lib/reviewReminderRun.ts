@@ -691,7 +691,10 @@ export async function runReviewReminders(
           status: row.status,
           reviewReminderSentAt: row.review_reminder_sent_at,
           reviewReminderSecondSentAt: row.review_reminder_second_sent_at,
+          publishDeadline: row.publish_deadline,
+          realCompletedAt: realCompletionAt(row),
           nowMs,
+          fromRealCompletion: isReviewFromRealCompletionEnabled(),
         })
       ) {
         continue;
@@ -729,7 +732,13 @@ export async function runReviewReminders(
             status: row.status,
             reviewReminderSentAt: row.review_reminder_sent_at,
             reviewReminderSecondSentAt: row.review_reminder_second_sent_at,
+            publishDeadline: campaignPublishDeadline(
+              null,
+              row.brand_campaigns?.deadline ?? null
+            ),
+            realCompletedAt: campaignRealCompletionAt(row),
             nowMs,
+            fromRealCompletion: isReviewFromRealCompletionEnabled(),
           })
         ) {
           continue;

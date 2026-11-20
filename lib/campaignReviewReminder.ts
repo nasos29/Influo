@@ -45,7 +45,10 @@ export function shouldSendCampaignSecondReviewReminder(opts: {
   status?: string | null;
   reviewReminderSentAt?: string | null;
   reviewReminderSecondSentAt?: string | null;
+  publishDeadline?: string | null;
+  realCompletedAt?: string | null;
   nowMs?: number;
+  fromRealCompletion?: boolean;
 }): boolean {
   const status = (opts.status || "").toLowerCase();
   if (status === "cancelled" || status === "canceled" || status === "rejected" || status === "withdrawn") {
@@ -56,7 +59,16 @@ export function shouldSendCampaignSecondReviewReminder(opts: {
   const first = new Date(opts.reviewReminderSentAt).getTime();
   if (!Number.isFinite(first)) return false;
   const now = opts.nowMs ?? Date.now();
-  return now >= first + REVIEW_REMINDER_SECOND_DAYS * 24 * 60 * 60 * 1000;
+  if (now < first + REVIEW_REMINDER_SECOND_DAYS * 24 * 60 * 60 * 1000) return false;
+
+  const realOnly = opts.fromRealCompletion ?? isReviewFromRealCompletionEnabled();
+  if (!realOnly) return true;
+
+  const real = opts.realCompletedAt ? new Date(opts.realCompletedAt).getTime() : NaN;
+  const hasReal = Number.isFinite(real);
+  const deadlineEnd = publishDeadlineDueMs(opts.publishDeadline);
+  const deadlinePassed = deadlineEnd != null && now >= deadlineEnd;
+  return hasReal || deadlinePassed;
 }
 
 export function campaignPublishDeadline(

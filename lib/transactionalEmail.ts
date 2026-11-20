@@ -13,9 +13,11 @@ export function escapeHtml(value: string): string {
 export async function sendTransactional(
   to: string | null | undefined,
   subject: string,
-  html: string
+  html: string,
+  opts?: { type?: string; recipientId?: string | null }
 ): Promise<{ ok: boolean; skipped?: boolean; error?: string }> {
   const recipient = String(to || "").trim();
+  const logType = (opts?.type || "transactional").slice(0, 120);
   if (!recipient || !recipient.includes("@")) return { ok: false, skipped: true };
   if (!process.env.RESEND_API_KEY) return { ok: false, skipped: true, error: "RESEND_API_KEY missing" };
   try {
@@ -26,10 +28,17 @@ export async function sendTransactional(
       subject,
       html,
     });
+    const ok = !error;
+    void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
+      persistEmailLog({ type: logType, ok, recipientId: opts?.recipientId })
+    );
     if (error) return { ok: false, error: error.message };
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : "send failed";
+    void import("@/lib/emailLogDb").then(({ persistEmailLog }) =>
+      persistEmailLog({ type: logType, ok: false, recipientId: opts?.recipientId })
+    );
     return { ok: false, error: message };
   }
 }
