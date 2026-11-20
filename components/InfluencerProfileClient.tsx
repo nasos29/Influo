@@ -664,6 +664,10 @@ export default function InfluencerProfile(props: {
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);
+  const profileNameRef = useRef<HTMLHeadingElement | null>(null);
+  const profileStatsSectionRef = useRef<HTMLDivElement | null>(null);
+  const profileInitialScrollDoneRef = useRef(false);
+  const skipInitialProfileScrollRef = useRef(false);
   const [portfolioVideoList, setPortfolioVideoList] = useState<string[] | null>(null);
 
   const basePortfolioItems = useMemo(() => {
@@ -703,6 +707,55 @@ export default function InfluencerProfile(props: {
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) skipInitialProfileScrollRef.current = true;
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
+  // MAG-5: land with creator name, stats band, and tab row in view (instant scroll; skip back/forward + hash).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!profile || loading) return;
+    if (profileInitialScrollDoneRef.current) return;
+
+    const skip =
+      !!window.location.hash ||
+      skipInitialProfileScrollRef.current ||
+      (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)?.type ===
+        "back_forward";
+    profileInitialScrollDoneRef.current = true;
+    if (skip) return;
+
+    const apply = () => {
+      const nameEl = profileNameRef.current;
+      const statsEl = profileStatsSectionRef.current;
+      const tabsEl = profileTabsNavRef.current;
+      if (!nameEl || !statsEl || !tabsEl) return;
+
+      const headerEl = document.querySelector<HTMLElement>(".site-header");
+      const headerOffset = headerEl
+        ? headerEl.getBoundingClientRect().height
+        : (() => {
+            const root = document.documentElement;
+            const rem = parseFloat(getComputedStyle(root).fontSize) || 16;
+            return 4.5 * rem;
+          })();
+
+      const scrollY = window.scrollY || window.pageYOffset || 0;
+      const nameTop = scrollY + nameEl.getBoundingClientRect().top;
+      const targetY = Math.max(0, Math.round(nameTop - headerOffset));
+
+      window.scrollTo({ top: targetY, left: 0, behavior: "auto" });
+    };
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(apply);
+    });
+  }, [profile, loading]);
 
   // Mobile tabs: keep the active tab visible in the horizontal scroller only.
   // Scrolling the tab button into view also moves the page (tabs sit below the
@@ -2310,7 +2363,10 @@ export default function InfluencerProfile(props: {
                 )}
             </div>
             <div className="flex-1 text-center md:text-left">
-                <h1 className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2">
+                <h1
+                  ref={profileNameRef}
+                  className="text-3xl font-bold text-slate-900 flex items-center justify-center md:justify-start gap-2"
+                >
                     {displayNameForLang(profile.name, lang)}
                 </h1>
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
@@ -2494,7 +2550,10 @@ export default function InfluencerProfile(props: {
           </div>
           
           {/* Statistics Section */}
-          <div className="border-t border-slate-100 bg-[#f7f8fa] px-5 py-6 md:px-8">
+          <div
+            ref={profileStatsSectionRef}
+            className="border-t border-slate-100 bg-[#f7f8fa] px-5 py-6 md:px-8"
+          >
             <h2 className="mb-4 text-lg font-bold text-slate-900">{txt.tab_aud}</h2>
             {(() => {
               const followers = profile.followers || {};
