@@ -283,7 +283,7 @@ export default function ForInfluencersPage({ socialProofStats, openCampaignsCoun
           <p className="mb-3 text-sm font-semibold tracking-wide text-blue-300">
             {MARKETING_SHARED.brand}
           </p>
-          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-white md:text-5xl">
+          <h1 className="mb-4 max-w-2xl text-4xl font-bold tracking-tight text-white">
             {txt.headline}
           </h1>
           <p className="mb-8 max-w-xl text-lg leading-relaxed text-slate-200">{txt.hero_desc}</p>
@@ -343,7 +343,7 @@ export default function ForInfluencersPage({ socialProofStats, openCampaignsCoun
           <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
             <Briefcase className="h-5 w-5" strokeWidth={1.75} aria-hidden />
           </div>
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-slate-900">
             {txt.campaign_title}
           </h2>
           <p className="mb-4 leading-relaxed text-slate-600">{txt.campaign_desc}</p>

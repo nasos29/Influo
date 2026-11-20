@@ -112,7 +112,7 @@ export default function ContactPage() {
 
       {/* Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">{txt.title}</h1>
+        <h1 className="text-4xl font-bold text-slate-900 mb-4">{txt.title}</h1>
         <p className="text-xl text-slate-600 mb-8">{txt.subtitle}</p>
         <p className="text-slate-700 mb-12 leading-relaxed">{txt.description}</p>
 

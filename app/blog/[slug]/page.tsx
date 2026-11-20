@@ -2688,7 +2688,7 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
       <SiteHeader lang={lang} onLangChange={setLang} />
 
       <article className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-8">{post.title?.[lang] || 'Untitled'}</h1>
+        <h1 className="text-4xl font-bold text-slate-900 mb-8">{post.title?.[lang] || 'Untitled'}</h1>
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 md:p-12">
           <div className="prose prose-lg max-w-none">
             {post.content?.[lang] ? (

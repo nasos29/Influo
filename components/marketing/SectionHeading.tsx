@@ -12,7 +12,7 @@ export default function SectionHeading({
   const alignClass = align === "center" ? "mx-auto text-center" : "text-left";
   return (
     <div className={`mb-10 max-w-2xl md:mb-14 ${alignClass}`}>
-      <h2 className="mb-3 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+      <h2 className="mb-3 text-2xl font-bold tracking-tight text-slate-900">
         {title}
       </h2>
       {description ? (

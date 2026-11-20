@@ -48,7 +48,7 @@ export default function DirectoryPageView({
       <main className="flex-1 min-w-0">
         <div className="max-w-page mx-auto px-4 sm:px-6 py-8 min-w-0">
           <div className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-2">{heading?.h1 || t[lang].title}</h1>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">{heading?.h1 || t[lang].title}</h1>
             <p className="text-lg text-slate-600">{heading?.subtitle || t[lang].subtitle}</p>
             <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-slate-500">
               <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-white" aria-hidden>
