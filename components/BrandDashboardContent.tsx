@@ -532,7 +532,7 @@ function EditBrandModal({ brand, onClose, onSave, updating, lang, txt, onToast, 
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white rounded-t-2xl">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">{txt.edit_profile}</h2>
+            <h2 className="text-lg sm:text-2xl font-bold">{txt.edit_profile}</h2>
             <button
               type="button"
               onClick={onClose}
@@ -2204,7 +2204,7 @@ export default function BrandDashboardContent() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
         <div className="max-w-md text-center bg-white border border-slate-200 rounded-2xl p-8">
-          <h1 className="text-xl font-semibold text-slate-900">
+          <h1 className="text-lg sm:text-xl font-semibold text-slate-900">
             {lang === "el" ? "Δεν φορτώθηκε το προφίλ" : "Profile could not be loaded"}
           </h1>
           <p className="text-slate-600 mt-3">{loadError || (lang === "el" ? "Δοκιμάστε ξανά." : "Try again.")}</p>
@@ -2564,7 +2564,7 @@ export default function BrandDashboardContent() {
 
         {activeTab === 'announcements' && (
           <div className="mb-12 space-y-4">
-            <h2 className="text-xl font-semibold text-slate-900">
+            <h2 className="text-lg sm:text-xl font-semibold text-slate-900">
               {lang === 'el' ? 'Ανακοινώσεις' : 'Announcements'}
             </h2>
             {announcementsLoading ? (
@@ -2735,7 +2735,7 @@ export default function BrandDashboardContent() {
         <div id="recommended" className="mb-12 scroll-mt-24">
           <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h2 className="text-2xl font-semibold text-slate-900 tracking-tight">{txt.recommendations_title}</h2>
+              <h2 className="text-lg sm:text-2xl font-semibold text-slate-900 tracking-tight">{txt.recommendations_title}</h2>
               <p className="text-slate-500 text-sm mt-1">{txt.recommendations_subtitle}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -3141,7 +3141,7 @@ export default function BrandDashboardContent() {
           <>
           {sentPendingProposals.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
                 {lang === "el" ? "Προτάσεις που έχετε στείλει" : "Proposals you have sent"}
               </h2>
               <div className="space-y-4">
@@ -3191,7 +3191,7 @@ export default function BrandDashboardContent() {
           {/* Pending Counter Proposals */}
           {pendingCounterProposals.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
                 {lang === 'el' ? '💰 Αντιπροτάσεις που Αναμένουν Απόκριση' : '💰 Counter Proposals Pending Response'}
               </h2>
               <div className="space-y-4">
@@ -3270,7 +3270,7 @@ export default function BrandDashboardContent() {
           {/* Pending Agreements */}
           {pendingAgreements.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">{txt.pending_agreements}</h2>
               <div className="space-y-4">
                 {pendingAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
@@ -3326,7 +3326,7 @@ export default function BrandDashboardContent() {
 
           {awaitingInfluencerAgreements.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">{txt.awaiting_agreements}</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">{txt.awaiting_agreements}</h2>
               <div className="space-y-4">
                 {awaitingInfluencerAgreements.map((proposal) => {
                   const influencer = influencers[proposal.influencer_id];
@@ -3377,7 +3377,7 @@ export default function BrandDashboardContent() {
 
           {brandSignedAgreements.length > 0 && (
             <div>
-              <h2 className="text-xl font-bold text-slate-900 mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 mb-4">
                 {lang === "el" ? "Συμφωνίες που αποδεχτήκατε" : "Agreements you have accepted"}
               </h2>
               <div className="space-y-4">
