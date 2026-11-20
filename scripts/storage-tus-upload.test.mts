@@ -4,7 +4,7 @@ import {
   SUPABASE_TUS_CHUNK_BYTES,
   tusChunkCount,
   tusChunkLengthAtOffset,
-} from "../lib/storageTusUpload.ts";
+} from "../lib/supabaseTusChunks.ts";
 
 test("TUS chunk lengths follow 6 MiB rule", () => {
   assert.equal(SUPABASE_TUS_CHUNK_BYTES, 6 * 1024 * 1024);

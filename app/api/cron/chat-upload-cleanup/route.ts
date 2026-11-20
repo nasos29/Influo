@@ -1,5 +1,5 @@
 /**
- * Cancel stale chat attachment chunk uploads and remove orphan staging directories.
+ * Cancel chat attachment uploads stuck in `uploading` (>24h) and remove partial objects.
  * Auth: Authorization: Bearer CRON_SECRET (or Vercel cron headers).
  */
 

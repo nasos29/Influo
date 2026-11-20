@@ -1,26 +1,34 @@
 /**
- * Chat message attachments: validation, limits, chunked upload constants.
- * Small non-video files use POST /api/messages/upload; large videos use chunked /api/messages/uploads.
+ * Chat message attachments: validation, limits, TUS upload constants.
+ * Small files use POST /api/messages/upload; large videos use browser TUS via /api/messages/uploads.
  */
 
-import {
-  UPLOAD_CHUNK_BYTES,
-  UPLOAD_PARALLEL_CHUNKS,
-  chunkCount,
-  sniffMediaType,
-} from "@/lib/portfolioUpload";
+import { sniffMediaType } from "@/lib/portfolioUpload";
+import { SUPABASE_TUS_CHUNK_BYTES } from "@/lib/supabaseTusChunks";
 
 export const MESSAGE_ATTACHMENTS_BUCKET = "message-attachments";
 
 export const MAX_CHAT_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_CHAT_VIDEO_BYTES = 2 * 1024 * 1024 * 1024;
-export const CHAT_UPLOAD_CHUNK_BYTES = UPLOAD_CHUNK_BYTES;
-export const CHAT_UPLOAD_PARALLEL_CHUNKS = UPLOAD_PARALLEL_CHUNKS;
-
-export { chunkCount };
+export const CHAT_UPLOAD_CHUNK_BYTES = SUPABASE_TUS_CHUNK_BYTES;
 
 /** Abuse guard (uploads only). */
 export const MAX_ACTIVE_CHAT_UPLOADS_PER_USER = 4;
+
+const CHAT_CONVERSATION_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Allowed conversation id for chat uploads: a UUID or the literal `temp`. */
+export function parseChatUploadConversationId(raw: unknown): string | null {
+  const id = String(raw ?? "").trim() || "temp";
+  if (id === "temp") return id;
+  if (CHAT_CONVERSATION_UUID_RE.test(id)) return id;
+  return null;
+}
+
+export function isChatUploadConversationUuid(conversationId: string): boolean {
+  return CHAT_CONVERSATION_UUID_RE.test(conversationId);
+}
 
 export type ChatAttachmentKind = "video" | "image" | "pdf" | "text";
 

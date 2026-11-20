@@ -1,4 +1,4 @@
--- Chat attachments: large video uploads (chunked assembly) + bucket limits for video up to 2 GB.
+-- Chat attachments: browser TUS to message-attachments + bucket limits for video up to 2 GB.
 -- Additive only; portfolio upload tables unchanged.
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -42,7 +42,7 @@ CREATE INDEX IF NOT EXISTS message_attachment_uploads_user_idx
   ON public.message_attachment_uploads (created_by, status, created_at DESC);
 
 COMMENT ON TABLE public.message_attachment_uploads IS
-  'Resumable chat video uploads; chunks staged on app disk, final object in message-attachments bucket.';
+  'Resumable chat video uploads via browser TUS; objects in message-attachments bucket.';
 
 ALTER TABLE public.message_attachment_uploads ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.message_attachment_uploads FROM anon, authenticated;

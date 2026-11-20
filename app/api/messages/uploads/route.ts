@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-  CHAT_UPLOAD_CHUNK_BYTES,
   MAX_ACTIVE_CHAT_UPLOADS_PER_USER,
+  MESSAGE_ATTACHMENTS_BUCKET,
   attachmentDisplayFilename,
   validateChatAttachment,
+  CHAT_UPLOAD_CHUNK_BYTES,
 } from "@/lib/chatAttachmentUpload";
+import { buildChatAttachmentObjectName } from "@/lib/chatAttachmentObjectName";
+import { createChatAttachmentSignedUploadToken } from "@/lib/chatSignedStorageUpload";
 import {
   CHAT_UPLOAD_COLUMNS,
-  chatUploadJson,
   countActiveChatUploads,
   parseChatUploadConversationId,
   resolveChatUploadActor,
@@ -17,7 +19,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Start a resumable chat attachment upload (large videos). */
+/** Start a direct-to-storage TUS chat video upload. */
 export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const conversationId = parseChatUploadConversationId(body.conversationId ?? body.conversation_id);
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: check.message[lang], code: check.code }, { status: 400 });
   }
   if (check.kind !== "video") {
-    return NextResponse.json({ success: false, error: "Chunked upload is for large videos only", code: "type" }, { status: 400 });
+    return NextResponse.json({ success: false, error: "TUS upload is for large videos only", code: "type" }, { status: 400 });
   }
 
   const active = await countActiveChatUploads(actor.admin, actor.userId);
@@ -48,6 +50,19 @@ export async function POST(request: NextRequest) {
       { success: false, error: lang === "en" ? "Too many uploads in progress" : "Πολλά ανεβάσματα σε εξέλιξη", code: "busy" },
       { status: 429 }
     );
+  }
+
+  const objectName = buildChatAttachmentObjectName(conversationId, displayName, check.mimeType);
+  let token: string;
+  try {
+    const signed = await createChatAttachmentSignedUploadToken(
+      actor.admin,
+      MESSAGE_ATTACHMENTS_BUCKET,
+      objectName
+    );
+    token = signed.token;
+  } catch {
+    return NextResponse.json({ success: false, error: "Could not start upload" }, { status: 500 });
   }
 
   const { data: row, error } = await actor.admin
@@ -60,9 +75,23 @@ export async function POST(request: NextRequest) {
       file_name: displayName,
       total_bytes: Math.floor(Number(body.size)),
       chunk_bytes: CHAT_UPLOAD_CHUNK_BYTES,
+      storage_path: objectName,
     })
     .select(CHAT_UPLOAD_COLUMNS)
     .single();
-  if (error || !row) return NextResponse.json({ success: false, error: "Could not start upload" }, { status: 500 });
-  return NextResponse.json({ success: true, upload: chatUploadJson(row as ChatUploadRow) }, { status: 201 });
+  if (error || !row) {
+    await actor.admin.storage.from(MESSAGE_ATTACHMENTS_BUCKET).remove([objectName]).catch(() => undefined);
+    return NextResponse.json({ success: false, error: "Could not start upload" }, { status: 500 });
+  }
+
+  return NextResponse.json(
+    {
+      success: true,
+      uploadId: (row as ChatUploadRow).id,
+      bucket: MESSAGE_ATTACHMENTS_BUCKET,
+      objectName,
+      token,
+    },
+    { status: 201 }
+  );
 }

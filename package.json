@@ -13,6 +13,8 @@
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.86.2",
+    "@uppy/core": "^6.3.2",
+    "@uppy/tus": "^6.0.1",
     "heic-convert": "^2.1.0",
     "lucide-react": "^1.63.0",
     "next": "16.0.7",

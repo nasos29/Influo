@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const contentLength = Number(req.headers.get('content-length') || NaN);
     if (Number.isFinite(contentLength) && contentLength > MAX_CHAT_FILE_BYTES + MULTIPART_LENGTH_SLACK) {
       return NextResponse.json(
-        { success: false, error: 'File too large for direct upload; use chunked upload', code: 'size' },
+        { success: false, error: 'File too large for direct upload; use resumable upload', code: 'size' },
         { status: 413 }
       );
     }
