@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { enqueueAdminDigestItem } from "@/lib/adminDailyDigest";
 import { adminInboxAddress } from "@/lib/adminMessageSummary";
 import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
-import { buttonHtml, sendChecked, shell, siteUrl } from "@/lib/proposalMail";
+import { buildCreatorMail } from "@/lib/missingAccountMail";
+import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { escapeHtml } from "@/lib/proposalParty";
 import {
   isMissingAccountEmailEnabled,
@@ -113,20 +114,6 @@ async function notifyAdminMissingAccount(
 <p><a href="${site}/admin">Άνοιγμα admin</a></p>
 </div>`,
   });
-}
-
-export function buildCreatorMail(name: string, handle: string): { subject: string; html: string } {
-  const editUrl = `${siteUrl()}/dashboard`;
-  const atHandle = handle.startsWith("@") ? handle : `@${handle}`;
-  const body = `<p>Γεια σου ${escapeHtml(name)},</p>
-<p>Στο Influo έχεις δηλώσει τον λογαριασμό <strong>${escapeHtml(atHandle)}</strong>, αλλά δεν τον βρίσκουμε στο δίκτυο (λάθος username, αλλαγή handle ή διαγραφή λογαριασμού).</p>
-<p>Διόρθωσε το username από το προφίλ σου ώστε οι επιχειρήσεις να βλέπουν τα σωστά στοιχεία.</p>
-${buttonHtml(editUrl, "Επεξεργασία προφίλ")}
-<p style="font-size:12px;color:#6b7280;margin-top:20px;">Αν το username είναι σωστό, αγνόησε αυτό το email — μπορεί να ήταν προσωρινό σφάλμα.</p>`;
-  return {
-    subject: `Δεν βρίσκουμε τον λογαριασμό σου ${atHandle}`,
-    html: shell("Δεν βρίσκουμε τον λογαριασμό σου", body),
-  };
 }
 
 /** One email per missing handle; stamp prevents duplicates. Never throws. */

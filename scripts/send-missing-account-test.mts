@@ -4,7 +4,7 @@
  * Run in the app container:
  *   node --experimental-strip-types --import ./scripts/resolve-ts-imports.mjs scripts/send-missing-account-test.mts
  */
-import { buildCreatorMail } from "../lib/missingAccountEmail.ts";
+import { buildCreatorMail } from "../lib/missingAccountMail.ts";
 import { sendChecked } from "../lib/proposalMail.ts";
 
 const TEST_TO = "nd.6@hotmail.com";
