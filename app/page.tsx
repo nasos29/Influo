@@ -2,9 +2,13 @@ import HomePage from "@/components/HomePage";
 import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
-import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
+import { loadFeaturedCollaborations } from "@/lib/loadFeaturedCollaborations";
 import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
-import { getHomepageSectionOrderSetting, getSiteSettings } from "@/lib/siteSettingsServer";
+import {
+  getHomepageSectionOrderSetting,
+  getSiteSettings,
+  SITE_SETTINGS_CACHE_TAG,
+} from "@/lib/siteSettingsServer";
 import { unstable_cache } from "next/cache";
 
 export const revalidate = 3600;
@@ -15,10 +19,10 @@ const cachedHomeTrust = unstable_cache(
   { revalidate: 3600, tags: ["home-trust"] }
 );
 
-const cachedRecentCollaborations = unstable_cache(
-  () => loadRecentCollaborations(12, { surface: "homepage" }),
-  ["home-recent-collaborations", "homepage-surface"],
-  { revalidate: 3600, tags: ["recent-collaborations"] }
+const cachedFeaturedCollaborations = unstable_cache(
+  () => loadFeaturedCollaborations(),
+  ["home-featured-collaborations-v1"],
+  { revalidate: 3600, tags: ["recent-collaborations", SITE_SETTINGS_CACHE_TAG] }
 );
 
 /** Daily social-proof numbers (DB cache inside loader + ISR). */
@@ -36,7 +40,7 @@ export default async function Page() {
   const creatorsLimit = settings.homepage_creators_count;
   const campaignsLimit = settings.homepage_campaigns_count;
 
-  const [directoryPage, openCampaigns, trustStats, recentCollaborations, socialProofStats] =
+  const [directoryPage, openCampaigns, trustStats, featuredCollaborations, socialProofStats] =
     await Promise.all([
       unstable_cache(
         () => loadPublicDirectoryCards(creatorsLimit),
@@ -50,7 +54,7 @@ export default async function Page() {
         { revalidate: 3600, tags: ["home-campaigns"] }
       )(),
       cachedHomeTrust(),
-      cachedRecentCollaborations(),
+      cachedFeaturedCollaborations(),
       cachedSocialProofStats(),
     ]);
   return (
@@ -59,7 +63,7 @@ export default async function Page() {
       initialDirectoryTotal={directoryPage.total}
       openCampaigns={openCampaigns}
       trustStats={trustStats}
-      recentCollaborations={recentCollaborations}
+      featuredCollaborations={featuredCollaborations}
       socialProofStats={socialProofStats}
       homeCreatorsLimit={creatorsLimit}
       homeNewlyApprovedLimit={settings.homepage_newly_approved_count}

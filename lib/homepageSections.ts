@@ -76,8 +76,8 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     id: "recent_collaborations",
     title: { el: "Πρόσφατες συνεργασίες", en: "Recent collaborations" },
     description: {
-      el: "Social proof: ολοκληρωμένες συνεργασίες με διπλή συναίνεση (και αριθμοί). Κρύβεται αν δεν υπάρχουν δημόσιες.",
-      en: "Social proof: dual-consent completed collaborations (and stats). Hidden when none are public.",
+      el: "Γραμμή social proof (ολοκληρωμένες συνεργασίες, creators, brands, αξιολόγηση). Το featured video showcase είναι στο brand_cta· η λίστα στο /collaborations.",
+      en: "Social-proof stats row (completed collaborations, creators, brands, rating). Featured video showcase lives in brand_cta; listing at /collaborations.",
     },
     defaultIndex: 3,
     optional: true,
@@ -105,8 +105,8 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     id: "brand_cta",
     title: { el: "Έχετε Επιχείρηση;", en: "Are you a Company?" },
     description: {
-      el: "CTA εγγραφής επιχείρησης και features για brands.",
-      en: "Brand signup CTA and feature highlights.",
+      el: "CTA εγγραφής επιχείρησης, Athos/featured collaborations showcase (self-hosted video) και features για brands.",
+      en: "Brand signup CTA, Athos/featured collaborations showcase (self-hosted video), and feature highlights.",
     },
     defaultIndex: 6,
   },
