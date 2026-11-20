@@ -11,6 +11,10 @@ export const MAX_UPLOAD_VIDEO_SECONDS = 180;
 /** Chunk size: below nginx client_max_body_size (50m) and the staging bucket limit (16 MB). */
 export const UPLOAD_CHUNK_BYTES = 8 * 1024 * 1024;
 
+/** Mobile Files / desktop picker — explicit MIME + extensions (avoid `video/*` / `image/*` and `capture`). */
+export const PORTFOLIO_FILE_ACCEPT =
+  "video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm,image/jpeg,image/png,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.heic,.heif";
+
 /** Abuse guards (uploads only; nothing here limits emails). */
 export const MAX_ACTIVE_UPLOADS_PER_CREATOR = 6;
 export const MAX_UPLOADS_PER_CREATOR_PER_DAY = 30;

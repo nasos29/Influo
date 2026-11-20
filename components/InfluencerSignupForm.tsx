@@ -27,6 +27,8 @@ import CategoryCheckboxList from "./CategoryCheckboxList";
 import SkillsPicker from "@/components/SkillsPicker";
 import { sanitizeSkills, type SkillKey } from "@/lib/skills";
 import PortfolioVideoLinkRow from "./PortfolioVideoLinkRow";
+import PortfolioMediaUploader from "@/components/PortfolioMediaUploader";
+import { usePortfolioMediaUpload } from "@/lib/usePortfolioMediaUpload";
 import { clearLoggedOutMark } from "@/lib/authSession";
 import {
   BIRTH_DATE_MIN,
@@ -260,6 +262,12 @@ export default function InfluencerSignupForm() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [insightFiles, setInsightFiles] = useState<File[]>([]); 
   const [videoRows, setVideoRows] = useState<VideoRow[]>(() => toVideoRows([""]));
+  const [signupInfluencerId, setSignupInfluencerId] = useState<string | null>(null);
+  const signupPortfolioUpload = usePortfolioMediaUpload({
+    influencerId: signupInfluencerId,
+    lang,
+    deferUntilInfluencerId: true,
+  });
   const [engagementRate, setEngagementRate] = useState("");
   const [avgLikes, setAvgLikes] = useState("");
   const [servicePrices, setServicePrices] = useState<CreatorServicePrices>(() => emptyCreatorServicePrices());
@@ -645,7 +653,10 @@ export default function InfluencerSignupForm() {
         setLoading(false);
         return;
       }
-      if (preparedVideos.videos.length > MAX_PORTFOLIO_POSTS) {
+      const pendingUploads = signupPortfolioUpload.items.filter((i) =>
+        ["queued", "checking", "sending", "paused", "processing"].includes(i.phase)
+      ).length;
+      if (preparedVideos.videos.length + pendingUploads > MAX_PORTFOLIO_POSTS) {
         setVideoLinkError(portfolioLimitMessage(lang));
         setMessage(portfolioLimitMessage(lang));
         setLoading(false);
@@ -907,6 +918,17 @@ export default function InfluencerSignupForm() {
           }
           throw insertError;
       }
+
+      setSignupInfluencerId(authUser.id);
+      signupPortfolioUpload.setOnReady((url) => {
+        setVideoRows((rows) => {
+          if (rows.some((r) => r.url.trim() === url)) return rows;
+          const empty = rows.findIndex((r) => !r.url.trim());
+          if (empty >= 0) return rows.map((r, i) => (i === empty ? { ...r, url } : r));
+          return rows.length >= MAX_PORTFOLIO_POSTS ? rows : [...rows, { id: newVideoRowId(), url }];
+        });
+      });
+      signupPortfolioUpload.flushQueued(authUser.id);
 
       // Insert follower snapshot
       try {
@@ -1329,6 +1351,19 @@ export default function InfluencerSignupForm() {
                     {videoRows.length < MAX_PORTFOLIO_POSTS ? (
                     <button type="button" onClick={addVideo} className="text-blue-600 text-sm font-bold hover:underline">{txt.addVideo}</button>
                     ) : null}
+                    <PortfolioMediaUploader
+                      influencerId={signupInfluencerId}
+                      lang={lang}
+                      localUpload={signupPortfolioUpload}
+                      slotsLeft={Math.max(
+                        0,
+                        MAX_PORTFOLIO_POSTS -
+                          videoRows.filter((r) => r.url.trim()).length -
+                          signupPortfolioUpload.items.filter((i) =>
+                            ["queued", "checking", "sending", "paused", "processing"].includes(i.phase)
+                          ).length
+                      )}
+                    />
                 </div>
 
                 <CreatorPlatformPrices
@@ -1348,7 +1383,17 @@ export default function InfluencerSignupForm() {
                     disabled={loading || videosChecking || videosNotPlayable}
                     className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-slate-900/30 hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? txt.loading : videosChecking ? checkingLabel : txt.submit}
+                    {loading
+                      ? signupPortfolioUpload.topSending
+                        ? `${lang === "en" ? "Upload" : "Ανέβασμα"} ${signupPortfolioUpload.topSending.percent}%`
+                        : signupPortfolioUpload.hasByteTransfer
+                          ? lang === "en"
+                            ? "Uploading…"
+                            : "Ανέβασμα…"
+                          : txt.loading
+                      : videosChecking
+                        ? checkingLabel
+                        : txt.submit}
                   </button>
                 </div>
             </div>

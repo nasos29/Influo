@@ -12,7 +12,15 @@ import {
   uploadMediaType,
   validateChunk,
   validateUploadRequest,
+  PORTFOLIO_FILE_ACCEPT,
 } from "../lib/portfolioUpload.ts";
+
+test("file input accept lists explicit MIME and extensions (no wildcards)", () => {
+  assert.match(PORTFOLIO_FILE_ACCEPT, /video\/mp4/);
+  assert.doesNotMatch(PORTFOLIO_FILE_ACCEPT, /video\/\*/);
+  assert.doesNotMatch(PORTFOLIO_FILE_ACCEPT, /image\/\*/);
+  assert.match(PORTFOLIO_FILE_ACCEPT, /\.heic/);
+});
 
 test("type detection: MIME first, extension fallback for empty/octet-stream (iOS HEIC)", () => {
   assert.equal(uploadMediaType("video/quicktime", "a.mov"), "video");

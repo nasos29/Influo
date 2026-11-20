@@ -1,12 +1,13 @@
 // components/DashboardContent.tsx
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabaseClient';
 import { sessionFetch } from '@/lib/sessionFetch';
 import PortfolioMediaUploader from '@/components/PortfolioMediaUploader';
+import { usePortfolioUploadContext } from '@/components/PortfolioUploadProvider';
 import { isUploadedPortfolioUrl } from '@/lib/portfolioUpload';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
@@ -197,8 +198,21 @@ const HIDDEN_VIDEO_NOTICE = {
 } as const;
 
 // --- COMPREHENSIVE EDIT MODAL WITH SOCIAL ACCOUNTS ---
+function accountEditableSig(list: Account[] | null | undefined): string {
+    return JSON.stringify(
+        (Array.isArray(list) ? list : [])
+            .filter((acc) => acc.username && acc.platform && acc.platform !== 'Facebook')
+            .map((acc) => [
+                String(acc.platform || '').trim().toLowerCase(),
+                String(acc.username || '').replace(/^@+/, '').trim().toLowerCase(),
+                String(acc.followers ?? '').trim(),
+            ])
+    );
+}
+
 const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection = 'basics', focusSkills = false, focusPhoto = false, focusBio = false, focusAudience = false }: { user: InfluencerData, onClose: () => void, onSave: (updatedUser: InfluencerData) => void, lang?: 'el' | 'en', notify: (message: string, tone?: 'success' | 'error' | 'info') => void, initialSection?: EditSection, focusSkills?: boolean, focusPhoto?: boolean, focusBio?: boolean, focusAudience?: boolean }) => {
     const L = (el: string, en: string) => (lang === 'en' ? en : el);
+    const portfolioUpload = usePortfolioUploadContext();
     const [name, setName] = useState(user.display_name);
     const [bio, setBio] = useState(user.bio || "");
     const [location, setLocation] = useState(user.location || "");
@@ -392,6 +406,23 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const baselineRef = useRef<string | null>(null);
     if (baselineRef.current === null) baselineRef.current = formSignature;
     const unsaved = formSignature !== baselineRef.current;
+
+    const socialAccountsWillChange = useMemo(
+        () => accountEditableSig(accounts) !== accountEditableSig(user.accounts),
+        [accounts, user.accounts]
+    );
+
+    useEffect(() => {
+        portfolioUpload.setOnReady((url) => {
+            setVideoRows((rows) => {
+                if (rows.some((r) => r.url.trim() === url)) return rows;
+                const empty = rows.findIndex((r) => !r.url.trim());
+                if (empty >= 0) return rows.map((r, i) => (i === empty ? { ...r, url } : r));
+                return [...rows, { id: newVideoRowId(), url }];
+            });
+        });
+        return () => portfolioUpload.setOnReady(null);
+    }, [portfolioUpload]);
 
     const requestClose = () => {
         if (loading) return;
@@ -889,7 +920,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
             notify(L("Δεν υπάρχουν αλλαγές για αποθήκευση.", "There are no changes to save."), 'info');
             return;
         }
-        setConfirmSave(true);
+        if (socialAccountsWillChange) {
+            setConfirmSave(true);
+        } else {
+            void performSave();
+        }
     };
 
     const platforms = ["Instagram", "TikTok", "YouTube", "Twitter"];
@@ -1286,13 +1321,22 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                               </p>
                                             )}
                                             {!rejected && video && isEmbeddableVideoUrl(video) && (
-                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                <div className="relative mt-2 flex max-h-64 min-h-[8rem] w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail 
                                                         url={video}
                                                         alt="Video/Photo thumbnail"
                                                         fill
-                                                        className={isImage ? "object-contain" : "object-cover"}
+                                                        className="object-contain"
                                                     />
+                                                    {portfolioUpload.items.some(
+                                                        (it) =>
+                                                            it.phase === "processing" &&
+                                                            it.upload?.portfolioUrl === video
+                                                    ) ? (
+                                                        <span className="absolute left-2 top-2 z-10 rounded-md bg-slate-900/80 px-2 py-0.5 text-xs font-medium text-white">
+                                                            {L("Επεξεργάζεται…", "Processing…")}
+                                                        </span>
+                                                    ) : null}
                                                     {isVideo && !isInstagramPost && !isTikTokPhoto && (
                                                         <div className="absolute inset-0 flex items-center justify-center bg-black/30 pointer-events-none">
                                                             <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
@@ -1303,7 +1347,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                                 </div>
                                             )}
                                             {!rejected && video && isImage && (
-                                                <div className="mt-2 relative w-full h-32 rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                <div className="relative mt-2 flex max-h-64 min-h-[8rem] w-full items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                                                     <VideoThumbnail
                                                         url={video}
                                                         alt="Video/Photo thumbnail"
@@ -1332,14 +1376,6 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                                 influencerId={String(user.id)}
                                 lang={lang}
                                 slotsLeft={Math.max(0, MAX_PORTFOLIO_POSTS - videoRows.filter((r) => r.url.trim()).length)}
-                                onReady={(url) =>
-                                    setVideoRows((rows) => {
-                                        if (rows.some((r) => r.url.trim() === url)) return rows;
-                                        const empty = rows.findIndex((r) => !r.url.trim());
-                                        if (empty >= 0) return rows.map((r, i) => (i === empty ? { ...r, url } : r));
-                                        return [...rows, { id: newVideoRowId(), url }];
-                                    })
-                                }
                             />
                         </div>
                     </div>
@@ -1348,9 +1384,11 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                     </div>
 
                     <div className="sticky bottom-0 z-10 border-t border-slate-200 bg-white px-4 py-3 sm:px-6">
-                        <p className="mb-2 text-xs text-amber-800">
-                            {L('Μετά την αποθήκευση το προφίλ μπαίνει σε εκκρεμότητα μέχρι τον νέο έλεγχο.', 'After saving, the profile stays pending until it is reviewed again.')}
-                        </p>
+                        {socialAccountsWillChange ? (
+                            <p className="mb-2 text-xs text-amber-800">
+                                {L('Μετά την αποθήκευση το προφίλ μπαίνει σε εκκρεμότητα μέχρι τον νέο έλεγχο.', 'After saving, the profile stays pending until it is reviewed again.')}
+                            </p>
+                        ) : null}
                         <div className="flex items-center justify-between gap-3">
                             <p className="text-xs font-medium text-slate-500">
                                 {unsaved ? L('Μη αποθηκευμένες αλλαγές', 'Unsaved changes') : L('Όλα αποθηκευμένα', 'All changes saved')}

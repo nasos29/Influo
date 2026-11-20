@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient'; 
 import { useRouter } from 'next/navigation';
 import DashboardContent from '@/components/DashboardContent';
+import { PortfolioUploadProvider } from '@/components/PortfolioUploadProvider';
 import { loadOwnProfiles } from '@/lib/ownProfile';
 import { logoutEverywhere, lookupAuthUser } from '@/lib/authSession';
 import { getStoredLanguage } from '@/lib/language';
@@ -178,7 +179,9 @@ export default function DashboardPage() {
                 </div>
             </div>
         }>
-            <DashboardContent profile={profileData} />
+            <PortfolioUploadProvider influencerId={String(profileData.id)} lang={lang}>
+                <DashboardContent profile={profileData} />
+            </PortfolioUploadProvider>
         </Suspense>
     );
 }
