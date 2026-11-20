@@ -303,11 +303,11 @@ function HeroSeekBar({
   );
 }
 
-/** Hero/thumb caps: ~10% shorter than pre-MAG-1; full panel inner width (lg:gap-4); thumbs ~88% of hero; column matches hero. */
+/** Hero/thumb caps: ~10% shorter than pre-MAG-1; lg:gap-4 row; thumbs ~88% of hero; 2xl widens ratio to use panel inner width. */
 const HERO_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] h-[min(63vh,27.9rem)] w-auto max-w-full lg:h-[min(63vh,32.6rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(63vh,27.9rem)] w-auto max-w-full lg:h-[min(63vh,32.6rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] w-28 sm:w-32 md:w-36 lg:h-[min(55.4vh,28.7rem)] lg:w-auto";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(55.4vh,28.7rem)] lg:w-auto";
 const THUMBS_COLUMN_HEIGHT = "lg:h-[min(63vh,32.6rem)]";
 
 function ShowcaseBrandPill({
