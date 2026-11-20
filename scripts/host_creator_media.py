@@ -40,7 +40,7 @@ from typing import Any
 BUCKET = "creator-videos"
 KIND_FOLDER = {"portfolio": "portfolio", "top_post": "top-posts", "collab": "collabs"}
 
-def _load_media_storage():
+def _load_media_storage_module():
     import importlib.util
     from pathlib import Path as _P
     candidate = _P(__file__).resolve().parent / "media_storage.py"
@@ -49,7 +49,11 @@ def _load_media_storage():
         raise SystemExit("scripts/media_storage.py is required")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    return mod.create_object_store
+    return mod
+
+
+def _load_media_storage():
+    return _load_media_storage_module().create_object_store
 
 TOP_POSTS_DISPLAY_LIMIT = 3
 HOSTED_TOP_POST_PLATFORMS = ("instagram", "tiktok")
@@ -693,8 +697,7 @@ def is_self_hosted_media_url(url: str) -> bool:
     u = str(url or "").strip()
     if not u:
         return False
-    mstore = _load_media_storage()
-    base = (mstore.media_public_base_url() or "").rstrip("/")
+    base = (_load_media_storage_module().media_public_base_url() or "").rstrip("/")
     if base and u.lower().startswith(base.lower() + "/"):
         rest = u[len(base) + 1 :]
         if rest.lower().startswith("creators/") and "/portfolio/" in rest.lower():
