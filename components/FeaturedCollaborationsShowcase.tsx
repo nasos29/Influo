@@ -568,13 +568,19 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
         {data.totalViews != null ? (
           <p className="mt-5 text-center text-base font-medium text-slate-600 sm:mt-6 sm:text-lg">
-            {txt.publicViewsLead}{" "}
-            <CountUp
-              value={data.totalViews}
-              formatLocale={lang === "el" ? "el-GR" : "en-GB"}
-              className="font-semibold text-slate-800"
-            />{" "}
-            {txt.publicViews}
+            <span className="relative inline-block pb-1">
+              {txt.publicViewsLead}{" "}
+              <CountUp
+                value={data.totalViews}
+                formatLocale={lang === "el" ? "el-GR" : "en-GB"}
+                className="font-semibold text-slate-800"
+              />{" "}
+              {txt.publicViews}
+              <span
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-gradient-to-r from-[var(--secondary)] to-[var(--accent)]"
+                aria-hidden
+              />
+            </span>
           </p>
         ) : null}
 
