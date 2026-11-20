@@ -303,12 +303,12 @@ function HeroSeekBar({
   );
 }
 
-/** Hero/thumb caps: largest 9:16 sizes that fit the pre-#505 panel row (~1240px cluster, lg:gap-4); thumbs ~88% of hero; column matches hero. */
+/** Hero/thumb caps: ~10% shorter than pre-MAG-1; lg:gap-4 row; thumbs ~88% of hero; 2xl widens ratio to use panel inner width. */
 const HERO_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] h-[min(70vh,31rem)] w-auto max-w-full lg:h-[min(70vh,36.25rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(63vh,27.9rem)] w-auto max-w-full lg:h-[min(63vh,32.6rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] w-28 sm:w-32 md:w-36 lg:h-[min(61.6vh,31.9rem)] lg:w-auto";
-const THUMBS_COLUMN_HEIGHT = "lg:h-[min(70vh,36.25rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(55.4vh,28.7rem)] lg:w-auto";
+const THUMBS_COLUMN_HEIGHT = "lg:h-[min(63vh,32.6rem)]";
 
 function ShowcaseBrandPill({
   brandName,
@@ -429,7 +429,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           />
         </div>
         <div className="relative z-10 p-4 sm:p-5 md:p-6">
-        <div className="relative mx-auto flex w-full max-w-[1240px] flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
+        <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
             <div className={HERO_FRAME}>
               <video
