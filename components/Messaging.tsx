@@ -1565,7 +1565,7 @@ export default function Messaging({
   const jumpToMessage = (id: string) => {
     const el = document.getElementById(`msg-${id}`);
     if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.scrollIntoView({ block: 'center' });
     el.classList.add('ring-2', 'ring-amber-300');
     window.setTimeout(() => el.classList.remove('ring-2', 'ring-amber-300'), 1400);
   };
@@ -1902,7 +1902,7 @@ export default function Messaging({
 
   const scrollToBottom = (force = false) => {
     if (!force && !stickToBottomRef.current) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView();
   };
 
   const onMessageListScroll = () => {

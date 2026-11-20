@@ -585,7 +585,7 @@ export default function Directory({
         else params.set("page", String(safe));
       });
       if (typeof window !== "undefined") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo(0, 0);
       }
     },
     [replaceUrlParams]

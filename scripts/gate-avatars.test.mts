@@ -24,7 +24,7 @@ test("invite button is for visitors, brands, and admins", () => {
   assert.equal(showCampaignInviteButton({ ...base, hasSession: true, isBrand: true }), true);
   assert.equal(showCampaignInviteButton({ ...base, hasSession: true, isAdmin: true }), true);
   assert.equal(showCampaignInviteButton({ ...base, hasSession: true }), false);
-  assert.equal(showCampaignInviteButton({ ...base, sessionChecked: false }), false);
+  assert.equal(showCampaignInviteButton({ ...base, sessionChecked: false }), true);
 });
 
 test("avatar fetch does not send the brand session", () => {

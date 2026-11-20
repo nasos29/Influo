@@ -838,7 +838,7 @@ export default function BrandCampaignsSection({
     requestAnimationFrame(() => {
       document
         .getElementById(`brand-deliverable-${focusApplicationId}`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        ?.scrollIntoView({ block: "center" });
     });
   }, [focusDeliverable, focusApplicationId, panel, appsByCampaign]);
 
@@ -1022,7 +1022,7 @@ export default function BrandCampaignsSection({
       const f = formRef.current;
       if (!f) return;
       const top = f.getBoundingClientRect().top + window.scrollY - 80;
-      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      window.scrollTo(0, Math.max(0, top));
       setTimeout(() => (document.getElementById("cf-title") as HTMLInputElement | null)?.focus({ preventScroll: true }), 400);
     }, 60);
   };
@@ -1086,7 +1086,7 @@ export default function BrandCampaignsSection({
 
   const goToStep = (next: number) => {
     setStep(Math.max(1, Math.min(3, next)));
-    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: "nearest" }));
   };
 
   /** Per-field Greek/English messages for a step; empty object = can proceed. */
