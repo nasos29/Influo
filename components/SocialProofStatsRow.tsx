@@ -2,6 +2,8 @@
 
 import CountUp from "@/components/CountUp";
 import type { SocialProofStats } from "@/lib/loadSocialProofStats";
+import { Building2, Handshake, Star, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 type Lang = "el" | "en";
 
@@ -19,6 +21,29 @@ const COPY = {
     rating: "average rating",
   },
 } as const;
+
+const STAT_ICONS: Record<string, LucideIcon> = {
+  completed: Handshake,
+  creators: Users,
+  brands: Building2,
+  rating: Star,
+};
+
+const GRADIENT_NUMBER =
+  "bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent";
+
+function listLayoutClass(count: number): string {
+  if (count === 1) {
+    return "grid grid-cols-1 max-w-xs mx-auto sm:flex sm:max-w-md";
+  }
+  if (count === 2) {
+    return "grid grid-cols-2 gap-3 max-w-lg mx-auto sm:flex sm:max-w-2xl sm:gap-0";
+  }
+  if (count === 3) {
+    return "grid grid-cols-3 gap-2 sm:gap-3 max-w-4xl mx-auto sm:flex sm:gap-0";
+  }
+  return "grid grid-cols-2 gap-3 max-w-lg mx-auto sm:flex sm:max-w-5xl sm:gap-0";
+}
 
 export default function SocialProofStatsRow({
   stats,
@@ -56,24 +81,50 @@ export default function SocialProofStatsRow({
   if (items.length === 0) return null;
 
   return (
-    <div className="w-full max-w-page mx-auto px-6 pb-4">
-      <ul className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 md:gap-x-12">
-        {items.map((item) => (
-          <li key={item.key} className="text-center min-w-0">
-            <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight tabular-nums">
-              {item.kind === "rating" ? (
-                <>
-                  {item.value.toFixed(1)}
-                  <span className="ml-0.5 text-amber-500">★</span>
-                </>
-              ) : (
-                <CountUp value={item.value} className="tabular-nums" />
-              )}
-            </p>
-            <p className="mt-1 text-sm md:text-base text-slate-600 font-medium">{item.label}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <section
+      className="w-full border-y border-slate-200/80 bg-gradient-to-b from-slate-50/90 via-white to-slate-50/60 py-8 md:py-10"
+      aria-label={lang === "el" ? "Στατιστικά πλατφόρμας" : "Platform statistics"}
+    >
+      <div className="w-full max-w-page mx-auto px-4 sm:px-6">
+        <ul
+          className={`w-full ${listLayoutClass(items.length)} sm:items-stretch sm:justify-center sm:divide-x sm:divide-slate-200/90`}
+        >
+          {items.map((item) => {
+            const Icon = STAT_ICONS[item.key];
+
+            return (
+              <li
+                key={item.key}
+                className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-2xl border border-slate-100/90 bg-white/90 px-2 py-4 text-center shadow-sm sm:rounded-none sm:border-0 sm:bg-transparent sm:px-5 sm:py-1 sm:shadow-none md:px-8"
+              >
+                {Icon ? (
+                  <div
+                    className="mb-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600/10 to-purple-600/15"
+                    aria-hidden
+                  >
+                    <Icon className="h-[1.125rem] w-[1.125rem] text-purple-600" strokeWidth={2.25} />
+                  </div>
+                ) : null}
+                <p className="text-3xl font-bold tracking-tight tabular-nums sm:text-4xl md:text-[2.75rem] md:leading-none">
+                  {item.kind === "rating" ? (
+                    <>
+                      <span className={GRADIENT_NUMBER}>{item.value.toFixed(1)}</span>
+                      <span className="ml-0.5 text-2xl text-amber-500 sm:text-3xl" aria-hidden>
+                        ★
+                      </span>
+                    </>
+                  ) : (
+                    <CountUp value={item.value} className={GRADIENT_NUMBER} />
+                  )}
+                </p>
+                <p className="mt-2 px-0.5 text-xs font-medium leading-snug text-slate-600 sm:px-0 sm:text-sm md:text-base">
+                  {item.label}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </section>
   );
 }
