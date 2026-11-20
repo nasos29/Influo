@@ -302,17 +302,17 @@ function ShowcaseBrandPill({
 }) {
   const logo = brandLogoUrl ? getCachedImageUrl(brandLogoUrl) ?? brandLogoUrl : null;
   return (
-    <span className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-base font-semibold text-slate-900 shadow-sm sm:text-lg">
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm sm:text-base">
       {logo ? (
         <Image
           src={logo}
           alt=""
-          width={44}
-          height={44}
-          className="h-10 w-10 shrink-0 rounded-full object-contain sm:h-11 sm:w-11"
+          width={36}
+          height={36}
+          className="h-8 w-8 shrink-0 rounded-full object-contain sm:h-9 sm:w-9"
         />
       ) : (
-        <span className="h-10 w-10 shrink-0 rounded-full bg-slate-100 sm:h-11 sm:w-11" aria-hidden />
+        <span className="h-8 w-8 shrink-0 rounded-full bg-slate-100 sm:h-9 sm:w-9" aria-hidden />
       )}
       {brandName}
     </span>
@@ -456,9 +456,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink">
-              <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
-              <div className="flex w-full max-w-full flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
+            <div className="flex w-full max-w-full flex-col items-center gap-3 lg:h-[min(70vh,35rem)] lg:w-auto lg:max-w-none lg:shrink-0 lg:gap-0">
+              <div className="flex w-full justify-center lg:min-h-0 lg:flex-1 lg:items-center">
+                <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
+              </div>
+              <div className="flex w-full max-w-full shrink-0 flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
               {thumbnails.map((card) => (
                 <div key={card.applicationId} className={THUMB_FRAME}>
                   <button
