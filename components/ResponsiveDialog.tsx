@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-/** Centered dialog on desktop, bottom sheet on small screens. */
+/** Centered dialog on desktop, bottom sheet on small screens (portaled above sticky header). */
 export default function ResponsiveDialog({
   open,
   onClose,
@@ -23,9 +24,16 @@ export default function ResponsiveDialog({
   frame?: boolean;
 }) {
   const onCloseRef = useRef(onClose);
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -40,13 +48,17 @@ export default function ResponsiveDialog({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || !portalTarget) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4">
+  const sheetMaxH = frame
+    ? "max-h-[calc(100dvh-4.5rem-env(safe-area-inset-top,0px))] sm:max-h-[92vh]"
+    : "max-h-[calc(100dvh-4.5rem-env(safe-area-inset-top,0px)-0.5rem)] sm:max-h-[92vh]";
+
+  return createPortal(
+    <div className="fixed inset-x-0 bottom-0 top-[calc(4.5rem+env(safe-area-inset-top,0px))] z-[100] flex items-end justify-center sm:inset-0 sm:top-0 sm:items-center sm:p-4">
       <button
         type="button"
-        className="absolute inset-0 bg-slate-900/55"
+        className="absolute inset-0 bg-slate-900/55 sm:inset-0"
         aria-label="Close"
         onClick={onClose}
       />
@@ -56,8 +68,8 @@ export default function ResponsiveDialog({
         aria-labelledby={labelledBy}
         className={`relative w-full rounded-t-3xl bg-white shadow-2xl sm:rounded-2xl ${
           frame
-            ? "flex max-h-[100dvh] flex-col overflow-hidden sm:max-h-[92vh]"
-            : "max-h-[calc(100dvh-0.5rem)] overflow-y-auto sm:max-h-[92vh]"
+            ? `flex flex-col overflow-hidden ${sheetMaxH}`
+            : `overflow-y-auto ${sheetMaxH}`
         } ${
           (size ?? (wide ? "wide" : "md")) === "wide"
             ? "sm:max-w-4xl"
@@ -68,7 +80,8 @@ export default function ResponsiveDialog({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 }
 

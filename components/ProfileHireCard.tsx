@@ -146,8 +146,8 @@ export default function ProfileHireCard({
   if (variant === "bar") {
     return (
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white px-4 pt-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex max-w-6xl items-center gap-3">
-          <div className="ml-auto flex items-center gap-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-center gap-3">
+          <div className="flex items-center gap-2">
             {priceText ? (
               <div className="min-w-0 mr-3">
                 <div className="truncate text-xl font-bold leading-none tabular-nums text-slate-900">{priceText}</div>
