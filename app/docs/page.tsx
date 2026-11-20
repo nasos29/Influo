@@ -1665,7 +1665,7 @@ export default function DocsPage() {
               </h4>
               <ul className="space-y-2 text-slate-700 list-disc list-inside mb-0">
                 <li>{lang === 'el' ? 'Real-time messaging: Άμεση επικοινωνία' : 'Real-time messaging: Instant communication'}</li>
-                <li>{lang === 'el' ? 'Attachments: εικόνες, PDF ή κείμενο (έως 10MB) και βίντεο (MP4, MOV, WebM, M4V, 3GP, έως 2GB) με το κουμπί 📎 — μεγάλα βίντεο στο παρασκήνιο με προόδο' : 'Attachments: images, PDFs, or text (up to 10MB) and videos (MP4, MOV, WebM, M4V, 3GP, up to 2GB) via the 📎 button — large videos upload in the background with a progress bar'}</li>
+                <li>{lang === 'el' ? 'Attachments: εικόνες, PDF ή κείμενο (έως 10MB) και βίντεο (MP4, MOV, WebM, M4V, 3GP, έως 2GB) με το κουμπί 📎 — μεγάλα βίντεο στο παρασκήνιο με πρόοδο' : 'Attachments: images, PDFs, or text (up to 10MB) and videos (MP4, MOV, WebM, M4V, 3GP, up to 2GB) via the 📎 button — large videos upload in the background with a progress bar'}</li>
                 <li>{lang === 'el' ? 'Notifications: Email και προαιρετικά push για νέα μηνύματα' : 'Notifications: Email and optional push for new messages'}</li>
                 <li>{lang === 'el' ? 'Proposal linking: Μηνύματα συνδέονται με προσφορές όπου ισχύει' : 'Proposal linking: Messages linked to proposals where relevant'}</li>
               </ul>
