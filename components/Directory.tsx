@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useClientSearchParams } from "@/lib/useClientSearchParams";
 import InfluencerCard from "./InfluencerCard";
 import { BADGE_FILTER_TYPES, getBadges, getBadgeFilterLabel, type BadgeType } from "../lib/badges";
 import { getVisitorId } from "../lib/visitorId";
@@ -304,7 +305,7 @@ export default function Directory({
   const isMountedRef = useRef(true);
   const router = useRouter();
   const pathname = usePathname() || "/directory";
-  const searchParams = useSearchParams();
+  const searchParams = useClientSearchParams();
   const skipPageResetRef = useRef(true);
   const isHomePreview = typeof homeLimit === "number" && homeLimit > 0;
 
