@@ -106,14 +106,16 @@ function CreatorProfileLink({
     <div className={`min-w-0 ${className}`}>
       <Link
         href={href}
-        className="inline-flex min-w-0 items-center gap-2 text-white text-sm font-semibold drop-shadow-sm hover:underline underline-offset-2"
+        className="inline-flex min-w-0 items-center gap-2 text-white text-xs font-semibold drop-shadow-sm hover:underline underline-offset-2 sm:text-sm"
         onClick={onClick}
       >
         <CreatorMiniAvatar src={avatarUrl} name={name} />
         <span className="truncate">{name}</span>
       </Link>
       {platformLabel ? (
-        <p className="mt-0.5 pl-9 text-[11px] font-medium text-white/80 truncate">{platformLabel}</p>
+        <p className="mt-0.5 pl-9 text-[10px] font-medium text-white/80 truncate sm:text-[11px]">
+          {platformLabel}
+        </p>
       ) : null}
     </div>
   );
@@ -303,12 +305,12 @@ function HeroSeekBar({
   );
 }
 
-/** Hero/thumb caps: ~10% shorter than pre-MAG-1; lg:gap-4 row; thumbs ~88% of hero; 2xl widens ratio to use panel inner width. */
+/** Hero/thumb caps: ~10% shorter again vs prior MAG-1; lg:gap-4; thumbs ~88% of hero height; 2xl widens ratio. */
 const HERO_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(63vh,27.9rem)] w-auto max-w-full lg:h-[min(63vh,32.6rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full lg:h-[min(56.7vh,29.3rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(55.4vh,28.7rem)] lg:w-auto";
-const THUMBS_COLUMN_HEIGHT = "lg:h-[min(63vh,32.6rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(49.9vh,25.8rem)] lg:w-auto";
+const THUMBS_COLUMN_HEIGHT = "lg:h-[min(56.7vh,29.3rem)]";
 
 function ShowcaseBrandPill({
   brandName,
@@ -481,7 +483,8 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
             <div
               className={`flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink-0 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
             >
-              <div className="flex w-full max-w-full shrink-0 flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
+              <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain scroll-px-3 px-3 pb-2 pt-1 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0">
+                <div className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:w-auto lg:gap-4">
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
@@ -525,6 +528,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 </div>
                 </div>
               ))}
+                </div>
               </div>
             </div>
           ) : null}
