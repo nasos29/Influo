@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { UPLOAD_CHUNK_BYTES, UPLOAD_PARALLEL_CHUNKS, chunkCount, validateUploadRequest } from "@/lib/portfolioUpload";
+import {
+  chunksRemaining,
+  createChunkPumpState,
+  markChunkComplete,
+  markChunkFailed,
+  pickNextChunkIndex,
+} from "@/lib/portfolioUploadChunkPump";
 
 export type PortfolioUploadLang = "el" | "en";
 
@@ -110,13 +117,61 @@ export function usePortfolioMediaUpload({
   const [items, setItems] = useState<PortfolioUploadItem[]>([]);
   const controllers = useRef<Map<string, AbortController>>(new Map());
   const reported = useRef<Set<string>>(new Set());
-  const onReadyRef = useRef<((url: string) => void) | null>(null);
+  const pendingReadyRef = useRef<Array<{ id: string; url: string }>>([]);
+  const onReadyListeners = useRef(new Set<(url: string) => void>());
+  const exclusiveOnReady = useRef<((url: string) => void) | null>(null);
   const influencerIdRef = useRef(influencerId);
   influencerIdRef.current = influencerId;
 
-  const setOnReady = useCallback((fn: ((url: string) => void) | null) => {
-    onReadyRef.current = fn;
+  const flushPendingToListener = useCallback((fn: (url: string) => void) => {
+    for (const item of [...pendingReadyRef.current]) {
+      if (reported.current.has(item.id)) continue;
+      fn(item.url);
+      reported.current.add(item.id);
+    }
+    pendingReadyRef.current = pendingReadyRef.current.filter((p) => !reported.current.has(p.id));
   }, []);
+
+  const deliverReadyUrl = useCallback(
+    (id: string, url: string) => {
+      if (reported.current.has(id)) return;
+      const listeners = onReadyListeners.current;
+      if (listeners.size > 0) {
+        for (const fn of listeners) fn(url);
+        reported.current.add(id);
+        pendingReadyRef.current = pendingReadyRef.current.filter((p) => p.id !== id);
+        return;
+      }
+      if (!pendingReadyRef.current.some((p) => p.id === id)) {
+        pendingReadyRef.current.push({ id, url });
+      }
+    },
+    []
+  );
+
+  const registerOnReady = useCallback(
+    (fn: (url: string) => void) => {
+      onReadyListeners.current.add(fn);
+      flushPendingToListener(fn);
+      return () => {
+        onReadyListeners.current.delete(fn);
+      };
+    },
+    [flushPendingToListener]
+  );
+
+  const setOnReady = useCallback(
+    (fn: ((url: string) => void) | null) => {
+      const prev = exclusiveOnReady.current;
+      if (prev) onReadyListeners.current.delete(prev);
+      exclusiveOnReady.current = fn;
+      if (fn) {
+        onReadyListeners.current.add(fn);
+        flushPendingToListener(fn);
+      }
+    },
+    [flushPendingToListener]
+  );
 
   const update = useCallback((key: string, patch: Partial<PortfolioUploadItem>) => {
     setItems((prev) => prev.map((it) => (it.key === key ? { ...it, ...patch } : it)));
@@ -164,10 +219,7 @@ export function usePortfolioMediaUpload({
         if (!processingIds.includes(u.id)) continue;
         if (u.status === "ready") {
           setItems((prev) => prev.map((it) => (it.upload?.id === u.id ? { ...it, upload: u, phase: "ready" } : it)));
-          if (u.portfolioUrl && !reported.current.has(u.id)) {
-            reported.current.add(u.id);
-            onReadyRef.current?.(u.portfolioUrl);
-          }
+          if (u.portfolioUrl) deliverReadyUrl(u.id, u.portfolioUrl);
         } else if (u.status === "failed") {
           setItems((prev) =>
             prev.map((it) => (it.upload?.id === u.id ? { ...it, upload: u, phase: "failed", message: u.error || undefined } : it))
@@ -176,7 +228,7 @@ export function usePortfolioMediaUpload({
       }
     }, 8000);
     return () => clearInterval(timer);
-  }, [processingIds, qs]);
+  }, [deliverReadyUrl, processingIds, qs]);
 
   const send = useCallback(
     async (key: string, file: File, upload: ServerUpload, activeId: string) => {
@@ -187,12 +239,18 @@ export function usePortfolioMediaUpload({
       let failures = 0;
       update(key, { phase: "sending", upload: current, message: undefined });
       try {
-        const totalChunks = chunkCount(current.totalBytes, current.chunkBytes || UPLOAD_CHUNK_BYTES);
+        const chunkBytes = current.chunkBytes || UPLOAD_CHUNK_BYTES;
+        const totalChunks = chunkCount(current.totalBytes, chunkBytes);
         const inflight = new Map<number, Promise<void>>();
+        const pumpState = createChunkPumpState(
+          totalChunks,
+          UPLOAD_PARALLEL_CHUNKS,
+          Math.floor(current.receivedBytes / chunkBytes)
+        );
 
         const sendChunk = async (index: number) => {
-          const offset = index * (current.chunkBytes || UPLOAD_CHUNK_BYTES);
-          const end = Math.min(offset + (current.chunkBytes || UPLOAD_CHUNK_BYTES), current.totalBytes);
+          const offset = index * chunkBytes;
+          const end = Math.min(offset + chunkBytes, current.totalBytes);
           const token = await authHeader();
           const { status, json } = await putChunk(
             `/api/portfolio-media/uploads/${current.id}?${activeQs}&offset=${offset}`,
@@ -204,11 +262,13 @@ export function usePortfolioMediaUpload({
           if (status === 200 && json.upload) {
             current = json.upload;
             failures = 0;
+            markChunkComplete(pumpState, index);
             update(key, { upload: current, percent: Math.floor((current.receivedBytes / current.totalBytes) * 100) });
             return;
           }
           if (status === 409 && json.upload) {
             current = json.upload;
+            markChunkComplete(pumpState, index);
             if (current.status !== "uploading") throw Object.assign(new Error("status"), { fatal: true });
             return;
           }
@@ -219,11 +279,12 @@ export function usePortfolioMediaUpload({
         };
 
         const pump = async () => {
-          const startIdx = Math.floor(current.receivedBytes / (current.chunkBytes || UPLOAD_CHUNK_BYTES));
-          for (let idx = startIdx; idx < totalChunks && inflight.size < UPLOAD_PARALLEL_CHUNKS; idx++) {
-            if (inflight.has(idx)) continue;
+          for (;;) {
+            const idx = pickNextChunkIndex(pumpState);
+            if (idx === null) break;
             const job = sendChunk(idx)
               .catch(async (err) => {
+                markChunkFailed(pumpState, idx);
                 if ((err as Error).name === "AbortError" || (err as { fatal?: boolean }).fatal) throw err;
                 failures += 1;
                 if (failures > 8) throw err;
@@ -236,7 +297,14 @@ export function usePortfolioMediaUpload({
                   await new Promise<void>((r) => window.addEventListener("online", () => r(), { once: true }));
                 }
                 const st = await sessionFetch(`/api/portfolio-media/uploads/${current.id}?${activeQs}`, { cache: "no-store" }).catch(() => null);
-                if (st?.ok) current = ((await st.json()) as { upload: ServerUpload }).upload;
+                if (st?.ok) {
+                  current = ((await st.json()) as { upload: ServerUpload }).upload;
+                  const synced = Math.floor(current.receivedBytes / chunkBytes);
+                  for (let i = 0; i < synced && i < totalChunks; i++) {
+                    if (!pumpState.completed.has(i)) pumpState.completed.add(i);
+                  }
+                  if (synced > pumpState.nextIndex) pumpState.nextIndex = synced;
+                }
                 update(key, { phase: "sending", message: undefined });
                 throw err;
               })
@@ -247,13 +315,13 @@ export function usePortfolioMediaUpload({
           }
         };
 
-        while (current.receivedBytes < current.totalBytes || inflight.size > 0) {
+        while ((current.receivedBytes < current.totalBytes || inflight.size > 0) && chunksRemaining(pumpState)) {
           try {
             await pump();
             if (inflight.size === 0) {
-              if (current.receivedBytes < current.totalBytes) await sleep(50);
-              else break;
-              continue;
+              if (current.receivedBytes < current.totalBytes && chunksRemaining(pumpState)) await sleep(50);
+              else if (!chunksRemaining(pumpState)) break;
+              else continue;
             }
             await Promise.race(inflight.values());
             if (current.status !== "uploading") break;
@@ -435,6 +503,7 @@ export function usePortfolioMediaUpload({
     retry,
     dismiss,
     setOnReady,
+    registerOnReady,
     hasByteTransfer,
     hasBackgroundWork,
     topSending,

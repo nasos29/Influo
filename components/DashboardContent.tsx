@@ -10,7 +10,7 @@ import PortfolioMediaUploader from '@/components/PortfolioMediaUploader';
 import { usePortfolioUploadContext } from '@/components/PortfolioUploadProvider';
 import { isUploadedPortfolioUrl } from '@/lib/portfolioUpload';
 import { usePortfolioLinkStatus } from '@/lib/usePortfolioLinkStatus';
-import { PORTFOLIO_LINK_STATUS_COPY } from '@/lib/portfolioHosted';
+import { isSelfHostedPortfolioUrl, PORTFOLIO_LINK_STATUS_COPY } from '@/lib/portfolioHosted';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
@@ -271,6 +271,9 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const [videoRows, setVideoRows] = useState<VideoRow[]>(() =>
         toVideoRows(Array.isArray(user.videos) && user.videos.length ? user.videos : [""])
     );
+    const initialVideosRef = useRef<string[]>(
+        (Array.isArray(user.videos) ? user.videos : []).map((u) => String(u || "").trim()).filter(Boolean)
+    );
     const portfolioUrlsForLinkStatus = useMemo(
         () => videoRows.map((r) => r.url).filter((u) => u.trim()),
         [videoRows]
@@ -415,6 +418,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
     const baselineRef = useRef<string | null>(null);
     if (baselineRef.current === null) baselineRef.current = formSignature;
     const unsaved = formSignature !== baselineRef.current;
+    const canSave = unsaved || portfolioUpload.hasBackgroundWork;
 
     const socialAccountsWillChange = useMemo(
         () => accountEditableSig(accounts) !== accountEditableSig(user.accounts),
@@ -564,7 +568,20 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                 (currentData.accounts || []) as Account[]
             );
 
-            const preparedVideos = prepareVideosForSave(videoRowsToUrls(videoRows));
+            const initialVideoSet = new Set(initialVideosRef.current);
+            const draftUrls = videoRowsToUrls(videoRows);
+            const preparedSet = new Set(draftUrls.map((u) => u.trim()).filter(Boolean));
+            let mergedUrls = [...draftUrls];
+            for (const raw of currentData.videos || []) {
+                const url = String(raw || "").trim();
+                if (!url || !isSelfHostedPortfolioUrl(url)) continue;
+                if (initialVideoSet.has(url)) continue;
+                if (preparedSet.has(url)) continue;
+                if (mergedUrls.filter((u) => u.trim()).length >= portfolioMax) break;
+                mergedUrls.push(url);
+                preparedSet.add(url);
+            }
+            const preparedVideos = prepareVideosForSave(mergedUrls);
             if (!preparedVideos.ok) {
                 const linkErr = portfolioLinkValidationError(preparedVideos.reason, lang);
                 setVideoLinkError(linkErr);
@@ -926,6 +943,14 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
 
     const handleSave = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!unsaved && portfolioUpload.hasBackgroundWork) {
+            notify(
+                L("Το βίντεο θα εμφανιστεί μόλις ολοκληρωθεί η επεξεργασία", "The video will appear once processing finishes"),
+                'info'
+            );
+            onClose();
+            return;
+        }
         if (!unsaved) {
             notify(L("Δεν υπάρχουν αλλαγές για αποθήκευση.", "There are no changes to save."), 'info');
             return;
@@ -1421,7 +1446,7 @@ const EditModal = ({ user, onClose, onSave, lang = 'el', notify, initialSection 
                             </p>
                             <div className="flex gap-2">
                                 <button type="button" onClick={requestClose} className="inline-flex min-h-11 items-center px-4 text-slate-700 hover:bg-slate-100 rounded-lg font-medium transition-colors">{L("Ακύρωση", "Cancel")}</button>
-                                <button type="submit" disabled={loading || !unsaved || videosChecking || videosNotPlayable} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
+                                <button type="submit" disabled={loading || !canSave || videosChecking || videosNotPlayable} className="inline-flex min-h-11 items-center px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium disabled:opacity-50 transition-colors">
                                     {loading ? L('Αποθήκευση...', 'Saving...') : L('Αποθήκευση', 'Save')}
                                 </button>
                             </div>
@@ -1478,8 +1503,22 @@ function tabBadgeText(count: number): string {
   return String(count);
 }
 
+function mergePortfolioUrlIntoVideos(videos: string[] | null | undefined, url: string, max: number): string[] {
+    const list = Array.isArray(videos) ? [...videos.map((v) => String(v || "").trim())] : [];
+    if (list.includes(url)) return list;
+    const emptyIdx = list.findIndex((u) => !u);
+    if (emptyIdx >= 0) {
+        list[emptyIdx] = url;
+        return list;
+    }
+  const filled = list.filter(Boolean);
+    if (filled.length >= max) return list;
+    return [...filled, url];
+}
+
 export default function DashboardContent({ profile: initialProfile }: { profile: InfluencerData }) {
     const [profile, setProfile] = useState(initialProfile);
+    const portfolioUpload = usePortfolioUploadContext();
     const [showEditModal, setShowEditModal] = useState(false);
     const [editSection, setEditSection] = useState<EditSection>('basics');
     const [editFocus, setEditFocus] = useState<'skills' | 'photo' | 'bio' | 'audience' | null>(null);
@@ -1678,6 +1717,19 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
             setAvailabilitySaving(false);
         }
     };
+
+    useEffect(() => {
+        return portfolioUpload.registerOnReady((url) => {
+            setProfile((p) => ({
+                ...p,
+                videos: mergePortfolioUrlIntoVideos(
+                    Array.isArray(p.videos) ? p.videos : [],
+                    url,
+                    MAX_PORTFOLIO_POSTS
+                ),
+            }));
+        });
+    }, [portfolioUpload]);
 
     useEffect(() => {
         const tab = searchParams?.get('tab');
