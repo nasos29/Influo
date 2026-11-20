@@ -289,15 +289,44 @@ function HeroSeekBar({
 }
 
 const HERO_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] h-[min(70vh,32rem)] w-auto max-w-full lg:h-[min(70vh,36rem)]";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] h-[min(70vh,31rem)] w-auto max-w-full lg:h-[min(70vh,35rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] w-28 sm:w-32 lg:h-[min(53vh,27rem)] lg:w-auto";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[9/16] w-28 sm:w-32 lg:h-[min(52vh,26rem)] lg:w-auto";
+
+function ShowcaseBrandPill({
+  brandName,
+  brandLogoUrl,
+}: {
+  brandName: string;
+  brandLogoUrl: string | null;
+}) {
+  const logo = brandLogoUrl ? getCachedImageUrl(brandLogoUrl) ?? brandLogoUrl : null;
+  return (
+    <span className="inline-flex items-center gap-2.5 rounded-full border border-slate-200 bg-white px-4 py-2 text-base font-semibold text-slate-900 shadow-sm sm:text-lg">
+      {logo ? (
+        <Image
+          src={logo}
+          alt=""
+          width={44}
+          height={44}
+          className="h-10 w-10 shrink-0 rounded-full object-contain sm:h-11 sm:w-11"
+        />
+      ) : (
+        <span className="h-10 w-10 shrink-0 rounded-full bg-slate-100 sm:h-11 sm:w-11" aria-hidden />
+      )}
+      {brandName}
+    </span>
+  );
+}
 
 export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const [activeId, setActiveId] = useState(data.initialHeroApplicationId);
   const [heroMuted, setHeroMuted] = useState(true);
+  const heroMutedRef = useRef(true);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
   const txt = COPY[lang];
+
+  heroMutedRef.current = heroMuted;
 
   const cardById = useMemo(() => new Map(data.cards.map((c) => [c.applicationId, c])), [data.cards]);
   const active = cardById.get(activeId) ?? data.cards[0];
@@ -312,7 +341,6 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     (applicationId: string) => {
       stopCurrentHeroMedia();
       setActiveId(applicationId);
-      setHeroMuted(true);
     },
     [stopCurrentHeroMedia]
   );
@@ -331,9 +359,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     el.src = active.playUrl;
     if (active.posterUrl) el.poster = active.posterUrl;
     else el.removeAttribute("poster");
-    el.muted = heroMuted;
+    el.muted = heroMutedRef.current;
     void el.play().catch(() => {
       setHeroMuted(true);
+      el.muted = true;
+      void el.play().catch(() => {
+        /* still blocked */
+      });
     });
   }, [active.applicationId, active.playUrl, active.posterUrl]);
 
@@ -362,7 +394,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   return (
     <div className="relative">
       <div className="relative rounded-2xl md:rounded-3xl bg-[#F7F7F7] p-4 sm:p-5 md:p-6 overflow-hidden">
-        <div className="relative mx-auto flex w-full max-w-[1100px] flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-[18px]">
+        <div className="relative mx-auto flex w-full max-w-[1240px] flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
             <div className={HERO_FRAME}>
               <video
@@ -406,7 +438,9 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex w-full max-w-full flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:w-auto lg:max-w-none lg:shrink lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
+            <div className="flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink">
+              <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
+              <div className="flex w-full max-w-full flex-row items-end justify-center gap-3 overflow-x-auto pb-1 -mx-1 px-1 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0 lg:gap-4">
               {thumbnails.map((card) => (
                 <div key={card.applicationId} className={THUMB_FRAME}>
                   <button
@@ -445,6 +479,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
           ) : null}
         </div>
