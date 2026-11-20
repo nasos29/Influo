@@ -101,6 +101,8 @@ const t = {
     hero_brand_title_2: "για το brand σου",
     hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
+    brand_showcase_cta_text:
+      "Βρες τους κατάλληλους δημιουργούς για την επιχείρησή σου και ξεκίνα την πρώτη σου συνεργασία. Η εγγραφή είναι δωρεάν.",
     brand_showcase_eyebrow: "Πραγματικές συνεργασίες στο Influo",
     brand_showcase_title: "Θα μπορούσε να είναι η δική σου επιχείρηση!",
     brand_showcase_subtitle:
@@ -151,6 +153,8 @@ const t = {
     hero_brand_title_2: "for your brand",
     hero_brand_desc: "Own a business? Find influencers that match your audience, promote your products or services and start successful collaborations through Influo. Registration is free.",
     brand_section_btn: "Create Company Account",
+    brand_showcase_cta_text:
+      "Find the right creators for your business and start your first collaboration. Registration is free.",
     brand_showcase_eyebrow: "Real collaborations on Influo",
     brand_showcase_title: "This could be your business!",
     brand_showcase_subtitle:
@@ -684,24 +688,27 @@ export default function Home({
                           ) : null}
                         </div>
                       ) : null}
-                      <div className="mt-6">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSignupType("brand");
-                            setShowModal(true);
-                          }}
-                          className="inline-block cursor-pointer px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
-                        >
-                          {txt.brand_section_btn}
-                        </button>
-                      </div>
                     </div>
                     {featuredCollaborations ? (
                       <div className="mb-12 md:mb-14">
                         <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
                       </div>
                     ) : null}
+                    <div className="text-center mb-10 md:mb-12">
+                      <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-5 leading-relaxed">
+                        {txt.brand_showcase_cta_text}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignupType("brand");
+                          setShowModal(true);
+                        }}
+                        className="inline-block cursor-pointer px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
+                      >
+                        {txt.brand_section_btn}
+                      </button>
+                    </div>
                     <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
                       {([
                         {
