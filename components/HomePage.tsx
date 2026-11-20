@@ -638,7 +638,7 @@ export default function Home({
                   className="home-section-cv relative overflow-x-hidden overflow-y-visible py-20 px-6 bg-slate-50 border-y border-slate-100"
                   id="brands"
                 >
-                  <div className="relative mx-auto w-full max-w-[min(100%,90rem)]">
+                  <div className="max-w-page mx-auto relative">
                     <div className="relative z-10 text-center mb-10 md:mb-12">
                       <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
                         {txt.brand_showcase_eyebrow}
