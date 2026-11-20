@@ -18,6 +18,11 @@ import {
   serializeHomepageSectionOrderSetting,
   type HomepageSectionId,
 } from "@/lib/homepageSections";
+import {
+  HOMEPAGE_FEATURED_COLLABORATIONS_KEY,
+  parseHomepageFeaturedCollaborationsSetting,
+  type HomepageFeaturedCollaborationsConfig,
+} from "@/lib/homepageFeaturedCollaborations";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 
 export const SITE_SETTINGS_CACHE_TAG = "site-settings";
@@ -119,6 +124,22 @@ export const getSiteSettings = unstable_cache(
 export const getHomepageSectionOrderSetting = unstable_cache(
   loadHomepageSectionOrderFromDb,
   ["homepage-section-order-v1"],
+  { revalidate: 300, tags: [SITE_SETTINGS_CACHE_TAG] }
+);
+
+function featuredCollaborationsFromRows(rows: SettingsRow[]): HomepageFeaturedCollaborationsConfig {
+  const row = rows.find((r) => r.key === HOMEPAGE_FEATURED_COLLABORATIONS_KEY);
+  return parseHomepageFeaturedCollaborationsSetting(row?.value);
+}
+
+async function loadHomepageFeaturedCollaborationsFromDb(): Promise<HomepageFeaturedCollaborationsConfig> {
+  return featuredCollaborationsFromRows(await loadSettingsRows());
+}
+
+/** Curated homepage brand showcase (application ids; not a numeric SiteSettingKey). */
+export const getHomepageFeaturedCollaborationsSetting = unstable_cache(
+  loadHomepageFeaturedCollaborationsFromDb,
+  ["homepage-featured-collaborations-v1"],
   { revalidate: 300, tags: [SITE_SETTINGS_CACHE_TAG] }
 );
 

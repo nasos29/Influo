@@ -20,16 +20,14 @@ import { type CampaignCardData } from "@/components/CampaignCard";
 import HomeTrustStatsRow from "@/components/HomeTrustStats";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
 import HomeOpenCampaignsSection from "@/components/HomeOpenCampaignsSection";
-import RecentCollaborationsSection from "@/components/RecentCollaborationsSection";
-import SocialProofStatsRow from "@/components/SocialProofStatsRow";
+import FeaturedCollaborationsShowcase from "@/components/FeaturedCollaborationsShowcase";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage } from "@/lib/language";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
-import type { RecentCollaborationCard } from "@/lib/loadRecentCollaborations";
-import type { SocialProofStats } from "@/lib/loadSocialProofStats";
+import type { FeaturedCollaborationsShowcaseData } from "@/lib/loadFeaturedCollaborations";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
@@ -100,9 +98,11 @@ const t = {
     hero_brand_title_1: "Βρες τον κατάλληλο influencer και ψηφιακό δημιουργό",
     hero_brand_title_2: "για το brand σου",
     hero_brand_desc: "Έχετε επιχείρηση; Ανακαλύψτε influencers που ταιριάζουν στο κοινό σας, προβάλετε τα προϊόντα ή τις υπηρεσίες σας και ξεκινήστε συνεργασίες μέσα από το Influo. Η εγγραφή είναι δωρεάν.",
-    brand_section_title: "Έχετε Επιχείρηση;",
-    brand_section_desc: "Βρείτε τους κατάλληλους influencers για το brand σας. Αναζητήστε, επικοινωνήστε και συνεργαστείτε με verified creators — με AI προτάσεις χωρίς επιπλέον κόστος.",
     brand_section_btn: "Δημιούργησε Λογαριασμό Επιχείρησης",
+    brand_showcase_eyebrow: "Πραγματικές συνεργασίες στο Influo",
+    brand_showcase_title: "Θα μπορούσε να είναι η δική σου επιχείρηση!",
+    brand_showcase_subtitle:
+      "Πραγματικές συνεργασίες του εστιατορίου Athos Athens με creators του Influo.",
     brand_feat_search_title: "Αναζήτηση",
     brand_feat_search_desc: "Βρείτε influencers ανά κατηγορία, engagement rate και budget.",
     brand_feat_campaigns_title: "Καμπάνιες",
@@ -148,9 +148,11 @@ const t = {
     hero_brand_title_1: "Find the right influencer and content creator",
     hero_brand_title_2: "for your brand",
     hero_brand_desc: "Own a business? Find influencers that match your audience, promote your products or services and start successful collaborations through Influo. Registration is free.",
-    brand_section_title: "Are you a Company?",
-    brand_section_desc: "Find the right influencers for your brand. Search, connect and collaborate with verified creators — with AI recommendations included at no extra cost.",
     brand_section_btn: "Create Company Account",
+    brand_showcase_eyebrow: "Real collaborations on Influo",
+    brand_showcase_title: "This could be your business!",
+    brand_showcase_subtitle:
+      "Real collaborations of the restaurant Athos Athens with Influo creators.",
     brand_feat_search_title: "Search",
     brand_feat_search_desc: "Find influencers by category, engagement rate and budget.",
     brand_feat_campaigns_title: "Campaigns",
@@ -181,6 +183,26 @@ const t = {
   }
 };
 
+function BrandShowcaseHeaderBadge({
+  brandName,
+  brandLogoUrl,
+}: {
+  brandName: string;
+  brandLogoUrl: string | null;
+}) {
+  const logo = brandLogoUrl ? getCachedImageUrl(brandLogoUrl) ?? brandLogoUrl : null;
+  return (
+    <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-900 shadow-sm">
+      {logo ? (
+        <Image src={logo} alt="" width={24} height={24} className="h-6 w-6 rounded-full object-contain" />
+      ) : (
+        <span className="h-6 w-6 rounded-full bg-slate-100" aria-hidden />
+      )}
+      {brandName}
+    </span>
+  );
+}
+
 interface VerifiedBrand {
   id: string;
   brand_name: string;
@@ -193,15 +215,7 @@ export default function Home({
   initialDirectoryTotal = 0,
   openCampaigns = [],
   trustStats = { approvedInfluencers: null, openCampaigns: null },
-  recentCollaborations = [],
-  socialProofStats = {
-    completedCollaborations: null,
-    activeCreators: null,
-    brandsCount: null,
-    averageRating: null,
-    computedAt: null,
-    fromCache: false,
-  },
+  featuredCollaborations = null,
   homeCreatorsLimit = 8,
   homeNewlyApprovedLimit = 8,
   homeTopInfluencersLimit = 10,
@@ -213,8 +227,7 @@ export default function Home({
   initialDirectoryTotal?: number;
   openCampaigns?: CampaignCardData[];
   trustStats?: HomeTrustStats;
-  recentCollaborations?: RecentCollaborationCard[];
-  socialProofStats?: SocialProofStats;
+  featuredCollaborations?: FeaturedCollaborationsShowcaseData | null;
   homeCreatorsLimit?: number;
   homeNewlyApprovedLimit?: number;
   homeTopInfluencersLimit?: number;
@@ -572,13 +585,7 @@ export default function Home({
               );
 
             case "recent_collaborations":
-              if (!recentCollaborations.length) return null;
-              return (
-                <div key={sectionId} data-homepage-section="recent_collaborations" className="home-section-cv">
-                  <SocialProofStatsRow stats={socialProofStats} lang={lang} />
-                  <RecentCollaborationsSection items={recentCollaborations} lang={lang} />
-                </div>
-              );
+              return null;
 
             case "open_campaigns":
               return (
@@ -632,21 +639,39 @@ export default function Home({
                   className="home-section-cv relative py-20 px-6 bg-slate-50 border-y border-slate-100"
                   id="brands"
                 >
-                  <div className="max-w-page-md mx-auto relative">
-                    <div className="text-center mb-14">
-                      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_section_title}</h2>
-                      <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-8 leading-relaxed">{txt.brand_section_desc}</p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSignupType("brand");
-                          setShowModal(true);
-                        }}
-                        className="inline-block cursor-pointer px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
-                      >
-                        {txt.brand_section_btn}
-                      </button>
+                  <div className="max-w-page mx-auto relative">
+                    <div className="text-center mb-10 md:mb-12">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">
+                        {txt.brand_showcase_eyebrow}
+                      </p>
+                      <h2 className={`${SECTION_TITLE_CLASS} mb-3`}>{txt.brand_showcase_title}</h2>
+                      <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-5 leading-relaxed">
+                        {txt.brand_showcase_subtitle}
+                      </p>
+                      {featuredCollaborations ? (
+                        <BrandShowcaseHeaderBadge
+                          brandName={featuredCollaborations.brandName}
+                          brandLogoUrl={featuredCollaborations.brandLogoUrl}
+                        />
+                      ) : null}
+                      <div className="mt-6">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSignupType("brand");
+                            setShowModal(true);
+                          }}
+                          className="inline-block cursor-pointer px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg transition-colors text-base"
+                        >
+                          {txt.brand_section_btn}
+                        </button>
+                      </div>
                     </div>
+                    {featuredCollaborations ? (
+                      <div className="mb-12 md:mb-14">
+                        <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
+                      </div>
+                    ) : null}
                     <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
                       {([
                         {
