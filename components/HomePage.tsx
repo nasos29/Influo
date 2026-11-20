@@ -664,10 +664,25 @@ export default function Home({
                         {txt.brand_showcase_subtitle}
                       </p>
                       {featuredCollaborations ? (
-                        <BrandShowcaseHeaderBadge
-                          brandName={featuredCollaborations.brandName}
-                          brandLogoUrl={featuredCollaborations.brandLogoUrl}
-                        />
+                        <div className="flex flex-wrap items-center justify-center gap-4">
+                          <BrandShowcaseHeaderBadge
+                            brandName={featuredCollaborations.brandName}
+                            brandLogoUrl={featuredCollaborations.brandLogoUrl}
+                          />
+                          {featuredCollaborations.decorativeCoverUrl ? (
+                            <Image
+                              src={
+                                getCachedImageUrl(featuredCollaborations.decorativeCoverUrl) ??
+                                featuredCollaborations.decorativeCoverUrl
+                              }
+                              alt=""
+                              width={160}
+                              height={90}
+                              className="hidden md:block w-28 sm:w-32 h-auto rounded-xl shadow-md ring-2 ring-white object-cover rotate-3"
+                              sizes="128px"
+                            />
+                          ) : null}
+                        </div>
                       ) : null}
                       <div className="mt-6">
                         <button
