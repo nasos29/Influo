@@ -54,10 +54,13 @@ export default function SocialProofStatsRow({
   stats,
   lang,
   openCampaignsCount,
+  showAverageRating = true,
 }: {
   stats: SocialProofStats;
   lang: Lang;
   openCampaignsCount?: number | null;
+  /** When false, never show the rating stat (e.g. marketing pages matching homepage’s four metrics). */
+  showAverageRating?: boolean;
 }) {
   const txt = COPY[lang];
   const items: Array<{ key: string; value: number; label: string; kind: "int" | "rating" }> = [];
@@ -84,7 +87,11 @@ export default function SocialProofStatsRow({
       kind: "int",
     });
   }
-  if (typeof stats.averageRating === "number" && stats.averageRating > 0) {
+  if (
+    showAverageRating &&
+    typeof stats.averageRating === "number" &&
+    stats.averageRating > 0
+  ) {
     items.push({
       key: "rating",
       value: stats.averageRating,
