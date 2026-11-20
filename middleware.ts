@@ -29,7 +29,6 @@ export function middleware(request: NextRequest) {
     if (preview) {
       const previewResponse = NextResponse.next();
       previewResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
-      previewResponse.headers.set("x-pathname", pathname);
       return previewResponse;
     }
     const dest = request.nextUrl.clone();
@@ -40,7 +39,6 @@ export function middleware(request: NextRequest) {
   }
 
   const response = NextResponse.next();
-  response.headers.set("x-pathname", pathname);
 
   if (request.method === "GET" && !isPrivatePath(pathname) && !request.nextUrl.search) {
     response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=86400");

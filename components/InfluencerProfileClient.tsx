@@ -662,9 +662,6 @@ export default function InfluencerProfile(props: {
     if (tab && ["overview", "audience", "pricing", "reviews"].includes(tab)) setActiveTab(tab);
   }, [searchParams]);
 
-  useEffect(() => {
-    document.getElementById("profile-ssr-shell")?.remove();
-  }, []);
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);
