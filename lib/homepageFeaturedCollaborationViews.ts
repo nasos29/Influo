@@ -83,8 +83,8 @@ const itemsByAppId = (items: FeaturedCollaborationViewsItem[]) =>
   new Map(items.map((i) => [i.applicationId, i]));
 
 /**
- * Sum views for the current curated application ids only.
- * Incomplete (any id missing a real views number) => null — never show 0 as a fake total.
+ * Sum public view counts for curated application ids that have stored rows.
+ * Omits ids with no count (not treated as 0). Returns null only when none have counts.
  */
 export function computeFeaturedCollaborationViewsTotal(
   applicationIds: string[],
@@ -94,12 +94,14 @@ export function computeFeaturedCollaborationViewsTotal(
   if (uniqueIds.length === 0) return null;
   const byId = itemsByAppId(items);
   let sum = 0;
+  let hasAny = false;
   for (const id of uniqueIds) {
     const row = byId.get(id);
-    if (!row) return null;
+    if (!row) continue;
     sum += row.views;
+    hasAny = true;
   }
-  return sum;
+  return hasAny ? sum : null;
 }
 
 export function featuredCollaborationViewsTotal(
