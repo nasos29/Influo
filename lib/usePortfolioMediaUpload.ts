@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
-import { UPLOAD_CHUNK_BYTES, UPLOAD_PARALLEL_CHUNKS, chunkCount, validateUploadRequest } from "@/lib/portfolioUpload";
+import {
+  UPLOAD_CHUNK_BYTES,
+  UPLOAD_PARALLEL_CHUNKS,
+  chunkCount,
+  isPortfolioPickableFile,
+  validateUploadRequest,
+} from "@/lib/portfolioUpload";
 import {
   chunksRemaining,
   createChunkPumpState,
@@ -420,12 +426,20 @@ export function usePortfolioMediaUpload({
   );
 
   const pick = useCallback(
-    (files: FileList | null, slotsLeft: number) => {
-      if (!files) return;
+    (files: FileList | null, slotsLeft: number): boolean => {
+      if (!files) return false;
       const active = items.filter((i) => ["queued", "checking", "sending", "paused", "processing"].includes(i.phase)).length;
       const free = Math.max(0, slotsLeft - active);
       const list = Array.from(files).slice(0, free);
-      for (const f of list) void start(f);
+      let rejectedInvalid = false;
+      for (const f of list) {
+        if (!isPortfolioPickableFile(f.type, f.name)) {
+          rejectedInvalid = true;
+          continue;
+        }
+        void start(f);
+      }
+      return rejectedInvalid;
     },
     [items, start]
   );

@@ -28,6 +28,7 @@ test("file input accept lists explicit MIME and extensions (no wildcards)", () =
   assert.doesNotMatch(PORTFOLIO_FILE_ACCEPT, /video\/\*/);
   assert.doesNotMatch(PORTFOLIO_FILE_ACCEPT, /image\/\*/);
   assert.match(PORTFOLIO_FILE_ACCEPT, /\.heic/);
+  assert.match(PORTFOLIO_FILE_ACCEPT, /application\/octet-stream/);
 });
 
 test("type detection: MIME first, extension fallback for empty/octet-stream (iOS HEIC)", () => {
