@@ -7,6 +7,7 @@ import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { escapeHtml } from "@/lib/proposalParty";
 import {
   isMissingAccountEmailEnabled,
+  isMissingAccountEmailOnApproveEnabled,
   isPermanentAccountMissingError,
   normalizeSocialHandle,
 } from "@/lib/socialAccountMissing";
@@ -116,8 +117,8 @@ async function notifyAdminMissingAccount(
   });
 }
 
-/** One email per missing handle; stamp prevents duplicates. Never throws. */
-export async function maybeNotifyMissingSocialAccount(
+/** Shared send/dedupe path (no feature-flag check). */
+async function deliverMissingSocialAccountNotice(
   supabaseAdmin: SupabaseClient,
   opts: {
     influencerId: string;
@@ -127,7 +128,6 @@ export async function maybeNotifyMissingSocialAccount(
     error: string;
   }
 ): Promise<void> {
-  if (!isMissingAccountEmailEnabled()) return;
   if (!isPermanentAccountMissingError(opts.error)) return;
   const handle = normalizeSocialHandle(opts.username);
   const platform = String(opts.platform || "").trim();
@@ -164,6 +164,53 @@ export async function maybeNotifyMissingSocialAccount(
     handle,
     influencerId: opts.influencerId,
   }).catch((err) => console.warn("[missing account] admin", err instanceof Error ? err.message : err));
+}
+
+/** One email per missing handle; stamp prevents duplicates. Never throws. */
+export async function maybeNotifyMissingSocialAccount(
+  supabaseAdmin: SupabaseClient,
+  opts: {
+    influencerId: string;
+    influencerName: string;
+    platform: string;
+    username: string;
+    error: string;
+  }
+): Promise<void> {
+  if (!isMissingAccountEmailEnabled()) return;
+  await deliverMissingSocialAccountNotice(supabaseAdmin, opts);
+}
+
+/** Run when ApproveNew leaves a new creator unapproved after permanent missing-handle errors. */
+export async function handleMissingAccountNoticesForNewApproval(
+  supabaseAdmin: SupabaseClient,
+  influencerId: string,
+  influencerName: string,
+  accounts: Array<{ platform?: string; username?: string; ok?: boolean; error?: string }>
+): Promise<void> {
+  try {
+    if (!isMissingAccountEmailOnApproveEnabled()) return;
+    for (const acc of accounts) {
+      if (acc.ok) continue;
+      const platform = String(acc.platform || "").trim();
+      const username = String(acc.username || "").trim();
+      if (!platform || !username) continue;
+      const err = String(acc.error || "");
+      if (!isPermanentAccountMissingError(err)) continue;
+      await deliverMissingSocialAccountNotice(supabaseAdmin, {
+        influencerId,
+        influencerName,
+        platform,
+        username,
+        error: err,
+      });
+    }
+  } catch (err) {
+    console.warn(
+      "[missing account] new approval",
+      err instanceof Error ? err.message : err
+    );
+  }
 }
 
 /** Run after refresh apply for each scraped account. */
