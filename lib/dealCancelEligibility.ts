@@ -3,12 +3,14 @@ import { isRealDeliveryComplete } from "@/lib/deliveryCompletion";
 export const CANCEL_REASON_MIN = 10;
 export const CANCEL_REASON_MAX = 1000;
 
-export type CancelledBy = "brand" | "influencer" | "admin";
+export type CancelledBy = "brand" | "influencer" | "admin" | "system";
 
 export type DealCancelGate = {
   status?: string | null;
   delivery_confirmed_at?: string | null;
   auto_completed_at?: string | null;
+  auto_cancelled_at?: string | null;
+  cancelled_by?: string | null;
 };
 
 /** Trimmed reason length OK for cancel API (min 10, max 1000). */
@@ -54,6 +56,8 @@ export function validateWithdrawReason(
 
 export function canCancelDeal(row: DealCancelGate | null | undefined): boolean {
   if (!row) return false;
+  if (row.auto_cancelled_at) return false;
+  if (String(row.cancelled_by || "").toLowerCase() === "system") return false;
   const status = String(row.status || "").toLowerCase();
   if (status === "cancelled" || status === "canceled" || status === "rejected") return false;
   if (status !== "accepted" && status !== "completed") return false;
@@ -66,5 +70,6 @@ export function cancelledByDisplay(by: string | null | undefined, lang: "el" | "
   if (key === "brand") return lang === "en" ? "Brand" : "Επιχείρηση";
   if (key === "influencer") return lang === "en" ? "Creator" : "Δημιουργός";
   if (key === "admin") return lang === "en" ? "Admin" : "Διαχείριση";
+  if (key === "system") return lang === "en" ? "System" : "Σύστημα";
   return "—";
 }

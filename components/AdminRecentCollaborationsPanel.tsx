@@ -37,6 +37,7 @@ type Item = {
   eventConfirmPending?: boolean;
   deliveryConfirmedAt?: string | null;
   autoCompletedAt?: string | null;
+  dealStatus?: string | null;
 };
 
 function showcaseItemStatusRow(item: Item) {
@@ -163,6 +164,8 @@ const COPY = {
     adminComplete: "Ολοκλήρωση από admin",
     adminCompleteConfirm:
       "Να ολοκληρωθεί η συνεργασία από admin; Θα σταλεί το κανονικό email «Η συνεργασία ολοκληρώθηκε» (με αξιολόγηση, όπου επιτρέπεται).",
+    sendDeliverableWarning: "Στείλε προειδοποίηση παραδοτέου",
+    restoreDeal: "Επαναφορά (σε εξέλιξη)",
   },
   en: {
     title: "Recent collaborations (admin)",
@@ -189,6 +192,8 @@ const COPY = {
     adminComplete: "Complete as admin",
     adminCompleteConfirm:
       "Complete this collaboration as admin? This sends the normal «collaboration completed» email (with review where allowed).",
+    sendDeliverableWarning: "Send deliverable warning",
+    restoreDeal: "Restore (in progress)",
   },
 } as const;
 
@@ -217,7 +222,7 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
     setLoading(true);
     setError(null);
     try {
-      const res = await sessionFetch("/api/admin/collaborations/showcase?includeHidden=1");
+      const res = await sessionFetch("/api/admin/collaborations/showcase?includeHidden=1&includeCancelled=1");
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(typeof body.error === "string" ? body.error : txt.loadError);
@@ -286,6 +291,26 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
     setFilters(EMPTY_FILTERS);
     setBrandQuery("");
     setBrandOpen(false);
+  };
+
+  const autocancelAction = async (item: Item, action: "warn" | "restore") => {
+    const key = `${item.source}:${item.id}`;
+    setBusyId(key);
+    try {
+      const res = await sessionFetch("/api/admin/collaborations/autocancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, source: item.source, id: item.id }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof body.error === "string" ? body.error : txt.loadError);
+        return;
+      }
+      await load();
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const patch = async (
@@ -584,6 +609,25 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {item.deliveryState === "cancelled" ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void autocancelAction(item, "restore")}
+                        className="inline-flex min-h-10 items-center rounded-lg border border-emerald-300 bg-emerald-50 px-3 text-xs font-medium text-emerald-900 hover:bg-emerald-100 disabled:opacity-50"
+                      >
+                        {txt.restoreDeal}
+                      </button>
+                    ) : !item.deliverySubmittedAt && !videoOk ? (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void autocancelAction(item, "warn")}
+                        className="inline-flex min-h-10 items-center rounded-lg border border-violet-300 bg-violet-50 px-3 text-xs font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50"
+                      >
+                        {txt.sendDeliverableWarning}
+                      </button>
+                    ) : null}
                     {eventPending ? (
                       <button
                         type="button"

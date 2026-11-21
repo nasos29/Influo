@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { isAutocancelBlockedRow } from "@/lib/deliverableAutocancelEligibility";
 import { asDeliveryMode } from "@/lib/deliveryCompletion";
 import { mailBrandDeliverySubmitted, siteUrl } from "@/lib/deliveryMail";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
@@ -80,10 +81,22 @@ export async function PATCH(request: Request) {
     if (source === "proposal") {
       const session = await requireActor(request);
       if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      const proposal = await loadProposal(id);
-      if (!proposal) return NextResponse.json({ error: "Not found" }, { status: 404 });
+      const { data: proposalRow, error: proposalLoadErr } = await admin
+        .from("proposals")
+        .select(
+          "*, auto_cancelled_at, cancelled_by"
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (proposalLoadErr || !proposalRow) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      const proposal = proposalRow as NonNullable<Awaited<ReturnType<typeof loadProposal>>>;
       const party = partyOf(session.actor, proposal);
       if (!party) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (party === "influencer" && isAutocancelBlockedRow(proposal)) {
+        return NextResponse.json({ error: "deal_closed" }, { status: 409 });
+      }
 
       const update: Record<string, unknown> = {};
       if (typeof body.consent === "boolean") {
@@ -285,6 +298,16 @@ export async function PATCH(request: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const owned = await ownCampaignApplication(id, user.id, user.email || "");
     if (!owned) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+    const { data: applicationRow } = await admin
+      .from("campaign_applications")
+      .select("id, status, auto_cancelled_at, cancelled_by")
+      .eq("id", id)
+      .maybeSingle();
+    if (!applicationRow) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (owned.party === "influencer" && isAutocancelBlockedRow(applicationRow)) {
+      return NextResponse.json({ error: "deal_closed" }, { status: 409 });
+    }
 
     const update: Record<string, unknown> = {};
     if (typeof body.consent === "boolean") {

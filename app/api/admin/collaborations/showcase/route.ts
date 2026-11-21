@@ -57,6 +57,7 @@ export async function GET(request: Request) {
   const admin = supabaseService();
   const url = new URL(request.url);
   const includeHidden = url.searchParams.get("includeHidden") !== "0";
+  const includeCancelled = url.searchParams.get("includeCancelled") === "1";
   const dualConsentOnly = url.searchParams.get("dualConsentOnly") === "1";
 
   const items: Array<{
@@ -296,6 +297,78 @@ export async function GET(request: Request) {
     }
   } catch (error) {
     console.error("admin showcase campaigns", error);
+  }
+
+  if (includeCancelled) {
+    try {
+      const { data: cancelledProps } = await admin
+        .from("proposals")
+        .select(
+          "id, brand_name, influencer_id, status, cancelled_by, auto_cancelled_at, deliverable_warning_sent_at, cancelled_at, published_post_url, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, deliverable_status"
+        )
+        .eq("status", "cancelled")
+        .order("cancelled_at", { ascending: false })
+        .limit(50);
+      for (const row of cancelledProps || []) {
+        if (isRealDeliveryComplete(row as Record<string, unknown>)) continue;
+        items.push({
+          id: String(row.id),
+          source: "proposal",
+          brandName: String(row.brand_name || "").trim() || "—",
+          influencerId: String(row.influencer_id || ""),
+          influencerName: "",
+          postUrl: typeof row.published_post_url === "string" ? row.published_post_url : null,
+          completedAt: typeof row.cancelled_at === "string" ? row.cancelled_at : null,
+          createdAt: typeof row.cancelled_at === "string" ? row.cancelled_at : null,
+          hidden: false,
+          pinned: false,
+          brandConsent: false,
+          influencerConsent: false,
+          pendingApproval: false,
+          postUrlUpdatedBy: null,
+          postUrlUpdatedAt: null,
+          pinnedBy: null,
+          deliveryState: "cancelled",
+        });
+      }
+      const { data: cancelledApps } = await admin
+        .from("campaign_applications")
+        .select(
+          "id, influencer_id, status, cancelled_by, auto_cancelled_at, deliverable_warning_sent_at, cancelled_at, deliverable_url, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, deliverable_status, brand_campaigns ( brands ( brand_name ) )"
+        )
+        .eq("status", "cancelled")
+        .order("cancelled_at", { ascending: false })
+        .limit(50);
+      for (const row of cancelledApps || []) {
+        if (isRealDeliveryComplete(row as Record<string, unknown>)) continue;
+        const raw = row.brand_campaigns as unknown;
+        const campaign = Array.isArray(raw) ? raw[0] : raw;
+        const brandsRaw = (campaign as { brands?: unknown })?.brands;
+        const brand = Array.isArray(brandsRaw) ? brandsRaw[0] : brandsRaw;
+        const brandName = String((brand as { brand_name?: string })?.brand_name || "").trim() || "—";
+        items.push({
+          id: String(row.id),
+          source: "campaign",
+          brandName,
+          influencerId: String(row.influencer_id || ""),
+          influencerName: "",
+          postUrl: typeof row.deliverable_url === "string" ? row.deliverable_url : null,
+          completedAt: typeof row.cancelled_at === "string" ? row.cancelled_at : null,
+          createdAt: typeof row.cancelled_at === "string" ? row.cancelled_at : null,
+          hidden: false,
+          pinned: false,
+          brandConsent: false,
+          influencerConsent: false,
+          pendingApproval: false,
+          postUrlUpdatedBy: null,
+          postUrlUpdatedAt: null,
+          pinnedBy: null,
+          deliveryState: "cancelled",
+        });
+      }
+    } catch (error) {
+      console.error("admin showcase cancelled", error);
+    }
   }
 
   // Batch-resolve creator display names from influencers (no emails).

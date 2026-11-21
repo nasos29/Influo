@@ -1536,6 +1536,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
     const [rejectProposalId, setRejectProposalId] = useState<number | null>(null);
     const [cancelDealProposal, setCancelDealProposal] = useState<Proposal | null>(null);
     const [cancelDealSaving, setCancelDealSaving] = useState(false);
+    const cancelFocusDone = useRef(false);
     const [lang, setLang] = useState<'el' | 'en'>(() => getStoredLanguage());
     const ui = lang === 'en'
       ? {
@@ -1821,6 +1822,20 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         setBrandReviewText('');
         setShowBrandReviewModal(true);
     }, [proposalsLoaded, proposals, searchParams]);
+
+    useEffect(() => {
+        if (!proposalsLoaded || cancelFocusDone.current) return;
+        if (searchParams?.get('focus') !== 'cancel') return;
+        const proposalId = searchParams?.get('proposalId');
+        const target = proposalId
+            ? proposals.find((p) => String(p.id) === proposalId && canCancelDeal(p))
+            : proposals.find((p) => canCancelDeal(p));
+        if (!target) return;
+        cancelFocusDone.current = true;
+        setActiveTab('proposals');
+        setCancelDealProposal(target);
+    }, [proposalsLoaded, proposals, searchParams]);
+
     const [unseenProposalCount, setUnseenProposalCount] = useState(0);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [announcementsList, setAnnouncementsList] = useState<Array<{ id: string; title: string; body: string; created_at: string; read: boolean; read_at: string | null }>>([]);

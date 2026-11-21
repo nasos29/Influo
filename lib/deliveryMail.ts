@@ -176,4 +176,58 @@ export async function mailCreatorDeliveryConfirmed(input: {
   });
 }
 
+export async function mailDeliverableWarningCreator(input: {
+  to: string | null | undefined;
+  creatorName: string;
+  brandName: string;
+  uploadUrl: string;
+  cancelUrl: string;
+}): Promise<void> {
+  await send(
+    "deliverable_autocancel_warning_creator",
+    input.to,
+    `Σημαντικό: παραδοτέο ή ακύρωση (${input.brandName})`,
+    shell(
+      "Δεν έχει υποβληθεί παραδοτέο",
+      `<p>Γεια σου ${escapeHtml(input.creatorName)},</p>
+       <p>Η συνεργασία με <strong>${escapeHtml(input.brandName)}</strong> είναι ενεργή, αλλά <strong>δεν έχει υποβληθεί ακόμα παραδοτέο</strong>.</p>
+       <p><strong>Αν έγινε η συνεργασία:</strong> ανέβασε τώρα το link της δημοσίευσης.</p>
+       ${button(input.uploadUrl, "Ανέβασε το link παραδοτέου")}
+       <p><strong>Αν δεν έγινε η συνεργασία:</strong> ακύρωσε τη συμφωνία από το dashboard.</p>
+       ${button(input.cancelUrl, "Ακύρωση συμφωνίας")}
+       <p>Αν δεν ανεβάσεις link ούτε ακυρώσεις, η συνεργασία θεωρείται ότι δεν ολοκληρώθηκε και <strong>θα ακυρωθεί αυτόματα σε 3 ημέρες</strong>.</p>`
+    )
+  );
+}
+
+export async function mailDeliverableAutocancelNotice(input: {
+  to: string | null | undefined;
+  party: "creator" | "brand";
+  creatorName: string;
+  brandName: string;
+  dashboardUrl: string;
+}): Promise<void> {
+  const isCreator = input.party === "creator";
+  const subject = `Ακύρωση συνεργασίας — δεν υποβλήθηκε παραδοτέο (${input.brandName})`;
+  const greet = isCreator
+    ? `Γεια σου ${escapeHtml(input.creatorName)},`
+  : `Γεια σας,`;
+  const body = isCreator
+    ? `Η συνεργασία με <strong>${escapeHtml(input.brandName)}</strong> ακυρώθηκε επειδή <strong>δεν υποβλήθηκε παραδοτέο</strong> εντός της προθεσμίας.`
+    : `Η συνεργασία με τον/την <strong>${escapeHtml(input.creatorName)}</strong> ακυρώθηκε επειδή <strong>δεν υποβλήθηκε παραδοτέο</strong> εντός της προθεσμίας.`;
+
+  await send(
+    `deliverable_autocancel_notice_${input.party}`,
+    input.to,
+    subject,
+    shell(
+      "Ακύρωση συνεργασίας",
+      `<p>${greet}</p>
+       <p>${body}</p>
+       ${button(input.dashboardUrl, isCreator ? "Άνοιξε το dashboard" : "Άνοιξε το dashboard")}
+       <p>Αν πιστεύεις ότι πρόκειται για λάθος, επικοινώνησε με την ομάδα Influo.</p>`
+    )
+  );
+}
+
 export { siteUrl };
