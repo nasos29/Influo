@@ -94,7 +94,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "Engagement Rate: What It Is and How to Calculate It"
     },
     excerpt: {
-      el: "Μάθετε τι είναι το ποσοστό αλληλεπίδρασης, γιατί είναι σημαντικό και πώς να το υπολογίσετε. Η κατανόηση αυτού του δείκτη είναι καθοριστική για επιτυχημένο μάρκετινγκ από influencers.",
+      el: "Μάθετε τι είναι το engagement rate, γιατί είναι σημαντικό, και πώς να το υπολογίσετε. Κατανόηση αυτού του metric είναι crucial για επιτυχημένο influencer marketing.",
       en: "Learn what engagement rate is, why it matters, and how to calculate it. Understanding this metric is crucial for successful influencer marketing."
     },
     date: "2025-01-12",
@@ -109,7 +109,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "How to Negotiate Rates with Influencers: Complete Guide"
     },
     excerpt: {
-      el: "Μάθετε πώς να διαπραγματεύεστε δίκαιες τιμές με influencers, τι παράγοντες να λάβετε υπόψη και πώς να φτιάξετε συμφωνίες που ωφελούν και τις δύο πλευρές.",
+      el: "Μάθετε πώς να διαπραγματεύεστε fair prices με influencers, τι factors να λάβετε υπόψη, και πώς να φτιάξετε win-win agreements για και τις δύο πλευρές.",
       en: "Learn how to negotiate fair prices with influencers, what factors to consider, and how to create win-win agreements for both parties."
     },
     date: "2025-01-08",
@@ -124,7 +124,7 @@ export const initialBlogPosts: BlogPost[] = [
       en: "How to Detect Fake Followers: Guide for Brands"
     },
     excerpt: {
-      el: "Μάθετε τα σημάδια προειδοποίησης για ψεύτικους ακόλουθους, τα εργαλεία που μπορείτε να χρησιμοποιήσετε και πώς να προστατευτείτε από influencers με ψεύτικο κοινό.",
+      el: "Μάθετε τα warning signs των fake followers, τα tools που μπορείτε να χρησιμοποιήσετε, και πώς να προστατευτείτε από influencers με fake audience.",
       en: "Learn the warning signs of fake followers, tools you can use, and how to protect yourself from influencers with fake audiences."
     },
     date: "2025-01-03",
@@ -135,11 +135,11 @@ export const initialBlogPosts: BlogPost[] = [
   {
     slug: "influencer-contract-essentials",
     title: {
-      el: "Τι να Συμπεριλάβετε στη Σύμβαση με Influencer: Απαραίτητες Ρήτρες",
+      el: "Τι να Συμπεριλάβετε σε Influencer Contract: Essential Clauses",
       en: "What to Include in Influencer Contract: Essential Clauses"
     },
     excerpt: {
-      el: "Μάθετε τις απαραίτητες ρήτρες που πρέπει να περιλαμβάνει η σύμβαση με influencer για να προστατέψετε την επωνυμία σας και να εξασφαλίσετε σαφείς προσδοκίες.",
+      el: "Μάθετε τα essential clauses που πρέπει να υπάρχουν σε ένα influencer contract για να προστατεύσετε το brand σας και να εξασφαλίσετε clear expectations.",
       en: "Learn the essential clauses that should be in an influencer contract to protect your brand and ensure clear expectations."
     },
     date: "2024-12-15",
@@ -164,57 +164,67 @@ export const initialBlogPosts: BlogPost[] = [
   }
 ];
 
+export function sortBlogPostsByDate(posts: BlogPost[]): BlogPost[] {
+  return [...posts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+/** Canonical post list for SSR (Greek / English blog index). */
+export function getBlogPostsForIndex(): BlogPost[] {
+  return sortBlogPostsByDate(initialBlogPosts);
+}
+
+const BLOG_CARD_IMAGE_SIZES =
+  "(max-width: 767px) 100vw, (max-width: 1023px) 50vw, (max-width: 1535px) 33vw, 25vw";
+
+export { BLOG_CARD_IMAGE_SIZES };
+
 // Helper function to merge content from hardcoded posts
 export function mergeContentFromHardcoded(posts: BlogPost[]): BlogPost[] {
-  // This function will be called to merge content from hardcoded posts
-  // when available. For now, it just returns the posts as-is.
-  // The actual content will be loaded from the blog page's hardcoded posts
-  // when the page loads.
   return posts;
 }
 
 // Initialize localStorage with initial posts if empty
 export function initializeBlogPosts() {
-  if (typeof window === 'undefined') return;
-  
-  const stored = localStorage.getItem('blogPosts');
+  if (typeof window === "undefined") return;
+
+  const stored = localStorage.getItem("blogPosts");
   if (!stored) {
-    localStorage.setItem('blogPosts', JSON.stringify(initialBlogPosts));
+    localStorage.setItem("blogPosts", JSON.stringify(initialBlogPosts));
   } else {
-    // Try to merge content from hardcoded posts if available
-    // This happens when blog page loads and exposes its posts
     try {
       const storedPosts: BlogPost[] = JSON.parse(stored);
-      const needsUpdate = storedPosts.some(p => !p.content || (!p.content.el && !p.content.en));
-      
+      const needsUpdate = storedPosts.some((p) => !p.content || (!p.content.el && !p.content.en));
+
       if (needsUpdate) {
-        // Try to get hardcoded posts from window object if blog page has set it
-        const hardcodedPosts = (window as any).__blogPostsContent;
+        const hardcodedPosts = (window as { __blogPostsContent?: Record<string, BlogPost> }).__blogPostsContent;
         if (hardcodedPosts) {
-          const updatedPosts = storedPosts.map(storedPost => {
+          const updatedPosts = storedPosts.map((storedPost) => {
             const hardcodedPost = hardcodedPosts[storedPost.slug];
-            if (hardcodedPost && hardcodedPost.content && (!storedPost.content || (!storedPost.content.el && !storedPost.content.en))) {
+            if (
+              hardcodedPost &&
+              hardcodedPost.content &&
+              (!storedPost.content || (!storedPost.content.el && !storedPost.content.en))
+            ) {
               return {
                 ...storedPost,
-                content: hardcodedPost.content
+                content: hardcodedPost.content,
               };
             }
             return storedPost;
           });
-          localStorage.setItem('blogPosts', JSON.stringify(updatedPosts));
+          localStorage.setItem("blogPosts", JSON.stringify(updatedPosts));
         }
       }
     } catch (error) {
-      console.error('Error merging content:', error);
+      console.error("Error merging content:", error);
     }
   }
 }
 
-// Get blog posts from localStorage
 export function getBlogPosts(): BlogPost[] {
-  if (typeof window === 'undefined') return initialBlogPosts;
-  
-  const stored = localStorage.getItem('blogPosts');
+  if (typeof window === "undefined") return initialBlogPosts;
+
+  const stored = localStorage.getItem("blogPosts");
   if (stored) {
     try {
       return JSON.parse(stored);
@@ -225,30 +235,26 @@ export function getBlogPosts(): BlogPost[] {
   return initialBlogPosts;
 }
 
-// Get blog post content by slug - tries to load from hardcoded posts via window object
 export function getBlogPostContent(slug: string): { el: string; en: string } | null {
-  if (typeof window === 'undefined') return null;
-  
-  // Try to get from hardcoded posts exposed by blog page
-  const hardcodedPosts = (window as any).__blogPostsContent;
-  if (hardcodedPosts && hardcodedPosts[slug] && hardcodedPosts[slug].content) {
-    return hardcodedPosts[slug].content;
+  if (typeof window === "undefined") return null;
+
+  const hardcodedPosts = (window as { __blogPostsContent?: Record<string, BlogPost> }).__blogPostsContent;
+  if (hardcodedPosts?.[slug]?.content) {
+    return hardcodedPosts[slug].content!;
   }
-  
-  // Try to get from localStorage
-  const stored = localStorage.getItem('blogPosts');
+
+  const stored = localStorage.getItem("blogPosts");
   if (stored) {
     try {
       const allPosts: BlogPost[] = JSON.parse(stored);
-      const post = allPosts.find(p => p.slug === slug);
-      if (post && post.content) {
+      const post = allPosts.find((p) => p.slug === slug);
+      if (post?.content) {
         return post.content;
       }
     } catch {
       // Ignore parse errors
     }
   }
-  
+
   return null;
 }
-
