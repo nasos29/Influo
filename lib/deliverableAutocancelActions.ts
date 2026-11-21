@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isCampaignRealDeliveryComplete } from "@/lib/campaignDealCompletion";
+import type { CancelledBy } from "@/lib/dealCancelEligibility";
 import { DELIVERABLE_AUTOCANCEL_REASON } from "@/lib/deliveryFlags";
 import {
   hasSubmittedDeliverable,
@@ -251,7 +252,7 @@ export async function cancelPairedSiblingIfNeeded(
   id: string,
   influencerId: string,
   brandName: string,
-  cancelledBy: "brand" | "influencer" | "admin",
+  cancelledBy: CancelledBy,
   reason: string,
   cancelledAt: string
 ): Promise<void> {
