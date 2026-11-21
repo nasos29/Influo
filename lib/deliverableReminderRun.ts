@@ -106,6 +106,7 @@ export async function runDeliverableReminders(
   skipped: number;
   errors: string[];
   flags: { creator: boolean; brand: boolean };
+  deliverableAutocancel: Awaited<ReturnType<typeof runDeliverableAutocancel>>;
 }> {
   const nowMs = opts?.nowMs ?? Date.now();
   const creatorOn = isDeliverableRemindersEnabled();
