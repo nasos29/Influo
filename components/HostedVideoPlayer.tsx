@@ -211,6 +211,7 @@ export default function HostedVideoPlayer({
   const hoveringRef = useRef(false);
   const seekingRef = useRef(false);
   const volumeDraggingRef = useRef(false);
+  const [volumePopupOpen, setVolumePopupOpen] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -244,12 +245,19 @@ export default function HostedVideoPlayer({
 
   const scheduleHide = useCallback(() => {
     clearHideTimer();
-    if (!playing || hoveringRef.current || seekingRef.current || volumeDraggingRef.current || showSound)
+    if (
+      !playing ||
+      hoveringRef.current ||
+      seekingRef.current ||
+      volumeDraggingRef.current ||
+      volumePopupOpen ||
+      showSound
+    )
       return;
     hideTimerRef.current = setTimeout(() => {
       setControlsVisible(false);
     }, HIDE_MS);
-  }, [clearHideTimer, playing, showSound]);
+  }, [clearHideTimer, playing, showSound, volumePopupOpen]);
 
   const showControls = useCallback(() => {
     setControlsVisible(true);
@@ -421,6 +429,18 @@ export default function HostedVideoPlayer({
     }
     return clearHideTimer;
   }, [playing, scheduleHide, clearHideTimer]);
+
+  useEffect(() => {
+    if (!volumePopupOpen) return;
+    const onDocPointerDown = (event: PointerEvent) => {
+      if ((event.target as Element).closest("[data-hosted-volume]")) return;
+      if (volumeDraggingRef.current) return;
+      setVolumePopupOpen(false);
+      scheduleHide();
+    };
+    document.addEventListener("pointerdown", onDocPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true);
+  }, [volumePopupOpen, scheduleHide]);
 
   const tryUnmutedPlay = useCallback((el: HTMLVideoElement) => {
     el.muted = false;
@@ -778,57 +798,86 @@ export default function HostedVideoPlayer({
             <span className="w-9 shrink-0 text-center text-[11px] font-semibold tabular-nums text-white/90">
               {formatTime(duration)}
             </span>
-            <button
-              type="button"
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-              aria-label={muted || showSound ? COPY.unmute[uiLang] : COPY.mute[uiLang]}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                toggleMute();
+            <div
+              data-hosted-volume="true"
+              className="relative shrink-0 before:pointer-events-none before:absolute before:-top-20 before:left-1/2 before:h-20 before:w-16 before:-translate-x-1/2 before:content-['']"
+              onMouseEnter={() => {
+                if (!volumeSliderSupported) return;
+                setVolumePopupOpen(true);
+                showControls();
+              }}
+              onMouseLeave={() => {
+                if (!volumeSliderSupported || volumeDraggingRef.current) return;
+                setVolumePopupOpen(false);
+                scheduleHide();
               }}
             >
-              {muted || showSound ? (
-                <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
-                  <path d="M5 9v6h4l5 5V4L9 9H5zm12.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
-                  <path d="M3.27 3 2 4.27 6.73 9H5v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 3.27 3z" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
-                  <path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
-                </svg>
-              )}
-            </button>
-            {volumeSliderSupported ? (
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={Math.round(volume * 100)}
-                aria-label={COPY.volume[uiLang]}
-                className="hosted-volume-slider h-1.5 w-14 shrink-0 cursor-pointer accent-[#FE2C55]"
-                onPointerDown={(e) => {
+              {volumeSliderSupported && volumePopupOpen ? (
+                <div className="pointer-events-auto absolute bottom-full left-1/2 z-30 mb-1 flex -translate-x-1/2 flex-col items-center">
+                  <div className="rounded-lg bg-black/85 px-2.5 py-2 shadow-lg">
+                    <div className="flex h-14 w-8 items-center justify-center">
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={1}
+                        value={Math.round(volume * 100)}
+                        aria-label={COPY.volume[uiLang]}
+                        aria-orientation="vertical"
+                        className="hosted-volume-slider h-1.5 w-14 -rotate-90 cursor-pointer accent-[#FE2C55]"
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                          volumeDraggingRef.current = true;
+                          showControls();
+                        }}
+                        onPointerUp={(e) => {
+                          e.stopPropagation();
+                          volumeDraggingRef.current = false;
+                          scheduleHide();
+                        }}
+                        onPointerCancel={() => {
+                          volumeDraggingRef.current = false;
+                          scheduleHide();
+                        }}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setVolumeLevel(Number(e.target.value) / 100);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                aria-label={muted || showSound ? COPY.unmute[uiLang] : COPY.mute[uiLang]}
+                onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
-                  volumeDraggingRef.current = true;
-                  showControls();
+                  const coarse =
+                    typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+                  if (volumeSliderSupported && coarse && !volumePopupOpen) {
+                    setVolumePopupOpen(true);
+                    showControls();
+                    return;
+                  }
+                  toggleMute();
                 }}
-                onPointerUp={(e) => {
-                  e.stopPropagation();
-                  volumeDraggingRef.current = false;
-                  scheduleHide();
-                }}
-                onPointerCancel={() => {
-                  volumeDraggingRef.current = false;
-                  scheduleHide();
-                }}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setVolumeLevel(Number(e.target.value) / 100);
-                }}
-                onClick={(e) => e.stopPropagation()}
-              />
-            ) : null}
+              >
+                {muted || showSound ? (
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+                    <path d="M5 9v6h4l5 5V4L9 9H5zm12.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z" />
+                    <path d="M3.27 3 2 4.27 6.73 9H5v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73 3.27 3z" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden>
+                    <path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               type="button"
               data-hosted-expand="true"
