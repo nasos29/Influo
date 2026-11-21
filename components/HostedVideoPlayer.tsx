@@ -77,6 +77,7 @@ function probeVolumeControl(): boolean {
 }
 
 const HIDE_MS = 2000;
+const VOLUME_POPUP_CLOSE_MS = 300;
 const ANIM_MS = 220;
 const ANIM_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 
@@ -211,6 +212,7 @@ export default function HostedVideoPlayer({
   const hoveringRef = useRef(false);
   const seekingRef = useRef(false);
   const volumeDraggingRef = useRef(false);
+  const volumePopupCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [volumePopupOpen, setVolumePopupOpen] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -243,6 +245,13 @@ export default function HostedVideoPlayer({
     }
   }, []);
 
+  const clearVolumePopupCloseTimer = useCallback(() => {
+    if (volumePopupCloseTimerRef.current) {
+      clearTimeout(volumePopupCloseTimerRef.current);
+      volumePopupCloseTimerRef.current = null;
+    }
+  }, []);
+
   const scheduleHide = useCallback(() => {
     clearHideTimer();
     if (
@@ -258,6 +267,16 @@ export default function HostedVideoPlayer({
       setControlsVisible(false);
     }, HIDE_MS);
   }, [clearHideTimer, playing, showSound, volumePopupOpen]);
+
+  const scheduleVolumePopupClose = useCallback(() => {
+    clearVolumePopupCloseTimer();
+    volumePopupCloseTimerRef.current = setTimeout(() => {
+      volumePopupCloseTimerRef.current = null;
+      if (volumeDraggingRef.current) return;
+      setVolumePopupOpen(false);
+      scheduleHide();
+    }, VOLUME_POPUP_CLOSE_MS);
+  }, [clearVolumePopupCloseTimer, scheduleHide]);
 
   const showControls = useCallback(() => {
     setControlsVisible(true);
@@ -435,12 +454,15 @@ export default function HostedVideoPlayer({
     const onDocPointerDown = (event: PointerEvent) => {
       if ((event.target as Element).closest("[data-hosted-volume]")) return;
       if (volumeDraggingRef.current) return;
+      clearVolumePopupCloseTimer();
       setVolumePopupOpen(false);
       scheduleHide();
     };
     document.addEventListener("pointerdown", onDocPointerDown, true);
     return () => document.removeEventListener("pointerdown", onDocPointerDown, true);
-  }, [volumePopupOpen, scheduleHide]);
+  }, [volumePopupOpen, scheduleHide, clearVolumePopupCloseTimer]);
+
+  useEffect(() => () => clearVolumePopupCloseTimer(), [clearVolumePopupCloseTimer]);
 
   const tryUnmutedPlay = useCallback((el: HTMLVideoElement) => {
     el.muted = false;
@@ -800,20 +822,20 @@ export default function HostedVideoPlayer({
             </span>
             <div
               data-hosted-volume="true"
-              className="relative shrink-0 before:pointer-events-none before:absolute before:-top-20 before:left-1/2 before:h-20 before:w-16 before:-translate-x-1/2 before:content-['']"
+              className="relative shrink-0"
               onMouseEnter={() => {
                 if (!volumeSliderSupported) return;
+                clearVolumePopupCloseTimer();
                 setVolumePopupOpen(true);
                 showControls();
               }}
               onMouseLeave={() => {
                 if (!volumeSliderSupported || volumeDraggingRef.current) return;
-                setVolumePopupOpen(false);
-                scheduleHide();
+                scheduleVolumePopupClose();
               }}
             >
               {volumeSliderSupported && volumePopupOpen ? (
-                <div className="pointer-events-auto absolute bottom-full left-1/2 z-30 mb-1 flex -translate-x-1/2 flex-col items-center">
+                <div className="absolute bottom-full left-1/2 z-30 flex w-11 -translate-x-1/2 flex-col items-center pb-1">
                   <div className="rounded-lg bg-black/85 px-2.5 py-2 shadow-lg">
                     <div className="flex h-14 w-8 items-center justify-center">
                       <input
