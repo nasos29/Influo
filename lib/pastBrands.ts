@@ -43,6 +43,87 @@ export function aggregatePastBrands(rows: ProposalBrandRow[]): Map<string, strin
   return lists;
 }
 
+const CAMPAIGN_APP_SELECT = "influencer_id, brand_campaigns ( brands ( brand_name ) )";
+
+type CampaignApplicationBrandRow = {
+  influencer_id?: string | null;
+  brand_campaigns?: unknown;
+};
+
+function brandNameFromCampaignRow(row: CampaignApplicationBrandRow): string {
+  const campaignRaw = row.brand_campaigns;
+  const campaign = (Array.isArray(campaignRaw) ? campaignRaw[0] : campaignRaw) as
+    | { brands?: unknown }
+    | null
+    | undefined;
+  if (!campaign || typeof campaign !== "object") return "";
+  const brandsRaw = campaign.brands;
+  const brand = (Array.isArray(brandsRaw) ? brandsRaw[0] : brandsRaw) as
+    | { brand_name?: string | null }
+    | null
+    | undefined;
+  const name = brand?.brand_name;
+  return typeof name === "string" ? name.trim() : "";
+}
+
+function flattenApprovedCampaignRows(rows: CampaignApplicationBrandRow[]): ProposalBrandRow[] {
+  const out: ProposalBrandRow[] = [];
+  for (const row of rows) {
+    const id = row.influencer_id != null ? String(row.influencer_id).trim() : "";
+    if (!id) continue;
+    const name = brandNameFromCampaignRow(row);
+    if (!name) continue;
+    out.push({ influencer_id: id, brand_name: name });
+  }
+  return out;
+}
+
+async function fetchApprovedCampaignBrandRows(
+  admin: SupabaseClient,
+  ids: string[]
+): Promise<ProposalBrandRow[]> {
+  const all: ProposalBrandRow[] = [];
+  for (let i = 0; i < ids.length; i += IN_CHUNK) {
+    const chunk = ids.slice(i, i + IN_CHUNK);
+    let from = 0;
+    for (;;) {
+      const { data, error } = await admin
+        .from("campaign_applications")
+        .select(CAMPAIGN_APP_SELECT)
+        .eq("status", "accepted")
+        .eq("deliverable_status", "approved")
+        .in("influencer_id", chunk)
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(error.message);
+      const batch = flattenApprovedCampaignRows((data || []) as CampaignApplicationBrandRow[]);
+      all.push(...batch);
+      if ((data || []).length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+  }
+  return all;
+}
+
+async function fetchAllApprovedCampaignBrandRows(admin: SupabaseClient): Promise<ProposalBrandRow[]> {
+  const all: ProposalBrandRow[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await admin
+      .from("campaign_applications")
+      .select(CAMPAIGN_APP_SELECT)
+      .eq("status", "accepted")
+      .eq("deliverable_status", "approved")
+      .order("id", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    const raw = (data || []) as CampaignApplicationBrandRow[];
+    all.push(...flattenApprovedCampaignRows(raw));
+    if (raw.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 async function fetchCompletedBrandRows(
   admin: SupabaseClient,
   ids: string[]
@@ -69,9 +150,9 @@ async function fetchCompletedBrandRows(
 }
 
 /**
- * Every completed collaboration → brand names by influencer.
+ * Every completed proposal collaboration and approved campaign deliverable → brand names by influencer.
  * Prefer this over `.in(every approved id)` when the directory badge filter
- * needs past_brands for the whole catalog (far fewer proposal rows than creators).
+ * needs past_brands for the whole catalog (far fewer rows than creators).
  */
 export async function getAllPastBrands(client?: SupabaseClient): Promise<Map<string, string[]>> {
   const admin = await resolveClient(client);
@@ -90,6 +171,7 @@ export async function getAllPastBrands(client?: SupabaseClient): Promise<Map<str
     if (batch.length < PAGE_SIZE) break;
     from += PAGE_SIZE;
   }
+  rows.push(...(await fetchAllApprovedCampaignBrandRows(admin)));
   return aggregatePastBrands(rows);
 }
 
@@ -121,8 +203,11 @@ export async function getPastBrandsByInfluencerIds(
   if (!ids.length) return result;
 
   const admin = await resolveClient(client);
-  const rows = await fetchCompletedBrandRows(admin, ids);
-  const aggregated = aggregatePastBrands(rows);
+  const [proposalRows, campaignRows] = await Promise.all([
+    fetchCompletedBrandRows(admin, ids),
+    fetchApprovedCampaignBrandRows(admin, ids),
+  ]);
+  const aggregated = aggregatePastBrands([...proposalRows, ...campaignRows]);
   for (const [id, brands] of aggregated) {
     result.set(id, brands);
   }

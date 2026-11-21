@@ -47,3 +47,14 @@ test("aggregatePastBrands accepts rows already filtered (no status field)", () =
   ]);
   assert.deepEqual(map.get("x"), ["One", "Two"]);
 });
+
+test("aggregatePastBrands merges completed proposals and approved campaign brands", () => {
+  const map = aggregatePastBrands([
+    { influencer_id: "a", brand_name: "Shared", status: "completed" },
+    { influencer_id: "a", brand_name: "Shared" },
+    { influencer_id: "a", brand_name: "CampaignOnly" },
+    { influencer_id: "a", brand_name: "ProposalOnly", status: "completed" },
+    { influencer_id: "a", brand_name: "Pending", status: "accepted" },
+  ]);
+  assert.deepEqual(map.get("a"), ["Shared", "CampaignOnly", "ProposalOnly"]);
+});

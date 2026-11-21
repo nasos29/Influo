@@ -15,6 +15,7 @@ import {
   parseSocialPostUrl,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
+import { revalidatePublicProfileById } from "@/lib/revalidatePublicProfile";
 type Action = "submit" | "approve" | "request_changes";
 
 /**
@@ -245,6 +246,12 @@ export async function POST(request: NextRequest) {
     ({ error } = await admin.from("campaign_applications").update(soft).eq("id", applicationId));
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  if (nextStatus === "approved") {
+    await revalidatePublicProfileById(admin, String(app.influencer_id)).catch((err) => {
+      console.error("[deliverable] revalidate profile", err);
+    });
+  }
 
   deferAfterResponse(async () => {
     try {
