@@ -205,13 +205,29 @@ export async function runDeliverableAutocancel(
     if (warnedPairs.has(dedupe)) continue;
     try {
       const sentAt = new Date(nowMs).toISOString();
-      const { data: claimed, error: claimErr } = await admin
-        .from(row.source === "campaign" ? "campaign_applications" : "proposals")
-        .update({ deliverable_warning_sent_at: sentAt })
-        .eq("id", row.id)
-        .is("deliverable_warning_sent_at", null)
-        .select("id")
-        .maybeSingle();
+      let claimed: { id: string } | null = null;
+      let claimErr: { message: string } | null = null;
+      if (row.source === "campaign") {
+        const res = await admin
+          .from("campaign_applications")
+          .update({ deliverable_warning_sent_at: sentAt })
+          .eq("id", row.id)
+          .is("deliverable_warning_sent_at", null)
+          .select("id")
+          .maybeSingle();
+        claimed = res.data;
+        claimErr = res.error;
+      } else {
+        const res = await admin
+          .from("proposals")
+          .update({ deliverable_warning_sent_at: sentAt })
+          .eq("id", row.id)
+          .is("deliverable_warning_sent_at", null)
+          .select("id")
+          .maybeSingle();
+        claimed = res.data;
+        claimErr = res.error;
+      }
       if (claimErr || !claimed?.id) {
         skipped += 1;
         continue;
@@ -297,11 +313,20 @@ export async function sendManualDeliverableWarning(
   source: CollaboratorSource,
   id: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  const table = source === "campaign" ? "campaign_applications" : "proposals";
-  const select = source === "campaign" ? CAMPAIGN_SELECT : PROPOSAL_SELECT;
-  const { data, error } = await admin.from(table).select(select).eq("id", id).maybeSingle();
-  if (error || !data) return { ok: false, error: "not_found" };
-  const row = source === "campaign" ? mapCampaign(data as Record<string, unknown>) : mapProposal(data as Record<string, unknown>);
+  let row: AutocancelRow;
+  if (source === "campaign") {
+    const { data, error } = await admin
+      .from("campaign_applications")
+      .select(CAMPAIGN_SELECT)
+      .eq("id", id)
+      .maybeSingle();
+    if (error || !data) return { ok: false, error: "not_found" };
+    row = mapCampaign(data as Record<string, unknown>);
+  } else {
+    const { data, error } = await admin.from("proposals").select(PROPOSAL_SELECT).eq("id", id).maybeSingle();
+    if (error || !data) return { ok: false, error: "not_found" };
+    row = mapProposal(data as Record<string, unknown>);
+  }
   if (!isActiveDealForAutocancel(row)) {
     return { ok: false, error: "not_eligible" };
   }
@@ -309,13 +334,29 @@ export async function sendManualDeliverableWarning(
   if (row.showcase_admin_hidden) return { ok: false, error: "hidden" };
 
   const sentAt = new Date().toISOString();
-  const { data: claimed, error: claimErr } = await admin
-    .from(table)
-    .update({ deliverable_warning_sent_at: sentAt })
-    .eq("id", id)
-    .is("deliverable_warning_sent_at", null)
-    .select("id")
-    .maybeSingle();
+  let claimed: { id: string } | null = null;
+  let claimErr: { message: string } | null = null;
+  if (source === "campaign") {
+    const res = await admin
+      .from("campaign_applications")
+      .update({ deliverable_warning_sent_at: sentAt })
+      .eq("id", id)
+      .is("deliverable_warning_sent_at", null)
+      .select("id")
+      .maybeSingle();
+    claimed = res.data;
+    claimErr = res.error;
+  } else {
+    const res = await admin
+      .from("proposals")
+      .update({ deliverable_warning_sent_at: sentAt })
+      .eq("id", id)
+      .is("deliverable_warning_sent_at", null)
+      .select("id")
+      .maybeSingle();
+    claimed = res.data;
+    claimErr = res.error;
+  }
   if (claimErr || !claimed?.id) return { ok: false, error: "already_warned" };
 
   await stampDeliverableWarningBoth(admin, { ...row, deliverable_warning_sent_at: sentAt }, sentAt);
