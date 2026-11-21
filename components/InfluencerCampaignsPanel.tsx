@@ -246,9 +246,9 @@ export default function InfluencerCampaignsPanel({
     if (searchParams?.get("focus") !== "cancel") return;
     if (loading || mine.length === 0) return;
     const appId = searchParams.get("application") || "";
-    const target =
-      (appId && mine.find((m) => m.id === appId && canCancelCampaignDeal(m))) ||
-      mine.find((m) => canCancelCampaignDeal(m));
+    const target = appId
+      ? mine.find((m) => m.id === appId && canCancelCampaignDeal(m))
+      : mine.find((m) => canCancelCampaignDeal(m));
     if (!target) return;
     cancelFocusDone.current = true;
     setCancelApplicationId(target.id);
@@ -260,10 +260,9 @@ export default function InfluencerCampaignsPanel({
     if (loading || mine.length === 0) return;
     const appId = searchParams.get("application") || "";
     const prefill = searchParams.get("prefill") || "";
-    const target =
-      (appId && mine.find((m) => m.id === appId)) ||
-      mine.find((m) => canShowDeliverable(m) && m.deliverable_status !== "approved") ||
-      mine[0];
+    const target = appId
+      ? mine.find((m) => m.id === appId && canShowDeliverable(m) && m.deliverable_status !== "approved")
+      : mine.find((m) => canShowDeliverable(m) && m.deliverable_status !== "approved") || mine[0];
     if (!target) return;
     deliverableFocusDone.current = true;
     setHighlightDeliverableId(target.id);

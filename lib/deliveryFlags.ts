@@ -99,9 +99,16 @@ export function isDeliverableAutocancelEnabled(env: NodeJS.ProcessEnv = process.
   return envOn(env.DELIVERABLE_AUTOCANCEL_ENABLED);
 }
 
-/** Email on deliverable warning + system auto-cancel (creator/brand). Default OFF. */
+/**
+ * Email on deliverable warning + system auto-cancel (creator/brand).
+ * When autocancel is ON: sends unless DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED is explicitly off.
+ * When autocancel is OFF: follows explicit env only (default off).
+ */
 export function isDeliverableAutocancelEmailsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  return envOn(env.DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED);
+  const raw = String(env.DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED ?? "").trim();
+  if (/^(0|false|no|off)$/i.test(raw)) return false;
+  if (isDeliverableAutocancelEnabled(env)) return true;
+  return envOn(raw);
 }
 
 /** ISO instant — only acceptances on/after this are eligible for automatic warning (cron). */

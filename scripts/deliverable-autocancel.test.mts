@@ -9,10 +9,11 @@ import {
   passesSinceCutoff,
   canAdminRestoreDeal,
 } from "../lib/deliverableAutocancelEligibility.ts";
-import { aggregatePastBrands } from "../lib/pastBrands.ts";
+import { aggregatePastBrands, includeRowInPastBrands } from "../lib/pastBrands.ts";
 import {
   DELIVERABLE_AUTOCANCEL_REASON,
   deliverableAutocancelSinceMs,
+  isDeliverableAutocancelEmailsEnabled,
   isDeliverableAutocancelEnabled,
 } from "../lib/deliveryFlags.ts";
 import { canCancelDeal } from "../lib/dealCancelEligibility.ts";
@@ -23,6 +24,21 @@ test("flag default off", () => {
   assert.equal(isDeliverableAutocancelEnabled({ DELIVERABLE_AUTOCANCEL_ENABLED: "0" }), false);
   assert.equal(isDeliverableAutocancelEnabled({ DELIVERABLE_AUTOCANCEL_ENABLED: "1" }), true);
   assert.equal(deliverableAutocancelSinceMs({}), null);
+});
+
+test("autocancel emails default on when feature enabled", () => {
+  const on = { DELIVERABLE_AUTOCANCEL_ENABLED: "1" };
+  assert.equal(isDeliverableAutocancelEmailsEnabled(on), true);
+  assert.equal(isDeliverableAutocancelEmailsEnabled({ ...on, DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED: "" }), true);
+  assert.equal(
+    isDeliverableAutocancelEmailsEnabled({ ...on, DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED: "0" }),
+    false
+  );
+  assert.equal(
+    isDeliverableAutocancelEmailsEnabled({ ...on, DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED: "false" }),
+    false
+  );
+  assert.equal(isDeliverableAutocancelEmailsEnabled({}), false);
 });
 
 test("since-cutoff skips old acceptances for automatic warning", () => {
@@ -104,6 +120,44 @@ test("admin restore eligibility and pastBrands hide until completed again", () =
     { influencer_id: "a", brand_name: "Y", status: "completed" },
   ]);
   assert.deepEqual(brands.get("a"), ["Y"]);
+
+  assert.equal(
+    includeRowInPastBrands({
+      influencer_id: "a",
+      brand_name: "Restored",
+      status: "completed",
+      restored_at: "2026-03-01T00:00:00Z",
+    }),
+    false
+  );
+  assert.equal(
+    includeRowInPastBrands({
+      influencer_id: "a",
+      brand_name: "RestoredDone",
+      status: "completed",
+      restored_at: "2026-03-01T00:00:00Z",
+      delivery_confirmed_at: "2026-03-05T00:00:00Z",
+    }),
+    true
+  );
+  assert.equal(
+    includeRowInPastBrands({
+      influencer_id: "a",
+      brand_name: "Theodora",
+      status: "completed",
+    }),
+    true
+  );
+  const restoredHidden = aggregatePastBrands([
+    {
+      influencer_id: "b",
+      brand_name: "Hidden",
+      status: "completed",
+      restored_at: "2026-01-01T00:00:00Z",
+    },
+    { influencer_id: "b", brand_name: "Visible", status: "completed" },
+  ]);
+  assert.deepEqual(restoredHidden.get("b"), ["Visible"]);
 });
 
 test("Athens 3-calendar-day rule", () => {
@@ -126,4 +180,18 @@ test("paired sibling helper brand key", async () => {
   const { normalizeBrandKey, pairKey } = await import("../lib/deliverableAutocancelEligibility.ts");
   assert.equal(normalizeBrandKey("  Foo  Bar "), "foo bar");
   assert.equal(pairKey("uuid", "Foo Bar"), "uuid::foo bar");
+});
+
+test("focus=cancel deep links do not fall back when proposalId is set", () => {
+  const dash = readFileSync(new URL("../components/DashboardContent.tsx", import.meta.url), "utf8");
+  const cancelBlock = dash.slice(dash.indexOf("focus') !== 'cancel'"), dash.indexOf("cancelFocusDone.current = true"));
+  assert.doesNotMatch(
+    cancelBlock,
+    /proposalId\s*&&\s*proposals\.find[\s\S]*\|\|\s*proposals\.find/
+  );
+  const panel = readFileSync(new URL("../components/InfluencerCampaignsPanel.tsx", import.meta.url), "utf8");
+  const panelCancel = panel.slice(panel.indexOf('focus") !== "cancel"'), panel.indexOf("setCancelApplicationId"));
+  assert.doesNotMatch(panelCancel, /appId\s*&&\s*mine\.find[\s\S]*\|\|\s*mine\.find/);
+  const panelDel = panel.slice(panel.indexOf('focus") !== "deliverable"'), panel.indexOf("setHighlightDeliverableId"));
+  assert.doesNotMatch(panelDel, /appId\s*&&\s*mine\.find[\s\S]*\|\|\s*mine\.find/);
 });

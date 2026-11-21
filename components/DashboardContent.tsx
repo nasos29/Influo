@@ -1827,9 +1827,9 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
         if (!proposalsLoaded || cancelFocusDone.current) return;
         if (searchParams?.get('focus') !== 'cancel') return;
         const proposalId = searchParams?.get('proposalId');
-        const target =
-            (proposalId && proposals.find((p) => String(p.id) === proposalId && canCancelDeal(p))) ||
-            proposals.find((p) => canCancelDeal(p));
+        const target = proposalId
+            ? proposals.find((p) => String(p.id) === proposalId && canCancelDeal(p))
+            : proposals.find((p) => canCancelDeal(p));
         if (!target) return;
         cancelFocusDone.current = true;
         setActiveTab('proposals');

@@ -203,11 +203,6 @@ export async function runDeliverableAutocancel(
     warningsScanned += 1;
     const dedupe = pairDedupeKey(row);
     if (warnedPairs.has(dedupe)) continue;
-    if (isCollabEmailExcludedInfluencer(row.influencer_id)) {
-      skipped += 1;
-      continue;
-    }
-
     try {
       const sentAt = new Date(nowMs).toISOString();
       const { data: claimed, error: claimErr } = await admin
@@ -224,22 +219,22 @@ export async function runDeliverableAutocancel(
       await stampDeliverableWarningBoth(admin, { ...row, deliverable_warning_sent_at: sentAt }, sentAt);
       warnedPairs.add(dedupe);
 
-      const prefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
-      if (!allowRemindersEmail(prefs)) {
-        skipped += 1;
-        continue;
+      const skipEmail =
+        !emailsOn || isCollabEmailExcludedInfluencer(row.influencer_id);
+      if (!skipEmail) {
+        const prefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
+        if (allowRemindersEmail(prefs)) {
+          const contact = await influencerContact(row.influencer_id);
+          await mailDeliverableWarningCreator({
+            to: contact.email,
+            creatorName: contact.name,
+            brandName: row.brand_name || "Επιχείρηση",
+            uploadUrl: dashboardDeliverableUrl(row),
+            cancelUrl: dashboardCancelUrl(row),
+          });
+          warningsSent += 1;
+        }
       }
-      if (emailsOn) {
-        const contact = await influencerContact(row.influencer_id);
-        await mailDeliverableWarningCreator({
-          to: contact.email,
-          creatorName: contact.name,
-          brandName: row.brand_name || "Επιχείρηση",
-          uploadUrl: dashboardDeliverableUrl(row),
-          cancelUrl: dashboardCancelUrl(row),
-        });
-      }
-      warningsSent += 1;
     } catch (err) {
       errors.push(`warn ${row.source} ${row.id}: ${err instanceof Error ? err.message : "fail"}`);
     }
@@ -260,7 +255,7 @@ export async function runDeliverableAutocancel(
       }
       cancelled += ids.length;
 
-      if (emailsOn) {
+      if (emailsOn && !isCollabEmailExcludedInfluencer(row.influencer_id)) {
         const contact = await influencerContact(row.influencer_id);
         const brandEmail = row.brand_email;
         await mailDeliverableAutocancelNotice({
@@ -325,18 +320,15 @@ export async function sendManualDeliverableWarning(
 
   await stampDeliverableWarningBoth(admin, { ...row, deliverable_warning_sent_at: sentAt }, sentAt);
 
-  if (isDeliverableAutocancelEmailsEnabled() && !isCollabEmailExcludedInfluencer(row.influencer_id)) {
-    const prefs = await loadNotificationPreferences(admin, "influencer", row.influencer_id);
-    if (allowRemindersEmail(prefs)) {
-      const contact = await influencerContact(row.influencer_id);
-      await mailDeliverableWarningCreator({
-        to: contact.email,
-        creatorName: contact.name,
-        brandName: row.brand_name || "Επιχείρηση",
-        uploadUrl: dashboardDeliverableUrl(row),
-        cancelUrl: dashboardCancelUrl(row),
-      });
-    }
+  if (!isCollabEmailExcludedInfluencer(row.influencer_id)) {
+    const contact = await influencerContact(row.influencer_id);
+    await mailDeliverableWarningCreator({
+      to: contact.email,
+      creatorName: contact.name,
+      brandName: row.brand_name || "Επιχείρηση",
+      uploadUrl: dashboardDeliverableUrl(row),
+      cancelUrl: dashboardCancelUrl(row),
+    });
   }
 
   return { ok: true };

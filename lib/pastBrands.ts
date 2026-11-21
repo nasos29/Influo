@@ -1,10 +1,30 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isRealDeliveryComplete } from "@/lib/deliveryCompletion";
 
 export type ProposalBrandRow = {
   influencer_id?: string | null;
   brand_name?: string | null;
   status?: string | null;
+  restored_at?: string | null;
+  published_post_url?: string | null;
+  delivery_confirmed_at?: string | null;
+  auto_completed_at?: string | null;
 };
+
+/** Restored admin deals stay off public past brands until a real deliverable exists. */
+export function hasPastBrandShowcaseDeliverable(row: ProposalBrandRow): boolean {
+  const url = String(row.published_post_url || "").trim();
+  if (url) return true;
+  return isRealDeliveryComplete(row);
+}
+
+export function includeRowInPastBrands(row: ProposalBrandRow): boolean {
+  const status = row.status != null ? String(row.status).trim().toLowerCase() : "";
+  if (status === "cancelled") return false;
+  if (status && status !== "completed") return false;
+  if (row.restored_at && !hasPastBrandShowcaseDeliverable(row)) return false;
+  return true;
+}
 
 const PAGE_SIZE = 1000;
 /** PostgREST `.in()` lists blow past URL limits around a few hundred UUIDs. */
@@ -20,10 +40,7 @@ export function aggregatePastBrands(rows: ProposalBrandRow[]): Map<string, strin
   const seen = new Map<string, Set<string>>();
 
   for (const row of rows) {
-    if (row.status != null) {
-      const status = String(row.status).trim().toLowerCase();
-      if (status !== "completed") continue;
-    }
+    if (!includeRowInPastBrands(row)) continue;
     const id = row.influencer_id != null ? String(row.influencer_id).trim() : "";
     if (!id) continue;
     const name = typeof row.brand_name === "string" ? row.brand_name.trim() : "";
@@ -135,7 +152,9 @@ async function fetchCompletedBrandRows(
     for (;;) {
       const { data, error } = await admin
         .from("proposals")
-        .select("influencer_id, brand_name")
+        .select(
+          "influencer_id, brand_name, status, restored_at, published_post_url, delivery_confirmed_at, auto_completed_at"
+        )
         .eq("status", "completed")
         .in("influencer_id", chunk)
         .range(from, from + PAGE_SIZE - 1);
@@ -161,7 +180,9 @@ export async function getAllPastBrands(client?: SupabaseClient): Promise<Map<str
   for (;;) {
     const { data, error } = await admin
       .from("proposals")
-      .select("influencer_id, brand_name")
+      .select(
+        "influencer_id, brand_name, status, restored_at, published_post_url, delivery_confirmed_at, auto_completed_at"
+      )
       .eq("status", "completed")
       .order("id", { ascending: true })
       .range(from, from + PAGE_SIZE - 1);
