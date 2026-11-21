@@ -30,3 +30,11 @@ export function isMissingAccountEmailEnabled(env: NodeJS.ProcessEnv = process.en
     .toLowerCase();
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
+
+/** Approve-new path only; independent of SocialRefresh MISSING_ACCOUNT_EMAIL_ENABLED. */
+export function isMissingAccountEmailOnApproveEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const v = String(env.MISSING_ACCOUNT_EMAIL_ON_APPROVE_ENABLED || "")
+    .trim()
+    .toLowerCase();
+  return v === "1" || v === "true" || v === "yes" || v === "on";
+}

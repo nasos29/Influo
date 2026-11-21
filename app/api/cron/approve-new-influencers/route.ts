@@ -17,6 +17,7 @@ import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { finalizeNewInfluencerApproval } from '@/lib/approveNewInfluencer';
 import { sanitizeTopPosts } from '@/lib/topPosts';
+import { handleMissingAccountNoticesForNewApproval } from '@/lib/missingAccountEmail';
 import { alertAdminUnapproved } from '@/lib/unapprovedAdminAlert';
 import {
   appendSocialRefreshLog,
@@ -320,6 +321,13 @@ export async function POST(request: NextRequest) {
         });
         await incrementRunCounters(runId, 'influencers_unapproved');
         await alertAdminUnapproved(supabaseAdmin, { runId, influencerId, influencerName, reason: `Σφάλμα προφίλ: ${detail}` });
+        await handleMissingAccountNoticesForNewApproval(supabaseAdmin, influencerId, influencerName, accounts).catch(
+          (err) =>
+            console.warn(
+              '[approve-new-influencers] missing account mail',
+              err instanceof Error ? err.message : err
+            )
+        );
         return NextResponse.json({ ok: false, skipped: true, errors: profileErrors.map((a) => a.error) });
       }
 
