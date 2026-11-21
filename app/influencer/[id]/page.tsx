@@ -4,7 +4,6 @@ import InfluencerProfileClient from "@/components/InfluencerProfileClient";
 import { loadSeoProfileById } from "@/lib/loadSeoProfile";
 import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
 import JsonLdScript from "@/components/JsonLdScript";
-import RelatedCreatorsServer from "@/components/RelatedCreatorsServer";
 import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
 import { profileJsonLd, profileMetadata, profileCanonical } from "@/lib/profileSeo";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -68,11 +67,6 @@ export default async function InfluencerByIdPage({ params }: { params: Params })
         params={Promise.resolve({ id: profile.id })}
         initialProfile={profile.view}
         publicPath={path}
-      />
-      <RelatedCreatorsServer
-        influencerId={profile.id}
-        categories={profile.view.categories}
-        accounts={profile.view.accounts}
       />
     </>
   );

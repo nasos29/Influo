@@ -5,7 +5,6 @@ import { supabaseService } from "@/lib/apiAuth";
 import { loadSeoProfileById, loadSeoProfileBySlug, type SeoProfile } from "@/lib/loadSeoProfile";
 import { creatorReviewsJsonLd } from "@/lib/loadPublicReviewsJsonLd";
 import JsonLdScript from "@/components/JsonLdScript";
-import RelatedCreatorsServer from "@/components/RelatedCreatorsServer";
 import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
 import { profileJsonLd, profileMetadata, profileCanonical } from "@/lib/profileSeo";
 import { retiredSlugInfluencerId } from "@/lib/profileSlugAssign";
@@ -85,11 +84,6 @@ export default async function InfluencerBySlugPage({ params }: { params: Params 
         params={Promise.resolve({ id: resolved.profile.id })}
         initialProfile={resolved.profile.view}
         publicPath={path}
-      />
-      <RelatedCreatorsServer
-        influencerId={resolved.profile.id}
-        categories={resolved.profile.view.categories}
-        accounts={resolved.profile.view.accounts}
       />
     </>
   );
