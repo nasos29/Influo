@@ -93,3 +93,25 @@ export const DELIVERABLE_REMINDER_GENTLE_DAYS = 7;
 export const BRAND_APPROVE_REMINDER_DAYS = 2;
 /** Days after submission before link auto-complete / event admin notify. */
 export const DELIVERY_AUTO_COMPLETE_DAYS = 7;
+
+/** Cron: deliverable warning (day 10) + auto-cancel 3 Athens days after warning. Default OFF. */
+export function isDeliverableAutocancelEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return envOn(env.DELIVERABLE_AUTOCANCEL_ENABLED);
+}
+
+/** Email on deliverable warning + system auto-cancel (creator/brand). Default OFF. */
+export function isDeliverableAutocancelEmailsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return envOn(env.DELIVERABLE_AUTOCANCEL_EMAILS_ENABLED);
+}
+
+/** ISO instant — only acceptances on/after this are eligible for automatic warning (cron). */
+export function deliverableAutocancelSinceMs(env: NodeJS.ProcessEnv = process.env): number | null {
+  const raw = String(env.DELIVERABLE_AUTOCANCEL_SINCE ?? "").trim();
+  if (!raw) return null;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+export const DELIVERABLE_AUTOCANCEL_WARNING_DAYS = 10;
+export const DELIVERABLE_AUTOCANCEL_DAYS_AFTER_WARNING = 3;
+export const DELIVERABLE_AUTOCANCEL_REASON = "Δεν υποβλήθηκε παραδοτέο";

@@ -17,6 +17,7 @@ import { isCollabEmailExcludedInfluencer } from "@/lib/collabEmailExclusion";
 import { isDealCancelEmailsEnabled } from "@/lib/deliveryFlags";
 import { brandHasAccount, influencerContact, type ProposalRow } from "@/lib/proposalAccess";
 import { brandLink, mailDealCancelled } from "@/lib/proposalMail";
+import { cancelPairedSiblingIfNeeded } from "@/lib/deliverableAutocancelActions";
 import { deferAfterResponse, conversationIdForParties, pushParty } from "@/lib/proposalNotify";
 
 export {
@@ -416,6 +417,16 @@ export async function cancelDeal(args: {
       cancelledBy: args.cancelledBy,
       reason: validated.reason,
     });
+    await cancelPairedSiblingIfNeeded(
+      db,
+      "proposal",
+      String(args.proposal.id),
+      args.proposal.influencer_id,
+      args.proposal.brand_name || "Επιχείρηση",
+      args.cancelledBy,
+      validated.reason,
+      cancelledAt
+    );
   });
 
   return { ok: true, cancelledAt };

@@ -15,6 +15,7 @@ import {
   parseSocialPostUrl,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
+import { isAutocancelBlockedRow } from "@/lib/deliverableAutocancelEligibility";
 import { revalidatePublicProfileById } from "@/lib/revalidatePublicProfile";
 type Action = "submit" | "approve" | "request_changes";
 
@@ -37,11 +38,11 @@ export async function POST(request: NextRequest) {
 
   const admin = supabaseService();
   const appSelectWithSeen =
-    "id, influencer_id, status, deliverable_status, deliverable_seen_at, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+    "id, influencer_id, status, deliverable_status, deliverable_seen_at, auto_cancelled_at, cancelled_by, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
   const appSelectBasic =
-    "id, influencer_id, status, deliverable_status, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+    "id, influencer_id, status, deliverable_status, auto_cancelled_at, cancelled_by, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
   const appSelectLegacy =
-    "id, influencer_id, status, deliverable_status, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+    "id, influencer_id, status, deliverable_status, auto_cancelled_at, cancelled_by, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
   let appRes = await admin
     .from("campaign_applications")
     .select(appSelectWithSeen)
@@ -96,6 +97,9 @@ export async function POST(request: NextRequest) {
     if (!owns) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (app.status !== "accepted") {
       return NextResponse.json({ error: "not_accepted" }, { status: 400 });
+    }
+    if (isAutocancelBlockedRow(app)) {
+      return NextResponse.json({ error: "deal_closed" }, { status: 409 });
     }
 
     const isEvent =

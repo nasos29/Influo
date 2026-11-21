@@ -14,6 +14,7 @@ import { isCampaignDealCancelEmailsEnabled } from "@/lib/deliveryFlags";
 import { onDealCancelled } from "@/lib/dealCancel";
 import { brandHasAccount, influencerContact } from "@/lib/proposalAccess";
 import { brandLink, mailDealCancelled } from "@/lib/proposalMail";
+import { cancelPairedSiblingIfNeeded } from "@/lib/deliverableAutocancelActions";
 import { deferAfterResponse, pushParty } from "@/lib/proposalNotify";
 
 export {
@@ -224,6 +225,17 @@ export async function cancelCampaignDeal(args: {
       cancelledBy: args.cancelledBy,
       reason: validated.reason,
     });
+    const meta = applicationMeta(args.application);
+    await cancelPairedSiblingIfNeeded(
+      db,
+      "campaign",
+      args.application.id,
+      args.application.influencer_id,
+      meta.brandName,
+      args.cancelledBy,
+      validated.reason,
+      cancelledAt
+    );
   });
 
   return { ok: true, cancelledAt };

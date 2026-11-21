@@ -240,6 +240,20 @@ export default function InfluencerCampaignsPanel({
     setUiLang(getStoredLanguage() === "en" ? "en" : "el");
   }, []);
 
+  const cancelFocusDone = useRef(false);
+  useEffect(() => {
+    if (cancelFocusDone.current) return;
+    if (searchParams?.get("focus") !== "cancel") return;
+    if (loading || mine.length === 0) return;
+    const appId = searchParams.get("application") || "";
+    const target =
+      (appId && mine.find((m) => m.id === appId && canCancelCampaignDeal(m))) ||
+      mine.find((m) => canCancelCampaignDeal(m));
+    if (!target) return;
+    cancelFocusDone.current = true;
+    setCancelApplicationId(target.id);
+  }, [searchParams, loading, mine]);
+
   useEffect(() => {
     if (deliverableFocusDone.current) return;
     if (searchParams?.get("focus") !== "deliverable") return;

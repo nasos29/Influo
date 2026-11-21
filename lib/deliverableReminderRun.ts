@@ -23,6 +23,7 @@ import {
 import { influencerContact } from "@/lib/proposalAccess";
 import { isCampaignRealDeliveryComplete } from "@/lib/campaignDealCompletion";
 import { isCampaignReminderBacklog } from "@/lib/campaignReviewReminder";
+import { runDeliverableAutocancel } from "@/lib/deliverableAutocancelRun";
 import { publishDeadlineDueMs } from "@/lib/reviewReminder";
 
 type ProposalRow = {
@@ -508,13 +509,16 @@ export async function runDeliverableReminders(
     await runCampaignBrandApproveReminders();
   }
 
+  const autocancel = await runDeliverableAutocancel(admin, { nowMs });
+
   return {
     creatorScanned,
     creatorSent,
     brandScanned,
     brandSent,
     skipped,
-    errors,
+    errors: [...errors, ...autocancel.errors],
     flags: { creator: creatorOn, brand: brandOn },
+    deliverableAutocancel: autocancel,
   };
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
+import { isAutocancelBlockedRow } from "@/lib/deliverableAutocancelEligibility";
 import { asDeliveryMode } from "@/lib/deliveryCompletion";
 import { mailBrandDeliverySubmitted, siteUrl } from "@/lib/deliveryMail";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
@@ -84,6 +85,9 @@ export async function PATCH(request: Request) {
       if (!proposal) return NextResponse.json({ error: "Not found" }, { status: 404 });
       const party = partyOf(session.actor, proposal);
       if (!party) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      if (party === "influencer" && isAutocancelBlockedRow(proposal)) {
+        return NextResponse.json({ error: "deal_closed" }, { status: 409 });
+      }
 
       const update: Record<string, unknown> = {};
       if (typeof body.consent === "boolean") {
