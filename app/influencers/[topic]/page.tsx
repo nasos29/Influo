@@ -5,13 +5,17 @@ import DirectoryTopicLinks from "@/components/DirectoryTopicLinks";
 import JsonLdScript from "@/components/JsonLdScript";
 import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
 import { loadFilteredDirectoryCards } from "@/lib/directoryCards";
-import { landingBySlug } from "@/lib/directoryLandings";
+import { DIRECTORY_LANDINGS, landingBySlug } from "@/lib/directoryLandings";
 import { pageMetadata } from "@/lib/pageMetadata";
 import { unstable_cache } from "next/cache";
 
 export const revalidate = 3600;
 
 type Params = Promise<{ topic: string }>;
+
+export function generateStaticParams(): { topic: string }[] {
+  return DIRECTORY_LANDINGS.map((landing) => ({ topic: landing.slug }));
+}
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { topic } = await params;
