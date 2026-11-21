@@ -67,6 +67,7 @@ export async function GET(request: Request) {
     influencerName: string;
     postUrl: string | null;
     completedAt: string | null;
+    createdAt: string | null;
     hidden: boolean;
     pinned: boolean;
     brandConsent: boolean;
@@ -84,6 +85,7 @@ export async function GET(request: Request) {
     eventAdminAllowed?: boolean;
     eventConfirmPending?: boolean;
     deliveryState?: string;
+    deliverableStatus?: string | null;
   }> = [];
 
   try {
@@ -128,6 +130,8 @@ export async function GET(request: Request) {
           influencerName: "",
           postUrl: typeof row.published_post_url === "string" ? row.published_post_url : null,
           completedAt:
+            typeof row.agreement_accepted_at === "string" ? row.agreement_accepted_at : null,
+          createdAt:
             typeof row.agreement_accepted_at === "string" ? row.agreement_accepted_at : null,
           hidden: !!row.showcase_admin_hidden,
           pinned: !!row.showcase_admin_pinned,
@@ -190,7 +194,7 @@ export async function GET(request: Request) {
     let q = admin
       .from("campaign_applications")
       .select(
-        "id, influencer_id, deliverable_url, reviewed_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_proof_url, showcase_event_admin_allowed, brand_campaigns ( brands ( brand_name ) )"
+        "id, influencer_id, deliverable_url, deliverable_status, reviewed_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_proof_url, showcase_event_admin_allowed, brand_campaigns ( brands ( brand_name ) )"
       )
       .in("deliverable_status", ["approved", "submitted", "changes_requested"])
       .order("reviewed_at", { ascending: false })
@@ -246,11 +250,14 @@ export async function GET(request: Request) {
           influencerName: "",
           postUrl: typeof row.deliverable_url === "string" ? row.deliverable_url : null,
           completedAt: typeof row.reviewed_at === "string" ? row.reviewed_at : null,
+          createdAt: typeof row.reviewed_at === "string" ? row.reviewed_at : null,
           hidden: !!row.showcase_admin_hidden,
           pinned: !!row.showcase_admin_pinned,
           brandConsent: !!row.brand_showcase_consent,
           influencerConsent: !!row.influencer_showcase_consent,
           pendingApproval: false,
+          deliverableStatus:
+            typeof row.deliverable_status === "string" ? row.deliverable_status : null,
           deliveryMode,
           deliverySubmittedAt,
           deliveryConfirmedAt,
