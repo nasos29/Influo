@@ -106,6 +106,37 @@ function hasPublicVideo(url: string | null | undefined): boolean {
   return !!showcasePostFields(url).postUrl;
 }
 
+const COLLAB_FILTER_COPY = {
+  filterBrand: { el: "Επιχείρηση", en: "Brand" },
+  filterBrandAll: { el: "Όλες οι επιχειρήσεις", en: "All brands" },
+  filterBrandPlaceholder: { el: "Αναζήτηση επιχείρησης…", en: "Search brand…" },
+  filterStatus: { el: "Κατάσταση", en: "Status" },
+  filterCreator: { el: "Creator", en: "Creator" },
+  filterCreatorPlaceholder: { el: "Όνομα creator…", en: "Creator name…" },
+  filterDateFrom: { el: "Από", en: "From" },
+  filterDateTo: { el: "Έως", en: "To" },
+  filterReset: { el: "Καθαρισμός", en: "Reset" },
+  filterResultCount: {
+    el: (shown: number, total: number) => `${shown} από ${total}`,
+    en: (shown: number, total: number) => `${shown} of ${total}`,
+  },
+  emptyWithFilters: {
+    el: "Καμία συνεργασία ταιριάζει με τα φίλτρα.",
+    en: "No collaborations match the filters.",
+  },
+} as const;
+
+function collabFilterCopy<L extends Lang>(lang: L) {
+  return Object.fromEntries(
+    (Object.keys(COLLAB_FILTER_COPY) as (keyof typeof COLLAB_FILTER_COPY)[]).map((key) => [
+      key,
+      COLLAB_FILTER_COPY[key][lang],
+    ])
+  ) as {
+    [K in keyof typeof COLLAB_FILTER_COPY]: (typeof COLLAB_FILTER_COPY)[K][L];
+  };
+}
+
 const COPY = {
   el: {
     title: "Πρόσφατες συνεργασίες (admin)",
@@ -126,17 +157,7 @@ const COPY = {
     consentMissingBrand: "Λείπει συγκατάθεση brand",
     consentMissingInfluencer: "Λείπει συγκατάθεση influencer",
     consentMissingTitle: "Χωρίς συγκατάθεση δεν εμφανίζεται στην αρχική",
-    filterBrand: "Επιχείρηση",
-    filterBrandAll: "Όλες οι επιχειρήσεις",
-    filterBrandPlaceholder: "Αναζήτηση επιχείρησης…",
-    filterStatus: "Κατάσταση",
-    filterCreator: "Creator",
-    filterCreatorPlaceholder: "Όνομα creator…",
-    filterDateFrom: "Από",
-    filterDateTo: "Έως",
-    filterReset: "Καθαρισμός",
-    filterResultCount: (shown: number, total: number) => `${shown} από ${total}`,
-    emptyWithFilters: "Καμία συνεργασία ταιριάζει με τα φίλτρα.",
+    ...collabFilterCopy("el"),
     filterEventPending: "Εκκρεμεί επιβεβαίωση",
     eventPendingBadge: "Εκκρεμεί επιβεβαίωση",
     adminComplete: "Ολοκλήρωση από admin",
@@ -162,17 +183,7 @@ const COPY = {
     consentMissingBrand: "Missing brand consent",
     consentMissingInfluencer: "Missing influencer consent",
     consentMissingTitle: "Without consent it does not appear on the homepage",
-    filterBrand: "Brand",
-    filterBrandAll: "All brands",
-    filterBrandPlaceholder: "Search brand…",
-    filterStatus: "Status",
-    filterCreator: "Creator",
-    filterCreatorPlaceholder: "Creator name…",
-    filterDateFrom: "From",
-    filterDateTo: "To",
-    filterReset: "Reset",
-    filterResultCount: (shown: number, total: number) => `${shown} of ${total}`,
-    emptyWithFilters: "No collaborations match the filters.",
+    ...collabFilterCopy("en"),
     filterEventPending: "Pending confirmation",
     eventPendingBadge: "Pending confirmation",
     adminComplete: "Complete as admin",
