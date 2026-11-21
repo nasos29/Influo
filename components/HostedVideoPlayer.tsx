@@ -23,9 +23,58 @@ const COPY = {
   seek: { el: "Πρόοδος αναπαραγωγής", en: "Playback progress" },
   mute: { el: "Σίγαση", en: "Mute" },
   unmute: { el: "Ήχος", en: "Unmute" },
+  volume: { el: "Ένταση ήχου", en: "Volume" },
   expand: { el: "Μεγέθυνση", en: "Enlarge" },
   shrink: { el: "Σμίκρυνση", en: "Shrink" },
 } as const;
+
+const SEEK_FILL = "#FE2C55";
+const VOLUME_STORAGE_KEY = "hosted-video-player-audio";
+
+type StoredAudio = { volume: number; muted: boolean; lastVolume: number };
+
+function readStoredAudio(): StoredAudio | null {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(VOLUME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredAudio>;
+    const lastVolume =
+      typeof parsed.lastVolume === "number" && parsed.lastVolume > 0
+        ? Math.min(1, parsed.lastVolume)
+        : 1;
+    const volume =
+      typeof parsed.volume === "number" ? Math.min(1, Math.max(0, parsed.volume)) : lastVolume;
+    const muted = Boolean(parsed.muted) || volume === 0;
+    return { volume, muted, lastVolume };
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredAudio(data: StoredAudio): void {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(VOLUME_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    /* quota / private mode */
+  }
+}
+
+/** True when `HTMLVideoElement.volume` can be changed (not iOS read-only). */
+function probeVolumeControl(): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const el = document.createElement("video");
+    const prev = el.volume;
+    el.volume = 0.37;
+    const ok = Math.abs(el.volume - 0.37) < 0.02;
+    el.volume = prev;
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 const HIDE_MS = 2000;
 const ANIM_MS = 220;
@@ -141,7 +190,17 @@ export default function HostedVideoPlayer({
   onError?: () => void;
 }) {
   const uiLang = lang === "en" ? "en" : "el";
-  const [muted, setMuted] = useState(false);
+  const storedAudioRef = useRef<StoredAudio | null>(null);
+  if (storedAudioRef.current === null && typeof window !== "undefined") {
+    storedAudioRef.current = readStoredAudio();
+  }
+  const initialAudio = storedAudioRef.current;
+  const [muted, setMuted] = useState(() => initialAudio?.muted ?? false);
+  const [volume, setVolume] = useState(() =>
+    initialAudio ? (initialAudio.muted ? 0 : initialAudio.volume) : 1
+  );
+  const lastNonZeroVolumeRef = useRef(initialAudio?.lastVolume ?? 1);
+  const [volumeSliderSupported, setVolumeSliderSupported] = useState(false);
   const [showSound, setShowSound] = useState(false);
   const startedRef = useRef(false);
   const [playUrl, setPlayUrl] = useState(() => pickHostedPlaybackUrl(media));
@@ -151,6 +210,7 @@ export default function HostedVideoPlayer({
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
   const seekingRef = useRef(false);
+  const volumeDraggingRef = useRef(false);
   const barRef = useRef<HTMLDivElement | null>(null);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
@@ -184,7 +244,8 @@ export default function HostedVideoPlayer({
 
   const scheduleHide = useCallback(() => {
     clearHideTimer();
-    if (!playing || hoveringRef.current || seekingRef.current || showSound) return;
+    if (!playing || hoveringRef.current || seekingRef.current || volumeDraggingRef.current || showSound)
+      return;
     hideTimerRef.current = setTimeout(() => {
       setControlsVisible(false);
     }, HIDE_MS);
@@ -249,9 +310,43 @@ export default function HostedVideoPlayer({
 
   useLayoutEffect(() => {
     setMounted(true);
+    setVolumeSliderSupported(probeVolumeControl());
     const next = readBox(slotRef.current);
     if (next) setSlotBox(next);
   }, []);
+
+  const persistAudio = useCallback((nextVolume: number, nextMuted: boolean) => {
+    writeStoredAudio({
+      volume: nextVolume,
+      muted: nextMuted,
+      lastVolume: lastNonZeroVolumeRef.current,
+    });
+  }, []);
+
+  const applyVolumeToElement = useCallback(
+    (el: HTMLVideoElement, level: number, forceMute: boolean) => {
+      const v = Math.min(1, Math.max(0, level));
+      if (v > 0) lastNonZeroVolumeRef.current = v;
+      el.volume = v > 0 ? v : lastNonZeroVolumeRef.current;
+      const isMute = forceMute || v === 0;
+      el.muted = isMute;
+      setVolume(isMute ? 0 : v);
+      setMuted(isMute);
+      if (!isMute) setShowSound(false);
+      persistAudio(isMute ? 0 : v, isMute);
+    },
+    [persistAudio]
+  );
+
+  const setVolumeLevel = useCallback(
+    (level: number) => {
+      const el = mediaVideoRef.current;
+      if (!el) return;
+      applyVolumeToElement(el, level, level === 0);
+      showControls();
+    },
+    [applyVolumeToElement, mediaVideoRef, showControls]
+  );
 
   useLayoutEffect(() => {
     if (!mounted) return;
@@ -344,28 +439,36 @@ export default function HostedVideoPlayer({
   const onTapForSound = useCallback(() => {
     const el = mediaVideoRef.current;
     if (!el) return;
+    const restore = lastNonZeroVolumeRef.current > 0 ? lastNonZeroVolumeRef.current : 1;
+    el.volume = restore;
     el.muted = false;
+    setVolume(restore);
     setMuted(false);
     setShowSound(false);
+    persistAudio(restore, false);
     void el.play()?.catch(() => {
       el.muted = true;
       setMuted(true);
       setShowSound(true);
+      persistAudio(0, true);
     });
     showControls();
-  }, [mediaVideoRef, showControls]);
+  }, [mediaVideoRef, persistAudio, showControls]);
 
   const toggleMute = useCallback(() => {
     const el = mediaVideoRef.current;
     if (!el) return;
-    if (el.muted || showSound) {
+    if (el.muted || showSound || volume === 0) {
       onTapForSound();
       return;
     }
+    if (el.volume > 0) lastNonZeroVolumeRef.current = el.volume;
     el.muted = true;
     setMuted(true);
+    setVolume(0);
+    persistAudio(0, true);
     showControls();
-  }, [mediaVideoRef, onTapForSound, showSound, showControls]);
+  }, [mediaVideoRef, onTapForSound, persistAudio, showSound, showControls, volume]);
 
   const seekTo = useCallback(
     (time: number) => {
@@ -435,8 +538,23 @@ export default function HostedVideoPlayer({
     const el = mediaVideoRef.current;
     if (!el || startedRef.current) return;
     startedRef.current = true;
+    const stored = storedAudioRef.current;
+    if (stored && volumeSliderSupported) {
+      const level = stored.muted ? stored.lastVolume : stored.volume;
+      if (level > 0) {
+        el.volume = level;
+        lastNonZeroVolumeRef.current = level;
+      }
+    }
     tryUnmutedPlay(el);
-  }, [mediaVideoRef, tryUnmutedPlay, playUrl]);
+  }, [mediaVideoRef, tryUnmutedPlay, playUrl, volumeSliderSupported]);
+
+  useEffect(() => {
+    const el = mediaVideoRef.current;
+    if (!el || !volumeSliderSupported) return;
+    if (volume > 0) el.volume = volume;
+    else if (lastNonZeroVolumeRef.current > 0) el.volume = lastNonZeroVolumeRef.current;
+  }, [mediaVideoRef, volume, volumeSliderSupported, playUrl]);
 
   const onShellTransitionEnd = useCallback(
     (event: ReactTransitionEvent<HTMLDivElement>) => {
@@ -648,13 +766,13 @@ export default function HostedVideoPlayer({
             >
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/30">
                 <div
-                  className="h-full rounded-full bg-white"
-                  style={{ width: `${progress}%` }}
+                  className="h-full rounded-full"
+                  style={{ width: `${progress}%`, backgroundColor: SEEK_FILL }}
                 />
               </div>
               <div
-                className="absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow"
-                style={{ left: `${progress}%` }}
+                className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full shadow"
+                style={{ left: `${progress}%`, backgroundColor: SEEK_FILL }}
               />
             </div>
             <span className="w-9 shrink-0 text-center text-[11px] font-semibold tabular-nums text-white/90">
@@ -681,6 +799,36 @@ export default function HostedVideoPlayer({
                 </svg>
               )}
             </button>
+            {volumeSliderSupported ? (
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={Math.round(volume * 100)}
+                aria-label={COPY.volume[uiLang]}
+                className="hosted-volume-slider h-1.5 w-14 shrink-0 cursor-pointer accent-[#FE2C55]"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  volumeDraggingRef.current = true;
+                  showControls();
+                }}
+                onPointerUp={(e) => {
+                  e.stopPropagation();
+                  volumeDraggingRef.current = false;
+                  scheduleHide();
+                }}
+                onPointerCancel={() => {
+                  volumeDraggingRef.current = false;
+                  scheduleHide();
+                }}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setVolumeLevel(Number(e.target.value) / 100);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : null}
             <button
               type="button"
               data-hosted-expand="true"
