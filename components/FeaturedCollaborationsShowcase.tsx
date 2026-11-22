@@ -707,10 +707,10 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           ) : null}
           <div
             ref={clusterScrollerRef}
-            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 ${THUMBS_SCROLLBAR_HIDE} ${
+            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-lg:overflow-x-clip max-lg:snap-none max-lg:scroll-px-0 max-lg:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
               clusterOverflow
-                ? `w-full min-w-0 max-w-full flex-1 pb-2 max-lg:overflow-visible max-lg:snap-none max-lg:scroll-px-0 max-lg:px-0 lg:overflow-x-auto lg:snap-x lg:snap-mandatory lg:scroll-px-2 lg:px-2 lg:pb-1 lg:pt-1`
-                : `w-max max-w-full overflow-x-auto snap-x snap-mandatory scroll-px-3 px-3 pb-2 max-lg:snap-mandatory lg:overflow-visible lg:snap-none lg:scroll-px-0 lg:px-0 lg:pb-1 lg:pt-1`
+                ? `w-full min-w-0 max-w-full flex-1 pb-2 lg:overflow-x-auto lg:snap-x lg:snap-mandatory lg:scroll-px-2 lg:px-2 lg:pb-1 lg:pt-1`
+                : `w-max max-w-full max-lg:w-full pb-2 lg:overflow-x-auto lg:snap-x lg:snap-mandatory lg:scroll-px-3 lg:px-3 lg:pb-1 lg:pt-1`
             }`}
           >
             <div className="mx-auto flex w-max max-w-none flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-2">
