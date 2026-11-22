@@ -261,6 +261,82 @@ print("ok")
   assert.match(r.stdout, /ok/);
 });
 
+test("parse_tikwm_photo_image_urls: single photo and carousel", () => {
+  const script = `
+from host_creator_media import parse_tikwm_photo_image_urls
+
+one = {"code": 0, "data": {"images": ["https://cdn.example/a.jpg"]}}
+assert parse_tikwm_photo_image_urls(one) == ["https://cdn.example/a.jpg"]
+
+slides = {"code": 0, "data": {"images": ["https://cdn.example/1.jpg", "https://cdn.example/2.jpg"]}}
+urls = parse_tikwm_photo_image_urls(slides)
+assert len(urls) == 2 and urls[0].endswith("1.jpg")
+print("ok")
+`;
+  const r = runHostCreatorPython(script);
+  assert.equal(r.status, 0, r.stderr || r.stdout || String(r.error));
+  assert.match(r.stdout, /ok/);
+});
+
+test("resolve_photo_image_urls uses tikwm when yt-dlp yields no TikTok photo images", () => {
+  const script = `
+from unittest.mock import patch
+from host_creator_media import resolve_photo_image_urls
+
+url = "https://www.tiktok.com/@u/photo/7123456789012345678"
+platform = "tiktok"
+slides = ["https://cdn.example/slide1.jpg", "https://cdn.example/slide2.jpg", "https://cdn.example/slide3.jpg"]
+
+def fake_probe(*_a, **_k):
+    raise RuntimeError("no video formats found")
+
+def fake_tikwm(u):
+    assert u == url
+    return slides
+
+with patch("host_creator_media.ytdlp_probe_info", fake_probe):
+    with patch("host_creator_media.tikwm_fetch_photo_urls", fake_tikwm):
+        out = resolve_photo_image_urls(url, platform, None)
+
+assert out == slides
+print("ok")
+`;
+  const r = runHostCreatorPython(script);
+  assert.equal(r.status, 0, r.stderr || r.stdout || String(r.error));
+  assert.match(r.stdout, /ok/);
+});
+
+test("is_tiktok_photo_post_url: direct /photo/ and short-link redirect", () => {
+  const script = `
+from unittest.mock import patch
+from host_creator_media import is_tiktok_photo_post_url, is_photo_first_post_url
+
+assert is_tiktok_photo_post_url("https://www.tiktok.com/@u/photo/123")
+assert not is_tiktok_photo_post_url("https://www.tiktok.com/@u/video/123")
+
+with patch(
+    "host_creator_media.resolve_tiktok_redirect_url",
+    lambda _u: "https://www.tiktok.com/@/photo/999",
+):
+    assert is_tiktok_photo_post_url("https://vm.tiktok.com/abc")
+    assert is_photo_first_post_url("https://vm.tiktok.com/abc", "tiktok")
+
+print("ok")
+`;
+  const r = runHostCreatorPython(script);
+  assert.equal(r.status, 0, r.stderr || r.stdout || String(r.error));
+  assert.match(r.stdout, /ok/);
+});
+
+test("media worker hosts via process_influencer resolve_photo_image_urls path", () => {
+  const jobs = readFileSync(new URL("process_creator_media_jobs.py", import.meta.url), "utf8");
+  const host = readFileSync(new URL("host_creator_media.py", import.meta.url), "utf8");
+  assert.match(jobs, /hcm\.process_influencer/);
+  assert.match(host, /def resolve_photo_image_urls/);
+  assert.match(host, /resolve_photo_image_urls\(url, platform, cookies\)/);
+  assert.doesNotMatch(host, /def retry_only_tiktok_photo/);
+});
+
 test("process_influencer skips top_post prune when only_url is set", () => {
   const script = `
 import re
