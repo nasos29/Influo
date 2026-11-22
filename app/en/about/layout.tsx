@@ -1,4 +1,3 @@
-import SeoDiscoverLinks from "@/components/SeoDiscoverLinks";
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
@@ -13,10 +12,5 @@ export const metadata = pageMetadata({
 });
 
 export default function EnAboutLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      {children}
-      <SeoDiscoverLinks lang="en" />
-    </>
-  );
+  return children;
 }
