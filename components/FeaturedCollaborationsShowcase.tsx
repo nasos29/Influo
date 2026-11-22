@@ -386,8 +386,6 @@ const HERO_FRAME =
   "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full lg:h-[min(56.7vh,29.3rem)]";
 const THUMB_FRAME =
   "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(49.9vh,25.8rem)] lg:w-auto";
-const THUMBS_COLUMN_HEIGHT = "lg:h-[min(56.7vh,29.3rem)]";
-
 function ShowcaseBrandPill({
   brandName,
   brandLogoUrl,
@@ -426,10 +424,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const [touchChromeVisible, setTouchChromeVisible] = useState(true);
   const touchHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heroPointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const clusterScrollerRef = useRef<HTMLDivElement>(null);
   const thumbsScrollerRef = useRef<HTMLDivElement>(null);
-  const [thumbsOverflow, setThumbsOverflow] = useState(false);
-  const [thumbsAtStart, setThumbsAtStart] = useState(true);
-  const [thumbsAtEnd, setThumbsAtEnd] = useState(false);
+  const [clusterOverflow, setClusterOverflow] = useState(false);
+  const [clusterAtStart, setClusterAtStart] = useState(true);
+  const [clusterAtEnd, setClusterAtEnd] = useState(false);
   const txt = COPY[lang];
 
   const coarseChromeHidden = !isFinePointer && !touchChromeVisible;
@@ -490,53 +489,67 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     [stopCurrentHeroMedia]
   );
 
-  const syncThumbsScrollState = useCallback(() => {
-    const el = thumbsScrollerRef.current;
-    if (!el) return;
-    const overflow = el.scrollWidth > el.clientWidth + 1;
-    setThumbsOverflow(overflow);
+  const syncClusterScrollState = useCallback(() => {
+    const lg = window.matchMedia("(min-width: 1024px)").matches;
+    const scrollEl = lg ? clusterScrollerRef.current : thumbsScrollerRef.current;
+    if (!scrollEl) return;
+    const track = lg
+      ? (scrollEl.firstElementChild as HTMLElement | null)
+      : scrollEl.querySelector<HTMLElement>("[data-showcase-thumb-row]");
+    const contentWidth = lg && track ? track.scrollWidth : scrollEl.scrollWidth;
+    const overflow = contentWidth > scrollEl.clientWidth + 1;
+    setClusterOverflow(overflow);
     if (!overflow) {
-      setThumbsAtStart(true);
-      setThumbsAtEnd(true);
+      setClusterAtStart(true);
+      setClusterAtEnd(true);
       return;
     }
-    setThumbsAtStart(el.scrollLeft <= 1);
-    setThumbsAtEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 1);
+    setClusterAtStart(scrollEl.scrollLeft <= 1);
+    setClusterAtEnd(scrollEl.scrollLeft >= scrollEl.scrollWidth - scrollEl.clientWidth - 1);
   }, []);
 
-  const scrollThumbsBy = useCallback(
-    (dir: -1 | 1) => {
-      const el = thumbsScrollerRef.current;
-      if (!el) return;
-      const thumb = el.querySelector<HTMLElement>("[data-showcase-thumb]");
-      const gap = (() => {
-        const row = thumb?.parentElement;
-        if (!row) return 12;
-        const g = getComputedStyle(row).columnGap;
-        const n = parseFloat(g);
-        return Number.isFinite(n) ? n : 12;
-      })();
-      const step = thumb ? thumb.offsetWidth + gap : el.clientWidth * 0.4;
-      el.scrollBy({ left: dir * step, behavior: "smooth" });
-    },
-    []
-  );
+  const scrollClusterBy = useCallback((dir: -1 | 1) => {
+    const lg = window.matchMedia("(min-width: 1024px)").matches;
+    const el = lg ? clusterScrollerRef.current : thumbsScrollerRef.current;
+    if (!el) return;
+    const item = el.querySelector<HTMLElement>("[data-showcase-cluster-item]");
+    const gap = (() => {
+      const row = lg
+        ? (el.firstElementChild as HTMLElement | null)
+        : el.querySelector<HTMLElement>("[data-showcase-thumb-row]");
+      if (!row) return 8;
+      const g = getComputedStyle(row).columnGap;
+      const n = parseFloat(g);
+      return Number.isFinite(n) ? n : 8;
+    })();
+    const step = item ? item.offsetWidth + gap : el.clientWidth * 0.4;
+    el.scrollBy({ left: dir * step, behavior: "smooth" });
+  }, []);
 
   useEffect(() => {
-    const el = thumbsScrollerRef.current;
-    if (!el) return;
-    syncThumbsScrollState();
-    const onScroll = () => syncThumbsScrollState();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    const ro = new ResizeObserver(() => syncThumbsScrollState());
-    ro.observe(el);
-    const row = el.firstElementChild;
-    if (row) ro.observe(row);
+    syncClusterScrollState();
+    const onScrollCluster = () => syncClusterScrollState();
+    const clusterEl = clusterScrollerRef.current;
+    const thumbsEl = thumbsScrollerRef.current;
+    clusterEl?.addEventListener("scroll", onScrollCluster, { passive: true });
+    thumbsEl?.addEventListener("scroll", onScrollCluster, { passive: true });
+    const ro = new ResizeObserver(() => syncClusterScrollState());
+    if (clusterEl) ro.observe(clusterEl);
+    if (thumbsEl) ro.observe(thumbsEl);
+    const clusterTrack = clusterEl?.firstElementChild;
+    if (clusterTrack) ro.observe(clusterTrack);
+    const thumbRow = thumbsEl?.querySelector("[data-showcase-thumb-row]");
+    if (thumbRow) ro.observe(thumbRow);
+    const onMq = () => syncClusterScrollState();
+    const mq = window.matchMedia("(min-width: 1024px)");
+    mq.addEventListener("change", onMq);
     return () => {
-      el.removeEventListener("scroll", onScroll);
+      clusterEl?.removeEventListener("scroll", onScrollCluster);
+      thumbsEl?.removeEventListener("scroll", onScrollCluster);
       ro.disconnect();
+      mq.removeEventListener("change", onMq);
     };
-  }, [thumbnails.length, activeId, syncThumbsScrollState]);
+  }, [thumbnails.length, activeId, syncClusterScrollState]);
 
   const advanceHero = useCallback(() => {
     stopCurrentHeroMedia();
@@ -678,8 +691,33 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
         </div>
         <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-1 lg:pb-6">
-        <div className="relative mx-auto flex w-full max-w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-start lg:gap-2">
-          <div className="relative flex shrink-0 justify-center lg:justify-start">
+        <div className="relative mx-auto flex w-full max-w-full min-w-0 items-end justify-center gap-1.5">
+          {clusterOverflow ? (
+            <button
+              type="button"
+              aria-label={txt.thumbsPrev}
+              disabled={clusterAtStart}
+              onClick={() => scrollClusterBy(-1)}
+              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-lg:hidden"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          ) : null}
+          <div
+            ref={clusterScrollerRef}
+            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 ${THUMBS_SCROLLBAR_HIDE} ${
+              clusterOverflow
+                ? `w-full min-w-0 max-w-full flex-1 pb-2 max-lg:overflow-visible max-lg:snap-none max-lg:scroll-px-0 max-lg:px-0 lg:overflow-x-auto lg:snap-x lg:snap-mandatory lg:scroll-px-2 lg:px-2 lg:pb-1 lg:pt-1`
+                : `w-max max-w-full overflow-x-auto snap-x snap-mandatory scroll-px-3 px-3 pb-2 max-lg:snap-mandatory lg:overflow-visible lg:snap-none lg:scroll-px-0 lg:px-0 lg:pb-1 lg:pt-1`
+            }`}
+          >
+            <div className="mx-auto flex w-max max-w-none flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-2">
+          <div
+            className={`relative flex shrink-0 justify-center ${clusterOverflow ? "lg:snap-start" : ""}`}
+            data-showcase-cluster-item
+          >
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
             <div
               ref={heroFrameRef}
@@ -765,17 +803,15 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div
-              className={`flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:min-w-0 lg:flex-1 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
-            >
-              <div className="flex w-full min-w-0 items-end gap-1.5 lg:gap-1.5">
-                {thumbsOverflow ? (
+            <div className="flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:contents lg:gap-0">
+              <div className="flex w-full min-w-0 items-end gap-1.5 max-lg:pb-0 lg:contents">
+                {clusterOverflow ? (
                   <button
                     type="button"
                     aria-label={txt.thumbsPrev}
-                    disabled={thumbsAtStart}
-                    onClick={() => scrollThumbsBy(-1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white"
+                    disabled={clusterAtStart}
+                    onClick={() => scrollClusterBy(-1)}
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white lg:hidden"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -784,18 +820,20 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 ) : null}
                 <div
                   ref={thumbsScrollerRef}
-                  className={`min-w-0 flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 ${THUMBS_SCROLLBAR_HIDE} ${
-                    thumbsOverflow
-                      ? `overflow-x-auto snap-x snap-mandatory scroll-px-2 px-2 lg:scroll-px-1.5 lg:px-1.5 lg:pb-1 lg:pt-1`
-                      : `overflow-x-auto snap-x snap-mandatory scroll-px-3 px-3 max-lg:snap-mandatory lg:overflow-visible lg:snap-none lg:scroll-px-0 lg:px-0 lg:pb-1 lg:pt-1`
-                  }`}
+                  className={`min-w-0 flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-lg:overflow-x-auto max-lg:snap-x max-lg:snap-mandatory max-lg:scroll-px-2 max-lg:px-2 lg:contents lg:overflow-visible lg:p-0 lg:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
                 >
-                  <div className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:w-auto lg:gap-2">
+                  <div
+                    data-showcase-thumb-row
+                    className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:contents lg:gap-2"
+                  >
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
+                  data-showcase-cluster-item
                   data-showcase-thumb
-                  className="snap-start shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl"
+                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-lg:snap-start ${
+                    clusterOverflow ? "lg:snap-start" : ""
+                  }`}
                 >
                 <div className={THUMB_FRAME}>
                   <button
@@ -842,13 +880,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               ))}
                   </div>
                 </div>
-                {thumbsOverflow ? (
+                {clusterOverflow ? (
                   <button
                     type="button"
                     aria-label={txt.thumbsNext}
-                    disabled={thumbsAtEnd}
-                    onClick={() => scrollThumbsBy(1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white"
+                    disabled={clusterAtEnd}
+                    onClick={() => scrollClusterBy(1)}
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white lg:hidden"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -857,6 +895,21 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 ) : null}
               </div>
             </div>
+          ) : null}
+            </div>
+          </div>
+          {clusterOverflow ? (
+            <button
+              type="button"
+              aria-label={txt.thumbsNext}
+              disabled={clusterAtEnd}
+              onClick={() => scrollClusterBy(1)}
+              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-lg:hidden"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           ) : null}
         </div>
 
