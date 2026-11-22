@@ -43,7 +43,7 @@ const STAT_ICONS: Record<string, LucideIcon> = {
 };
 
 const GRADIENT_NUMBER =
-  "bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 bg-clip-text text-transparent";
+  "bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 bg-clip-text text-transparent";
 
 function gridLayoutClass(count: number): string {
   if (count === 1) {
@@ -135,17 +135,17 @@ export default function SocialProofStatsRow({
             return (
               <li
                 key={item.key}
-                className={`flex min-w-0 flex-col items-center justify-center rounded-2xl border border-white/70 bg-white/92 px-3 py-5 text-center shadow-lg shadow-purple-950/10 backdrop-blur-md ring-1 ring-white/50 sm:px-5 sm:py-6 md:px-6 ${
+                className={`flex min-w-0 flex-col items-center justify-center rounded-2xl border border-white/70 bg-white/92 px-3 py-5 text-center shadow-lg shadow-indigo-950/10 backdrop-blur-md ring-1 ring-white/50 sm:px-5 sm:py-6 md:px-6 ${
                   centerFifthOnMobile ? "col-span-2 max-w-xs justify-self-center sm:col-span-1 sm:max-w-none" : ""
                 }`}
               >
                 {Icon ? (
                   <div
-                    className="mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600/15 via-violet-600/12 to-purple-600/20 ring-1 ring-purple-200/60 sm:h-14 sm:w-14"
+                    className="mb-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/15 via-indigo-600/12 to-indigo-800/20 ring-1 ring-indigo-200/60 sm:h-14 sm:w-14"
                     aria-hidden
                   >
                     <Icon
-                      className="h-6 w-6 text-purple-600 sm:h-7 sm:w-7"
+                      className="h-6 w-6 text-indigo-600 sm:h-7 sm:w-7"
                       strokeWidth={2.25}
                     />
                   </div>

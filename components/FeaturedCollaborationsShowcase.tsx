@@ -915,7 +915,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
         {data.totalViews != null ? (
           <p className="mt-5 text-center text-base font-medium text-slate-600 sm:mt-6 sm:text-lg">
-            <span className="relative inline-block pb-1">
+            <span className="group/views relative inline-block pb-1">
               {txt.publicViewsLead}{" "}
               <CountUp
                 value={data.totalViews}
@@ -924,7 +924,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               />{" "}
               {txt.publicViews}
               <span
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-gradient-to-r from-[var(--secondary)] to-[var(--accent)]"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-[2.5px] rounded-full bg-gradient-to-r from-[var(--secondary)] to-[var(--accent)] bg-[length:200%_100%] bg-[position:0%_50%] motion-reduce:lg:transition-none lg:transition-[background-position] lg:duration-300 lg:ease-out [@media(hover:hover)_and_(min-width:1024px)]:group-hover/views:bg-[position:100%_50%] [@media(prefers-reduced-motion:reduce)_and_(min-width:1024px)]:group-hover/views:bg-[position:0%_50%]"
                 aria-hidden
               />
             </span>
