@@ -690,7 +690,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <div className="pointer-events-none absolute left-1/2 top-0 z-[6] -translate-x-1/2 -translate-y-1/2">
           <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
         </div>
-        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-2 lg:pb-6">
+        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-1 lg:pb-6">
         <div className="relative mx-auto flex w-full max-w-full min-w-0 items-end justify-center gap-1.5">
           {clusterOverflow ? (
             <button
