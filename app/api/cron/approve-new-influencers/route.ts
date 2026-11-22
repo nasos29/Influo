@@ -75,32 +75,68 @@ type ScrapedAccount = {
   error?: string;
 };
 
-async function setWrongUsernameHold(
-  influencerId: string,
-  handles: WrongUsernameHandle[]
-): Promise<void> {
+const UNAPPROVED_LIST_VARIANTS: Array<{
+  select: string;
+  requireApprovedAtNull: boolean;
+  requireManualUnapprovedAtNull: boolean;
+}> = [
+  {
+    select:
+      'id, display_name, approved, approved_at, manual_unapproved_at, accounts, wrong_username_held_at, wrong_username_handles',
+    requireApprovedAtNull: true,
+    requireManualUnapprovedAtNull: true,
+  },
+  {
+    select: 'id, display_name, approved, approved_at, manual_unapproved_at, accounts',
+    requireApprovedAtNull: true,
+    requireManualUnapprovedAtNull: true,
+  },
+  {
+    select: 'id, display_name, approved, approved_at, accounts',
+    requireApprovedAtNull: true,
+    requireManualUnapprovedAtNull: false,
+  },
+  {
+    select: 'id, display_name, approved, accounts',
+    requireApprovedAtNull: false,
+    requireManualUnapprovedAtNull: false,
+  },
+];
+
+function isMissingInfluencersColumnError(message: string): boolean {
+  return /column|wrong_username|manual_unapproved_at|approved_at/i.test(message);
+}
+
+async function fetchUnapprovedInfluencerPage(from: number, pageSize: number): Promise<Record<string, unknown>[]> {
+  let lastError: string | null = null;
+  for (const variant of UNAPPROVED_LIST_VARIANTS) {
+    let query = supabaseAdmin.from('influencers').select(variant.select).eq('approved', false);
+    if (variant.requireApprovedAtNull) query = query.is('approved_at', null);
+    if (variant.requireManualUnapprovedAtNull) query = query.is('manual_unapproved_at', null);
+    const result = await query.range(from, from + pageSize - 1);
+    if (!result.error) {
+      return (result.data ?? []) as unknown as Record<string, unknown>[];
+    }
+    if (isMissingInfluencersColumnError(result.error.message)) {
+      lastError = result.error.message;
+      continue;
+    }
+    throw new Error(result.error.message);
+  }
+  throw new Error(lastError || 'Unable to list unapproved influencers');
+}
+
+async function writeWrongUsernameHold(influencerId: string, handles: WrongUsernameHandle[] | null): Promise<void> {
+  const action = handles ? 'set' : 'clear';
   const { error } = await supabaseAdmin
     .from('influencers')
     .update({
-      wrong_username_held_at: new Date().toISOString(),
+      wrong_username_held_at: handles ? new Date().toISOString() : null,
       wrong_username_handles: handles,
     })
     .eq('id', influencerId);
   if (error && !/column|wrong_username/i.test(error.message)) {
-    console.warn('[approve-new-influencers] wrong_username hold set', error.message);
-  }
-}
-
-async function clearWrongUsernameHold(influencerId: string): Promise<void> {
-  const { error } = await supabaseAdmin
-    .from('influencers')
-    .update({
-      wrong_username_held_at: null,
-      wrong_username_handles: null,
-    })
-    .eq('id', influencerId);
-  if (error && !/column|wrong_username/i.test(error.message)) {
-    console.warn('[approve-new-influencers] wrong_username hold clear', error.message);
+    console.warn(`[approve-new-influencers] wrong_username hold ${action}`, error.message);
   }
 }
 
@@ -113,90 +149,7 @@ async function listNewUnapprovedWithSocials() {
   }[] = [];
 
   for (let from = 0; ; from += pageSize) {
-    let rows: Record<string, unknown>[] = [];
-    const first = await supabaseAdmin
-      .from('influencers')
-      .select(
-        'id, display_name, approved, approved_at, manual_unapproved_at, accounts, wrong_username_held_at, wrong_username_handles'
-      )
-      .eq('approved', false)
-      .is('approved_at', null)
-      .is('manual_unapproved_at', null)
-      .range(from, from + pageSize - 1);
-    if (first.error && /column|wrong_username/i.test(first.error.message)) {
-      const withoutHold = await supabaseAdmin
-        .from('influencers')
-        .select('id, display_name, approved, approved_at, manual_unapproved_at, accounts')
-        .eq('approved', false)
-        .is('approved_at', null)
-        .is('manual_unapproved_at', null)
-        .range(from, from + pageSize - 1);
-      if (withoutHold.error && /column|manual_unapproved_at/i.test(withoutHold.error.message)) {
-        const withoutLock = await supabaseAdmin
-          .from('influencers')
-          .select('id, display_name, approved, approved_at, accounts')
-          .eq('approved', false)
-          .is('approved_at', null)
-          .range(from, from + pageSize - 1);
-        if (withoutLock.error && /column|approved_at/i.test(withoutLock.error.message)) {
-          const fallback = await supabaseAdmin
-            .from('influencers')
-            .select('id, display_name, approved, accounts')
-            .eq('approved', false)
-            .range(from, from + pageSize - 1);
-          if (fallback.error) throw new Error(fallback.error.message);
-          rows = (fallback.data ?? []) as Record<string, unknown>[];
-        } else if (withoutLock.error) {
-          throw new Error(withoutLock.error.message);
-        } else {
-          rows = (withoutLock.data ?? []) as Record<string, unknown>[];
-        }
-      } else if (withoutHold.error && /column|approved_at/i.test(withoutHold.error.message)) {
-        const fallback = await supabaseAdmin
-          .from('influencers')
-          .select('id, display_name, approved, accounts')
-          .eq('approved', false)
-          .range(from, from + pageSize - 1);
-        if (fallback.error) throw new Error(fallback.error.message);
-        rows = (fallback.data ?? []) as Record<string, unknown>[];
-      } else if (withoutHold.error) {
-        throw new Error(withoutHold.error.message);
-      } else {
-        rows = (withoutHold.data ?? []) as Record<string, unknown>[];
-      }
-    } else if (first.error && /column|manual_unapproved_at/i.test(first.error.message)) {
-      const withoutLock = await supabaseAdmin
-        .from('influencers')
-        .select('id, display_name, approved, approved_at, accounts')
-        .eq('approved', false)
-        .is('approved_at', null)
-        .range(from, from + pageSize - 1);
-      if (withoutLock.error && /column|approved_at/i.test(withoutLock.error.message)) {
-        const fallback = await supabaseAdmin
-          .from('influencers')
-          .select('id, display_name, approved, accounts')
-          .eq('approved', false)
-          .range(from, from + pageSize - 1);
-        if (fallback.error) throw new Error(fallback.error.message);
-        rows = (fallback.data ?? []) as Record<string, unknown>[];
-      } else if (withoutLock.error) {
-        throw new Error(withoutLock.error.message);
-      } else {
-        rows = (withoutLock.data ?? []) as Record<string, unknown>[];
-      }
-    } else if (first.error && /column|approved_at/i.test(first.error.message)) {
-      const fallback = await supabaseAdmin
-        .from('influencers')
-        .select('id, display_name, approved, accounts')
-        .eq('approved', false)
-        .range(from, from + pageSize - 1);
-      if (fallback.error) throw new Error(fallback.error.message);
-      rows = (fallback.data ?? []) as Record<string, unknown>[];
-    } else if (first.error) {
-      throw new Error(first.error.message);
-    } else {
-      rows = (first.data ?? []) as Record<string, unknown>[];
-    }
+    const rows = await fetchUnapprovedInfluencerPage(from, pageSize);
     const heldIds = rows
       .filter((row) => row.wrong_username_held_at)
       .map((row) => String(row.id));
@@ -442,7 +395,7 @@ export async function POST(request: NextRequest) {
         );
         // At least one clear permanent missing still sets hold even when other accounts failed transiently.
         if (shouldSetWrongUsernameHold(accounts)) {
-          await setWrongUsernameHold(influencerId, handlesSnapshotFromScrapeAccounts(accounts));
+          await writeWrongUsernameHold(influencerId, handlesSnapshotFromScrapeAccounts(accounts));
         }
         return NextResponse.json({ ok: false, skipped: true, errors: profileErrors.map((a) => a.error) });
       }
@@ -479,7 +432,7 @@ export async function POST(request: NextRequest) {
         tiktokOverrides,
         youtubeOverrides,
       });
-      await clearWrongUsernameHold(influencerId);
+      await writeWrongUsernameHold(influencerId, null);
       const persistErrors = (result.results?.[0]?.errors || []).filter((e) => !/^Audit:/i.test(e));
       if (persistErrors.length) {
         await appendSocialRefreshLog(supabaseAdmin, {

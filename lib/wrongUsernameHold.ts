@@ -2,6 +2,15 @@ import { isPermanentAccountMissingError, normalizeSocialHandle } from "@/lib/soc
 
 export type WrongUsernameHandle = { platform: string; handle: string };
 
+function normalizePlatformHandle(platform: unknown, usernameOrHandle: unknown): WrongUsernameHandle | null {
+  const normalizedPlatform = String(platform ?? "")
+    .trim()
+    .toLowerCase();
+  const handle = normalizeSocialHandle(String(usernameOrHandle ?? ""));
+  if (!normalizedPlatform || !handle) return null;
+  return { platform: normalizedPlatform, handle };
+}
+
 export function collectPermanentMissingHandles(
   accounts: Array<{ platform?: string; username?: string; ok?: boolean; error?: string }>
 ): WrongUsernameHandle[] {
@@ -10,11 +19,8 @@ export function collectPermanentMissingHandles(
     if (acc.ok) continue;
     const err = String(acc.error || "");
     if (!isPermanentAccountMissingError(err)) continue;
-    const platform = String(acc.platform || "")
-      .trim()
-      .toLowerCase();
-    const handle = normalizeSocialHandle(String(acc.username || ""));
-    if (platform && handle) out.push({ platform, handle });
+    const h = normalizePlatformHandle(acc.platform, acc.username);
+    if (h) out.push(h);
   }
   return out;
 }
@@ -31,26 +37,16 @@ export function handlesSnapshotFromScrapeAccounts(
   accounts: Array<{ platform?: string; username?: string; ok?: boolean; error?: string }>
 ): WrongUsernameHandle[] {
   return accounts
-    .map((a) => ({
-      platform: String(a.platform || "")
-        .trim()
-        .toLowerCase(),
-      handle: normalizeSocialHandle(String(a.username || "")),
-    }))
-    .filter((h) => h.platform && h.handle);
+    .map((a) => normalizePlatformHandle(a.platform, a.username))
+    .filter((h): h is WrongUsernameHandle => h !== null);
 }
 
 export function currentHandlesFromAccounts(
   accounts: Array<{ platform: string; username: string }>
 ): WrongUsernameHandle[] {
   return accounts
-    .map((a) => ({
-      platform: String(a.platform || "")
-        .trim()
-        .toLowerCase(),
-      handle: normalizeSocialHandle(a.username),
-    }))
-    .filter((h) => h.platform && h.handle);
+    .map((a) => normalizePlatformHandle(a.platform, a.username))
+    .filter((h): h is WrongUsernameHandle => h !== null);
 }
 
 function sortHandles(handles: WrongUsernameHandle[]): WrongUsernameHandle[] {
@@ -66,11 +62,9 @@ export function parseWrongUsernameHandlesSnapshot(raw: unknown): WrongUsernameHa
   const parsed: WrongUsernameHandle[] = [];
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
-    const platform = String((item as { platform?: string }).platform || "")
-      .trim()
-      .toLowerCase();
-    const handle = normalizeSocialHandle(String((item as { handle?: string }).handle || ""));
-    if (platform && handle) parsed.push({ platform, handle });
+    const row = item as { platform?: string; handle?: string };
+    const h = normalizePlatformHandle(row.platform, row.handle);
+    if (h) parsed.push(h);
   }
   return parsed.length ? parsed : null;
 }
