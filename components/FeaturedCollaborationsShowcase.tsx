@@ -754,7 +754,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
           {thumbnails.length > 0 ? (
             <div
-              className={`flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:w-auto lg:max-w-none lg:shrink-0 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
+              className={`flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:min-w-0 lg:flex-1 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
             >
               <div className="flex w-full min-w-0 items-end gap-2 lg:min-w-0 lg:gap-3">
                 {thumbsOverflow ? (
