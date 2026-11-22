@@ -5,6 +5,7 @@ import { sendPushInfluencerAccountApproved } from '@/lib/push';
 import { ensureBilingualBio } from '@/lib/bioTranslate';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
 import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
+import { buildNewInfluencerApprovalPatch } from '@/lib/approveNewApprovalPatch';
 
 function escapeHtml(s: string): string {
   return String(s)
@@ -59,8 +60,10 @@ async function sendApprovedEmail(email: string, name: string) {
 
 export async function finalizeNewInfluencerApproval(
   supabaseAdmin: SupabaseClient,
-  influencerId: string
+  influencerId: string,
+  opts?: { analyticsVerified?: boolean }
 ): Promise<{ bioNote: string; approved: boolean }> {
+  const analyticsVerified = opts?.analyticsVerified === true;
   let { data: inf, error } = await supabaseAdmin
     .from('influencers')
     .select('id, display_name, contact_email, approved, approved_at, manual_unapproved_at, bio, bio_en')
@@ -109,12 +112,7 @@ export async function finalizeNewInfluencerApproval(
   }
 
   const now = new Date().toISOString();
-  let patch: Record<string, unknown> = {
-    analytics_verified: true,
-    analytics_verified_at: now,
-    approved: true,
-    approved_at: now,
-  };
+  let patch: Record<string, unknown> = buildNewInfluencerApprovalPatch(analyticsVerified, now);
   let { error: approveErr } = await supabaseAdmin.from('influencers').update(patch).eq('id', influencerId);
   if (approveErr && /column|analytics_verified_at|approved_at/i.test(approveErr.message)) {
     delete patch.analytics_verified_at;

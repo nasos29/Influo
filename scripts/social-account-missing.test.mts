@@ -3,9 +3,16 @@ import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { handleMissingAccountNoticesForNewApproval } from "../lib/missingAccountEmail.ts";
 import {
+  isClearAccountNotFoundForEmail,
   isMissingAccountEmailOnApproveEnabled,
   isPermanentAccountMissingError,
 } from "../lib/socialAccountMissing.ts";
+
+test("email classifier excludes private and ambiguous username", () => {
+  assert.equal(isClearAccountNotFoundForEmail("Profile @foo not found."), true);
+  assert.equal(isClearAccountNotFoundForEmail("Private profile: ιδιωτικό"), false);
+  assert.equal(isClearAccountNotFoundForEmail("πιθανό λάθος username"), false);
+});
 
 test("permanent missing vs transient/session", () => {
   assert.equal(isPermanentAccountMissingError("Λάθος username: το προφίλ @foo δεν υπάρχει."), true);
