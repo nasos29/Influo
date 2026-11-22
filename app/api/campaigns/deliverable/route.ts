@@ -38,11 +38,11 @@ export async function POST(request: NextRequest) {
 
   const admin = supabaseService();
   const appSelectWithSeen =
-    "id, influencer_id, status, deliverable_status, deliverable_seen_at, auto_cancelled_at, cancelled_by, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+    "id, influencer_id, status, deliverable_status, deliverable_url, delivery_proof_url, deliverable_seen_at, auto_cancelled_at, cancelled_by, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
   const appSelectBasic =
-    "id, influencer_id, status, deliverable_status, auto_cancelled_at, cancelled_by, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+    "id, influencer_id, status, deliverable_status, deliverable_url, delivery_proof_url, auto_cancelled_at, cancelled_by, brand_showcase_consent, influencer_showcase_consent, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
   const appSelectLegacy =
-    "id, influencer_id, status, deliverable_status, auto_cancelled_at, cancelled_by, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
+    "id, influencer_id, status, deliverable_status, deliverable_url, delivery_proof_url, auto_cancelled_at, cancelled_by, brand_campaigns ( id, title, brand_id, brands ( brand_name, contact_email ) )";
   let appRes = await admin
     .from("campaign_applications")
     .select(appSelectWithSeen)
@@ -104,16 +104,38 @@ export async function POST(request: NextRequest) {
 
     const isEvent =
       body.deliveryMode === "event" || body.eventDelivery === true || body.noLink === true;
+    const existingDeliverableUrl =
+      typeof app.deliverable_url === "string" && app.deliverable_url.trim()
+        ? app.deliverable_url.trim()
+        : null;
     let url: string | null = null;
-    let proofUrl: string | null = null;
+    let proofUrl: string | null | undefined = undefined;
     if (isEvent) {
-      const proofRaw = body.deliveryProofUrl ?? body.proofUrl ?? body.url;
+      const proofRaw = body.deliveryProofUrl ?? body.proofUrl;
       if (proofRaw != null && String(proofRaw).trim()) {
         const raw = String(proofRaw).trim();
         if (!raw.startsWith("https://")) {
           return NextResponse.json({ error: "proof_url_https_required" }, { status: 400 });
         }
         proofUrl = raw;
+      }
+      const postRaw = body.url ?? body.publishedPostUrl;
+      if (postRaw != null && String(postRaw).trim()) {
+        const parsedPost = parseSocialPostUrl(postRaw);
+        if (!parsedPost.ok) {
+          return NextResponse.json(
+            {
+              error:
+                parsedPost.error === "empty"
+                  ? "missing_url"
+                  : socialPostUrlErrorMessage(parsedPost.error),
+            },
+            { status: 400 }
+          );
+        }
+        url = parsedPost.url;
+      } else {
+        url = existingDeliverableUrl;
       }
     } else {
       const parsedUrl = parseSocialPostUrl(body.url);
@@ -142,11 +164,15 @@ export async function POST(request: NextRequest) {
       deliverable_status: "submitted",
       delivered_at: submittedAt,
       delivery_mode: isEvent ? "event" : "link",
-      delivery_proof_url: proofUrl,
       delivery_submitted_at: submittedAt,
       // New URL → brand must view again (seen receipt resets).
       deliverable_seen_at: null,
     };
+    if (isEvent) {
+      if (proofUrl !== undefined) updatePayload.delivery_proof_url = proofUrl;
+    } else {
+      updatePayload.delivery_proof_url = proofUrl ?? null;
+    }
     if (selfReportedViews !== undefined) updatePayload.self_reported_views = selfReportedViews;
     if (selfReportedReach !== undefined) updatePayload.self_reported_reach = selfReportedReach;
     if (showcaseConsent !== undefined) updatePayload.influencer_showcase_consent = showcaseConsent;

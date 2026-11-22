@@ -578,6 +578,16 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                         {item.deliveryMode === "event" ? " · event" : ""}
                       </p>
                     ) : null}
+                    {item.postUrl ? (
+                      <a
+                        href={item.postUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-0.5 block text-xs text-blue-700 underline break-all"
+                      >
+                        {item.postUrl}
+                      </a>
+                    ) : null}
                     {eventPending ? (
                       <span className="mt-1 mr-1 inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 ring-1 ring-amber-200/80">
                         {txt.eventPendingBadge}

@@ -126,13 +126,29 @@ export async function PATCH(request: Request) {
           }
           const submittedAt = new Date().toISOString();
           update.delivery_mode = "event";
-          update.delivery_note = note || null;
-          update.delivery_proof_url = proof;
+          if (note) update.delivery_note = note;
+          if (proof) update.delivery_proof_url = proof;
           update.delivery_submitted_at = submittedAt;
           update.published_post_pending_approval = true;
           update.deliverable_status = "submitted";
-          // Event deliveries are not public video posts by default.
-          update.published_post_url = null;
+          const postRaw = body.publishedPostUrl ?? body.url;
+          if (postRaw != null && String(postRaw).trim() !== "") {
+            const parsed = parseSocialPostUrl(postRaw);
+            if (!parsed.ok) {
+              return NextResponse.json(
+                { error: socialPostUrlErrorMessage(parsed.error) },
+                { status: 400 }
+              );
+            }
+            update.published_post_url = parsed.url;
+            update.showcase_post_url_updated_at = submittedAt;
+            update.showcase_post_url_updated_by = `influencer:${session.user.email || session.user.id}`;
+          }
+          const submitConsent = body.showcaseConsent ?? body.consent;
+          if (typeof submitConsent === "boolean") {
+            update.influencer_showcase_consent = submitConsent;
+            update.influencer_showcase_opted_out = !submitConsent;
+          }
         } else if ("publishedPostUrl" in body) {
           const raw = body.publishedPostUrl;
           if (raw == null || raw === "") {

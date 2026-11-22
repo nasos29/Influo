@@ -23,9 +23,10 @@ const COPY = {
     approved: "Εγκρίθηκε.",
     pending: "Αναμονή έγκρισης από το brand.",
     pendingEvent: "Αναμονή επιβεβαίωσης παρουσίας από το brand.",
-    noLink: "Δεν υπάρχει link (event / παρουσία)",
-    useLink: "Έχω link παραδοτέου",
-    eventHint: "Για event / in-person: προαιρετική φωτο/story (https) + σύντομη σημείωση.",
+    eventMode: "Event / παρουσία",
+    useLink: "Μόνο link (χωρίς event)",
+    eventHint:
+      "Για event / in-person: επικόλλησε το δημοσιευμένο reel / TikTok / post (https), όπως και στο link. Προαιρετικά φωτο/story (proof) + σύντομη σημείωση.",
     notePlaceholder: "Σύντομη σημείωση (π.χ. «ήμουν στο event 15/11»)",
     proofPlaceholder: "https://… (προαιρετικό proof)",
     submitEvent: "Υποβολή επιβεβαίωσης",
@@ -51,9 +52,10 @@ const COPY = {
     approved: "Approved.",
     pending: "Waiting for brand approval.",
     pendingEvent: "Waiting for brand to confirm attendance.",
-    noLink: "No link (event / in-person)",
-    useLink: "I have a deliverable link",
-    eventHint: "For event / in-person: optional photo/story (https) + short note.",
+    eventMode: "Event / in-person",
+    useLink: "Link only (no event)",
+    eventHint:
+      "For event / in-person: paste the published reel / TikTok / post (https), same as link mode. Optional photo/story (proof) + short note.",
     notePlaceholder: "Short note (e.g. “attended the event on 15/11”)",
     proofPlaceholder: "https://… (optional proof)",
     submitEvent: "Submit confirmation",
@@ -145,6 +147,10 @@ export default function ProposalDeliverableField({
   }, [prefill]);
 
   useEffect(() => {
+    if (initialUrl) setUrl(initialUrl);
+  }, [initialUrl]);
+
+  useEffect(() => {
     setShowcaseConsent(initialShowcaseConsent !== false);
   }, [initialShowcaseConsent]);
 
@@ -201,27 +207,40 @@ export default function ProposalDeliverableField({
       setError(lang === "el" ? "Το proof πρέπει να είναι https://…" : "Proof must be an https:// URL.");
       return;
     }
+    const savedUrl = (initialUrl || prefill || "").trim();
+    const parsed = parseSocialPostUrl(url);
+    if (!parsed.ok) {
+      if (!savedUrl) {
+        setError(socialPostUrlErrorMessage(parsed.error, lang));
+        setOk(false);
+        return;
+      }
+    }
     setSaving(true);
     setError(null);
     setOk(false);
     try {
+      const payload: Record<string, unknown> = {
+        source: "proposal",
+        id: proposalId,
+        deliveryMode: "event",
+        eventDelivery: true,
+        deliveryNote: note.trim() || null,
+        showcaseConsent,
+      };
+      if (proof) payload.deliveryProofUrl = proof;
+      if (parsed.ok) payload.publishedPostUrl = parsed.url;
       const res = await sessionFetch("/api/collaborations/showcase", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "proposal",
-          id: proposalId,
-          deliveryMode: "event",
-          eventDelivery: true,
-          deliveryNote: note.trim() || null,
-          deliveryProofUrl: proof || null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         setError(body.error || (lang === "el" ? "Δεν αποθηκεύτηκε." : "Could not save."));
         return;
       }
+      if (parsed.ok) setUrl(parsed.url);
       setMode("event");
       setPending(true);
       setStatus("submitted");
@@ -334,6 +353,13 @@ export default function ProposalDeliverableField({
                 {lang === "el" ? "Event / παρουσία" : "Event / in-person"}
                 {note ? ` — ${note}` : ""}
               </p>
+              {url ? (
+                <a href={url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline break-all">
+                  {url}
+                </a>
+              ) : (
+                <p className="text-xs text-slate-500">{lang === "el" ? "Δεν έχει υποβληθεί link." : "No post link submitted."}</p>
+              )}
               {proofUrl ? (
                 <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-700 underline break-all">
                   {proofUrl}
@@ -423,7 +449,7 @@ export default function ProposalDeliverableField({
                 mode === "event" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200"
               }`}
             >
-              {txt.noLink}
+              {txt.eventMode}
             </button>
           </div>
           {mode === "link" ? (
@@ -466,6 +492,33 @@ export default function ProposalDeliverableField({
             </>
           ) : (
             <>
+              <label className="flex items-start gap-2 text-xs text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={showcaseConsent}
+                  onChange={(e) => setShowcaseConsent(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                />
+                <span className="min-w-0">
+                  <span className="block font-medium text-slate-800">
+                    {lang === "el"
+                      ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
+                      : "Show publicly in “Recent collaborations”"}
+                  </span>
+                </span>
+              </label>
+              <input
+                ref={inputRef}
+                type="url"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  setOk(false);
+                  setError(null);
+                }}
+                placeholder={txt.placeholder}
+                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
+              />
               <textarea
                 value={note}
                 onChange={(e) => {
