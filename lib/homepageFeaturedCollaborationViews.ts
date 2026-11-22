@@ -3,6 +3,8 @@
  * curated homepage featured collaborations (Athos showcase). Not a SiteSettingKey.
  */
 
+import { isCuratedFeaturedCollaborationId } from "@/lib/homepageFeaturedCollaborations";
+
 export const HOMEPAGE_FEATURED_COLLABORATION_VIEWS_KEY =
   "homepage_featured_collaboration_views" as const;
 
@@ -22,13 +24,6 @@ export type HomepageFeaturedCollaborationViewsSetting = {
   items: FeaturedCollaborationViewsItem[];
 };
 
-function isUuid(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-  );
-}
-
 function nonNegativeInt(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const n = Math.floor(value);
@@ -43,7 +38,7 @@ function parseItem(raw: unknown): FeaturedCollaborationViewsItem | null {
   const sourceUrl = row.sourceUrl;
   const views = nonNegativeInt(row.views);
   const fetchedAt = row.fetchedAt;
-  if (!isUuid(applicationId) || views === null) return null;
+  if (!isCuratedFeaturedCollaborationId(applicationId) || views === null) return null;
   if (typeof sourceUrl !== "string" || !sourceUrl.trim()) return null;
   if (typeof fetchedAt !== "string" || !fetchedAt.trim()) return null;
   return {
@@ -90,7 +85,7 @@ export function computeFeaturedCollaborationViewsTotal(
   applicationIds: string[],
   items: FeaturedCollaborationViewsItem[]
 ): number | null {
-  const uniqueIds = [...new Set(applicationIds)].filter(isUuid);
+  const uniqueIds = [...new Set(applicationIds)].filter(isCuratedFeaturedCollaborationId);
   if (uniqueIds.length === 0) return null;
   const byId = itemsByAppId(items);
   let sum = 0;
@@ -125,11 +120,11 @@ export function mergeFeaturedCollaborationViews(
   previous: HomepageFeaturedCollaborationViewsSetting | null,
   incoming: FeaturedCollaborationViewsMergeInput[]
 ): HomepageFeaturedCollaborationViewsSetting {
-  const uniqueIds = [...new Set(applicationIds)].filter(isUuid);
+  const uniqueIds = [...new Set(applicationIds)].filter(isCuratedFeaturedCollaborationId);
   const prevById = itemsByAppId(previous?.items ?? []);
   const incomingById = new Map<string, FeaturedCollaborationViewsMergeInput>();
   for (const row of incoming) {
-    if (!isUuid(row.applicationId)) continue;
+    if (!isCuratedFeaturedCollaborationId(row.applicationId)) continue;
     if (!incomingById.has(row.applicationId)) incomingById.set(row.applicationId, row);
   }
 

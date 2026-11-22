@@ -7,6 +7,7 @@ import {
   mergeFeaturedCollaborationViews,
   parseHomepageFeaturedCollaborationViewsSetting,
 } from "@/lib/homepageFeaturedCollaborationViews";
+import { isCuratedFeaturedCollaborationId } from "@/lib/homepageFeaturedCollaborations";
 import { loadFeaturedCollaborationViewPlan } from "@/lib/loadFeaturedCollaborationViewPlan";
 import {
   getHomepageFeaturedCollaborationViewsSetting,
@@ -16,13 +17,6 @@ import {
 
 export const maxDuration = 60;
 
-function isUuid(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
-  );
-}
-
 function parsePostItems(raw: unknown): FeaturedCollaborationViewsMergeInput[] | null {
   if (!Array.isArray(raw)) return null;
   const items: FeaturedCollaborationViewsMergeInput[] = [];
@@ -31,7 +25,7 @@ function parsePostItems(raw: unknown): FeaturedCollaborationViewsMergeInput[] | 
     const row = entry as Record<string, unknown>;
     const applicationId = row.applicationId;
     const url = row.url;
-    if (!isUuid(applicationId)) continue;
+    if (!isCuratedFeaturedCollaborationId(applicationId)) continue;
     const viewsRaw = row.views;
     let views: number | null = null;
     if (viewsRaw === null || viewsRaw === undefined) {

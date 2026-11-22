@@ -58,6 +58,12 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+function formatPerVideoViews(views: number, lang: Lang): string {
+  const locale = lang === "el" ? "el-GR" : "en-GB";
+  const formatted = new Intl.NumberFormat(locale).format(views);
+  return lang === "el" ? `${formatted} προβολές` : `${formatted} views`;
+}
+
 /** Pause, mute, and tear down decoder so unmounted/stale elements cannot keep playing audio. */
 function releaseVideoMedia(el: HTMLVideoElement) {
   el.pause();
@@ -367,8 +373,10 @@ function HeroSeekBar({
 const HERO_FRAME =
   "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full lg:h-[min(56.7vh,29.3rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(49.9vh,25.8rem)] lg:w-auto";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:aspect-auto lg:h-full lg:w-full lg:min-h-0";
 const THUMBS_COLUMN_HEIGHT = "lg:h-[min(56.7vh,29.3rem)]";
+const THUMBS_GRID_LG =
+  "mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:grid lg:h-full lg:w-auto lg:min-w-[12.25rem] lg:max-w-[14.75rem] lg:grid-cols-2 lg:grid-rows-2 lg:gap-3 lg:content-stretch 2xl:min-w-[13.5rem] 2xl:max-w-[16rem]";
 
 function ShowcaseBrandPill({
   brandName,
@@ -639,6 +647,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                   startHeroVideo();
                 }}
               />
+              {active.publicViews != null ? (
+                <p
+                  className={`absolute top-3 right-3 z-[7] rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm sm:text-[11px] ${HERO_IDLE_HIDE_FINE} ${heroCoarseChromeHideClass(coarseChromeHidden)}`}
+                >
+                  {formatPerVideoViews(active.publicViews, lang)}
+                </p>
+              ) : null}
               <button
                 type="button"
                 className={`absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${HERO_IDLE_HIDE_FINE} ${heroCoarseChromeHideClass(coarseChromeHidden)}`}
@@ -685,11 +700,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               className={`flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink-0 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
             >
               <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain scroll-px-3 px-3 pb-2 pt-1 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0">
-                <div className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:w-auto lg:gap-4">
+                <div className={THUMBS_GRID_LG}>
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
-                  className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl"
+                  className="min-h-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl lg:flex lg:min-h-0 lg:flex-col"
                 >
                 <div className={THUMB_FRAME}>
                   <button
@@ -715,6 +730,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                     />
                   </button>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] pb-3 px-3">
+                    {card.publicViews != null ? (
+                      <p className="mb-1 text-[10px] font-semibold tabular-nums text-white/95 drop-shadow-sm sm:text-[11px]">
+                        {formatPerVideoViews(card.publicViews, lang)}
+                      </p>
+                    ) : null}
                     <CreatorProfileLink
                       name={card.influencerName}
                       href={card.influencerProfileHref}

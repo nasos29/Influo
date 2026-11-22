@@ -1,6 +1,6 @@
 /**
  * site_settings key `homepage_featured_collaborations` — curated Athos-style showcase
- * (application ids only; playback URLs come from creator_media at load time).
+ * (campaign_application UUIDs or `proposal:<id>`; playback URLs come from creator_media at load time).
  */
 
 export const HOMEPAGE_FEATURED_COLLABORATIONS_KEY = "homepage_featured_collaborations" as const;
@@ -21,14 +21,31 @@ export const DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS: HomepageFeaturedCollabora
     "0d6f33dc-5010-44b7-9928-6ea7aa095f13",
     "e00c5e4c-4a34-444f-8d92-690f07ae3ede",
     "fb71a97b-af71-4b73-9008-a375842a7a8b",
+    "proposal:59",
   ],
 };
 
-function isUuid(value: unknown): value is string {
+export function isFeaturedCollaborationUuid(value: unknown): value is string {
   return (
     typeof value === "string" &&
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
   );
+}
+
+/** Numeric proposals id from curated key `proposal:N`, or null. */
+export function parseFeaturedCollaborationProposalId(curatedId: string): number | null {
+  const match = /^proposal:(\d+)$/.exec(curatedId);
+  if (!match) return null;
+  const n = Number.parseInt(match[1], 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/** Campaign application UUID or `proposal:<positive int>`. */
+export function isCuratedFeaturedCollaborationId(value: unknown): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  const trimmed = value.trim();
+  if (isFeaturedCollaborationUuid(trimmed)) return true;
+  return parseFeaturedCollaborationProposalId(trimmed) !== null;
 }
 
 /** Parse DB/json; missing or invalid fields fall back to Athos defaults. */
@@ -40,14 +57,19 @@ export function parseHomepageFeaturedCollaborationsSetting(raw: unknown): Homepa
     heroApplicationId?: unknown;
     applicationIds?: unknown;
   };
-  const brandId = isUuid(obj.brandId) ? obj.brandId : base.brandId;
-  const heroApplicationId = isUuid(obj.heroApplicationId)
-    ? obj.heroApplicationId
+  const brandId = isFeaturedCollaborationUuid(obj.brandId) ? obj.brandId : base.brandId;
+  const heroApplicationId = isCuratedFeaturedCollaborationId(obj.heroApplicationId)
+    ? obj.heroApplicationId.trim()
     : base.heroApplicationId;
   const applicationIds: string[] = [];
   if (Array.isArray(obj.applicationIds)) {
     for (const item of obj.applicationIds) {
-      if (isUuid(item) && !applicationIds.includes(item)) applicationIds.push(item);
+      if (
+        isCuratedFeaturedCollaborationId(item) &&
+        !applicationIds.includes(item.trim())
+      ) {
+        applicationIds.push(item.trim());
+      }
     }
   }
   const mergedIds =

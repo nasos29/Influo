@@ -8,13 +8,30 @@ import {
 import { DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS } from "../lib/homepageFeaturedCollaborations.ts";
 
 const IDS = DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.applicationIds;
-const [A, B, C, D] = IDS;
+const [A, B, C, D, P] = IDS;
 const T0 = "2026-01-01T00:00:00.000Z";
 
 test("parse rejects invalid stored shape", () => {
   assert.equal(parseHomepageFeaturedCollaborationViewsSetting(null), null);
   assert.equal(parseHomepageFeaturedCollaborationViewsSetting({}), null);
   assert.equal(parseHomepageFeaturedCollaborationViewsSetting({ updatedAt: "" }), null);
+});
+
+test("parse accepts proposal curated id on stored items", () => {
+  const parsed = parseHomepageFeaturedCollaborationViewsSetting({
+    updatedAt: T0,
+    total: 100,
+    items: [
+      {
+        applicationId: "proposal:59",
+        sourceUrl: "https://vm.tiktok.com/ZN8mAG7CN/",
+        views: 100,
+        fetchedAt: T0,
+      },
+    ],
+  });
+  assert.ok(parsed);
+  assert.equal(parsed!.items[0]?.applicationId, "proposal:59");
 });
 
 test("merge keeps last-good on fetch failure; success overwrites lower counts", () => {
@@ -52,8 +69,9 @@ test("merge keeps last-good on fetch failure; success overwrites lower counts", 
     { applicationId: B, url: "https://instagram.com/b", views: 5 },
     { applicationId: C, url: "https://tiktok.com/c", views: 30 },
     { applicationId: D, url: "https://tiktok.com/d", views: 40 },
+    { applicationId: P, url: "https://vm.tiktok.com/ZN8mAG7CN/", views: 55 },
   ]);
-  assert.equal(computeFeaturedCollaborationViewsTotal(IDS, afterAll.items), 8 + 5 + 30 + 40);
+  assert.equal(computeFeaturedCollaborationViewsTotal(IDS, afterAll.items), 8 + 5 + 30 + 40 + 55);
 
   const staleDropped = mergeFeaturedCollaborationViews(IDS, afterAll, [
     { applicationId: "00000000-0000-4000-8000-000000000099", url: "https://x", views: 9999 },
@@ -62,5 +80,5 @@ test("merge keeps last-good on fetch failure; success overwrites lower counts", 
     staleDropped.items.find((i) => i.applicationId === "00000000-0000-4000-8000-000000000099"),
     undefined
   );
-  assert.equal(computeFeaturedCollaborationViewsTotal(IDS, staleDropped.items), 8 + 5 + 30 + 40);
+  assert.equal(computeFeaturedCollaborationViewsTotal(IDS, staleDropped.items), 8 + 5 + 30 + 40 + 55);
 });
