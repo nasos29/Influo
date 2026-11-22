@@ -1,13 +1,18 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import test from "node:test";
 
 process.env.NEXT_PUBLIC_MEDIA_PUBLIC_BASE_URL = "https://media.influo.gr";
 import {
   hostedDisplayMode,
+  hostedMediaFromStorageUrl,
   hostedPortfolioPosterUrl,
+  inferMediaTypeFromStorageUrl,
   isHostedPhotoMedia,
+  resolvePortfolioHostedMedia,
 } from "../lib/hostedMediaRender.ts";
+import { hostedMediaByNormalizedUrl, normalizeSourceUrl } from "../lib/creatorMedia.ts";
 import { mediaFromRow } from "../lib/creatorMedia.ts";
 
 function runHostCreatorPython(script: string): SpawnSyncReturns<string> {
@@ -97,6 +102,69 @@ function hostedPortfolioThumbMediaType(sourceUrl: string): "image" | "video" {
   return hostedPhotoThumb ? "image" : "video";
 }
 
+test("hostedMediaFromStorageUrl builds playable photo and carousel without DB row", () => {
+  const id = "f8057b45-e1ef-4f06-b1d8-f4ba57a87737";
+  const photo = `https://media.influo.gr/creators/${id}/portfolio/upload-aaaa/photo.webp`;
+  const carousel = `https://media.influo.gr/creators/${id}/portfolio/instagram-abc/carousel-01.webp`;
+  assert.equal(inferMediaTypeFromStorageUrl(photo), "photo");
+  assert.equal(inferMediaTypeFromStorageUrl(carousel), "carousel");
+  const fromPhoto = hostedMediaFromStorageUrl(photo);
+  assert.ok(fromPhoto);
+  assert.equal(fromPhoto!.playUrl, photo);
+  assert.equal(isHostedPhotoMedia(fromPhoto!), true);
+  const fromCarousel = hostedMediaFromStorageUrl(carousel);
+  assert.ok(fromCarousel);
+  assert.equal(fromCarousel!.mediaType, "carousel");
+  assert.deepEqual(fromCarousel!.carouselUrls, [carousel]);
+
+  const bareApi = `https://api.influo.gr/creators/${id}/portfolio/upload-bbbb/photo.webp`;
+  assert.equal(inferMediaTypeFromStorageUrl(bareApi), "photo");
+  assert.ok(hostedMediaFromStorageUrl(bareApi));
+});
+
+test("resolvePortfolioHostedMedia prefers ready row then storage URL", () => {
+  const ig = "https://www.instagram.com/p/DN6Qz9NDC6Y/";
+  const row = {
+    sourceUrl: ig,
+    kind: "portfolio" as const,
+    folderPath: "creators/x/portfolio/instagram-dn6/",
+    mediaType: "carousel" as const,
+    playUrl: "https://media.influo.gr/creators/x/portfolio/instagram-dn6/carousel-01.webp",
+    av1Url: null,
+    hevcUrl: null,
+    posterUrl: "https://media.influo.gr/creators/x/portfolio/instagram-dn6/carousel-01.webp",
+    carouselUrls: [
+      "https://media.influo.gr/creators/x/portfolio/instagram-dn6/carousel-01.webp",
+      "https://media.influo.gr/creators/x/portfolio/instagram-dn6/carousel-02.webp",
+    ],
+    durationMs: null,
+    width: 1080,
+    height: 1080,
+  };
+  const map = hostedMediaByNormalizedUrl([row]);
+  const resolved = resolvePortfolioHostedMedia(map, `${ig}?cnvx=1`);
+  assert.ok(resolved);
+  assert.equal(resolved!.mediaType, "carousel");
+  assert.equal(resolved!.carouselUrls?.length, 2);
+  assert.equal(normalizeSourceUrl(ig), normalizeSourceUrl(`${ig}?cnvx=1`));
+});
+
+test("InfluencerProfileClient portfolio never links self-hosted photos to storage", () => {
+  const src = readFileSync("components/InfluencerProfileClient.tsx", "utf8");
+  const start = src.indexOf("portfolioItems.map");
+  assert.ok(start >= 0);
+  const portfolioBlock = src.slice(start, start + 12000);
+  assert.ok(!portfolioBlock.includes('target="_blank"'), "portfolio grid must not open new tabs for media");
+  assert.ok(portfolioBlock.includes("resolvePortfolioHostedMedia"));
+  assert.ok(portfolioBlock.includes("portfolioPlayerShell"));
+});
+
+test("SocialEmbedCard uses hosted swipe player for ready photo/carousel", () => {
+  const src = readFileSync("components/SocialEmbedCard.tsx", "utf8");
+  assert.match(src, /hostedPhotoReady[\s\S]*HostedMediaPlayer/);
+  assert.match(src, /if \(hostedPhotoReady && hostedMedia\)/);
+});
+
 test("hosted portfolio poster thumb media type keeps video for mp4 sources", () => {
   const base =
     "https://media.influo.gr/creators/11111111-2222-3333-4444-555555555555/portfolio/upload-aaaa";
@@ -146,6 +214,11 @@ assert classify_ytdlp_info(mixed)[0] == "video"
 assert is_hostable_media_url("https://www.tiktok.com/@u/photo/1")
 assert is_hostable_media_url("https://www.instagram.com/p/abc/")
 assert not is_hostable_media_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+from host_creator_media import is_photo_first_post_url
+assert is_photo_first_post_url("https://www.instagram.com/p/abc/", "instagram")
+assert is_photo_first_post_url("https://www.tiktok.com/@u/photo/1", "tiktok")
+assert not is_photo_first_post_url("https://www.tiktok.com/@u/video/1", "tiktok")
 
 assert is_retriable_photo_host_failure("no video stream found (still image)")
 assert is_retriable_photo_host_failure("HTTP Error 403: Forbidden")

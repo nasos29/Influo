@@ -26,8 +26,10 @@ import { isAllowedPortfolioUrl } from "@/lib/videoLinks";
 import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
-import { useHostedCreatorMedia, lookupHostedMedia } from "@/lib/useCreatorMedia";
+import { useHostedCreatorMedia } from "@/lib/useCreatorMedia";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
+import { isHostedPhotoMedia, resolvePortfolioHostedMedia } from "@/lib/hostedMediaRender";
+import { isSelfHostedPortfolioUrl } from "@/lib/portfolioHosted";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import CreatorReviewsList from "@/components/CreatorReviewsList";
@@ -3315,14 +3317,15 @@ export default function InfluencerProfile(props: {
 
                                         const provider = detectProvider(vid);
                                         const embedUrl = provider ? getVideoEmbedApiUrl(vid) : null;
+                                        const resolvedHosted = resolvePortfolioHostedMedia(hostedByUrl, vid);
 
-                                        // Direct uploads: our own hosted file, no platform embed.
-                                        const uploadedHosted = !provider ? lookupHostedMedia(hostedByUrl, vid) : null;
-                                        if (uploadedHosted) {
+                                        const portfolioPlayerShell = (media: NonNullable<typeof resolvedHosted>) => {
                                             const ratio =
-                                                uploadedHosted.width && uploadedHosted.height
-                                                    ? `${uploadedHosted.width} / ${uploadedHosted.height}`
-                                                    : '9 / 16';
+                                                media.width && media.height
+                                                    ? `${media.width} / ${media.height}`
+                                                    : isHostedPhotoMedia(media)
+                                                      ? "1 / 1"
+                                                      : "9 / 16";
                                             return (
                                                 <div key={vid} className="w-full">
                                                     <div
@@ -3330,13 +3333,17 @@ export default function InfluencerProfile(props: {
                                                         style={{ aspectRatio: ratio }}
                                                     >
                                                         <HostedMediaPlayer
-                                                            media={uploadedHosted}
+                                                            media={media}
                                                             lang={lang}
                                                             autoplayOnMount={false}
                                                         />
                                                     </div>
                                                 </div>
                                             );
+                                        };
+
+                                        if (resolvedHosted && (isSelfHostedPortfolioUrl(vid) || isHostedPhotoMedia(resolvedHosted))) {
+                                            return portfolioPlayerShell(resolvedHosted);
                                         }
 
                                         if (provider && embedUrl && !isImage) {
@@ -3347,19 +3354,20 @@ export default function InfluencerProfile(props: {
                                                         originalUrl={vid}
                                                         embedUrl={embedUrl}
                                                         lang={lang}
-                                                        hostedMedia={lookupHostedMedia(hostedByUrl, vid)}
+                                                        hostedMedia={resolvedHosted}
                                                         onUnavailable={() => handlePortfolioUnavailable(vid)}
                                                     />
                                                 </div>
                                             );
                                         }
 
+                                        if (resolvedHosted) {
+                                            return portfolioPlayerShell(resolvedHosted);
+                                        }
+
                                         return (
-                                            <a
+                                            <div
                                                 key={vid}
-                                                href={vid}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
                                                 className={`group relative rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow bg-slate-100 ${
                                                     isImage
                                                         ? 'flex flex-col items-center justify-center w-full'
@@ -3392,7 +3400,7 @@ export default function InfluencerProfile(props: {
                                                           ? `Instagram Post ${i + 1}`
                                                           : `Highlight ${i + 1}`}
                                                 </div>
-                                            </a>
+                                            </div>
                                         );
                                     })}
                                   </div>
