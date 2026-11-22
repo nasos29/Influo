@@ -50,3 +50,14 @@ test("publicSupabaseStorageObjectUrl always uses public host", () => {
     restoreEnv();
   }
 });
+
+test("publicSupabaseStorageObjectUrl encodeURI matches supabase-js for spaces and non-ASCII", () => {
+  try {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://public.example.com";
+    const objectPath = "album/φωτό file.jpg";
+    const raw = `https://public.example.com/storage/v1/object/public/media/${objectPath}`;
+    assert.equal(publicSupabaseStorageObjectUrl("media", objectPath), encodeURI(raw));
+  } finally {
+    restoreEnv();
+  }
+});

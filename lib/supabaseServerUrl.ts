@@ -14,5 +14,5 @@ export function getServerSupabaseUrl(): string {
 export function publicSupabaseStorageObjectUrl(bucket: string, objectPath: string): string {
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").trim().replace(/\/+$/, "");
   const key = objectPath.replace(/^\/+/, "");
-  return `${base}/storage/v1/object/public/${bucket}/${key}`;
+  return encodeURI(`${base}/storage/v1/object/public/${bucket}/${key}`);
 }
