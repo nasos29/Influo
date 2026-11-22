@@ -6,6 +6,7 @@ import { buildCreatorMail } from "@/lib/missingAccountMail";
 import { sendChecked, siteUrl } from "@/lib/proposalMail";
 import { escapeHtml } from "@/lib/proposalParty";
 import {
+  isClearAccountNotFoundForEmail,
   isMissingAccountEmailEnabled,
   isMissingAccountEmailOnApproveEnabled,
   isPermanentAccountMissingError,
@@ -128,7 +129,7 @@ async function deliverMissingSocialAccountNotice(
     error: string;
   }
 ): Promise<void> {
-  if (!isPermanentAccountMissingError(opts.error)) return;
+  if (!isClearAccountNotFoundForEmail(opts.error)) return;
   const handle = normalizeSocialHandle(opts.username);
   const platform = String(opts.platform || "").trim();
   if (!handle || !platform) return;
@@ -196,7 +197,7 @@ export async function handleMissingAccountNoticesForNewApproval(
       const username = String(acc.username || "").trim();
       if (!platform || !username) continue;
       const err = String(acc.error || "");
-      if (!isPermanentAccountMissingError(err)) continue;
+      if (!isClearAccountNotFoundForEmail(err)) continue;
       await deliverMissingSocialAccountNotice(supabaseAdmin, {
         influencerId,
         influencerName,

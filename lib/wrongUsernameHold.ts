@@ -1,4 +1,8 @@
-import { isPermanentAccountMissingError, normalizeSocialHandle } from "@/lib/socialAccountMissing";
+import {
+  isScrapedAccountZeroStats,
+  isWrongUsernameHoldError,
+  normalizeSocialHandle,
+} from "@/lib/socialAccountMissing";
 
 export type WrongUsernameHandle = { platform: string; handle: string };
 
@@ -12,15 +16,32 @@ function normalizePlatformHandle(platform: unknown, usernameOrHandle: unknown): 
 }
 
 export function collectPermanentMissingHandles(
-  accounts: Array<{ platform?: string; username?: string; ok?: boolean; error?: string }>
+  accounts: Array<{
+    platform?: string;
+    username?: string;
+    ok?: boolean;
+    error?: string;
+    followers?: string;
+    avg_likes?: string;
+    posts_count?: number;
+  }>
 ): WrongUsernameHandle[] {
   const out: WrongUsernameHandle[] = [];
+  const seen = new Set<string>();
   for (const acc of accounts) {
-    if (acc.ok) continue;
-    const err = String(acc.error || "");
-    if (!isPermanentAccountMissingError(err)) continue;
     const h = normalizePlatformHandle(acc.platform, acc.username);
-    if (h) out.push(h);
+    if (!h) continue;
+    const key = `${h.platform}\0${h.handle}`;
+    let hold = false;
+    if (acc.ok === false) {
+      const err = String(acc.error || "");
+      hold = isWrongUsernameHoldError(err);
+    } else if (isScrapedAccountZeroStats(acc)) {
+      hold = true;
+    }
+    if (!hold || seen.has(key)) continue;
+    seen.add(key);
+    out.push(h);
   }
   return out;
 }

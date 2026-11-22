@@ -226,6 +226,7 @@ interface DbInfluencer {
   last_social_refresh_at?: string | null;
   social_refresh_profile_failed?: boolean;
   analytics_verified?: boolean;
+  analytics_verification_notes?: string | null;
   accounts: { platform: string; username: string; followers: string }[] | null; 
   avatar_url: string | null;
   avg_likes: string | null; 
@@ -5347,6 +5348,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                               ) : (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">{{ el: "Μη επαληθευμένα", en: "Not verified" }[lang]}</span>
                               )}
+                              {u.analytics_verification_notes ? (
+                                <span
+                                  className="text-[11px] leading-snug text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1 max-w-xs"
+                                  title={u.analytics_verification_notes}
+                                >
+                                  {lang === "el" ? "Insights:" : "Insights:"}{" "}
+                                  {u.analytics_verification_notes.length > 120
+                                    ? `${u.analytics_verification_notes.slice(0, 117)}…`
+                                    : u.analytics_verification_notes}
+                                </span>
+                              ) : null}
                               {u.possible_duplicate ? (
                                 <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                                   {lang === "el" ? "Πιθανό διπλό" : "Possible duplicate"}

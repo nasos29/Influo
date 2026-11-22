@@ -25,6 +25,9 @@ import {
   type WrongUsernameHandle,
 } from '@/lib/wrongUsernameHold';
 import { alertAdminUnapproved } from '@/lib/unapprovedAdminAlert';
+import { writeApproveNewInsightsAdminNote } from '@/lib/approveNewInsightsNotes';
+import { runApproveNewPreview } from '@/lib/approveNewDryRun';
+import { runLenientInsightsCheck } from '@/lib/lenientInsightsCheck';
 import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import {
   appendSocialRefreshLog,
@@ -82,7 +85,7 @@ const UNAPPROVED_LIST_VARIANTS: Array<{
 }> = [
   {
     select:
-      'id, display_name, approved, approved_at, manual_unapproved_at, accounts, wrong_username_held_at, wrong_username_handles',
+      'id, display_name, approved, approved_at, manual_unapproved_at, accounts, wrong_username_held_at, wrong_username_handles, bio, bio_en, insights_urls',
     requireApprovedAtNull: true,
     requireManualUnapprovedAtNull: true,
   },
@@ -140,12 +143,21 @@ async function writeWrongUsernameHold(influencerId: string, handles: WrongUserna
   }
 }
 
-async function listNewUnapprovedWithSocials() {
+function parseInsightsUrlsField(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  const urls = raw.map((u) => String(u || '').trim()).filter(Boolean);
+  return urls.length ? urls : null;
+}
+
+async function listNewUnapprovedWithSocials(opts?: { includeDryRunFields?: boolean }) {
   const pageSize = 1000;
   const influencers: {
     id: string;
     display_name: string;
     accounts: { platform: string; username: string }[];
+    bio?: string | null;
+    bio_en?: string | null;
+    insights_urls?: string[] | null;
   }[] = [];
 
   for (let from = 0; ; from += pageSize) {
@@ -188,11 +200,17 @@ async function listNewUnapprovedWithSocials() {
         profileChangeTimestamps: profileChangesByInfluencer.get(influencerId) ?? [],
       });
       if (skipHeld) continue;
-      influencers.push({
+      const item: (typeof influencers)[number] = {
         id: influencerId,
         display_name: String(row.display_name || row.id),
         accounts,
-      });
+      };
+      if (opts?.includeDryRunFields) {
+        item.bio = row.bio != null ? String(row.bio) : null;
+        item.bio_en = row.bio_en != null ? String(row.bio_en) : null;
+        item.insights_urls = parseInsightsUrlsField(row.insights_urls);
+      }
+      influencers.push(item);
     }
 
     if (rows.length < pageSize) break;
@@ -243,6 +261,26 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const action = String(body?.action || '').trim();
+
+    if (action === 'list') {
+      const influencers = await listNewUnapprovedWithSocials({ includeDryRunFields: true });
+      return NextResponse.json({ influencers, count: influencers.length, job: 'approve_new', dry_run: true });
+    }
+
+    if (action === 'preview') {
+      const influencerId = String(body?.influencer_id || '').trim();
+      const influencerName = String(body?.influencer_name || influencerId);
+      const accounts = (Array.isArray(body?.accounts) ? body.accounts : []) as ScrapedAccount[];
+      if (!influencerId || !accounts.length) {
+        return NextResponse.json({ error: 'influencer_id and accounts required' }, { status: 400 });
+      }
+      const preview = await runApproveNewPreview(supabaseAdmin, {
+        influencerId,
+        influencerName,
+        accounts,
+      });
+      return NextResponse.json({ ok: true, dry_run: true, ...preview });
+    }
 
     if (action === 'start') {
       if (isGeminiPaused()) {
@@ -448,7 +486,21 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: false, skipped: true, errors: persistErrors });
       }
 
-      const finalized = await finalizeNewInfluencerApproval(supabaseAdmin, influencerId);
+      const { data: insightsRow } = await supabaseAdmin
+        .from('influencers')
+        .select('insights_urls')
+        .eq('id', influencerId)
+        .maybeSingle();
+      const insightsCheck = await runLenientInsightsCheck({
+        insights_urls: insightsRow?.insights_urls,
+        scrapedAccounts: accounts,
+      });
+      if (insightsCheck.note) {
+        await writeApproveNewInsightsAdminNote(supabaseAdmin, influencerId, insightsCheck.note);
+      }
+      const finalized = await finalizeNewInfluencerApproval(supabaseAdmin, influencerId, {
+        analyticsVerified: insightsCheck.analytics_verified,
+      });
       await appendSocialRefreshLog(supabaseAdmin, {
         run_id: runId,
         influencer_id: influencerId,
