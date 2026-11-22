@@ -584,6 +584,7 @@ export default function Home({
                     stats={socialProofStats}
                     lang={lang}
                     openCampaignsCount={trustStats.openCampaigns}
+                    showAverageRating={false}
                   />
                 </div>
               );
