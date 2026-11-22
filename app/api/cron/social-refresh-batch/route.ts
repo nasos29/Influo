@@ -26,6 +26,8 @@ import {
   socialAccountsFromRow,
 } from '@/lib/socialRefreshLogs';
 import { handleMissingAccountNoticesForAccounts } from '@/lib/missingAccountEmail';
+import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
+import { isSkipGeminiRequest } from '@/lib/skipGeminiRequest';
 
 export const maxDuration = 60;
 
@@ -177,7 +179,11 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '').trim();
 
     if (action === 'start') {
-      const skipGemini = Boolean(body?.skip_gemini);
+      if (isGeminiPaused()) {
+        console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG);
+        return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message: GEMINI_PAUSED_MSG });
+      }
+      const skipGemini = isSkipGeminiRequest(body);
       if (skipGemini) {
         console.log('[social-refresh-batch] skip_gemini in request — stats-only batch (no audit refresh).');
       }
@@ -418,7 +424,7 @@ export async function POST(request: NextRequest) {
         influencerId,
         auditprBaseUrl: '',
         overridesOnly: true,
-        skipGemini: Boolean(body?.skip_gemini),
+        skipGemini: isSkipGeminiRequest(body),
         instagramOverrides,
         tiktokOverrides,
         youtubeOverrides,

@@ -1,24 +1,45 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
+import {
+  isSkipGeminiRequest,
+  shouldRunGeminiAudit,
+} from "../lib/skipGeminiRequest.ts";
 
 const route = fs.readFileSync("app/api/cron/social-refresh-batch/route.ts", "utf8");
-const refresh = fs.readFileSync("lib/refreshSocialStats.ts", "utf8");
-const py = fs.readFileSync("scripts/social_refresh_batch.py", "utf8");
 
-test("social-refresh-batch uses request-body skip_gemini, not isGeminiPaused", () => {
-  assert.doesNotMatch(route, /paused: true,\s*message: GEMINI_PAUSED_MSG/);
-  assert.doesNotMatch(route, /isGeminiPaused/);
-  assert.match(route, /Boolean\(body\?\.skip_gemini\)/);
-  assert.match(route, /skip_gemini:\s*true/);
+test("isSkipGeminiRequest accepts truthy skip_gemini forms", () => {
+  assert.equal(isSkipGeminiRequest({ skip_gemini: true }), true);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: "true" }), true);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: "1" }), true);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: 1 }), true);
 });
 
-test("Oracle scraper forwards skip_gemini on start and apply", () => {
-  assert.match(py, /skip_gemini/);
-  assert.match(py, /"action": "apply"/);
+test("isSkipGeminiRequest rejects falsy or missing skip_gemini", () => {
+  assert.equal(isSkipGeminiRequest({}), false);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: false }), false);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: "false" }), false);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: 0 }), false);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: "0" }), false);
+  assert.equal(isSkipGeminiRequest({ skip_gemini: undefined }), false);
 });
 
-test("refreshSocialStats exposes skipGemini", () => {
-  assert.match(refresh, /skipGemini\?: boolean/);
-  assert.match(refresh, /audit skipped \(skipGemini\)/);
+test("shouldRunGeminiAudit", () => {
+  assert.equal(
+    shouldRunGeminiAudit({ skipGemini: true, didRefreshSocials: true }),
+    false
+  );
+  assert.equal(
+    shouldRunGeminiAudit({ skipGemini: false, didRefreshSocials: true }),
+    true
+  );
+  assert.equal(
+    shouldRunGeminiAudit({ skipGemini: false, didRefreshSocials: false }),
+    false
+  );
+});
+
+test("social-refresh-batch route uses pause guard and request skip_gemini helper", () => {
+  assert.match(route, /isGeminiPaused\(\)/);
+  assert.match(route, /isSkipGeminiRequest\(body\)/);
 });

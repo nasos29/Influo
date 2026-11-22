@@ -351,7 +351,7 @@ export async function doRefreshSocialStats(
     // Gemini audit: only when we actually refreshed at least one IG/TikTok/YouTube. Multi-platform: pass all IG, TikTok, and YouTube accounts.
     if (firstRefreshedForAudit) {
       if (skipGemini) {
-        console.log('[refreshSocialStats] audit skipped (skipGemini)', inf.id);
+        console.log('[refreshSocialStats] audit skipped, skip_gemini=true', inf.id);
       } else try {
         const igTtAccounts = updatedAccounts
           .filter(
