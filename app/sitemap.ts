@@ -4,12 +4,13 @@ import { initialBlogPosts } from '@/lib/blogPosts'
 import { SITE_URL } from '@/lib/site'
 import { DIRECTORY_LANDINGS } from '@/lib/directoryLandings'
 import { countDirectoryMatches } from '@/lib/directoryPage'
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 // Revalidate sitemap every day (24 hours)
 export const revalidate = 86400
 
 function supabaseForSitemap() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseUrl = getServerSupabaseUrl()
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!supabaseUrl || !supabaseServiceKey) return null
   return createClient(supabaseUrl, supabaseServiceKey)

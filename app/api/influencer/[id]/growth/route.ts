@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { totalFollowersFromAccounts } from '@/lib/parseFollowers';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import {
   buildFollowerGrowthSeries,
   computeFollowerGrowth,
@@ -15,8 +16,7 @@ import {
   type SnapshotAccountFollowers,
 } from '@/lib/followerGrowth';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );

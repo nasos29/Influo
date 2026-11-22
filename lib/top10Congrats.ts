@@ -4,6 +4,7 @@
  */
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getServerSupabaseUrl } from '@/lib/supabaseServerUrl';
 import { Resend } from 'resend';
 import { computeTopInfluencers, type TopInfluencerRow } from '@/lib/computeTopInfluencers';
 import { emailNextSteps } from '@/lib/emailNextSteps';
@@ -65,7 +66,7 @@ function escapeHtml(s: string): string {
 
 function getAdmin(): SupabaseClient {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    getServerSupabaseUrl(),
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );

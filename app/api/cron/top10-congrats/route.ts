@@ -13,6 +13,7 @@ import {
   runTop10Congrats,
 } from '@/lib/top10Congrats';
 import { publicProfilePath } from '@/lib/profileSlug';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -48,8 +49,7 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      const sb = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      const sb = createClient(getServerSupabaseUrl(),
         process.env.SUPABASE_SERVICE_ROLE_KEY!,
         { auth: { autoRefreshToken: false, persistSession: false } }
       );

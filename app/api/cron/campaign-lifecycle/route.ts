@@ -7,6 +7,7 @@ import { SITE_URL } from "@/lib/site";
 import { pendingAppsReminderToBrand } from "@/lib/campaignMail";
 import { send } from "@/lib/proposalMail";
 import { sendPushToBrand } from "@/lib/push";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import {
   PENDING_APPS_REMINDER_AGE_DAYS,
   shouldSendPendingAppsReminder,
@@ -14,8 +15,7 @@ import {
 
 export const maxDuration = 60;
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );

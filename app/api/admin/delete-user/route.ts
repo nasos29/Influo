@@ -2,10 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteInfluencerAccount } from '@/lib/deleteInfluencerAccount';
 import { rejectUnlessAdmin } from '@/lib/apiAuth';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 // Server-side Supabase client με service role key (Admin privileges)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!, // Service role key για admin operations
   {
     auth: {

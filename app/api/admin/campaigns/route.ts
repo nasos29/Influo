@@ -5,9 +5,9 @@ import { parseAdminCampaignPatch } from "@/lib/adminCampaignPatch";
 import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
 import { refreshCampaignEnglish } from "@/lib/campaignTranslate";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: { autoRefreshToken: false, persistSession: false },

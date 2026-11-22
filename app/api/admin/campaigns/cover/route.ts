@@ -1,11 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { isAdminUser, userFromBearer } from "@/lib/apiAuth";
+import { getServerSupabaseUrl, publicSupabaseStorageObjectUrl } from "@/lib/supabaseServerUrl";
 
 export const runtime = "nodejs";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
@@ -49,6 +49,5 @@ export async function POST(request: NextRequest) {
     console.error("[admin cover upload]", upErr.message);
     return NextResponse.json({ error: "upload_failed" }, { status: 500 });
   }
-  const { data: pub } = supabaseAdmin.storage.from("campaign-covers").getPublicUrl(path);
-  return NextResponse.json({ url: pub.publicUrl });
+  return NextResponse.json({ url: publicSupabaseStorageObjectUrl("campaign-covers", path) });
 }

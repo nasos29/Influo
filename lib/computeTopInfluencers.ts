@@ -4,6 +4,7 @@
 
 import { unstable_cache } from 'next/cache';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { getServerSupabaseUrl } from '@/lib/supabaseServerUrl';
 import { getPastBrandsByInfluencerIds } from '@/lib/pastBrands';
 import {
   alignFollowerSnapshotToCurrent,
@@ -96,7 +97,7 @@ function eventDayUtc(iso: string | null | undefined): string {
 
 function getAdmin(): SupabaseClient {
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    getServerSupabaseUrl(),
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );

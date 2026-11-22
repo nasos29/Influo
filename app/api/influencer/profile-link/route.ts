@@ -4,9 +4,9 @@ import { changeProfileSlug, ensureProfileSlug } from '@/lib/profileSlugAssign';
 import { publicProfilePath } from '@/lib/profileSlug';
 import { SITE_URL } from '@/lib/site';
 import { revalidatePublicProfile } from '@/lib/revalidatePublicProfile';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );
