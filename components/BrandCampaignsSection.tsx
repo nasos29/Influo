@@ -20,6 +20,7 @@ import CampaignAiWizard, { type SiteBrandInfo } from "@/components/CampaignAiWiz
 import PlatformActivityBadge from "@/components/PlatformActivityBadge";
 import CampaignCover from "@/components/CampaignCover";
 import CoverGalleryModal from "@/components/CoverGalleryModal";
+import { formatFollowerCompact } from "@/lib/parseFollowers";
 import { formatFollowerCount } from "@/lib/platformStats";
 import { prepareCampaignCover } from "@/lib/prepareCampaignCover";
 import { displayNameForLang } from "@/lib/greeklish";
@@ -487,9 +488,7 @@ function ymd(value: string | null | undefined): string {
 type ReachCreator = { id: string; display_name: string; avatar_url: string | null; profile_slug: string | null; accounts: Array<{ platform: string; followers: number; avg_views: number }> };
 
 function compactNum(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
-  return String(Math.round(n));
+  return formatFollowerCompact(n);
 }
 
 const PLATFORM_SHORT: Record<string, string> = { instagram: "IG", tiktok: "TikTok", youtube: "YouTube", facebook: "FB" };

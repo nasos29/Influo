@@ -77,7 +77,7 @@ export default function PlatformFollowers({
           <span key={row.platform} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-900">
             <Icon platform={row.platform} />
             <span className="text-slate-500 font-medium">{LABEL[row.platform] || row.platform.slice(0, 2).toUpperCase()}</span>
-            {parseFollowerNumber(row.followers) > 0 ? row.followers : "—"}
+            {parseFollowerNumber(row.followers) > 0 ? formatFollowerCount(parseFollowerNumber(row.followers)) : "—"}
           </span>
         ))}
       </div>

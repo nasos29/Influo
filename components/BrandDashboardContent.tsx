@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
+import { formatFollowerCompact, parseFollowerString } from '@/lib/parseFollowers';
 import { recommendInfluencers, sharedCategoryKeys, type InfluencerProfile, type BrandProfile, type BrandCampaignHint } from '@/lib/recommendations';
 import {
   EMPTY_RECOMMENDATION_FILTERS,
@@ -1730,15 +1731,6 @@ export default function BrandDashboardContent() {
       console.log('[Brand Dashboard] All fetched influencers:', influencersData?.map(inf => ({ name: inf.display_name, approved: inf.approved, verified: inf.verified, id: inf.id })));
       console.log('[Brand Dashboard] Sample influencer:', influencersData?.[0]);
       
-      // Helper function to parse follower string
-      const parseFollowerString = (value: unknown) => {
-        if (value == null || value === "") return 0;
-        const clean = String(value).toLowerCase().replace(/,/g, '').trim();
-        if (clean.includes('k')) return parseFloat(clean) * 1000;
-        if (clean.includes('m')) return parseFloat(clean) * 1000000;
-        return parseFloat(clean) || 0;
-      };
-      
       // Build engagement_rate, followers, avg_likes from accounts (same source as influencer profile page) so metrics match
       const buildMetricsFromAccounts = (accounts: any[] | null) => {
         const engagementRates: { [key: string]: string } = {};
@@ -1753,7 +1745,7 @@ export default function BrandDashboardContent() {
             const n = parseFollowerString(acc.followers);
             if (n > maxFollowers) {
               maxFollowers = n;
-              followersStr = acc.followers;
+              followersStr = formatFollowerCompact(n);
             }
           }
           if (acc.engagement_rate) engagementRates[platform] = acc.engagement_rate;

@@ -11,6 +11,7 @@ import { formatFromPriceLabel } from "@/lib/publicInfluencer";
 import { displayLocation } from "@/lib/displayLocation";
 import type { TrustChip } from "@/lib/trustSignals";
 import { isAvailableStatus } from "@/lib/trustSignals";
+import { formatFollowerCompact } from "@/lib/parseFollowers";
 import { sanitizeSkills, skillLabel } from "@/lib/skills";
 
 interface InfluencerCardProps {
@@ -69,13 +70,6 @@ const PLATFORM_META: {
   { key: "twitter", Icon: TwitterIcon },
 ];
 
-const formatNum = (num?: number) => {
-  if (num === undefined || num === null) return "";
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M";
-  if (num >= 1_000) return (num / 1_000).toFixed(2).replace(/\.?0+$/, "") + "k";
-  return num.toString();
-};
-
 /**
  * Connected platforms (from socials and/or followers), sorted by followers desc.
  * Known platforms keep a stable tie-break order.
@@ -119,9 +113,9 @@ function PlatformPill({
 }) {
   const Icon = PLATFORM_META.find((p) => p.key === platformKey)?.Icon ?? InstagramIcon;
   return (
-    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[9px] font-semibold text-white backdrop-blur-sm ring-1 ring-white/20 sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-black/40 px-1.5 py-0.5 text-[8px] font-semibold text-white backdrop-blur-sm ring-1 ring-white/20 sm:gap-1 sm:px-2 sm:py-1 sm:text-[11px]">
       <Icon className="h-2.5 w-2.5 shrink-0 sm:h-3.5 sm:w-3.5" />
-      <span className="tabular-nums">{formatNum(count)}</span>
+      <span className="whitespace-nowrap tabular-nums">{formatFollowerCompact(count)}</span>
     </span>
   );
 }

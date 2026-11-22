@@ -8,6 +8,7 @@ import {
   QUIET_END_HOUR_ATHENS,
   QUIET_START_HOUR_ATHENS,
 } from '@/lib/brandCampaignReminders';
+import { formatFollowerCompact, parseFollowerString } from '@/lib/parseFollowers';
 import { zohoCampaignsCredentialsReady } from '@/lib/zohoCampaignsConfig';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://influo.gr';
@@ -117,15 +118,6 @@ function escapeHtml(s: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function parseFollowerString(str: string | number | null | undefined): number {
-  if (str == null || str === '') return 0;
-  const clean = String(str).toLowerCase().replace(/\s/g, '').replace(/,/g, '').trim();
-  if (clean.includes('k')) return parseFloat(clean) * 1000;
-  if (clean.includes('m')) return parseFloat(clean) * 1_000_000;
-  const num = parseFloat(clean);
-  return Number.isNaN(num) ? 0 : num;
-}
-
 function formatFollowers(accounts: InfluencerRow['accounts']): string {
   if (!Array.isArray(accounts) || accounts.length === 0) return '-';
   const byPlatform: Record<string, number> = {};
@@ -135,11 +127,7 @@ function formatFollowers(accounts: InfluencerRow['accounts']): string {
     const n = parseFollowerString(acc.followers);
     if (n > 0) byPlatform[plat] = (byPlatform[plat] || 0) + n;
   });
-  const parts = Object.entries(byPlatform).map(([platform, n]) => {
-    if (n >= 1_000_000) return `${platform}: ${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `${platform}: ${(n / 1_000).toFixed(1)}k`;
-    return `${platform}: ${n}`;
-  });
+  const parts = Object.entries(byPlatform).map(([platform, n]) => `${platform}: ${formatFollowerCompact(n)}`);
   return parts.length ? parts.join(', ') : '-';
 }
 

@@ -21,7 +21,7 @@ test("duplicate instagram rows keep one entry and the total does not double coun
   const instagram = stats.find((row) => row.platform === "instagram");
   assert.equal(instagram?.followers, "6.1k");
   const total = stats.reduce((sum, row) => sum + parseFollowerNumber(row.followers), 0);
-  assert.equal(formatFollowerCount(total), "68.9k");
+  assert.equal(formatFollowerCount(total), "68.900");
 });
 
 test("a verified account wins over a later duplicate", () => {

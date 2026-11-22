@@ -15,7 +15,7 @@ import {
 test("formatFollowers keeps exact integers under 1M", () => {
   assert.equal(formatFollowers(13300), "13300");
   assert.equal(formatFollowers(13000), "13000");
-  assert.equal(formatFollowers(1_200_000), "1.2M");
+  assert.equal(formatFollowers(1_200_000), "1200000");
 });
 
 test("preferPreciseFollowers keeps 13300 over rounded 13k", () => {

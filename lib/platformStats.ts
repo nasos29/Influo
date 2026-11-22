@@ -1,4 +1,4 @@
-import { formatFollowerCompact } from "@/lib/parseFollowers";
+import { formatFollowerCompact, parseFollowerString } from "@/lib/parseFollowers";
 
 export type PlatformStat = {
   platform: string;
@@ -56,14 +56,7 @@ function accountRecency(acc: AccountFields, index: number): number {
 }
 
 export function parseFollowerNumber(value: unknown): number {
-  if (typeof value !== "string" && typeof value !== "number") return 0;
-  const clean = String(value).toLowerCase().replace(/,/g, "").replace(/\s/g, "").trim();
-  if (!clean || clean === "-" || clean === "n/a") return 0;
-  let scale = 1;
-  if (clean.includes("m")) scale = 1_000_000;
-  else if (clean.includes("k") || clean.includes("κ")) scale = 1000;
-  const n = Number.parseFloat(clean) * scale;
-  return Number.isFinite(n) ? n : 0;
+  return parseFollowerString(value as string | number | null | undefined);
 }
 
 export function formatFollowerCount(n: number): string {

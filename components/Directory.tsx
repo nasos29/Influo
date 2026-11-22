@@ -22,6 +22,7 @@ import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { filterUiVariantFromSetting } from "@/lib/siteSettings";
 import DirectoryFilters from "@/components/DirectoryFilters";
 import { rememberDirectoryReturn, restoreDirectoryScroll } from "@/lib/directoryReturn";
+import { parseFollowerString } from "@/lib/parseFollowers";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
 const PAGE_SIZE = 40;
@@ -244,14 +245,6 @@ const t = {
     pageNext: "Next",
     pageOf: "of",
   },
-};
-
-const parseFollowerString = (str: string) => {
-  if (!str) return 0;
-  const clean = str.toLowerCase().replace(/,/g, "").trim();
-  if (clean.includes("k")) return parseFloat(clean) * 1000;
-  if (clean.includes("m")) return parseFloat(clean) * 1000000;
-  return parseFloat(clean) || 0;
 };
 
 const badgesForInfluencer = (

@@ -1,3 +1,4 @@
+import { formatFollowerCompact, parseFollowerString } from "@/lib/parseFollowers";
 import { formatListedPrice } from "@/lib/parsePrice";
 
 export type MediaKitAccount = {
@@ -49,7 +50,8 @@ function socialRows(accounts: MediaKitAccount[]): string {
     .map((a) => {
       const platform = esc((a.platform || '').trim());
       const username = esc(String(a.username || '').replace(/^@+/, ''));
-      const followers = esc(String(a.followers || '—'));
+      const n = parseFollowerString(a.followers);
+      const followers = n > 0 ? esc(formatFollowerCompact(n)) : esc(a.followers ? String(a.followers) : "—");
       const er = esc(a.engagement_rate || '—');
       return `<tr>
         <td>${platform}</td>

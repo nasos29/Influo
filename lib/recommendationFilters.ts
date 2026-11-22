@@ -1,5 +1,6 @@
 import { categoriesMatchFilter } from "@/lib/categories";
 import { locationFilterMatches } from "@/lib/displayLocation";
+import { parseFollowerString } from "@/lib/parseFollowers";
 import type { InfluencerProfile } from "@/lib/recommendations";
 import { sanitizeSkills } from "@/lib/skills";
 
@@ -39,12 +40,7 @@ export function activeRecommendationFilterCount(filters: RecommendationFilterSta
 }
 
 function parseFollowers(value: unknown): number {
-  if (value == null || value === "") return 0;
-  const clean = String(value).toLowerCase().replace(/,/g, "").trim();
-  if (!clean) return 0;
-  if (clean.includes("k")) return parseFloat(clean) * 1000;
-  if (clean.includes("m")) return parseFloat(clean) * 1_000_000;
-  return parseFloat(clean) || 0;
+  return parseFollowerString(value as string | number | null | undefined);
 }
 
 /** Largest audience, or the selected platform when one is chosen. */

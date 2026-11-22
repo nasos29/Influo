@@ -12,6 +12,7 @@ import { isUploadedPortfolioUrl } from '@/lib/portfolioUpload';
 import { usePortfolioLinkStatus } from '@/lib/usePortfolioLinkStatus';
 import { isSelfHostedPortfolioUrl, PORTFOLIO_LINK_STATUS_COPY } from '@/lib/portfolioHosted';
 import { formatEuro, formatEuroAmount } from '@/lib/formatEuro';
+import { formatFollowerCompact, parseFollowerString } from '@/lib/parseFollowers';
 import Image from 'next/image';
 import InfluoLogo from '@/components/InfluoLogo';
 import { getVideoThumbnail, isVideoUrl, isDefinitelyVideo, isDefinitelyImage, detectProvider, isEmbeddableVideoUrl } from '@/lib/videoThumbnail';
@@ -3152,7 +3153,7 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                         <div className="font-medium text-slate-900">{acc.platform}</div>
                                         <div className="text-sm text-slate-600">@{acc.username}</div>
                                         {acc.followers ? (
-                                            <div className="text-sm text-slate-500">{acc.followers} {T("ακόλουθοι", "followers")}</div>
+                                            <div className="text-sm text-slate-500">{formatFollowerCompact(parseFollowerString(acc.followers))} {T("ακόλουθοι", "followers")}</div>
                                         ) : null}
                                     </div>
                                 ))}

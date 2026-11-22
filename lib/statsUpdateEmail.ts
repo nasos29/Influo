@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { emailNextSteps } from "@/lib/emailNextSteps";
-import { parseFollowerString } from "@/lib/parseFollowers";
+import { formatFollowerCompact, parseFollowerString } from "@/lib/parseFollowers";
 import { escapeHtml } from "@/lib/proposalParty";
 import { buttonHtml, send, shell, siteUrl, todayAthens } from "@/lib/proposalMail";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -118,10 +118,10 @@ export function buildStatsEmail(input: {
   const lines = input.rows
     .map((r) => {
       const diff =
-        r.diff == null || r.diff === 0 ? "" : ` (${r.diff > 0 ? "+" : "−"}${grInt(Math.abs(r.diff))})`;
+        r.diff == null || r.diff === 0 ? "" : ` (${r.diff > 0 ? "+" : "−"}${formatFollowerCompact(Math.abs(r.diff))})`;
       const er = r.er != null ? ` · Engagement ${grNumber(r.er, 1)}%` : "";
       const views = r.avgViews != null ? ` · Μ.Ο. προβολών ${grInt(r.avgViews)}` : "";
-      return `<strong>${escapeHtml(PLATFORM_LABEL[r.platform] || r.platform)}:</strong> ${grInt(r.followers)} followers${diff}${er}${views}`;
+      return `<strong>${escapeHtml(PLATFORM_LABEL[r.platform] || r.platform)}:</strong> ${formatFollowerCompact(r.followers)} followers${diff}${er}${views}`;
     })
     .join("<br/>");
   const profileUrl = `${siteUrl()}${publicProfilePath(input.slug, input.influencerId)}`;

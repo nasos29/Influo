@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { MediaKitAccount, MediaKitProfile } from "@/lib/mediaKit";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { displayErFlag, erFlagLabel } from "@/lib/engagementFlags";
+import { formatFollowerCompact, parseFollowerString } from "@/lib/parseFollowers";
 import { formatListedPrice } from "@/lib/parsePrice";
 import InfluoLogo from "@/components/InfluoLogo";
 
@@ -410,7 +411,7 @@ export default function MediaKitView({ profile, lang = "el" }: { profile: MediaK
                   </div>
                   <div>
                     <span>{copy.followers}</span>
-                    <b>{a.followers || "—"}</b>
+                    <b>{a.followers ? formatFollowerCompact(parseFollowerString(a.followers)) : "—"}</b>
                   </div>
                   <div>
                     <span>{copy.engagement}</span>
