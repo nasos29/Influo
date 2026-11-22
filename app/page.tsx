@@ -3,6 +3,7 @@ import { loadPublicDirectoryCards } from "@/lib/directoryCards";
 import { loadHomeOpenCampaigns } from "@/lib/loadHomeOpenCampaigns";
 import { loadHomeTrustStats } from "@/lib/loadHomeTrustStats";
 import { loadFeaturedCollaborations } from "@/lib/loadFeaturedCollaborations";
+import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
 import { loadSocialProofStats } from "@/lib/loadSocialProofStats";
 import { HOMEPAGE_FEATURED_COLLABORATION_VIEWS_CACHE_TAG } from "@/lib/homepageFeaturedCollaborationViews";
 import {
@@ -29,6 +30,12 @@ const cachedFeaturedCollaborations = unstable_cache(
   }
 );
 
+const cachedHomeRecentCollaborations = unstable_cache(
+  () => loadRecentCollaborations(12, { surface: "homepage" }),
+  ["home-recent-collaborations", "homepage-surface"],
+  { revalidate: 3600, tags: ["recent-collaborations"] }
+);
+
 /** Daily social-proof numbers (DB cache inside loader + ISR). */
 const cachedSocialProofStats = unstable_cache(
   () => loadSocialProofStats(),
@@ -44,7 +51,7 @@ export default async function Page() {
   const creatorsLimit = settings.homepage_creators_count;
   const campaignsLimit = settings.homepage_campaigns_count;
 
-  const [directoryPage, openCampaigns, trustStats, featuredCollaborations, socialProofStats] =
+  const [directoryPage, openCampaigns, trustStats, featuredCollaborations, recentCollaborations, socialProofStats] =
     await Promise.all([
       unstable_cache(
         () => loadPublicDirectoryCards(creatorsLimit),
@@ -59,6 +66,7 @@ export default async function Page() {
       )(),
       cachedHomeTrust(),
       cachedFeaturedCollaborations(),
+      cachedHomeRecentCollaborations(),
       cachedSocialProofStats(),
     ]);
   return (
@@ -68,6 +76,7 @@ export default async function Page() {
       openCampaigns={openCampaigns}
       trustStats={trustStats}
       featuredCollaborations={featuredCollaborations}
+      recentCollaborations={recentCollaborations}
       socialProofStats={socialProofStats}
       homeCreatorsLimit={creatorsLimit}
       homeNewlyApprovedLimit={settings.homepage_newly_approved_count}

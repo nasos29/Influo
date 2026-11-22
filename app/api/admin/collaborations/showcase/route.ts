@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { requireAdmin, supabaseService } from "@/lib/apiAuth";
 import {
@@ -11,6 +12,17 @@ import { influencerContact } from "@/lib/proposalAccess";
 import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
 type Source = "proposal" | "campaign";
+
+function revalidateRecentCollaborationsCache() {
+  try {
+    revalidateTag("recent-collaborations", { expire: 0 });
+  } catch (err) {
+    console.warn(
+      "[showcase] revalidate recent-collaborations",
+      err instanceof Error ? err.message : err
+    );
+  }
+}
 
 function asSource(value: unknown): Source | null {
   return value === "proposal" || value === "campaign" ? value : null;
@@ -641,6 +653,15 @@ export async function PATCH(request: Request) {
           : "showcase_unpin"
         : "showcase_admin_update";
   await writeAudit(adminEmail, action, source, id, auditDetails, request);
+
+  if (
+    typeof body.hidden === "boolean" ||
+    typeof body.pinned === "boolean" ||
+    "postUrl" in body ||
+    "publishedPostUrl" in body
+  ) {
+    revalidateRecentCollaborationsCache();
+  }
 
   return NextResponse.json({
     ok: true,

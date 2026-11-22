@@ -25,8 +25,7 @@ export { showcasePostFields } from "@/lib/showcasePostUrl";
 
 export type LoadRecentCollaborationsOptions = {
   /**
-   * homepage: if any admin-pinned (showcase_admin_pinned) rows have a valid video,
-   * return only those; otherwise fall back to latest with video.
+   * homepage: only admin-pinned (showcase_admin_pinned) rows with a valid video; else [].
    * listing: all eligible with video (pinned sort first). Used by /collaborations.
    */
   surface?: "homepage" | "listing";
@@ -240,8 +239,7 @@ export async function loadRecentCollaborations(
   });
 
   const pinnedWithVideo = withVideo.filter((c) => c.pinned);
-  const pool =
-    surface === "homepage" && pinnedWithVideo.length > 0 ? pinnedWithVideo : withVideo;
+  const pool = surface === "homepage" ? pinnedWithVideo : withVideo;
   const picked = pool.slice(0, take);
   if (picked.length === 0) return [];
 

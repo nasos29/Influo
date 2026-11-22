@@ -20,6 +20,7 @@ import { type CampaignCardData } from "@/components/CampaignCard";
 import HomeHowItWorks from "@/components/HomeHowItWorks";
 import HomeOpenCampaignsSection from "@/components/HomeOpenCampaignsSection";
 import FeaturedCollaborationsShowcase from "@/components/FeaturedCollaborationsShowcase";
+import RecentCollaborationsSection from "@/components/RecentCollaborationsSection";
 import SocialProofStatsRow from "@/components/SocialProofStatsRow";
 import { supabase } from "@/lib/supabaseClient";
 import { getStoredLanguage } from "@/lib/language";
@@ -28,6 +29,7 @@ import { SITE_URL } from "@/lib/site";
 import { normalizeNameCase } from "@/lib/greeklish";
 import type { HomeTrustStats } from "@/lib/loadHomeTrustStats";
 import type { FeaturedCollaborationsShowcaseData } from "@/lib/loadFeaturedCollaborations";
+import type { RecentCollaborationCard } from "@/lib/loadRecentCollaborations";
 import type { SocialProofStats } from "@/lib/loadSocialProofStats";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { shuffle } from "@/lib/similarInfluencers";
@@ -201,6 +203,7 @@ export default function Home({
   openCampaigns = [],
   trustStats = { approvedInfluencers: null, openCampaigns: null },
   featuredCollaborations = null,
+  recentCollaborations = [],
   socialProofStats = {
     completedCollaborations: null,
     activeCreators: null,
@@ -221,6 +224,7 @@ export default function Home({
   openCampaigns?: CampaignCardData[];
   trustStats?: HomeTrustStats;
   featuredCollaborations?: FeaturedCollaborationsShowcaseData | null;
+  recentCollaborations?: RecentCollaborationCard[];
   socialProofStats?: SocialProofStats;
   homeCreatorsLimit?: number;
   homeNewlyApprovedLimit?: number;
@@ -586,6 +590,9 @@ export default function Home({
                     openCampaignsCount={trustStats.openCampaigns}
                     showAverageRating={false}
                   />
+                  {recentCollaborations.length > 0 ? (
+                    <RecentCollaborationsSection items={recentCollaborations} lang={lang} />
+                  ) : null}
                 </div>
               );
 

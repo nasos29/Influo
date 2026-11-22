@@ -168,7 +168,7 @@ const COPY = {
     show: "Εμφάνιση",
     loadError: "Αποτυχία φόρτωσης.",
     publicNote:
-      "Δημόσια εμφανίζονται μόνο συνεργασίες με έγκυρο video/post link, διπλή συναίνεση και χωρίς απόκρυψη. Η αρχική δείχνει όσες έχουν «Εμφάνιση στην αρχική»· αν καμία δεν είναι επιλεγμένη, εμφανίζονται οι πιο πρόσφατες με βίντεο. Το /collaborations δείχνει όλες τις επιλέξιμες με βίντεο. Auto-complete 7 ημερών ισχύει μόνο για link· τα event μένουν εκκρεμή μέχρι brand ή «Ολοκλήρωση από admin».",
+      "Δημόσια εμφανίζονται μόνο συνεργασίες με έγκυρο video/post link, διπλή συναίνεση και χωρίς απόκρυψη. Η αρχική δείχνει μόνο όσες έχουν «Εμφάνιση στην αρχική»· αν καμία δεν είναι επιλεγμένη/επιλέξιμη, η ενότητα καρτών στην αρχική δεν εμφανίζεται. Το /collaborations δείχνει όλες τις επιλέξιμες με βίντεο. Auto-complete 7 ημερών ισχύει μόνο για link· τα event μένουν εκκρεμή μέχρι brand ή «Ολοκλήρωση από admin».",
     saveUrl: "Αποθήκευση URL",
     urlPlaceholder: "https://instagram.com/reel/… ή TikTok / YouTube",
     audit: "Τελευταία αλλαγή URL",
@@ -198,7 +198,7 @@ const COPY = {
     show: "Show",
     loadError: "Failed to load.",
     publicNote:
-      "Public listing requires a valid video/post link, both consents, and not being hidden. Homepage shows items marked «Show on homepage»; if none are marked, it falls back to the latest with video. /collaborations lists all eligible with video. 7-day auto-complete is link-only; events stay pending until brand or «Complete as admin».",
+      "Public listing requires a valid video/post link, both consents, and not being hidden. The homepage shows only items marked «Show on homepage»; if none are pinned/eligible, the homepage cards section is omitted. /collaborations lists all eligible with video. 7-day auto-complete is link-only; events stay pending until brand or «Complete as admin».",
     saveUrl: "Save URL",
     urlPlaceholder: "https://instagram.com/reel/… or TikTok / YouTube",
     audit: "Last URL change",
