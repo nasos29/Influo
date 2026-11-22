@@ -680,14 +680,14 @@ export default function Home({
                         {txt.brand_section_btn}
                       </button>
                     </div>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 md:gap-5">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
                       {([
                         {
                           key: "search",
                           title: txt.brand_feat_search_title,
                           desc: txt.brand_feat_search_desc,
                           icon: (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 18a7 7 0 100-14 7 7 0 000 14z" />
                             </svg>
                           ),
@@ -697,7 +697,7 @@ export default function Home({
                           title: txt.brand_feat_campaigns_title,
                           desc: txt.brand_feat_campaigns_desc,
                           icon: (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.993 3.993 0 01-1.564-.317z" />
                             </svg>
                           ),
@@ -707,7 +707,7 @@ export default function Home({
                           title: txt.brand_feat_manage_title,
                           desc: txt.brand_feat_manage_desc,
                           icon: (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                             </svg>
                           ),
@@ -717,7 +717,7 @@ export default function Home({
                           title: txt.brand_feat_verified_title,
                           desc: txt.brand_feat_verified_desc,
                           icon: (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                             </svg>
                           ),
@@ -728,7 +728,7 @@ export default function Home({
                           desc: txt.brand_feat_ai_desc,
                           badge: txt.brand_feat_ai_badge,
                           icon: (
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
                           ),
@@ -736,10 +736,10 @@ export default function Home({
                       ] as const).map((feat) => (
                         <article
                           key={feat.key}
-                          className="group flex flex-col h-full bg-white border border-slate-200/90 p-5 md:p-6 rounded-lg hover:border-slate-300 hover:bg-white transition-colors duration-200"
+                          className="group flex flex-col h-full bg-white border border-slate-200/90 p-3 sm:p-5 md:p-6 rounded-lg hover:border-slate-300 hover:bg-white transition-colors duration-200"
                         >
-                          <div className="flex items-start justify-between gap-2 mb-4">
-                            <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200">
+                          <div className="flex items-start justify-between gap-1.5 sm:gap-2 mb-2 sm:mb-4">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-md bg-slate-100 text-slate-700 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors duration-200 shrink-0">
                               {feat.icon}
                             </div>
                             {"badge" in feat && feat.badge ? (
@@ -748,8 +748,8 @@ export default function Home({
                               </span>
                             ) : null}
                           </div>
-                          <h4 className="text-base font-semibold text-slate-900 mb-2 tracking-tight">{feat.title}</h4>
-                          <p className="text-slate-600 text-sm leading-relaxed flex-1">{feat.desc}</p>
+                          <h4 className="text-[15px] sm:text-base font-semibold text-slate-900 mb-1 sm:mb-2 tracking-tight leading-snug">{feat.title}</h4>
+                          <p className="text-slate-600 text-[13px] sm:text-sm leading-relaxed flex-1">{feat.desc}</p>
                         </article>
                       ))}
                     </div>
