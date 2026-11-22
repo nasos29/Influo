@@ -165,6 +165,21 @@ test("SocialEmbedCard uses hosted swipe player for ready photo/carousel", () => 
   assert.match(src, /if \(hostedPhotoReady && hostedMedia\)/);
 });
 
+test("HostedPhotoPlayer expand opener uses lucide Maximize2 stroke icon", () => {
+  const src = readFileSync("components/HostedPhotoPlayer.tsx", "utf8");
+  assert.match(src, /Maximize2/);
+  assert.doesNotMatch(src, /M7 14H5v5h5v-2H7v-3/);
+});
+
+test("InstagramStaticCarousel dots are clickable buttons", () => {
+  const src = readFileSync("components/InstagramStaticCarousel.tsx", "utf8");
+  const tablist = src.slice(src.indexOf('role="tablist"'));
+  assert.match(tablist, /role="tablist"/);
+  assert.match(tablist, /goTo\(i\)/);
+  assert.match(tablist, /e\.stopPropagation\(\)/);
+  assert.doesNotMatch(tablist, /pointer-events-none/);
+});
+
 test("hosted portfolio poster thumb media type keeps video for mp4 sources", () => {
   const base =
     "https://media.influo.gr/creators/11111111-2222-3333-4444-555555555555/portfolio/upload-aaaa";
