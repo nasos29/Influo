@@ -6,6 +6,8 @@ import {
 } from "@/lib/featuredCollaborationPlatform";
 import {
   DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS,
+  isFeaturedCollaborationUuid,
+  parseFeaturedCollaborationProposalId,
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
 import { publicProfilePath } from "@/lib/profileSlug";
@@ -18,6 +20,7 @@ import {
 export type { FeaturedCollaborationPlatform } from "@/lib/featuredCollaborationPlatform";
 
 export type FeaturedCollaborationCard = {
+  /** Curated id: campaign_application UUID or `proposal:<id>`. */
   applicationId: string;
   influencerName: string;
   influencerProfileHref: string;
@@ -25,6 +28,8 @@ export type FeaturedCollaborationCard = {
   playUrl: string;
   posterUrl: string | null;
   platform: FeaturedCollaborationPlatform | null;
+  /** Stored public views for this curated id; hidden in UI when null. */
+  publicViews: number | null;
 };
 
 export type FeaturedCollaborationsShowcaseData = {
@@ -43,6 +48,12 @@ type AppRow = {
   influencer_id: string;
   deliverable_url: string | null;
   brand_campaigns?: unknown;
+};
+
+type ProposalRow = {
+  id: number;
+  influencer_id: string;
+  published_post_url: string | null;
 };
 
 type MediaRow = {
@@ -89,6 +100,31 @@ function campaignBrandFromRow(row: AppRow): {
   return { brandName, brandLogoUrl, coverUrl };
 }
 
+function splitCuratedIds(ids: string[]): {
+  uuidIds: string[];
+  proposalKeys: { curatedId: string; proposalId: number }[];
+} {
+  const uuidIds: string[] = [];
+  const proposalKeys: { curatedId: string; proposalId: number }[] = [];
+  for (const id of ids) {
+    if (isFeaturedCollaborationUuid(id)) {
+      uuidIds.push(id);
+    } else {
+      const proposalId = parseFeaturedCollaborationProposalId(id);
+      if (proposalId !== null) proposalKeys.push({ curatedId: id, proposalId });
+    }
+  }
+  return { uuidIds, proposalKeys };
+}
+
+function publicViewsForCuratedId(
+  curatedId: string,
+  items: { applicationId: string; views: number }[] | undefined
+): number | null {
+  const row = items?.find((i) => i.applicationId === curatedId);
+  return row && Number.isInteger(row.views) && row.views >= 0 ? row.views : null;
+}
+
 export async function loadFeaturedCollaborations(
   config?: HomepageFeaturedCollaborationsConfig
 ): Promise<FeaturedCollaborationsShowcaseData | null> {
@@ -96,30 +132,34 @@ export async function loadFeaturedCollaborations(
   const applicationIds = [...new Set(setting.applicationIds)].filter(Boolean);
   if (applicationIds.length === 0) return null;
 
+  const { uuidIds, proposalKeys } = splitCuratedIds(applicationIds);
+
   const admin = supabaseService();
   const APP_COLS =
     "id, influencer_id, deliverable_url, brand_campaigns!inner ( cover_url, brand_id, brands ( brand_name, logo_url ) )";
 
   let apps: AppRow[] = [];
-  try {
-    const { data, error } = await admin
-      .from("campaign_applications")
-      .select(APP_COLS)
-      .in("id", applicationIds);
-    if (error) {
-      const legacy = "id, influencer_id, deliverable_url, brand_campaigns!inner ( brand_id, brands ( brand_name, logo_url ) )";
-      const second = await admin.from("campaign_applications").select(legacy).in("id", applicationIds);
-      if (second.error) {
-        console.error("loadFeaturedCollaborations applications", second.error);
-        return null;
+  if (uuidIds.length > 0) {
+    try {
+      const { data, error } = await admin
+        .from("campaign_applications")
+        .select(APP_COLS)
+        .in("id", uuidIds);
+      if (error) {
+        const legacy =
+          "id, influencer_id, deliverable_url, brand_campaigns!inner ( brand_id, brands ( brand_name, logo_url ) )";
+        const second = await admin.from("campaign_applications").select(legacy).in("id", uuidIds);
+        if (second.error) {
+          console.error("loadFeaturedCollaborations applications", second.error);
+        } else {
+          apps = (second.data || []) as AppRow[];
+        }
+      } else {
+        apps = (data || []) as AppRow[];
       }
-      apps = (second.data || []) as AppRow[];
-    } else {
-      apps = (data || []) as AppRow[];
+    } catch (error) {
+      console.error("loadFeaturedCollaborations applications", error);
     }
-  } catch (error) {
-    console.error("loadFeaturedCollaborations applications", error);
-    return null;
   }
 
   const appById = new Map<string, AppRow>();
@@ -127,13 +167,63 @@ export async function loadFeaturedCollaborations(
     if (typeof row.id === "string") appById.set(row.id, row);
   }
 
-  const orderedApps = applicationIds
-    .map((id) => appById.get(id))
-    .filter((row): row is AppRow => !!row);
+  const proposalById = new Map<number, ProposalRow>();
+  if (proposalKeys.length > 0) {
+    const numericIds = proposalKeys.map((p) => p.proposalId);
+    try {
+      const { data, error } = await admin
+        .from("proposals")
+        .select("id, influencer_id, published_post_url")
+        .in("id", numericIds);
+      if (error) {
+        console.error("loadFeaturedCollaborations proposals", error);
+      } else if (Array.isArray(data)) {
+        for (const row of data as ProposalRow[]) {
+          if (typeof row.id === "number") proposalById.set(row.id, row);
+        }
+      }
+    } catch (error) {
+      console.error("loadFeaturedCollaborations proposals", error);
+    }
+  }
 
-  if (orderedApps.length === 0) return null;
+  type OrderedEntry =
+    | { kind: "app"; curatedId: string; app: AppRow; sourceUrl: string }
+    | { kind: "proposal"; curatedId: string; proposal: ProposalRow; sourceUrl: string };
 
-  const influencerIds = [...new Set(orderedApps.map((a) => a.influencer_id).filter(Boolean))];
+  const orderedEntries: OrderedEntry[] = [];
+  for (const curatedId of applicationIds) {
+    if (isFeaturedCollaborationUuid(curatedId)) {
+      const app = appById.get(curatedId);
+      if (!app) continue;
+      const deliverable =
+        typeof app.deliverable_url === "string" ? app.deliverable_url.trim() : "";
+      if (!deliverable) continue;
+      orderedEntries.push({ kind: "app", curatedId, app, sourceUrl: deliverable });
+    } else {
+      const proposalId = parseFeaturedCollaborationProposalId(curatedId);
+      if (proposalId === null) continue;
+      const proposal = proposalById.get(proposalId);
+      if (!proposal) continue;
+      const published =
+        typeof proposal.published_post_url === "string"
+          ? proposal.published_post_url.trim()
+          : "";
+      if (!published) continue;
+      orderedEntries.push({ kind: "proposal", curatedId, proposal, sourceUrl: published });
+    }
+  }
+
+  if (orderedEntries.length === 0) return null;
+
+  const influencerIds = [
+    ...new Set(
+      orderedEntries.map((e) =>
+        e.kind === "app" ? e.app.influencer_id : e.proposal.influencer_id
+      )
+    ),
+  ].filter(Boolean);
+
   const infById = new Map<
     string,
     { display_name: string | null; profile_slug: string | null; avatar_url: string | null }
@@ -186,36 +276,44 @@ export async function loadFeaturedCollaborations(
     console.error("loadFeaturedCollaborations creator_media", error);
   }
 
+  const viewsSetting = await getHomepageFeaturedCollaborationViewsSetting();
+  const storedViewItems = viewsSetting?.items;
+
   const cards: FeaturedCollaborationCard[] = [];
-  for (const app of orderedApps) {
-    const deliverable =
-      typeof app.deliverable_url === "string" ? app.deliverable_url.trim() : "";
-    if (!deliverable) continue;
-    const norm = normalizeSourceUrl(deliverable);
-    const media = mediaByKey.get(`${app.influencer_id}:${norm}`);
+  for (const entry of orderedEntries) {
+    const influencerId =
+      entry.kind === "app" ? entry.app.influencer_id : entry.proposal.influencer_id;
+    const norm = normalizeSourceUrl(entry.sourceUrl);
+    const media = mediaByKey.get(`${influencerId}:${norm}`);
     if (!media?.playUrl) continue;
-    const inf = infById.get(app.influencer_id);
+    const inf = infById.get(influencerId);
     const displayName = (inf?.display_name || "").trim();
     if (!displayName) continue;
-    const mediaKey = `${app.influencer_id}:${norm}`;
+    const mediaKey = `${influencerId}:${norm}`;
     cards.push({
-      applicationId: app.id,
+      applicationId: entry.curatedId,
       influencerName: displayName,
-      influencerProfileHref: publicProfilePath(inf?.profile_slug ?? null, app.influencer_id),
+      influencerProfileHref: publicProfilePath(inf?.profile_slug ?? null, influencerId),
       influencerAvatarUrl:
         typeof inf?.avatar_url === "string" && inf.avatar_url.trim()
           ? inf.avatar_url.trim()
           : null,
       playUrl: media.playUrl,
       posterUrl: media.posterUrl,
-      platform: featuredCollaborationPlatform(deliverable, sourceUrlByMediaKey.get(mediaKey)),
+      platform: featuredCollaborationPlatform(
+        entry.sourceUrl,
+        sourceUrlByMediaKey.get(mediaKey)
+      ),
+      publicViews: publicViewsForCuratedId(entry.curatedId, storedViewItems),
     });
   }
 
   if (cards.length === 0) return null;
 
-  const firstApp = orderedApps[0];
-  const brandInfo = firstApp ? campaignBrandFromRow(firstApp) : campaignBrandFromRow(orderedApps[0]);
+  const firstAppEntry = orderedEntries.find((e) => e.kind === "app");
+  const brandInfo = firstAppEntry
+    ? campaignBrandFromRow(firstAppEntry.app)
+    : { brandName: "Brand", brandLogoUrl: null, coverUrl: null };
 
   let brandName = brandInfo.brandName;
   let brandLogoUrl = brandInfo.brandLogoUrl;
@@ -250,7 +348,6 @@ export async function loadFeaturedCollaborations(
       "https://api.influo.gr/storage/v1/object/public/campaign-covers/4d7f24f5-fa4d-4601-bc6a-6a7da8331d49/1793732424284-gz6aia.webp";
   }
 
-  const viewsSetting = await getHomepageFeaturedCollaborationViewsSetting();
   const totalViews = featuredCollaborationViewsTotal(setting.applicationIds, viewsSetting);
 
   return {

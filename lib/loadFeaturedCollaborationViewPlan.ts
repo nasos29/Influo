@@ -1,7 +1,11 @@
 import { supabaseService } from "@/lib/apiAuth";
 import { normalizeSourceUrl } from "@/lib/creatorMedia";
 import type { FeaturedCollaborationViewsItem } from "@/lib/homepageFeaturedCollaborationViews";
-import type { HomepageFeaturedCollaborationsConfig } from "@/lib/homepageFeaturedCollaborations";
+import {
+  isFeaturedCollaborationUuid,
+  parseFeaturedCollaborationProposalId,
+  type HomepageFeaturedCollaborationsConfig,
+} from "@/lib/homepageFeaturedCollaborations";
 import { getHomepageFeaturedCollaborationsSetting } from "@/lib/siteSettingsServer";
 
 export type FeaturedCollaborationViewPlanItem = {
@@ -14,6 +18,12 @@ type AppRow = {
   id: string;
   influencer_id: string;
   deliverable_url: string | null;
+};
+
+type ProposalRow = {
+  id: number;
+  influencer_id: string;
+  published_post_url: string | null;
 };
 
 type MediaRow = {
@@ -43,27 +53,57 @@ export async function loadFeaturedCollaborationViewPlan(
     return { applicationIds: [], items: [] };
   }
 
-  const admin = supabaseService();
-  const { data, error } = await admin
-    .from("campaign_applications")
-    .select("id, influencer_id, deliverable_url")
-    .in("id", applicationIds);
+  const uuidIds = applicationIds.filter(isFeaturedCollaborationUuid);
+  const proposalIds = applicationIds
+    .map((id) => parseFeaturedCollaborationProposalId(id))
+    .filter((n): n is number => n !== null);
 
-  if (error) {
-    console.error("loadFeaturedCollaborationViewPlan applications", error);
-    return {
-      applicationIds,
-      items: applicationIds.map((id) => ({
-        applicationId: id,
-        url: storedItems?.find((i) => i.applicationId === id)?.sourceUrl ?? "",
-        views: viewsForApp(id, storedItems),
-      })),
-    };
+  const admin = supabaseService();
+
+  const appById = new Map<string, AppRow>();
+  if (uuidIds.length > 0) {
+    const { data, error } = await admin
+      .from("campaign_applications")
+      .select("id, influencer_id, deliverable_url")
+      .in("id", uuidIds);
+
+    if (error) {
+      console.error("loadFeaturedCollaborationViewPlan applications", error);
+      return {
+        applicationIds,
+        items: applicationIds.map((id) => ({
+          applicationId: id,
+          url: storedItems?.find((i) => i.applicationId === id)?.sourceUrl ?? "",
+          views: viewsForApp(id, storedItems),
+        })),
+      };
+    }
+
+    const apps = (data || []) as AppRow[];
+    for (const a of apps) appById.set(a.id, a);
   }
 
-  const apps = (data || []) as AppRow[];
-  const appById = new Map(apps.map((a) => [a.id, a]));
-  const influencerIds = [...new Set(apps.map((a) => a.influencer_id).filter(Boolean))];
+  const proposalById = new Map<number, ProposalRow>();
+  if (proposalIds.length > 0) {
+    const { data, error } = await admin
+      .from("proposals")
+      .select("id, influencer_id, published_post_url")
+      .in("id", proposalIds);
+    if (error) {
+      console.error("loadFeaturedCollaborationViewPlan proposals", error);
+    } else if (Array.isArray(data)) {
+      for (const row of data as ProposalRow[]) {
+        if (typeof row.id === "number") proposalById.set(row.id, row);
+      }
+    }
+  }
+
+  const influencerIds = [
+    ...new Set([
+      ...[...appById.values()].map((a) => a.influencer_id),
+      ...[...proposalById.values()].map((p) => p.influencer_id),
+    ]),
+  ].filter(Boolean);
 
   const sourceUrlByKey = new Map<string, string>();
   if (influencerIds.length > 0) {
@@ -84,19 +124,39 @@ export async function loadFeaturedCollaborationViewPlan(
 
   const items: FeaturedCollaborationViewPlanItem[] = [];
   for (const applicationId of applicationIds) {
-    const app = appById.get(applicationId);
     let url = "";
-    if (app) {
-      const deliverable =
-        typeof app.deliverable_url === "string" ? app.deliverable_url.trim() : "";
-      if (deliverable) {
-        url =
-          sourceUrlByKey.get(`${app.influencer_id}:${normalizeSourceUrl(deliverable)}`) ??
-          deliverable;
+    let influencerId = "";
+    let sourceCandidate = "";
+
+    if (isFeaturedCollaborationUuid(applicationId)) {
+      const app = appById.get(applicationId);
+      if (app) {
+        influencerId = app.influencer_id;
+        const deliverable =
+          typeof app.deliverable_url === "string" ? app.deliverable_url.trim() : "";
+        sourceCandidate = deliverable;
+      }
+    } else {
+      const proposalId = parseFeaturedCollaborationProposalId(applicationId);
+      const proposal = proposalId !== null ? proposalById.get(proposalId) : undefined;
+      if (proposal) {
+        influencerId = proposal.influencer_id;
+        sourceCandidate =
+          typeof proposal.published_post_url === "string"
+            ? proposal.published_post_url.trim()
+            : "";
       }
     }
+
+    if (sourceCandidate && influencerId) {
+      url =
+        sourceUrlByKey.get(`${influencerId}:${normalizeSourceUrl(sourceCandidate)}`) ??
+        sourceCandidate;
+    }
+
     const storedUrl = storedItems?.find((i) => i.applicationId === applicationId)?.sourceUrl;
     if (!url && storedUrl) url = storedUrl;
+
     items.push({
       applicationId,
       url,
