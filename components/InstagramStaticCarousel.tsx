@@ -6,6 +6,7 @@ const COPY = {
   album: { el: "Άλμπουμ", en: "Album" },
   prev: { el: "Προηγούμενη", en: "Previous" },
   next: { el: "Επόμενη", en: "Next" },
+  slide: { el: "Φωτογραφία", en: "Photo" },
 } as const;
 
 type Props = {
@@ -41,6 +42,14 @@ export default function InstagramStaticCarousel({
     (delta: number) => {
       if (count < 2) return;
       setIndex((i) => (i + delta + count) % count);
+    },
+    [count]
+  );
+
+  const goTo = useCallback(
+    (target: number) => {
+      if (count < 2 || target < 0 || target >= count) return;
+      setIndex(target);
     },
     [count]
   );
@@ -112,17 +121,35 @@ export default function InstagramStaticCarousel({
             ›
           </button>
           <div
-            className="absolute bottom-2 left-1/2 z-40 flex -translate-x-1/2 gap-1.5 pointer-events-none"
-            aria-hidden
+            className="absolute bottom-2 left-1/2 z-40 flex -translate-x-1/2 items-center gap-0.5"
+            role="tablist"
+            aria-label={COPY.album[uiLang]}
           >
-            {images.map((_, i) => (
-              <span
-                key={i}
-                className={`h-1.5 w-1.5 rounded-full ${
-                  i === safeIndex ? "bg-white" : "bg-white/45"
-                }`}
-              />
-            ))}
+            {images.map((_, i) => {
+              const active = i === safeIndex;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  aria-label={`${COPY.slide[uiLang]} ${i + 1}`}
+                  className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    goTo(i);
+                  }}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      active ? "bg-white" : "bg-white/45"
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+              );
+            })}
           </div>
         </>
       ) : null}

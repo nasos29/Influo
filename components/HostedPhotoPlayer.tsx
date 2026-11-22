@@ -9,6 +9,7 @@ import {
   type TransitionEvent as ReactTransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
+import { Maximize2 } from "lucide-react";
 import InstagramStaticCarousel from "@/components/InstagramStaticCarousel";
 import type { HostedMedia } from "@/lib/creatorMedia";
 import { carouselImageList } from "@/lib/hostedMediaRender";
@@ -270,7 +271,7 @@ export default function HostedPhotoPlayer({
         <button
           type="button"
           data-hosted-expand="true"
-          className="absolute right-2 bottom-2 z-20 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/45 text-white shadow-md hover:bg-black/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          className="absolute right-2 bottom-2 z-20 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[rgba(0,0,0,0.55)] text-white shadow-md hover:bg-black/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
           aria-label={COPY.expand[uiLang]}
           onClick={(e) => {
             e.preventDefault();
@@ -278,9 +279,7 @@ export default function HostedPhotoPlayer({
             expand();
           }}
         >
-          <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
-            <path d="M7 14H5v5h5v-2H7v-3zm0-9h2v3h3v2H5V5h2zm12 12h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" />
-          </svg>
+          <Maximize2 className="h-4 w-4" strokeWidth={2.25} aria-hidden />
         </button>
       )}
     </div>
