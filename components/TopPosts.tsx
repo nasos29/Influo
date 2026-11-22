@@ -145,15 +145,19 @@ export default function TopPosts({
   return (
     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm md:p-6">
       <h2 className="mb-4 text-lg font-bold text-slate-900 md:text-xl">{COPY.title[lang]}</h2>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-4">
+      <div className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-smooth px-5 pb-1 [-webkit-overflow-scrolling:touch] md:mx-0 md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:px-0 md:pb-0">
         {posts.map((post) => (
-          <TopPostCard
+          <div
             key={post.url}
-            post={post}
-            lang={lang}
-            hostedMedia={hostedByUrl ? lookupHostedMedia(hostedByUrl, post.url) : null}
-            onUnavailable={() => setHidden((prev) => new Set(prev).add(post.url))}
-          />
+            className="w-[85%] max-w-[85%] shrink-0 snap-start md:w-auto md:max-w-none md:shrink"
+          >
+            <TopPostCard
+              post={post}
+              lang={lang}
+              hostedMedia={hostedByUrl ? lookupHostedMedia(hostedByUrl, post.url) : null}
+              onUnavailable={() => setHidden((prev) => new Set(prev).add(post.url))}
+            />
+          </div>
         ))}
       </div>
     </section>
