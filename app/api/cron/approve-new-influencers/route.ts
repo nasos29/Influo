@@ -19,9 +19,10 @@ import { finalizeNewInfluencerApproval } from '@/lib/approveNewInfluencer';
 import { sanitizeTopPosts } from '@/lib/topPosts';
 import { handleMissingAccountNoticesForNewApproval } from '@/lib/missingAccountEmail';
 import {
-  collectPermanentMissingHandles,
+  handlesSnapshotFromScrapeAccounts,
   shouldSetWrongUsernameHold,
   shouldSkipWrongUsernameHeldCreator,
+  type WrongUsernameHandle,
 } from '@/lib/wrongUsernameHold';
 import { alertAdminUnapproved } from '@/lib/unapprovedAdminAlert';
 import {
@@ -76,7 +77,7 @@ type ScrapedAccount = {
 
 async function setWrongUsernameHold(
   influencerId: string,
-  handles: ReturnType<typeof collectPermanentMissingHandles>
+  handles: WrongUsernameHandle[]
 ): Promise<void> {
   const { error } = await supabaseAdmin
     .from('influencers')
@@ -441,7 +442,7 @@ export async function POST(request: NextRequest) {
         );
         // At least one clear permanent missing still sets hold even when other accounts failed transiently.
         if (shouldSetWrongUsernameHold(accounts)) {
-          await setWrongUsernameHold(influencerId, collectPermanentMissingHandles(accounts));
+          await setWrongUsernameHold(influencerId, handlesSnapshotFromScrapeAccounts(accounts));
         }
         return NextResponse.json({ ok: false, skipped: true, errors: profileErrors.map((a) => a.error) });
       }

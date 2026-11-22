@@ -4,6 +4,7 @@ import {
   collectPermanentMissingHandles,
   currentHandlesFromAccounts,
   handlesMatchSnapshot,
+  handlesSnapshotFromScrapeAccounts,
   shouldSetWrongUsernameHold,
   shouldSkipWrongUsernameHeldCreator,
 } from "../lib/wrongUsernameHold.ts";
@@ -81,4 +82,34 @@ test("permanent missing among failures still sets hold", () => {
 test("handle snapshot compares normalized handles", () => {
   const current = currentHandlesFromAccounts([{ platform: "Instagram", username: "@Foo" }]);
   assert.equal(handlesMatchSnapshot(current, snapshot), true);
+});
+
+test("hold snapshot stores all scraped accounts not only permanent-missing failures", () => {
+  const mixed = [
+    { platform: "instagram", username: "foo", ok: false, error: "Profile @foo not found." },
+    { platform: "tiktok", username: "@bar", ok: true },
+  ];
+  assert.deepEqual(handlesSnapshotFromScrapeAccounts(mixed), [
+    { platform: "instagram", handle: "foo" },
+    { platform: "tiktok", handle: "bar" },
+  ]);
+});
+
+test("held + permanent fail among other accounts + same DB handles => skip", () => {
+  const fullSnapshot = [
+    { platform: "instagram", handle: "foo" },
+    { platform: "tiktok", handle: "bar" },
+  ];
+  assert.equal(
+    shouldSkipWrongUsernameHeldCreator({
+      wrong_username_held_at: heldAt,
+      wrong_username_handles: fullSnapshot,
+      accounts: [
+        { platform: "instagram", username: "foo" },
+        { platform: "tiktok", username: "bar" },
+      ],
+      profileChangeTimestamps: [],
+    }),
+    true
+  );
 });

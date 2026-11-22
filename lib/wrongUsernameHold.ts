@@ -26,6 +26,20 @@ export function shouldSetWrongUsernameHold(
   return collectPermanentMissingHandles(accounts).length > 0;
 }
 
+/** Full handle snapshot at hold time (all scraped accounts), matched against DB accounts when listing. */
+export function handlesSnapshotFromScrapeAccounts(
+  accounts: Array<{ platform?: string; username?: string; ok?: boolean; error?: string }>
+): WrongUsernameHandle[] {
+  return accounts
+    .map((a) => ({
+      platform: String(a.platform || "")
+        .trim()
+        .toLowerCase(),
+      handle: normalizeSocialHandle(String(a.username || "")),
+    }))
+    .filter((h) => h.platform && h.handle);
+}
+
 export function currentHandlesFromAccounts(
   accounts: Array<{ platform: string; username: string }>
 ): WrongUsernameHandle[] {
