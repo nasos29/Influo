@@ -53,3 +53,86 @@ test("handleMissingAccountNoticesForNewApproval does not send when the new flag 
     else process.env.MISSING_ACCOUNT_EMAIL_ON_APPROVE_ENABLED = prior;
   }
 });
+
+test("handleMissingAccountNoticesForNewApproval dedupes same handle when already notified", async () => {
+  const prior = process.env.MISSING_ACCOUNT_EMAIL_ON_APPROVE_ENABLED;
+  process.env.MISSING_ACCOUNT_EMAIL_ON_APPROVE_ENABLED = "1";
+
+  const influencerId = "inf-dedupe-test";
+  const notifiedKeys = new Set<string>(["instagram:foo"]);
+  let influencerEmailLookups = 0;
+
+  const chain = {
+    eq() {
+      return chain;
+    },
+    limit: async () => ({ data: [], error: null }),
+    maybeSingle: async () => {
+      influencerEmailLookups += 1;
+      return {
+        data: { id: influencerId, display_name: "Dedupe Creator", contact_email: "c@example.com" },
+        error: null,
+      };
+    },
+    select() {
+      return chain;
+    },
+    from(table: string) {
+      if (table === "influencer_missing_account_notified") {
+        return {
+          select() {
+            return {
+              eq(_col: string, _val: string) {
+                return {
+                  eq(_c2: string, platform: string) {
+                    return {
+                      eq(_c3: string, handle: string) {
+                        return {
+                          limit: async () => {
+                            const key = `${platform}:${handle}`;
+                            return {
+                              data: notifiedKeys.has(key) ? [{ id: "1" }] : [],
+                              error: null,
+                            };
+                          },
+                        };
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      }
+      if (table === "influencers") {
+        return chain;
+      }
+      if (table === "influencer_private") {
+        return { select: () => chain };
+      }
+      throw new Error(`unexpected table ${table}`);
+    },
+  };
+
+  const accounts = [
+    {
+      platform: "instagram",
+      username: "foo",
+      ok: false,
+      error: "Profile @foo not found.",
+    },
+  ];
+
+  const supabase = {
+    from: chain.from,
+  } as unknown as SupabaseClient;
+
+  try {
+    await handleMissingAccountNoticesForNewApproval(supabase, influencerId, "Dedupe Creator", accounts);
+    assert.equal(influencerEmailLookups, 0);
+  } finally {
+    if (prior === undefined) delete process.env.MISSING_ACCOUNT_EMAIL_ON_APPROVE_ENABLED;
+    else process.env.MISSING_ACCOUNT_EMAIL_ON_APPROVE_ENABLED = prior;
+  }
+});

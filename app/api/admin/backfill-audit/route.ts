@@ -10,6 +10,10 @@ import { createClient } from '@supabase/supabase-js';
 import { rejectUnlessAdmin } from '@/lib/apiAuth';
 import {
   computeAuditFingerprint,
+  getGeminiSystemicPauseReason,
+  isGeminiSystemicallyPaused,
+  isSystemicGeminiError,
+  markGeminiSystemicFailure,
   offerAuditFields,
   runAuditGeminiStrict,
   type AuditAccount,
@@ -126,6 +130,12 @@ export async function POST(request: NextRequest) {
         : undefined;
 
     for (const inf of influencers) {
+      if (isGeminiSystemicallyPaused()) {
+        errors.push(
+          `Backfill stopped: Gemini systemically paused (${getGeminiSystemicPauseReason() || 'billing/auth/quota'})`
+        );
+        break;
+      }
       const accounts = (inf.accounts as AccountRow[] | null) ?? [];
       const igTtAccounts: AuditAccount[] = accounts
         .filter(
@@ -208,7 +218,12 @@ export async function POST(request: NextRequest) {
           updated++;
         }
       } catch (e) {
-        errors.push(`${inf.display_name ?? inf.id}: ${e instanceof Error ? e.message : 'Audit failed'}`);
+        const msg = e instanceof Error ? e.message : 'Audit failed';
+        errors.push(`${inf.display_name ?? inf.id}: ${msg}`);
+        if (isSystemicGeminiError(e)) {
+          markGeminiSystemicFailure(msg);
+          break;
+        }
       }
     }
 

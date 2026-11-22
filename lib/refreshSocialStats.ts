@@ -19,10 +19,13 @@ import type { TopPost } from '@/lib/topPosts';
 import { applyErFlags, type ErFlagReason, type PenaltyPercentField } from '@/lib/engagementFlags';
 import {
   AUDIT_FALLBACK_MESSAGE,
+  auditprAuditFieldAfterGeminiAttempt,
   computeAuditFingerprint,
-  isAuditFallbackResult,
-  offerAuditFields,
-  runAuditGemini,
+  getGeminiSystemicPauseReason,
+  isGeminiSystemicallyPaused,
+  isSystemicGeminiError,
+  markGeminiSystemicFailure,
+  runAuditGeminiStrict,
 } from '@/lib/auditGemini';
 import { insertFollowerSnapshot, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 import { preferPreciseFollowers } from '@/lib/socialRefresh';
@@ -390,31 +393,23 @@ export async function doRefreshSocialStats(
             !existingBreakdown.some((line) => String(line).includes(AUDIT_FALLBACK_MESSAGE));
           if (hasUsableAudit && existingAudit?.input_fingerprint === fp) {
             console.log('[refreshSocialStats] audit skipped, inputs unchanged', inf.id);
+          } else if (isGeminiSystemicallyPaused()) {
+            const reason = getGeminiSystemicPauseReason();
+            errors.push(
+              `Audit: Gemini systemically paused (${reason || 'billing/auth/quota'}); kept existing audit`
+            );
           } else {
-            const auditResult = await runAuditGemini(igTtAccounts, shared);
-            if (auditResult && Array.isArray(auditResult.scoreBreakdown)) {
-              // Fallback must not overwrite a usable existing audit; omit fingerprint only when writing fallback for retry.
-              if (isAuditFallbackResult(auditResult) && hasUsableAudit) {
-                errors.push('Audit: Gemini fallback, kept existing audit');
-              } else {
-                const nextAudit: AuditprAudit = {
-                  scoreBreakdown: auditResult.scoreBreakdown,
-                  scoreBreakdown_en: auditResult.scoreBreakdown_en,
-                  whyWorkWithThem: auditResult.whyWorkWithThem,
-                  whyWorkWithThem_en: auditResult.whyWorkWithThem_en,
-                  positives: auditResult.positives,
-                  positives_en: auditResult.positives_en,
-                  negatives: auditResult.negatives,
-                  negatives_en: auditResult.negatives_en,
-                  brandSafe: auditResult.brandSafe,
-                  niche: auditResult.niche,
-                  niche_en: auditResult.niche_en,
-                  ...offerAuditFields(auditResult),
-                };
-                if (!isAuditFallbackResult(auditResult)) {
-                  nextAudit.input_fingerprint = fp;
-                }
+            try {
+              const auditResult = await runAuditGeminiStrict(igTtAccounts, shared);
+              const nextAudit = auditprAuditFieldAfterGeminiAttempt(auditResult, fp);
+              if (nextAudit) {
                 updatePayload.auditpr_audit = nextAudit;
+              }
+            } catch (auditErr) {
+              const msg = auditErr instanceof Error ? auditErr.message : 'Failed';
+              errors.push(`Audit: ${msg}`);
+              if (isSystemicGeminiError(auditErr)) {
+                markGeminiSystemicFailure(msg);
               }
             }
           }

@@ -469,6 +469,43 @@ const FALLBACK: AuditResult = {
   negatives_en: [],
 };
 
+const GEMINI_SYSTEMIC_PAUSE_MS = 30 * 60 * 1000;
+let geminiSystemicPausedUntil = 0;
+let geminiSystemicPauseReason = '';
+
+/** Stop evaluation batch in this Node process after billing/auth/quota failures (30 min). */
+export function markGeminiSystemicFailure(reason: string): void {
+  geminiSystemicPausedUntil = Date.now() + GEMINI_SYSTEMIC_PAUSE_MS;
+  geminiSystemicPauseReason = String(reason || '').trim() || 'systemic Gemini failure';
+}
+
+export function clearGeminiSystemicPause(): void {
+  geminiSystemicPausedUntil = 0;
+  geminiSystemicPauseReason = '';
+}
+
+export function isGeminiSystemicallyPaused(): boolean {
+  return Date.now() < geminiSystemicPausedUntil;
+}
+
+export function getGeminiSystemicPauseReason(): string {
+  return isGeminiSystemicallyPaused() ? geminiSystemicPauseReason : '';
+}
+
+/**
+ * Systemic: stop the rest of the batch (billing, auth, invalid key, quota).
+ * Non-systemic: abort only this creator (timeout, 5xx, parse, network blip).
+ */
+export function isSystemicGeminiError(err: unknown): boolean {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (/\b401\b/.test(msg) || /\bunauthorized\b/.test(msg)) return true;
+  if (/\b403\b/.test(msg) || /\bpermission denied\b/.test(msg)) return true;
+  if (/billing|payment required|no credit|insufficient quota|insufficient funds/.test(msg)) return true;
+  if (/api key missing|invalid api key|gemini api key missing/.test(msg)) return true;
+  if (/\b429\b/.test(msg) || /resource.exhausted|resource exhausted|quota exceeded/.test(msg)) return true;
+  return false;
+}
+
 /** Detect synthetic fallback so API routes can fail loudly instead of storing placeholder audits. */
 export function isAuditFallbackResult(audit: AuditResult): boolean {
   return (
@@ -478,6 +515,26 @@ export function isAuditFallbackResult(audit: AuditResult): boolean {
     (audit.niche || '').trim() === 'Creator' &&
     audit.brandSafe === true
   );
+}
+
+export type AuditprAuditPersisted = AuditResult & { input_fingerprint?: string };
+
+/** Never persist fallback or empty Gemini output. */
+export function auditprAuditFieldAfterGeminiAttempt(
+  auditResult: AuditResult | null,
+  fingerprint: string
+): AuditprAuditPersisted | undefined {
+  if (!auditResult || !Array.isArray(auditResult.scoreBreakdown) || auditResult.scoreBreakdown.length === 0) {
+    return undefined;
+  }
+  if (isAuditFallbackResult(auditResult)) {
+    return undefined;
+  }
+  return {
+    ...auditResult,
+    ...offerAuditFields(auditResult),
+    input_fingerprint: fingerprint,
+  };
 }
 
 async function generateContentWithTimeout(
