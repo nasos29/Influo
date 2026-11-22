@@ -11,6 +11,7 @@ import {
   reviewDeclineToken,
   reviewDeclineUrl,
   reviewOpenDestination,
+  reviewOpenLoginPath,
   reviewOpenToken,
   reviewOpenUrl,
 } from "../lib/reviewInvite.ts";
@@ -85,6 +86,18 @@ test("review decline token round-trip", () => {
     id: "59",
     party: "influencer",
   });
+});
+
+test("review open login path by party", () => {
+  const returnPath = "/reviews/open?t=abc&lang=en";
+  assert.equal(
+    reviewOpenLoginPath("brand", returnPath),
+    `/brand/login?redirect=${encodeURIComponent(returnPath)}`
+  );
+  assert.equal(
+    reviewOpenLoginPath("influencer", returnPath),
+    `/login?redirect=${encodeURIComponent(returnPath)}`
+  );
 });
 
 test("review open destination preserves rating", () => {

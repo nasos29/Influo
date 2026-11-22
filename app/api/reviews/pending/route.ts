@@ -83,6 +83,7 @@ export async function GET(req: Request) {
       const brandEmail = String(row.brand_email || "").trim();
       const influencerId = String(row.influencer_id || "");
       if (!brandEmail || !influencerId) continue;
+      if (!isRealDeliveryComplete(row)) continue;
 
       let alreadyReviewed = false;
       if (party === "brand") {

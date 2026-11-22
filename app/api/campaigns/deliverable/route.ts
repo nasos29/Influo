@@ -5,6 +5,7 @@ import {
   deliverableReviewToCreator,
   deliverableSubmittedToBrand,
 } from "@/lib/campaignMail";
+import { isCampaignRealDeliveryComplete } from "@/lib/campaignDealCompletion";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { send } from "@/lib/proposalMail";
 import { sendTransactionalCreator } from "@/lib/collabCreatorMail";
@@ -244,6 +245,7 @@ export async function POST(request: NextRequest) {
       ? body.showcaseConsent
       : undefined;
 
+  const wasAlreadyComplete = isCampaignRealDeliveryComplete(app);
   const reviewedAt = new Date().toISOString();
   const reviewUpdate: Record<string, unknown> = {
     deliverable_status: nextStatus,
@@ -288,7 +290,7 @@ export async function POST(request: NextRequest) {
       const person = await creatorContact(String(app.influencer_id));
       if (!person) return;
 
-      if (nextStatus === "approved") {
+      if (nextStatus === "approved" && !wasAlreadyComplete) {
         // Real completion: one «Η συνεργασία ολοκληρώθηκε» + review (no separate approve/review mails).
         await notifyRealCollaborationComplete(admin, {
           source: "campaign",

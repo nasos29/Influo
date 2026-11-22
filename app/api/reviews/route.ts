@@ -7,21 +7,15 @@ import { publicProfilePath } from "@/lib/profileSlug";
 import { send, siteUrl } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushToInfluencer } from "@/lib/push";
+import {
+  collabRequiredMessage,
+  isCampaignEligibleForReview,
+  isProposalEligibleForReview,
+  realCompletionRequiredMessage,
+} from "@/lib/reviewEligibility";
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
-}
-
-function collabRequiredMessage(lang: string): string {
-  return lang === "el"
-    ? "Μπορείτε να αξιολογήσετε μόνο influencers με τους οποίους έχετε συνεργαστεί. Παρακαλώ ολοκληρώστε πρώτα μια συνεργασία. Μετράει και η εγκεκριμένη παράδοση σε καμπάνια μέσω Influo."
-    : "You can only review influencers you have worked with. Please complete a collaboration first. An approved campaign deliverable through Influo also counts.";
-}
-
-function agreementRequiredMessage(lang: string): string {
-  return lang === "el"
-    ? "Μπορείτε να αξιολογήσετε μόνο μετά την αποδοχή της συμφωνίας συνεργασίας. Παρακαλώ περιμένετε να αποδεχτούν και οι δύο πλευρές την συμφωνία. Μετράει και η εγκεκριμένη παράδοση σε καμπάνια μέσω Influo."
-    : "You can only review after the collaboration agreement has been accepted. Please wait for both parties to accept the agreement. An approved campaign deliverable through Influo also counts.";
 }
 
 export async function GET(req: Request) {
@@ -142,7 +136,9 @@ export async function POST(req: Request) {
 
     const { data: completedProposals } = await admin
       .from("proposals")
-      .select("id, brand_email, influencer_agreement_accepted, brand_agreement_accepted, brand_added_to_past_brands")
+      .select(
+        "id, brand_email, status, influencer_agreement_accepted, brand_agreement_accepted, delivery_confirmed_at, auto_completed_at"
+      )
       .eq("influencer_id", influencerId)
       .in("status", ["completed", "accepted"]);
 
@@ -150,9 +146,7 @@ export async function POST(req: Request) {
       (p) => asString(p.brand_email).trim().toLowerCase() === brandEmail
     );
 
-    const hasAcceptedAgreement = matchedProposals.some(
-      (p) => p.influencer_agreement_accepted === true && p.brand_agreement_accepted === true
-    );
+    const eligibleViaProposal = matchedProposals.some((p) => isProposalEligibleForReview(p));
 
     let eligibleViaCampaign = false;
     const { data: brandCampaigns } = await admin.from("brand_campaigns").select("id").eq("brand_id", brand.id);
@@ -160,20 +154,18 @@ export async function POST(req: Request) {
     if (campaignIds.length > 0) {
       const { data: apps } = await admin
         .from("campaign_applications")
-        .select("id")
+        .select("id, status, deliverable_status, delivery_confirmed_at, auto_completed_at")
         .eq("influencer_id", influencerId)
         .in("campaign_id", campaignIds)
-        .eq("status", "accepted")
-        .eq("deliverable_status", "approved")
-        .limit(1);
-      eligibleViaCampaign = !!(apps && apps.length > 0);
+        .eq("status", "accepted");
+      eligibleViaCampaign = (apps || []).some((a) => isCampaignEligibleForReview(a));
     }
 
-    if (!hasAcceptedAgreement && !eligibleViaCampaign) {
+    if (!eligibleViaProposal && !eligibleViaCampaign) {
       if (matchedProposals.length === 0) {
         return NextResponse.json({ error: collabRequiredMessage(lang) }, { status: 403 });
       }
-      return NextResponse.json({ error: agreementRequiredMessage(lang) }, { status: 403 });
+      return NextResponse.json({ error: realCompletionRequiredMessage(lang) }, { status: 403 });
     }
 
     const { data: existingReview } = await admin
