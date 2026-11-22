@@ -28,6 +28,8 @@ const COPY = {
     seek: "Γραμμή προόδου βίντεο",
     publicViewsLead: "Ήδη",
     publicViews: "προβολές",
+    thumbsPrev: "Προηγούμενα βίντεο",
+    thumbsNext: "Επόμενα βίντεο",
   },
   en: {
     with: "with",
@@ -37,8 +39,13 @@ const COPY = {
     seek: "Video progress",
     publicViewsLead: "Already",
     publicViews: "views",
+    thumbsPrev: "Previous videos",
+    thumbsNext: "Next videos",
   },
 } as const;
+
+const THUMBS_SCROLLBAR_HIDE =
+  "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
 const PLATFORM_LABEL: Record<FeaturedCollaborationPlatform, string> = {
   instagram: "Instagram",
@@ -369,14 +376,12 @@ function HeroSeekBar({
   );
 }
 
-/** Hero/thumb caps: ~10% shorter again vs prior MAG-1; lg:gap-4; thumbs ~88% of hero height; 2xl widens ratio. */
+/** Hero/thumb caps: ~10% shorter again vs prior MAG-1; lg:gap-4; thumbs in one horizontal row; 2xl widens ratio. */
 const HERO_FRAME =
   "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full lg:h-[min(56.7vh,29.3rem)]";
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:aspect-auto lg:h-full lg:w-full lg:min-h-0";
+  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(49.9vh,25.8rem)] lg:w-auto";
 const THUMBS_COLUMN_HEIGHT = "lg:h-[min(56.7vh,29.3rem)]";
-const THUMBS_GRID_LG =
-  "mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:grid lg:h-full lg:w-auto lg:min-w-[12.25rem] lg:max-w-[14.75rem] lg:grid-cols-2 lg:grid-rows-2 lg:gap-3 lg:content-stretch 2xl:min-w-[13.5rem] 2xl:max-w-[16rem]";
 
 function ShowcaseBrandPill({
   brandName,
@@ -416,6 +421,10 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const [touchChromeVisible, setTouchChromeVisible] = useState(true);
   const touchHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heroPointerStartRef = useRef<{ x: number; y: number } | null>(null);
+  const thumbsScrollerRef = useRef<HTMLDivElement>(null);
+  const [thumbsOverflow, setThumbsOverflow] = useState(false);
+  const [thumbsAtStart, setThumbsAtStart] = useState(true);
+  const [thumbsAtEnd, setThumbsAtEnd] = useState(false);
   const txt = COPY[lang];
 
   const coarseChromeHidden = !isFinePointer && !touchChromeVisible;
@@ -474,6 +483,54 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     },
     [stopCurrentHeroMedia]
   );
+
+  const syncThumbsScrollState = useCallback(() => {
+    const el = thumbsScrollerRef.current;
+    if (!el) return;
+    const overflow = el.scrollWidth > el.clientWidth + 1;
+    setThumbsOverflow(overflow);
+    if (!overflow) {
+      setThumbsAtStart(true);
+      setThumbsAtEnd(true);
+      return;
+    }
+    setThumbsAtStart(el.scrollLeft <= 1);
+    setThumbsAtEnd(el.scrollLeft >= el.scrollWidth - el.clientWidth - 1);
+  }, []);
+
+  const scrollThumbsBy = useCallback(
+    (dir: -1 | 1) => {
+      const el = thumbsScrollerRef.current;
+      if (!el) return;
+      const thumb = el.querySelector<HTMLElement>("[data-showcase-thumb]");
+      const gap = (() => {
+        const row = thumb?.parentElement;
+        if (!row) return 12;
+        const g = getComputedStyle(row).columnGap;
+        const n = parseFloat(g);
+        return Number.isFinite(n) ? n : 12;
+      })();
+      const step = thumb ? thumb.offsetWidth + gap : el.clientWidth * 0.4;
+      el.scrollBy({ left: dir * step, behavior: "smooth" });
+    },
+    []
+  );
+
+  useEffect(() => {
+    const el = thumbsScrollerRef.current;
+    if (!el) return;
+    syncThumbsScrollState();
+    const onScroll = () => syncThumbsScrollState();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const ro = new ResizeObserver(() => syncThumbsScrollState());
+    ro.observe(el);
+    const row = el.firstElementChild;
+    if (row) ro.observe(row);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      ro.disconnect();
+    };
+  }, [thumbnails.length, activeId, syncThumbsScrollState]);
 
   const advanceHero = useCallback(() => {
     stopCurrentHeroMedia();
@@ -615,7 +672,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
         </div>
         <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6">
-        <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
+        <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-start lg:gap-4">
           <div className="relative flex justify-center">
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
             <div
@@ -697,14 +754,32 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
           {thumbnails.length > 0 ? (
             <div
-              className={`flex w-full max-w-full flex-col items-center gap-3 lg:w-auto lg:max-w-none lg:shrink-0 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
+              className={`flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:min-w-0 lg:flex-1 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
             >
-              <div className="w-full min-w-0 overflow-x-auto overscroll-x-contain scroll-px-3 px-3 pb-2 pt-1 lg:overflow-visible lg:px-0 lg:pb-0 lg:pt-0">
-                <div className={THUMBS_GRID_LG}>
+              <div className="flex w-full min-w-0 items-end gap-2 lg:min-w-0 lg:gap-3">
+                {thumbsOverflow ? (
+                  <button
+                    type="button"
+                    aria-label={txt.thumbsPrev}
+                    disabled={thumbsAtStart}
+                    onClick={() => scrollThumbsBy(-1)}
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                ) : null}
+                <div
+                  ref={thumbsScrollerRef}
+                  className={`min-w-0 flex-1 overflow-x-auto overscroll-x-contain scroll-px-3 px-3 pb-2 pt-1 lg:min-w-0 lg:flex-1 lg:px-0 lg:pb-0 lg:pt-0 ${THUMBS_SCROLLBAR_HIDE}`}
+                >
+                  <div className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:w-auto lg:gap-4">
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
-                  className="min-h-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl lg:flex lg:min-h-0 lg:flex-col"
+                  data-showcase-thumb
+                  className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl"
                 >
                 <div className={THUMB_FRAME}>
                   <button
@@ -749,7 +824,21 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 </div>
                 </div>
               ))}
+                  </div>
                 </div>
+                {thumbsOverflow ? (
+                  <button
+                    type="button"
+                    aria-label={txt.thumbsNext}
+                    disabled={thumbsAtEnd}
+                    onClick={() => scrollThumbsBy(1)}
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}
