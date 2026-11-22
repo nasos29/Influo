@@ -12,6 +12,8 @@ import Image from "next/image";
 import Link from "next/link";
 import CountUp from "@/components/CountUp";
 import { getCachedImageUrl } from "@/lib/imageProxy";
+import HostedMediaPlayer from "@/components/HostedMediaPlayer";
+import { isHostedPhotoMedia } from "@/lib/hostedMediaRender";
 import type {
   FeaturedCollaborationPlatform,
   FeaturedCollaborationsShowcaseData,
@@ -468,6 +470,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
   const cardById = useMemo(() => new Map(data.cards.map((c) => [c.applicationId, c])), [data.cards]);
   const active = cardById.get(activeId) ?? data.cards[0];
+  const activeIsHostedPhoto = isHostedPhotoMedia(active.hostedMedia);
   const thumbnails = data.cards.filter((c) => c.applicationId !== active.applicationId);
 
   const stopCurrentHeroMedia = useCallback(() => {
@@ -689,21 +692,27 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                   className={`absolute inset-0 h-full w-full object-cover ${heroVideoSrc ? "opacity-0" : ""}`}
                 />
               ) : null}
-              <video
-                ref={heroVideoRef}
-                className="absolute inset-0 h-full w-full object-cover"
-                muted={heroMuted}
-                playsInline
-                preload="none"
-                onEnded={advanceHero}
-                onClick={(e) => {
-                  if (!isFinePointer && !touchChromeVisible) {
-                    e.preventDefault();
-                    return;
-                  }
-                  startHeroVideo();
-                }}
-              />
+              {activeIsHostedPhoto ? (
+                <div className="absolute inset-0 h-full w-full overflow-hidden">
+                  <HostedMediaPlayer media={active.hostedMedia} lang={lang} />
+                </div>
+              ) : (
+                <video
+                  ref={heroVideoRef}
+                  className="absolute inset-0 h-full w-full object-cover"
+                  muted={heroMuted}
+                  playsInline
+                  preload="none"
+                  onEnded={advanceHero}
+                  onClick={(e) => {
+                    if (!isFinePointer && !touchChromeVisible) {
+                      e.preventDefault();
+                      return;
+                    }
+                    startHeroVideo();
+                  }}
+                />
+              )}
               {active.publicViews != null ? (
                 <p
                   className={`absolute top-3 right-3 z-[7] rounded-full bg-black/55 px-2.5 py-1 text-[10px] font-semibold tabular-nums text-white backdrop-blur-sm sm:text-[11px] ${HERO_IDLE_HIDE_FINE} ${heroCoarseChromeHideClass(coarseChromeHidden)}`}

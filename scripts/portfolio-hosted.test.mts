@@ -22,7 +22,9 @@ test("portfolio path on foreign host is not treated as self-hosted", () => {
 test("self-hosted portfolio URLs are not re-queued as link jobs", () => {
   const id = "11111111-2222-3333-4444-555555555555";
   const upload = `https://api.influo.gr/storage/v1/object/public/creator-videos/creators/${id}/portfolio/upload-${id}/photo.webp`;
+  const uploadBare = `https://api.influo.gr/creators/${id}/portfolio/upload-${id}/photo.webp`;
   assert.equal(isSelfHostedPortfolioUrl(upload), true);
+  assert.equal(isSelfHostedPortfolioUrl(uploadBare), true);
   assert.equal(isUploadedPortfolioUrl(upload), true);
   assert.equal(isDownloadablePortfolioLinkUrl(upload), false);
 

@@ -728,9 +728,40 @@ export default function SocialEmbedCard({
     : isTikTokPhoto
       ? COPY.viewPhotos[uiLang]
       : COPY.playVideo[uiLang];
-  const showStaticPhoto = isStaticImage && !iframeSrc && !nativeVideoUrl;
+  const hostedPhotoReady = Boolean(hostedMedia?.playUrl && isHostedPhotoMedia(hostedMedia));
+  const showStaticPhoto =
+    !hostedPhotoReady && isStaticImage && !iframeSrc && !nativeVideoUrl;
   const showCarousel =
-    isInteractiveCarousel && !iframeSrc && !nativeVideoUrl && carouselImages.length > 1;
+    !hostedPhotoReady &&
+    isInteractiveCarousel &&
+    !iframeSrc &&
+    !nativeVideoUrl &&
+    carouselImages.length > 1;
+
+  if (hostedPhotoReady && hostedMedia) {
+    const ratio =
+      hostedMedia.width && hostedMedia.height
+        ? `${hostedMedia.width} / ${hostedMedia.height}`
+        : `${finalWidth} / ${finalHeight}`;
+    return (
+      <div className="w-full max-w-full" ref={rootRef}>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
+          <div
+            ref={playerBoxRef}
+            className="relative w-full overflow-hidden bg-slate-100"
+            style={{ aspectRatio: ratio, minHeight: 300 }}
+          >
+            <HostedMediaPlayer
+              media={hostedMedia}
+              lang={uiLang}
+              posterFallback={hostedMedia.posterUrl}
+              autoplayOnMount={false}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-full" ref={rootRef}>

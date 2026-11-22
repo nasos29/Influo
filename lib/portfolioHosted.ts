@@ -37,7 +37,18 @@ function isOnOurMediaStorageHost(u: string): boolean {
 /** Any portfolio folder on our media storage (uploads or hosted TikTok/IG copies). */
 export function isSelfHostedPortfolioUrl(url: string | null | undefined): boolean {
   const u = String(url || "").trim();
-  if (!u || !isOnOurMediaStorageHost(u)) return false;
+  if (!u) return false;
+  if (UPLOAD_ITEM_RE.test(u) || HOSTED_PORTFOLIO_PATH_RE.test(u)) {
+    if (isOnOurMediaStorageHost(u)) return true;
+  }
+  // Legacy/public URLs on api.influo.gr when MEDIA_PUBLIC_BASE_URL points elsewhere.
+  if (
+    (UPLOAD_ITEM_RE.test(u) || HOSTED_PORTFOLIO_PATH_RE.test(u)) &&
+    /influo\.gr\/(?:creators\/|storage\/v1\/object\/public\/)/i.test(u)
+  ) {
+    return true;
+  }
+  if (!isOnOurMediaStorageHost(u)) return false;
   if (UPLOAD_ITEM_RE.test(u) || HOSTED_PORTFOLIO_PATH_RE.test(u)) return true;
   if (STORAGE_PUBLIC_PORTFOLIO_RE.test(u)) return true;
   const base = mediaPublicBaseUrl();

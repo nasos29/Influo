@@ -95,7 +95,7 @@ def source_video_id(url: str, platform: str | None) -> str | None:
         m = re.search(r"/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)", n, re.I)
         return m.group(1).lower() if m else None
     if platform == "tiktok":
-        m = re.search(r"/video/(\d+)", n)
+        m = re.search(r"/(?:video|photo)/(\d+)", n)
         if m:
             return m.group(1)
         m = re.search(r"/([A-Za-z0-9]+)/?$", n)
@@ -430,6 +430,14 @@ def _best_url_from_entry(entry: dict[str, Any]) -> str | None:
         raw = entry.get(key)
         if isinstance(raw, str) and raw.startswith("http") and _is_direct_media_url(raw):
             return raw
+    for fmt in entry.get("formats") or []:
+        if not isinstance(fmt, dict):
+            continue
+        ext = str(fmt.get("ext") or "").lower()
+        if ext in {"jpg", "jpeg", "png", "webp"}:
+            u = fmt.get("url")
+            if isinstance(u, str) and u.startswith("http") and _is_direct_media_url(u):
+                return u
     thumbs = entry.get("thumbnails") or []
     best: tuple[int, str] | None = None
     for t in thumbs:
@@ -463,6 +471,27 @@ def _image_urls_from_info(info: dict[str, Any]) -> list[str]:
         return []
     u = _best_url_from_entry(info)
     return [u] if u else []
+
+
+def is_photo_first_post_url(url: str, platform: str | None) -> bool:
+    n = normalize_source_url(url)
+    if platform == "instagram" and re.search(r"/p/", n, re.I):
+        return True
+    if platform == "tiktok" and re.search(r"/photo/\d+", n, re.I):
+        return True
+    return False
+
+
+def photo_image_urls_from_info(info: dict[str, Any] | None) -> list[str]:
+    if not info:
+        return []
+    _kind, urls = classify_ytdlp_info(info)
+    if urls:
+        return urls
+    if _entry_is_video(info):
+        return []
+    thumb = _best_url_from_entry(info)
+    return [thumb] if thumb else []
 
 
 def classify_ytdlp_info(info: dict[str, Any]) -> tuple[str, list[str]]:
@@ -995,6 +1024,42 @@ def top_post_platform_key(url: str, account_platform: str | None = None) -> str 
     return None
 
 
+def tiktok_handle_from_accounts(accounts: list[Any] | None) -> str | None:
+    for acc in accounts or []:
+        if not isinstance(acc, dict):
+            continue
+        platform = str(acc.get("platform") or "").lower()
+        if "tiktok" not in platform:
+            continue
+        username = str(acc.get("username") or "").strip().lstrip("@")
+        if username:
+            return username
+    return None
+
+
+def resolve_download_url(url: str, accounts: list[Any] | None = None) -> str:
+    """Fix TikTok short-link redirects that drop the @handle (/@/photo/ID)."""
+    raw = str(url or "").strip()
+    if not raw:
+        return raw
+    handle = tiktok_handle_from_accounts(accounts)
+    if not handle:
+        return raw
+    photo = re.search(r"tiktok\.com/@/photo/(\d+)", raw, re.I)
+    if photo:
+        fixed = f"https://www.tiktok.com/@{handle}/photo/{photo.group(1)}"
+        if fixed != normalize_source_url(raw):
+            log(f"  rewrite TikTok photo URL -> {fixed}")
+        return fixed
+    video = re.search(r"tiktok\.com/@/video/(\d+)", raw, re.I)
+    if video:
+        fixed = f"https://www.tiktok.com/@{handle}/video/{video.group(1)}"
+        if fixed != normalize_source_url(raw):
+            log(f"  rewrite TikTok video URL -> {fixed}")
+        return fixed
+    return raw
+
+
 def compare_top_posts(a: dict[str, Any], b: dict[str, Any]) -> int:
     va, vb = _post_int(a.get("views")), _post_int(b.get("views"))
     a_has = va is not None and va > 0
@@ -1167,26 +1232,51 @@ def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
 
 def collect_collabs(sb: Supabase, influencer_id: str) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
+    seen_norm: set[str] = set()
     try:
         proposals = sb.rest_get(
             "proposals",
-            f"select=id,published_post_url&influencer_id=eq.{influencer_id}&published_post_url=not.is.null",
+            f"select=id,published_post_url,delivery_proof_url&influencer_id=eq.{influencer_id}",
         )
         for row in proposals:
-            url = str(row.get("published_post_url") or "").strip()
-            if url:
-                items.append({"kind": "collab", "url": url, "collab_id": str(row["id"])})
+            for field in ("published_post_url", "delivery_proof_url"):
+                url = str(row.get(field) or "").strip()
+                if url and is_hostable_video_url(url):
+                    norm = normalize_source_url(url)
+                    if norm in seen_norm:
+                        continue
+                    seen_norm.add(norm)
+                    suffix = "post" if field == "published_post_url" else "proof"
+                    items.append(
+                        {
+                            "kind": "collab",
+                            "url": url,
+                            "collab_id": f"{row['id']}-{suffix}",
+                        }
+                    )
     except Exception as e:
         log(f"  proposals lookup skipped: {e}")
     try:
         apps = sb.rest_get(
             "campaign_applications",
-            f"select=id,deliverable_url&influencer_id=eq.{influencer_id}&deliverable_url=not.is.null",
+            f"select=id,deliverable_url,delivery_proof_url&influencer_id=eq.{influencer_id}",
         )
         for row in apps:
-            url = str(row.get("deliverable_url") or "").strip()
-            if url:
-                items.append({"kind": "collab", "url": url, "collab_id": str(row["id"])})
+            for field in ("deliverable_url", "delivery_proof_url"):
+                url = str(row.get(field) or "").strip()
+                if url and is_hostable_video_url(url):
+                    norm = normalize_source_url(url)
+                    if norm in seen_norm:
+                        continue
+                    seen_norm.add(norm)
+                    suffix = "deliverable" if field == "deliverable_url" else "proof"
+                    items.append(
+                        {
+                            "kind": "collab",
+                            "url": url,
+                            "collab_id": f"{row['id']}-{suffix}",
+                        }
+                    )
     except Exception as e:
         log(f"  applications lookup skipped: {e}")
     return items
@@ -1240,11 +1330,14 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
     store = store or _load_media_storage()(sb)
     inf = rows[0]
     log(f"Hosting media for {inf.get('display_name')} ({inf.get('profile_slug')}) {influencer_id}")
+    accounts = inf.get("accounts") or []
     items = collect_items(inf)
     if not skip_collabs and not prune_only:
         items += collect_collabs(sb, influencer_id)
+    for item in items:
+        item["url"] = resolve_download_url(item["url"], accounts)
     if only_url:
-        want = normalize_source_url(only_url)
+        want = normalize_source_url(resolve_download_url(only_url, accounts))
         items = [i for i in items if normalize_source_url(i["url"]) == want]
     # Portfolio first so overlap lands in the portfolio folder.
     items.sort(key=lambda i: {"portfolio": 0, "top_post": 1, "collab": 2}[i["kind"]])
@@ -1339,6 +1432,57 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
         try:
             source: Path | None = None
             local = [p for p in item_dir.glob("source.*") if p.suffix.lower() not in {".part", ".ytdl"}]
+            photo_first = is_photo_first_post_url(url, platform)
+            if photo_first and not local:
+                try:
+                    info_pf = ytdlp_probe_info(url, platform, cookies)
+                    image_urls_pf = photo_image_urls_from_info(info_pf)
+                    if image_urls_pf:
+                        base_meta_pf = {
+                            "source_url": url,
+                            "source_url_norm": norm,
+                            "platform": platform,
+                            "source_video_id": vid,
+                            "kind": kind,
+                            "downloaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                        }
+                        stored_pf = upload_photo_assets(store, folder, image_urls_pf, item_dir, base_meta_pf)
+                        row_pf = {
+                            "influencer_id": influencer_id,
+                            "source_url": url,
+                            "source_url_norm": norm,
+                            "kind": kind,
+                            "platform": platform,
+                            "source_video_id": vid,
+                            "folder_path": folder,
+                            "media_type": stored_pf["media_type"],
+                            "metadata": stored_pf.get("metadata") or {},
+                            "play_path": stored_pf["play_path"],
+                            "av1_path": None,
+                            "hevc_path": None,
+                            "poster_path": stored_pf.get("poster_path"),
+                            "byte_size": stored_pf.get("byte_size"),
+                            "duration_ms": None,
+                            "width": stored_pf.get("width") or None,
+                            "height": stored_pf.get("height") or None,
+                            "status": "ready",
+                            "error": None,
+                        }
+                        upsert_row(sb, row_pf)
+                        ready_map[norm] = row_pf
+                        summary["ready"] += 1
+                        summary["details"].append(
+                            {
+                                **base_meta_pf,
+                                "status": "ready",
+                                "folder": folder,
+                                "media_type": stored_pf["media_type"],
+                            }
+                        )
+                        log(f"  ready {folder} {stored_pf['media_type']} (photo-first) bytes={stored_pf.get('byte_size')}")
+                        continue
+                except Exception as e:
+                    log(f"  photo-first probe ({e}); trying yt-dlp download")
             if local:
                 source = max(local, key=lambda p: p.stat().st_size)
                 log(f"  using local {source.name} ({source.stat().st_size} bytes)")
@@ -1377,7 +1521,9 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                 except Exception as e:
                     raise RuntimeError(f"photo metadata failed: {e}") from e
                 media_kind, image_urls = classify_ytdlp_info(info) if info else ("photo", [])
-                if media_kind == "video" or not image_urls:
+                if not image_urls:
+                    image_urls = photo_image_urls_from_info(info)
+                if not image_urls:
                     raise RuntimeError("no video stream found (still image or unsupported download)")
                 base_meta = {
                     "source_url": url,
@@ -1490,8 +1636,8 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                 except Exception as e:
                     log(f"  yt-dlp metadata failed ({e})")
                 media_kind, image_urls = classify_ytdlp_info(info) if info else ("photo", [])
-                if media_kind == "video":
-                    raise RuntimeError("no video stream found (still image or unsupported download)")
+                if not image_urls:
+                    image_urls = photo_image_urls_from_info(info)
                 if image_urls:
                     stored = upload_photo_assets(store, folder, image_urls, item_dir, base_meta)
                 else:

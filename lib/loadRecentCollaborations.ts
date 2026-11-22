@@ -1,4 +1,5 @@
 import { supabaseService } from "@/lib/apiAuth";
+import { mediaFromRow, normalizeSourceUrl, type HostedMedia } from "@/lib/creatorMedia";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { showcasePostFields } from "@/lib/showcasePostUrl";
 
@@ -16,6 +17,8 @@ export type RecentCollaborationCard = {
   rating: number | null;
   postUrl: string | null;
   postProvider: "instagram" | "tiktok" | "youtube" | null;
+  /** Ready self-hosted row for IG/TT, when available. */
+  hostedMedia?: HostedMedia | null;
   selfReportedViews: number | null;
   selfReportedReach: number | null;
   pinned: boolean;
@@ -261,6 +264,27 @@ export async function loadRecentCollaborations(
     console.error("loadRecentCollaborations influencers", error);
   }
 
+  const hostedByKey = new Map<string, HostedMedia>();
+  try {
+    const { data, error } = await admin
+      .from("creator_media")
+      .select(
+        "influencer_id, source_url, kind, folder_path, media_type, metadata, play_path, av1_path, hevc_path, poster_path, duration_ms, width, height, status"
+      )
+      .in("influencer_id", influencerIds)
+      .eq("status", "ready");
+    if (!error && Array.isArray(data)) {
+      for (const row of data) {
+        const hosted = mediaFromRow(row);
+        if (!hosted) continue;
+        const key = `${row.influencer_id}:${normalizeSourceUrl(String(row.source_url || ""))}`;
+        if (!hostedByKey.has(key)) hostedByKey.set(key, hosted);
+      }
+    }
+  } catch (error) {
+    console.error("loadRecentCollaborations creator_media", error);
+  }
+
   const logoByBrandId = new Map<string, string>();
   if (brandIds.length > 0) {
     try {
@@ -284,6 +308,10 @@ export async function loadRecentCollaborations(
     const inf = infById.get(c.influencerId);
     const { postUrl, postProvider } = showcasePostFields(c.postUrlRaw);
     const rating = numOrNull(inf?.avg_rating);
+    const hostedMedia =
+      postUrl && c.influencerId
+        ? hostedByKey.get(`${c.influencerId}:${normalizeSourceUrl(postUrl)}`) ?? null
+        : null;
     return {
       id: c.id,
       source: c.source,
@@ -299,6 +327,7 @@ export async function loadRecentCollaborations(
       rating: rating != null && rating > 0 ? rating : null,
       postUrl,
       postProvider,
+      hostedMedia,
       selfReportedViews: c.selfReportedViews,
       selfReportedReach: c.selfReportedReach,
       pinned: c.pinned,

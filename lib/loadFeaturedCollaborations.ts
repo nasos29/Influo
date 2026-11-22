@@ -1,5 +1,5 @@
 import { supabaseService } from "@/lib/apiAuth";
-import { mediaFromRow, normalizeSourceUrl } from "@/lib/creatorMedia";
+import { mediaFromRow, normalizeSourceUrl, type HostedMedia } from "@/lib/creatorMedia";
 import {
   featuredCollaborationPlatform,
   type FeaturedCollaborationPlatform,
@@ -27,6 +27,9 @@ export type FeaturedCollaborationCard = {
   influencerAvatarUrl: string | null;
   playUrl: string;
   posterUrl: string | null;
+  /** Original deliverable / published URL (for hosted lookup + embed fallback). */
+  sourcePostUrl: string;
+  hostedMedia: HostedMedia;
   platform: FeaturedCollaborationPlatform | null;
   /** Stored public views for this curated id; hidden in UI when null. */
   publicViews: number | null;
@@ -300,6 +303,8 @@ export async function loadFeaturedCollaborations(
           : null,
       playUrl: media.playUrl,
       posterUrl: media.posterUrl,
+      sourcePostUrl: entry.sourceUrl,
+      hostedMedia: media,
       platform: featuredCollaborationPlatform(
         entry.sourceUrl,
         sourceUrlByMediaKey.get(mediaKey)
