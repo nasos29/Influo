@@ -140,6 +140,7 @@ function CollaborationCard({
               provider={item.postProvider}
               originalUrl={item.postUrl}
               lang={lang}
+              hostedMedia={item.hostedMedia ?? null}
             />
           ) : (
             <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500">

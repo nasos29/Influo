@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  hostedMediaByNormalizedUrl,
-  normalizeSourceUrl,
-  type HostedMedia,
-} from "@/lib/creatorMedia";
+import { hostedMediaByNormalizedUrl, type HostedMedia } from "@/lib/creatorMedia";
+
+export { lookupHostedMedia } from "@/lib/creatorMedia";
 
 export function useHostedCreatorMedia(influencerId: string | null | undefined) {
   const [map, setMap] = useState<Map<string, HostedMedia>>(() => new Map());
@@ -34,9 +32,3 @@ export function useHostedCreatorMedia(influencerId: string | null | undefined) {
   return map;
 }
 
-export function lookupHostedMedia(
-  map: Map<string, HostedMedia>,
-  sourceUrl: string
-): HostedMedia | null {
-  return map.get(normalizeSourceUrl(sourceUrl)) || null;
-}

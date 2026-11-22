@@ -432,7 +432,7 @@ def process_link_jobs(sb: Any, store: Any, cookies: Path | None) -> None:
             continue
         log(f"links for {influencer_id}: {len(claimed)} queued")
         try:
-            summary = hcm.process_influencer(sb, influencer_id, cookies, None, skip_collabs=True, store=store)
+            summary = hcm.process_influencer(sb, influencer_id, cookies, None, skip_collabs=False, store=store)
             details = {hcm.normalize_source_url(d.get("url") or d.get("source_url") or ""): d for d in summary.get("details") or []}
         except BaseException as e:  # SystemExit when the creator is gone
             err = str(e)[:500] or e.__class__.__name__

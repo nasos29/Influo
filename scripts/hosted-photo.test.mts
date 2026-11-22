@@ -160,6 +160,19 @@ print("ok")
   assert.match(r.stdout, /ok/);
 });
 
+test("resolve_download_url rewrites TikTok @/photo with account handle", () => {
+  const script = `
+from host_creator_media import resolve_download_url
+accounts = [{"platform": "TikTok", "username": "creator_x"}]
+out = resolve_download_url("https://www.tiktok.com/@/photo/999", accounts)
+assert out == "https://www.tiktok.com/@creator_x/photo/999"
+print("ok")
+`;
+  const r = runHostCreatorPython(script);
+  assert.equal(r.status, 0, r.stderr || r.stdout || String(r.error));
+  assert.match(r.stdout, /ok/);
+});
+
 test("process_influencer skips top_post prune when only_url is set", () => {
   const script = `
 import re

@@ -67,7 +67,7 @@ export function sourceVideoId(url: string, platform: CreatorMediaPlatform | null
     return m ? m[1].toLowerCase() : null;
   }
   if (platform === "tiktok") {
-    const m = n.match(/\/video\/(\d+)/);
+    const m = n.match(/\/(?:video|photo)\/(\d+)/);
     if (m) return m[1];
     const short = n.match(/\/([A-Za-z0-9]+)\/?$/);
     return short ? short[1].toLowerCase() : null;
@@ -184,4 +184,11 @@ export function hostedMediaByNormalizedUrl(
     if (key && !map.has(key)) map.set(key, row);
   }
   return map;
+}
+
+export function lookupHostedMedia(
+  map: Map<string, HostedMedia>,
+  sourceUrl: string
+): HostedMedia | null {
+  return map.get(normalizeSourceUrl(sourceUrl)) || null;
 }

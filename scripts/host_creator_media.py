@@ -95,7 +95,7 @@ def source_video_id(url: str, platform: str | None) -> str | None:
         m = re.search(r"/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)", n, re.I)
         return m.group(1).lower() if m else None
     if platform == "tiktok":
-        m = re.search(r"/video/(\d+)", n)
+        m = re.search(r"/(?:video|photo)/(\d+)", n)
         if m:
             return m.group(1)
         m = re.search(r"/([A-Za-z0-9]+)/?$", n)
@@ -995,6 +995,42 @@ def top_post_platform_key(url: str, account_platform: str | None = None) -> str 
     return None
 
 
+def tiktok_handle_from_accounts(accounts: list[Any] | None) -> str | None:
+    for acc in accounts or []:
+        if not isinstance(acc, dict):
+            continue
+        platform = str(acc.get("platform") or "").lower()
+        if "tiktok" not in platform:
+            continue
+        username = str(acc.get("username") or "").strip().lstrip("@")
+        if username:
+            return username
+    return None
+
+
+def resolve_download_url(url: str, accounts: list[Any] | None = None) -> str:
+    """Fix TikTok short-link redirects that drop the @handle (/@/photo/ID)."""
+    raw = str(url or "").strip()
+    if not raw:
+        return raw
+    handle = tiktok_handle_from_accounts(accounts)
+    if not handle:
+        return raw
+    photo = re.search(r"tiktok\.com/@/photo/(\d+)", raw, re.I)
+    if photo:
+        fixed = f"https://www.tiktok.com/@{handle}/photo/{photo.group(1)}"
+        if fixed != normalize_source_url(raw):
+            log(f"  rewrite TikTok photo URL -> {fixed}")
+        return fixed
+    video = re.search(r"tiktok\.com/@/video/(\d+)", raw, re.I)
+    if video:
+        fixed = f"https://www.tiktok.com/@{handle}/video/{video.group(1)}"
+        if fixed != normalize_source_url(raw):
+            log(f"  rewrite TikTok video URL -> {fixed}")
+        return fixed
+    return raw
+
+
 def compare_top_posts(a: dict[str, Any], b: dict[str, Any]) -> int:
     va, vb = _post_int(a.get("views")), _post_int(b.get("views"))
     a_has = va is not None and va > 0
@@ -1167,26 +1203,51 @@ def collect_items(inf: dict[str, Any]) -> list[dict[str, Any]]:
 
 def collect_collabs(sb: Supabase, influencer_id: str) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
+    seen_norm: set[str] = set()
     try:
         proposals = sb.rest_get(
             "proposals",
-            f"select=id,published_post_url&influencer_id=eq.{influencer_id}&published_post_url=not.is.null",
+            f"select=id,published_post_url,delivery_proof_url&influencer_id=eq.{influencer_id}",
         )
         for row in proposals:
-            url = str(row.get("published_post_url") or "").strip()
-            if url:
-                items.append({"kind": "collab", "url": url, "collab_id": str(row["id"])})
+            for field in ("published_post_url", "delivery_proof_url"):
+                url = str(row.get(field) or "").strip()
+                if url and is_hostable_video_url(url):
+                    norm = normalize_source_url(url)
+                    if norm in seen_norm:
+                        continue
+                    seen_norm.add(norm)
+                    suffix = "post" if field == "published_post_url" else "proof"
+                    items.append(
+                        {
+                            "kind": "collab",
+                            "url": url,
+                            "collab_id": f"{row['id']}-{suffix}",
+                        }
+                    )
     except Exception as e:
         log(f"  proposals lookup skipped: {e}")
     try:
         apps = sb.rest_get(
             "campaign_applications",
-            f"select=id,deliverable_url&influencer_id=eq.{influencer_id}&deliverable_url=not.is.null",
+            f"select=id,deliverable_url,delivery_proof_url&influencer_id=eq.{influencer_id}",
         )
         for row in apps:
-            url = str(row.get("deliverable_url") or "").strip()
-            if url:
-                items.append({"kind": "collab", "url": url, "collab_id": str(row["id"])})
+            for field in ("deliverable_url", "delivery_proof_url"):
+                url = str(row.get(field) or "").strip()
+                if url and is_hostable_video_url(url):
+                    norm = normalize_source_url(url)
+                    if norm in seen_norm:
+                        continue
+                    seen_norm.add(norm)
+                    suffix = "deliverable" if field == "deliverable_url" else "proof"
+                    items.append(
+                        {
+                            "kind": "collab",
+                            "url": url,
+                            "collab_id": f"{row['id']}-{suffix}",
+                        }
+                    )
     except Exception as e:
         log(f"  applications lookup skipped: {e}")
     return items
@@ -1240,11 +1301,14 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
     store = store or _load_media_storage()(sb)
     inf = rows[0]
     log(f"Hosting media for {inf.get('display_name')} ({inf.get('profile_slug')}) {influencer_id}")
+    accounts = inf.get("accounts") or []
     items = collect_items(inf)
     if not skip_collabs and not prune_only:
         items += collect_collabs(sb, influencer_id)
+    for item in items:
+        item["url"] = resolve_download_url(item["url"], accounts)
     if only_url:
-        want = normalize_source_url(only_url)
+        want = normalize_source_url(resolve_download_url(only_url, accounts))
         items = [i for i in items if normalize_source_url(i["url"]) == want]
     # Portfolio first so overlap lands in the portfolio folder.
     items.sort(key=lambda i: {"portfolio": 0, "top_post": 1, "collab": 2}[i["kind"]])

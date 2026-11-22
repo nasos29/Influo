@@ -26,6 +26,7 @@ import {
 } from '@/lib/auditGemini';
 import { insertFollowerSnapshot, totalFollowersFromAccounts } from '@/lib/parseFollowers';
 import { preferPreciseFollowers } from '@/lib/socialRefresh';
+import { enqueueTopPostsAndRunWorker } from '@/lib/enqueueCreatorMediaJobs';
 
 type AccountRow = {
   platform: string;
@@ -302,6 +303,15 @@ export async function doRefreshSocialStats(
       if (markedPrivate) {
         const marked = await supabaseAdmin.from('influencers').update({ accounts: updatedAccounts }).eq('id', inf.id);
         if (!marked.error) {
+          const hiddenVideos = (inf as { hidden_videos?: unknown }).hidden_videos;
+          await enqueueTopPostsAndRunWorker(
+            supabaseAdmin,
+            String(inf.id),
+            updatedAccounts,
+            hiddenVideos
+          ).catch((err) => {
+            console.error('[refreshSocialStats] enqueue top posts', err);
+          });
           await revalidatePublicProfileById(supabaseAdmin, String(inf.id)).catch((err) => {
             console.error('[refreshSocialStats] revalidate', err);
           });
@@ -426,6 +436,15 @@ export async function doRefreshSocialStats(
     if (updateError) {
       errors.push(`DB update: ${updateError.message}`);
     } else {
+      const hiddenVideos = (inf as { hidden_videos?: unknown }).hidden_videos;
+      await enqueueTopPostsAndRunWorker(
+        supabaseAdmin,
+        String(inf.id),
+        updatePayload.accounts,
+        hiddenVideos
+      ).catch((err) => {
+        console.error('[refreshSocialStats] enqueue top posts', err);
+      });
       await revalidatePublicProfileById(supabaseAdmin, String(inf.id)).catch((err) => {
         console.error('[refreshSocialStats] revalidate', err);
       });
