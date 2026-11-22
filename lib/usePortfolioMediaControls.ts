@@ -16,8 +16,10 @@ export type PortfolioMediaKind = "tiktok" | "youtube" | "native";
  */
 export function usePortfolioMediaControls(
   kind: PortfolioMediaKind | null,
-  active: boolean
+  active: boolean,
+  options?: { claimOnMount?: boolean }
 ) {
+  const claimOnMount = options?.claimOnMount ?? true;
   const reactId = useId();
   const idRef = useRef(`portfolio-media-${reactId}`);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -63,9 +65,10 @@ export function usePortfolioMediaControls(
       setPlaying(false);
       return;
     }
+    if (!claimOnMount) return;
     claimPortfolioPlayback(idRef.current);
     setPlaying(true);
-  }, [active, kind]);
+  }, [active, kind, claimOnMount]);
 
   // Pause when another portfolio card claims playback.
   useEffect(() => {

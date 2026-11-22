@@ -3329,7 +3329,11 @@ export default function InfluencerProfile(props: {
                                                         className="relative mx-auto w-full max-w-[360px] overflow-hidden rounded-xl bg-black shadow-md"
                                                         style={{ aspectRatio: ratio }}
                                                     >
-                                                        <HostedMediaPlayer media={uploadedHosted} lang={lang} />
+                                                        <HostedMediaPlayer
+                                                            media={uploadedHosted}
+                                                            lang={lang}
+                                                            autoplayOnMount={false}
+                                                        />
                                                     </div>
                                                 </div>
                                             );
