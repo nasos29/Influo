@@ -184,11 +184,13 @@ export default function HostedVideoPlayer({
   lang = "el",
   posterFallback,
   onError,
+  autoplayOnMount = true,
 }: {
   media: HostedMedia;
   lang?: "el" | "en";
   posterFallback?: string | null;
   onError?: () => void;
+  autoplayOnMount?: boolean;
 }) {
   const uiLang = lang === "en" ? "en" : "el";
   const storedAudioRef = useRef<StoredAudio | null>(null);
@@ -234,7 +236,7 @@ export default function HostedVideoPlayer({
     playing,
     toggle,
     pauseSelf,
-  } = usePortfolioMediaControls("native", true);
+  } = usePortfolioMediaControls("native", true, { claimOnMount: autoplayOnMount });
 
   const lightbox = expanded || closing;
   const box = lightbox && expandedBox ? expandedBox : slotBox;
@@ -579,6 +581,7 @@ export default function HostedVideoPlayer({
   );
 
   useEffect(() => {
+    if (!autoplayOnMount) return;
     const el = mediaVideoRef.current;
     if (!el || startedRef.current) return;
     startedRef.current = true;
@@ -591,7 +594,7 @@ export default function HostedVideoPlayer({
       }
     }
     tryUnmutedPlay(el);
-  }, [mediaVideoRef, tryUnmutedPlay, playUrl, volumeSliderSupported]);
+  }, [autoplayOnMount, mediaVideoRef, tryUnmutedPlay, playUrl, volumeSliderSupported]);
 
   useEffect(() => {
     const el = mediaVideoRef.current;
@@ -681,7 +684,7 @@ export default function HostedVideoPlayer({
         src={playUrl}
         poster={media.posterUrl || posterFallback || undefined}
         playsInline
-        autoPlay
+        autoPlay={autoplayOnMount}
         preload="metadata"
         controls={false}
         muted={muted}

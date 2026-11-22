@@ -10,11 +10,14 @@ export default function HostedMediaPlayer({
   lang = "el",
   posterFallback,
   onError,
+  autoplayOnMount = true,
 }: {
   media: HostedMedia;
   lang?: "el" | "en";
   posterFallback?: string | null;
   onError?: () => void;
+  /** When false, video stays on poster until the user taps play (profile portfolio). */
+  autoplayOnMount?: boolean;
 }) {
   if (isHostedPhotoMedia(media)) {
     return <HostedPhotoPlayer media={media} lang={lang} />;
@@ -25,6 +28,7 @@ export default function HostedMediaPlayer({
       lang={lang}
       posterFallback={posterFallback}
       onError={onError}
+      autoplayOnMount={autoplayOnMount}
     />
   );
 }
