@@ -178,9 +178,9 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '').trim();
 
     if (action === 'start') {
-      if (isGeminiPaused()) {
-        console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG);
-        return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message: GEMINI_PAUSED_MSG });
+      const skipGemini = isGeminiPaused();
+      if (skipGemini) {
+        console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG + ' — starting stats-only batch (skip_gemini).');
       }
       const cap = refreshMaxTotal();
       if (cap && (await limitedRunAlreadyStarted())) {
@@ -200,16 +200,22 @@ export async function POST(request: NextRequest) {
       }
       const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const run = await createSocialRefreshRun(supabaseAdmin, influencers.length);
+      const statsOnlyNote = skipGemini ? ` ${GEMINI_PAUSED_MSG}; skip_gemini (stats only, no audit refresh).` : '';
       await appendSocialRefreshLog(supabaseAdmin, {
         run_id: run.id,
         event: 'run_started',
         message: cap
-          ? `${LIMITED_MARKER}: ${influencers.length} of ${all.length} influencers (SOCIAL_REFRESH_MAX_TOTAL=${cap}). Purged ${purged} old run(s) (>45 days).`
-          : `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).`,
+          ? `${LIMITED_MARKER}: ${influencers.length} of ${all.length} influencers (SOCIAL_REFRESH_MAX_TOTAL=${cap}). Purged ${purged} old run(s) (>45 days).${statsOnlyNote}`
+          : `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).${statsOnlyNote}`,
       });
       // Keep the AuditPro payload shape unchanged.
       const payload = influencers.map(({ extras_score: _extras, ...rest }) => rest);
-      return NextResponse.json({ run, influencers: payload, purged });
+      return NextResponse.json({
+        run,
+        influencers: payload,
+        purged,
+        ...(skipGemini ? { skip_gemini: true, message: GEMINI_PAUSED_MSG } : {}),
+      });
     }
 
     if (action === 'log') {
@@ -413,6 +419,7 @@ export async function POST(request: NextRequest) {
         influencerId,
         auditprBaseUrl: '',
         overridesOnly: true,
+        skipGemini: isGeminiPaused(),
         instagramOverrides,
         tiktokOverrides,
         youtubeOverrides,

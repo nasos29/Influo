@@ -119,6 +119,8 @@ export async function doRefreshSocialStats(
     youtubeOverrides?: YouTubeOverrides;
     /** Only apply provided overrides; do not call Auditpr for missing platforms. */
     overridesOnly?: boolean;
+    /** Skip Gemini audit refresh (e.g. bulk batch while credits are paused). Stats still persist. */
+    skipGemini?: boolean;
     /** Called after a successful DB update with the accounts before and after (used for the stats email). */
     onApplied?: (info: {
       id: string;
@@ -129,7 +131,15 @@ export async function doRefreshSocialStats(
     }) => Promise<void> | void;
   }
 ): Promise<RefreshResult> {
-  const { influencerId, auditprBaseUrl, instagramOverrides, tiktokOverrides, youtubeOverrides, overridesOnly } = options;
+  const {
+    influencerId,
+    auditprBaseUrl,
+    instagramOverrides,
+    tiktokOverrides,
+    youtubeOverrides,
+    overridesOnly,
+    skipGemini,
+  } = options;
 
   let query = supabaseAdmin
     .from('influencers')
@@ -340,7 +350,9 @@ export async function doRefreshSocialStats(
 
     // Gemini audit: only when we actually refreshed at least one IG/TikTok/YouTube. Multi-platform: pass all IG, TikTok, and YouTube accounts.
     if (firstRefreshedForAudit) {
-      try {
+      if (skipGemini) {
+        console.log('[refreshSocialStats] audit skipped (skipGemini)', inf.id);
+      } else try {
         const igTtAccounts = updatedAccounts
           .filter(
             (a) =>
