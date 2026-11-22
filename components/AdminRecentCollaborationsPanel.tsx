@@ -6,6 +6,7 @@ import {
   proposalDisplayStatusFilterOptions,
   type ProposalDisplayStatusKey,
 } from "@/lib/proposalDisplayStatus";
+import { formatAthensDateTime } from "@/lib/formatDateTime";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { showcasePostFields } from "@/lib/showcasePostUrl";
 
@@ -38,7 +39,26 @@ type Item = {
   deliveryConfirmedAt?: string | null;
   autoCompletedAt?: string | null;
   dealStatus?: string | null;
+  deliverableWarningSentAt?: string | null;
 };
+
+function warningSentAtShort(iso: string | null | undefined): string {
+  const full = formatAthensDateTime(iso);
+  if (full === "—") return full;
+  return full.replace(/^(\d{2}\/\d{2})\/\d{4} /, "$1 ");
+}
+
+type RowActionFeedback = { kind: "success" | "error"; message: string };
+
+function autocancelErrorMessage(
+  code: string,
+  lang: Lang
+): string {
+  if (code === "already_warned") {
+    return lang === "el" ? "Η προειδοποίηση έχει ήδη σταλεί." : "Warning was already sent.";
+  }
+  return lang === "el" ? "Αποτυχία αποστολής προειδοποίησης." : "Failed to send warning.";
+}
 
 function showcaseItemStatusRow(item: Item) {
   return {
@@ -165,6 +185,8 @@ const COPY = {
     adminCompleteConfirm:
       "Να ολοκληρωθεί η συνεργασία από admin; Θα σταλεί το κανονικό email «Η συνεργασία ολοκληρώθηκε» (με αξιολόγηση, όπου επιτρέπεται).",
     sendDeliverableWarning: "Στείλε προειδοποίηση παραδοτέου",
+    warnSentSuccess: "Στάλθηκε",
+    warningSentAt: (at: string) => `Προειδοποίηση στάλθηκε ${at}`,
     restoreDeal: "Επαναφορά (σε εξέλιξη)",
   },
   en: {
@@ -193,6 +215,8 @@ const COPY = {
     adminCompleteConfirm:
       "Complete this collaboration as admin? This sends the normal «collaboration completed» email (with review where allowed).",
     sendDeliverableWarning: "Send deliverable warning",
+    warnSentSuccess: "Sent",
+    warningSentAt: (at: string) => `Warning sent ${at}`,
     restoreDeal: "Restore (in progress)",
   },
 } as const;
@@ -203,6 +227,7 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowActionFeedback, setRowActionFeedback] = useState<Record<string, RowActionFeedback>>({});
   const [draftUrls, setDraftUrls] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState<CollabFilters>(EMPTY_FILTERS);
   const [brandQuery, setBrandQuery] = useState("");
@@ -296,6 +321,11 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
   const autocancelAction = async (item: Item, action: "warn" | "restore") => {
     const key = `${item.source}:${item.id}`;
     setBusyId(key);
+    setRowActionFeedback((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
     try {
       const res = await sessionFetch("/api/admin/collaborations/autocancel", {
         method: "POST",
@@ -304,8 +334,33 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof body.error === "string" ? body.error : txt.loadError);
+        const code = typeof body.error === "string" ? body.error : "";
+        if (action === "warn") {
+          setRowActionFeedback((prev) => ({
+            ...prev,
+            [key]: {
+              kind: "error",
+              message: code ? autocancelErrorMessage(code, lang) : autocancelErrorMessage("", lang),
+            },
+          }));
+        } else {
+          setError(typeof body.error === "string" ? body.error : txt.loadError);
+        }
         return;
+      }
+      if (action === "warn") {
+        const sentAt = new Date().toISOString();
+        setRowActionFeedback((prev) => ({
+          ...prev,
+          [key]: { kind: "success", message: txt.warnSentSuccess },
+        }));
+        setItems((prev) =>
+          prev.map((row) =>
+            row.id === item.id && row.source === item.source
+              ? { ...row, deliverableWarningSentAt: sentAt }
+              : row
+          )
+        );
       }
       await load();
     } finally {
@@ -618,6 +673,7 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                       </p>
                     ) : null}
                   </div>
+                  <div className="flex flex-col items-start gap-1">
                   <div className="flex flex-wrap gap-2">
                     {item.deliveryState === "cancelled" ? (
                       <button
@@ -631,7 +687,12 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                     ) : !item.deliverySubmittedAt && !videoOk ? (
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || !!item.deliverableWarningSentAt}
+                        title={
+                          item.deliverableWarningSentAt
+                            ? txt.warningSentAt(warningSentAtShort(item.deliverableWarningSentAt))
+                            : undefined
+                        }
                         onClick={() => void autocancelAction(item, "warn")}
                         className="inline-flex min-h-10 items-center rounded-lg border border-violet-300 bg-violet-50 px-3 text-xs font-medium text-violet-900 hover:bg-violet-100 disabled:opacity-50"
                       >
@@ -667,6 +728,27 @@ export default function AdminRecentCollaborationsPanel({ lang }: { lang: Lang })
                     >
                       {item.hidden ? txt.show : txt.hide}
                     </button>
+                  </div>
+                    {!item.deliverySubmittedAt && !videoOk && item.deliveryState !== "cancelled" ? (
+                      <>
+                        {item.deliverableWarningSentAt ? (
+                          <p className="text-[11px] font-medium text-violet-800">
+                            {txt.warningSentAt(warningSentAtShort(item.deliverableWarningSentAt))}
+                          </p>
+                        ) : null}
+                        {rowActionFeedback[key] ? (
+                          <p
+                            className={`text-[11px] font-medium ${
+                              rowActionFeedback[key].kind === "success"
+                                ? "text-emerald-700"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {rowActionFeedback[key].message}
+                          </p>
+                        ) : null}
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

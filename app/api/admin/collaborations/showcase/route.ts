@@ -87,13 +87,17 @@ export async function GET(request: Request) {
     eventConfirmPending?: boolean;
     deliveryState?: string;
     deliverableStatus?: string | null;
+    deliverableWarningSentAt?: string | null;
   }> = [];
+
+  const deliverableWarningSentAtFromRow = (row: Record<string, unknown>): string | null =>
+    typeof row.deliverable_warning_sent_at === "string" ? row.deliverable_warning_sent_at : null;
 
   try {
     let q = admin
       .from("proposals")
       .select(
-        "id, brand_name, influencer_id, published_post_url, published_post_pending_approval, agreement_accepted_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_note, delivery_proof_url, showcase_event_admin_allowed"
+        "id, brand_name, influencer_id, published_post_url, published_post_pending_approval, agreement_accepted_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_note, delivery_proof_url, showcase_event_admin_allowed, deliverable_warning_sent_at"
       )
       .eq("status", "completed")
       .order("agreement_accepted_at", { ascending: false })
@@ -184,6 +188,7 @@ export async function GET(request: Request) {
               : null,
           pinnedBy:
             typeof row.showcase_admin_pinned_by === "string" ? row.showcase_admin_pinned_by : null,
+          deliverableWarningSentAt: deliverableWarningSentAtFromRow(row),
         });
       }
     }
@@ -195,7 +200,7 @@ export async function GET(request: Request) {
     let q = admin
       .from("campaign_applications")
       .select(
-        "id, influencer_id, deliverable_url, deliverable_status, reviewed_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_proof_url, showcase_event_admin_allowed, brand_campaigns ( brands ( brand_name ) )"
+        "id, influencer_id, deliverable_url, deliverable_status, reviewed_at, showcase_admin_hidden, showcase_admin_pinned, brand_showcase_consent, influencer_showcase_consent, showcase_post_url_updated_by, showcase_post_url_updated_at, showcase_admin_pinned_by, delivery_mode, delivery_submitted_at, delivery_confirmed_at, auto_completed_at, delivery_proof_url, showcase_event_admin_allowed, deliverable_warning_sent_at, brand_campaigns ( brands ( brand_name ) )"
       )
       .in("deliverable_status", ["approved", "submitted", "changes_requested"])
       .order("reviewed_at", { ascending: false })
@@ -292,6 +297,7 @@ export async function GET(request: Request) {
               : null,
           pinnedBy:
             typeof row.showcase_admin_pinned_by === "string" ? row.showcase_admin_pinned_by : null,
+          deliverableWarningSentAt: deliverableWarningSentAtFromRow(row),
         });
       }
     }
@@ -329,6 +335,9 @@ export async function GET(request: Request) {
           postUrlUpdatedAt: null,
           pinnedBy: null,
           deliveryState: "cancelled",
+          deliverableWarningSentAt: deliverableWarningSentAtFromRow(
+            row as unknown as Record<string, unknown>
+          ),
         });
       }
       const { data: cancelledApps } = await admin
@@ -364,6 +373,9 @@ export async function GET(request: Request) {
           postUrlUpdatedAt: null,
           pinnedBy: null,
           deliveryState: "cancelled",
+          deliverableWarningSentAt: deliverableWarningSentAtFromRow(
+            row as unknown as Record<string, unknown>
+          ),
         });
       }
     } catch (error) {
