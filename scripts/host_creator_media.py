@@ -473,13 +473,128 @@ def _image_urls_from_info(info: dict[str, Any]) -> list[str]:
     return [u] if u else []
 
 
+TIKTOK_SHORT_LINK_RE = re.compile(r"(?:^|//)(?:vm|vt)\.tiktok\.com/", re.I)
+TIKWM_API = "https://www.tikwm.com/api/"
+TIKWM_REQUEST_TIMEOUT = 45.0
+TIKWM_MIN_INTERVAL_SEC = 1.5
+_tikwm_last_request_at = 0.0
+
+
+def is_tiktok_short_link(url: str) -> bool:
+    n = normalize_source_url(url)
+    return bool(TIKTOK_SHORT_LINK_RE.search(n))
+
+
+def resolve_tiktok_redirect_url(url: str, timeout: float = 20.0) -> str | None:
+    """Follow vm/vt short links; return canonical TikTok URL (no media download)."""
+    if not is_tiktok_short_link(url):
+        return None
+    req = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; InfluoMediaHost/1.0)",
+            "Accept": "text/html,*/*;q=0.8",
+        },
+        method="GET",
+    )
+    opener = urllib.request.build_opener(urllib.request.HTTPRedirectHandler)
+    try:
+        with opener.open(req, timeout=timeout) as resp:
+            final = normalize_source_url(resp.geturl())
+            if final and final != normalize_source_url(url):
+                log(f"  resolved TikTok short link -> {final}")
+            return final or None
+    except urllib.error.HTTPError as e:
+        if e.code in {301, 302, 303, 307, 308} and e.headers.get("Location"):
+            return normalize_source_url(urllib.parse.urljoin(url, e.headers["Location"]))
+    except Exception as e:
+        log(f"  TikTok short-link resolve ({e})")
+    return None
+
+
+def is_tiktok_photo_post_url(url: str) -> bool:
+    n = normalize_source_url(url)
+    if re.search(r"/photo/\d+", n, re.I):
+        return True
+    resolved = resolve_tiktok_redirect_url(url) if is_tiktok_short_link(url) else None
+    return bool(resolved and re.search(r"/photo/\d+", resolved, re.I))
+
+
+def is_tiktok_photo_host_candidate(url: str, platform: str | None) -> bool:
+    return platform == "tiktok" and is_tiktok_photo_post_url(url)
+
+
 def is_photo_first_post_url(url: str, platform: str | None) -> bool:
     n = normalize_source_url(url)
     if platform == "instagram" and re.search(r"/p/", n, re.I):
         return True
-    if platform == "tiktok" and re.search(r"/photo/\d+", n, re.I):
+    if platform == "tiktok" and is_tiktok_photo_post_url(url):
         return True
     return False
+
+
+def parse_tikwm_photo_image_urls(payload: dict[str, Any]) -> list[str]:
+    if payload.get("code") != 0:
+        msg = str(payload.get("msg") or payload.get("message") or "tikwm error")
+        raise RuntimeError(msg)
+    data = payload.get("data")
+    if not isinstance(data, dict):
+        raise RuntimeError("tikwm photo fallback: empty data")
+    images = data.get("images")
+    if isinstance(images, list) and images:
+        out = [str(u).strip() for u in images if isinstance(u, str) and str(u).strip().startswith("http")]
+        if out:
+            return out
+    for key in ("origin_cover", "cover"):
+        val = data.get(key)
+        if isinstance(val, str) and val.strip().startswith("http"):
+            return [val.strip()]
+    raise RuntimeError("tikwm photo fallback: no images in response")
+
+
+def tikwm_fetch_photo_urls(url: str, timeout: float = TIKWM_REQUEST_TIMEOUT) -> list[str]:
+    global _tikwm_last_request_at
+    wait = TIKWM_MIN_INTERVAL_SEC - (time.time() - _tikwm_last_request_at)
+    if wait > 0:
+        time.sleep(wait)
+    _tikwm_last_request_at = time.time()
+    log("  tikwm photo fallback: requesting image URLs")
+    query = urllib.parse.urlencode({"url": url, "hd": "1"})
+    req = urllib.request.Request(
+        f"{TIKWM_API}?{query}",
+        headers={"User-Agent": "Mozilla/5.0 (compatible; InfluoMediaHost/1.0)", "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        payload = json.loads(resp.read().decode("utf-8", errors="replace"))
+    urls = parse_tikwm_photo_image_urls(payload)
+    log(f"  tikwm photo fallback: {len(urls)} image(s)")
+    return urls
+
+
+def resolve_photo_image_urls(
+    url: str,
+    platform: str | None,
+    cookies: Path | None,
+    info: dict[str, Any] | None = None,
+) -> list[str]:
+    """Yt-dlp image metadata first; tikwm for TikTok /photo/ when yt-dlp yields nothing."""
+    if info is None:
+        try:
+            info = ytdlp_probe_info(url, platform, cookies)
+        except Exception as e:
+            log(f"  photo metadata probe ({e})")
+            info = None
+    urls = photo_image_urls_from_info(info)
+    if not urls and info:
+        _kind, urls = classify_ytdlp_info(info)
+    if urls:
+        return urls
+    if is_tiktok_photo_host_candidate(url, platform):
+        try:
+            return tikwm_fetch_photo_urls(url)
+        except Exception as e:
+            log(f"  tikwm photo fallback failed ({e})")
+    return []
 
 
 def photo_image_urls_from_info(info: dict[str, Any] | None) -> list[str]:
@@ -1435,8 +1550,7 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
             photo_first = is_photo_first_post_url(url, platform)
             if photo_first and not local:
                 try:
-                    info_pf = ytdlp_probe_info(url, platform, cookies)
-                    image_urls_pf = photo_image_urls_from_info(info_pf)
+                    image_urls_pf = resolve_photo_image_urls(url, platform, cookies)
                     if image_urls_pf:
                         base_meta_pf = {
                             "source_url": url,
@@ -1515,14 +1629,10 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                         source = None
 
             if source is None:
-                info: dict[str, Any] | None = None
                 try:
-                    info = ytdlp_probe_info(url, platform, cookies)
+                    image_urls = resolve_photo_image_urls(url, platform, cookies)
                 except Exception as e:
                     raise RuntimeError(f"photo metadata failed: {e}") from e
-                media_kind, image_urls = classify_ytdlp_info(info) if info else ("photo", [])
-                if not image_urls:
-                    image_urls = photo_image_urls_from_info(info)
                 if not image_urls:
                     raise RuntimeError("no video stream found (still image or unsupported download)")
                 base_meta = {
@@ -1630,14 +1740,11 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                     f"hevc={meta.get('video_hevc_bytes')} orig={meta['original_bytes']}"
                 )
             else:
-                info: dict[str, Any] | None = None
+                image_urls: list[str] = []
                 try:
-                    info = ytdlp_probe_info(url, platform, cookies)
+                    image_urls = resolve_photo_image_urls(url, platform, cookies)
                 except Exception as e:
                     log(f"  yt-dlp metadata failed ({e})")
-                media_kind, image_urls = classify_ytdlp_info(info) if info else ("photo", [])
-                if not image_urls:
-                    image_urls = photo_image_urls_from_info(info)
                 if image_urls:
                     stored = upload_photo_assets(store, folder, image_urls, item_dir, base_meta)
                 else:
