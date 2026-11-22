@@ -645,7 +645,7 @@ export default function Home({
                 <section
                   key={sectionId}
                   data-homepage-section="brand_cta"
-                  className="home-section-cv relative overflow-x-hidden overflow-y-visible py-20 px-6 bg-slate-50 border-y border-slate-100"
+                  className="home-section-cv relative overflow-x-clip overflow-y-visible py-20 px-6 bg-slate-50 border-y border-slate-100 lg:overflow-x-visible"
                   id="brands"
                 >
                   <div className="max-w-page mx-auto relative">
