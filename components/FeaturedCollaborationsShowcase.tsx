@@ -88,13 +88,26 @@ function CreatorMiniAvatar({ src, name }: { src: string | null; name: string }) 
   );
 }
 
-/** Fine-pointer desktops: fade chrome when pointer leaves hero; touch keeps controls visible. */
+const TOUCH_CHROME_HIDE_MS = 2500;
+
+/** Fine-pointer desktops: fade chrome when pointer leaves hero; touch uses JS chrome visibility. */
 const HERO_IDLE_HIDE_FINE =
   "transition-opacity duration-200 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:opacity-0 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:pointer-events-none";
 
-/** Fine-pointer idle: name only at bottom-left; coarse/touch keeps full chrome via hover overlay. */
+/** Fine-pointer idle: name only at bottom-left; coarse touch uses JS when chrome is hidden. */
 const HERO_IDLE_NAME_FINE =
   "opacity-0 pointer-events-none transition-opacity duration-200 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:opacity-100 [@media(hover:hover)_and_(pointer:fine)]:group-[:not(:hover)]/hero:pointer-events-auto";
+
+function heroCoarseChromeHideClass(coarseChromeHidden: boolean) {
+  return coarseChromeHidden ? "opacity-0 pointer-events-none" : "";
+}
+
+function heroCoarseNameIdleClass(isFinePointer: boolean, coarseChromeHidden: boolean) {
+  if (isFinePointer) return HERO_IDLE_NAME_FINE;
+  return coarseChromeHidden
+    ? "pointer-events-auto opacity-100 transition-opacity duration-200"
+    : "pointer-events-none opacity-0 transition-opacity duration-200";
+}
 
 function CreatorProfileLink({
   name,
@@ -146,21 +159,26 @@ function CreatorLinkOverlay({
   avatarUrl,
   platform,
   className = "",
+  isFinePointer = true,
+  coarseChromeHidden = false,
 }: {
   name: string;
   href: string;
   avatarUrl: string | null;
   platform?: FeaturedCollaborationPlatform | null;
   className?: string;
+  isFinePointer?: boolean;
+  coarseChromeHidden?: boolean;
 }) {
+  const coarseHide = heroCoarseChromeHideClass(coarseChromeHidden);
   return (
     <>
       <div
-        className={`absolute inset-x-0 z-[5] px-3 pt-16 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none ${HERO_IDLE_HIDE_FINE} ${className}`}
+        className={`absolute inset-x-0 z-[5] px-3 pt-16 bg-gradient-to-t from-black/80 via-black/45 to-transparent pointer-events-none ${HERO_IDLE_HIDE_FINE} ${coarseHide} ${className}`}
         aria-hidden
       />
       <div
-        className={`absolute inset-x-0 z-[5] px-3 pointer-events-none ${HERO_IDLE_HIDE_FINE} ${className}`}
+        className={`absolute inset-x-0 z-[5] px-3 pointer-events-none ${HERO_IDLE_HIDE_FINE} ${coarseHide} ${className}`}
       >
         <CreatorProfileLink
           name={name}
@@ -173,7 +191,7 @@ function CreatorLinkOverlay({
       </div>
       <Link
         href={href}
-        className={`absolute bottom-3 left-3 z-[5] max-w-[calc(100%-1.5rem)] truncate text-xs font-semibold text-white sm:text-sm [text-shadow:0_1px_3px_rgba(0,0,0,0.85),0_0_8px_rgba(0,0,0,0.45)] hover:underline underline-offset-2 ${HERO_IDLE_NAME_FINE}`}
+        className={`absolute bottom-3 left-3 z-[5] max-w-[calc(100%-1.5rem)] truncate text-xs font-semibold text-white sm:text-sm [text-shadow:0_1px_3px_rgba(0,0,0,0.85),0_0_8px_rgba(0,0,0,0.45)] hover:underline underline-offset-2 ${heroCoarseNameIdleClass(isFinePointer, coarseChromeHidden)}`}
       >
         {name}
       </Link>
@@ -185,10 +203,14 @@ function HeroSeekBar({
   videoRef,
   lang,
   className = "",
+  coarseChromeHidden = false,
+  onChromeInteraction,
 }: {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   lang: Lang;
   className?: string;
+  coarseChromeHidden?: boolean;
+  onChromeInteraction?: () => void;
 }) {
   const barRef = useRef<HTMLDivElement>(null);
   const seekingRef = useRef(false);
@@ -227,8 +249,9 @@ function HeroSeekBar({
       seekingRef.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
       seekTo(timeFromClientX(event.clientX));
+      onChromeInteraction?.();
     },
-    [seekTo, timeFromClientX]
+    [seekTo, timeFromClientX, onChromeInteraction]
   );
 
   const onSeekPointerMove = useCallback(
@@ -253,8 +276,9 @@ function HeroSeekBar({
         /* released */
       }
       seekTo(timeFromClientX(event.clientX));
+      onChromeInteraction?.();
     },
-    [seekTo, timeFromClientX]
+    [seekTo, timeFromClientX, onChromeInteraction]
   );
 
   useEffect(() => {
@@ -288,9 +312,11 @@ function HeroSeekBar({
 
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
 
+  const coarseHide = heroCoarseChromeHideClass(coarseChromeHidden);
+
   return (
     <div
-      className={`absolute inset-x-0 bottom-0 z-[6] flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-4 pointer-events-none ${HERO_IDLE_HIDE_FINE} ${className}`}
+      className={`absolute inset-x-0 bottom-0 z-[6] flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 pb-2 pt-4 pointer-events-none ${HERO_IDLE_HIDE_FINE} ${coarseHide} ${className}`}
     >
       <span className="pointer-events-none w-10 shrink-0 text-center text-[10px] font-semibold tabular-nums text-white/90">
         {formatTime(currentTime)}
@@ -378,7 +404,48 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const heroMutedRef = useRef(true);
   const heroVideoRef = useRef<HTMLVideoElement>(null);
   const heroFrameRef = useRef<HTMLDivElement>(null);
+  const [isFinePointer, setIsFinePointer] = useState(true);
+  const [touchChromeVisible, setTouchChromeVisible] = useState(true);
+  const touchHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heroPointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const txt = COPY[lang];
+
+  const coarseChromeHidden = !isFinePointer && !touchChromeVisible;
+
+  const clearTouchHideTimer = useCallback(() => {
+    if (touchHideTimerRef.current) {
+      clearTimeout(touchHideTimerRef.current);
+      touchHideTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleTouchChromeHide = useCallback(() => {
+    if (isFinePointer) return;
+    clearTouchHideTimer();
+    if (!heroVideoSrc) return;
+    touchHideTimerRef.current = setTimeout(() => {
+      setTouchChromeVisible(false);
+    }, TOUCH_CHROME_HIDE_MS);
+  }, [clearTouchHideTimer, heroVideoSrc, isFinePointer]);
+
+  const showTouchChrome = useCallback(() => {
+    if (isFinePointer) return;
+    setTouchChromeVisible(true);
+    scheduleTouchChromeHide();
+  }, [isFinePointer, scheduleTouchChromeHide]);
+
+  useEffect(() => {
+    setIsFinePointer(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+  }, []);
+
+  useEffect(() => () => clearTouchHideTimer(), [clearTouchHideTimer]);
+
+  useEffect(() => {
+    if (isFinePointer) {
+      clearTouchHideTimer();
+      setTouchChromeVisible(true);
+    }
+  }, [isFinePointer, clearTouchHideTimer]);
 
   heroMutedRef.current = heroMuted;
 
@@ -455,6 +522,17 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   }, [heroVideoSrc, active.applicationId, active.posterUrl]);
 
   useEffect(() => {
+    if (!heroVideoSrc || isFinePointer) return;
+    setTouchChromeVisible(true);
+    scheduleTouchChromeHide();
+    const el = heroVideoRef.current;
+    if (!el) return;
+    const onPlay = () => scheduleTouchChromeHide();
+    el.addEventListener("play", onPlay);
+    return () => el.removeEventListener("play", onPlay);
+  }, [heroVideoSrc, active.applicationId, isFinePointer, scheduleTouchChromeHide]);
+
+  useEffect(() => {
     const el = heroVideoRef.current;
     if (!el) return;
     el.muted = heroMuted;
@@ -474,7 +552,36 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
   const toggleHeroMute = useCallback(() => {
     setHeroMuted((m) => !m);
-  }, []);
+    showTouchChrome();
+  }, [showTouchChrome]);
+
+  const onHeroPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (isFinePointer) return;
+      if ((event.target as HTMLElement).closest("button, [role=slider], a")) return;
+      heroPointerStartRef.current = { x: event.clientX, y: event.clientY };
+    },
+    [isFinePointer]
+  );
+
+  const onHeroPointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (isFinePointer) return;
+      if ((event.target as HTMLElement).closest("button, [role=slider], a")) return;
+      const start = heroPointerStartRef.current;
+      heroPointerStartRef.current = null;
+      if (!start) return;
+      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 10) return;
+      if (!touchChromeVisible) {
+        event.preventDefault();
+        event.stopPropagation();
+        showTouchChrome();
+        return;
+      }
+      showTouchChrome();
+    },
+    [isFinePointer, showTouchChrome, touchChromeVisible]
+  );
 
   return (
     <div className="relative">
@@ -503,7 +610,12 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <div className="relative mx-auto flex w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-4">
           <div className="relative flex justify-center">
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
-            <div ref={heroFrameRef} className={`group/hero ${HERO_FRAME}`}>
+            <div
+              ref={heroFrameRef}
+              className={`group/hero ${HERO_FRAME}`}
+              onPointerDown={onHeroPointerDown}
+              onPointerUp={onHeroPointerUp}
+            >
               {active.posterUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -519,11 +631,17 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 playsInline
                 preload="none"
                 onEnded={advanceHero}
-                onClick={startHeroVideo}
+                onClick={(e) => {
+                  if (!isFinePointer && !touchChromeVisible) {
+                    e.preventDefault();
+                    return;
+                  }
+                  startHeroVideo();
+                }}
               />
               <button
                 type="button"
-                className={`absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${HERO_IDLE_HIDE_FINE}`}
+                className={`absolute bottom-[3.25rem] right-3 z-10 inline-flex h-11 w-11 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/65 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${HERO_IDLE_HIDE_FINE} ${heroCoarseChromeHideClass(coarseChromeHidden)}`}
                 aria-label={heroMuted ? txt.unmute : txt.mute}
                 onClick={(e) => {
                   e.preventDefault();
@@ -548,8 +666,16 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 avatarUrl={active.influencerAvatarUrl}
                 platform={active.platform}
                 className="bottom-[2.75rem] pb-2"
+                isFinePointer={isFinePointer}
+                coarseChromeHidden={coarseChromeHidden}
               />
-              <HeroSeekBar key={active.applicationId} videoRef={heroVideoRef} lang={lang} />
+              <HeroSeekBar
+                key={active.applicationId}
+                videoRef={heroVideoRef}
+                lang={lang}
+                coarseChromeHidden={coarseChromeHidden}
+                onChromeInteraction={showTouchChrome}
+              />
             </div>
             </div>
           </div>

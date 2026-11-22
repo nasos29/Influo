@@ -76,7 +76,7 @@ function probeVolumeControl(): boolean {
   }
 }
 
-const HIDE_MS = 2000;
+const HIDE_MS = 2500;
 const VOLUME_POPUP_CLOSE_MS = 300;
 const ANIM_MS = 220;
 const ANIM_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
@@ -210,6 +210,7 @@ export default function HostedVideoPlayer({
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
+  const finePointerHoverRef = useRef(true);
   const seekingRef = useRef(false);
   const volumeDraggingRef = useRef(false);
   const volumePopupCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -338,6 +339,7 @@ export default function HostedVideoPlayer({
   useLayoutEffect(() => {
     setMounted(true);
     setVolumeSliderSupported(probeVolumeControl());
+    finePointerHoverRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const next = readBox(slotRef.current);
     if (next) setSlotBox(next);
   }, []);
@@ -635,14 +637,19 @@ export default function HostedVideoPlayer({
       }}
       onTransitionEnd={onShellTransitionEnd}
       onMouseEnter={() => {
+        if (!finePointerHoverRef.current) return;
         hoveringRef.current = true;
         showControls();
       }}
       onMouseLeave={() => {
+        if (!finePointerHoverRef.current) return;
         hoveringRef.current = false;
         scheduleHide();
       }}
-      onMouseMove={showControls}
+      onMouseMove={() => {
+        if (!finePointerHoverRef.current) return;
+        showControls();
+      }}
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest("[data-hosted-controls], [data-hosted-close]")) return;
         pointerStartRef.current = { x: e.clientX, y: e.clientY };
