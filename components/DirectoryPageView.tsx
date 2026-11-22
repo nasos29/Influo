@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from "react";
 import Directory, { type Influencer } from "@/components/Directory";
+import DirectoryTopicLinks from "@/components/DirectoryTopicLinks";
 import Footer from "@/components/Footer";
 import SiteHeader from "@/components/SiteHeader";
 import { usePathname } from "next/navigation";
@@ -65,6 +66,8 @@ export default function DirectoryPageView({
           </Suspense>
         </div>
       </main>
+
+      <DirectoryTopicLinks lang={lang} />
 
       {/* Footer */}
       <Footer lang={lang} />
