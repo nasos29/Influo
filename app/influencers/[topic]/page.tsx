@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import DirectoryPageView from "@/components/DirectoryPageView";
-import DirectoryTopicLinks from "@/components/DirectoryTopicLinks";
 import JsonLdScript from "@/components/JsonLdScript";
 import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
 import { loadFilteredDirectoryCards } from "@/lib/directoryCards";
@@ -60,7 +59,6 @@ export default async function InfluencerLandingPage({ params }: { params: Params
           category: landing.filters.category,
         }}
       />
-      <DirectoryTopicLinks lang="el" />
     </>
   );
 }
