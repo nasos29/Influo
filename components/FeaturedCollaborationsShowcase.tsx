@@ -707,15 +707,15 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           ) : null}
           <div
             ref={clusterScrollerRef}
-            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-lg:overflow-x-clip max-lg:snap-none max-lg:scroll-px-0 max-lg:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
+            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-lg:overflow-visible max-lg:snap-none max-lg:scroll-px-0 max-lg:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
               clusterOverflow
                 ? `w-full min-w-0 max-w-full flex-1 pb-2 lg:overflow-x-auto lg:snap-x lg:snap-mandatory lg:scroll-px-2 lg:px-2 lg:pb-1 lg:pt-1`
                 : `w-max max-w-full max-lg:w-full pb-2 lg:overflow-visible lg:snap-none lg:scroll-px-0 lg:px-0 lg:pb-1 lg:pt-1`
             }`}
           >
-            <div className="mx-auto flex w-max max-w-none flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-center lg:gap-2">
+            <div className="mx-auto flex w-full max-w-full min-w-0 flex-col items-center gap-4 lg:w-max lg:max-w-none lg:flex-row lg:items-end lg:justify-center lg:gap-2">
           <div
-            className={`relative flex shrink-0 justify-center ${clusterOverflow ? "lg:snap-start" : ""}`}
+            className={`relative flex min-w-0 shrink-0 justify-center max-lg:w-full max-lg:max-w-full max-lg:touch-pan-y ${clusterOverflow ? "lg:snap-start" : ""}`}
             data-showcase-cluster-item
           >
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
@@ -820,7 +820,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 ) : null}
                 <div
                   ref={thumbsScrollerRef}
-                  className={`min-w-0 flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-lg:overflow-x-auto max-lg:snap-x max-lg:snap-mandatory max-lg:scroll-px-2 max-lg:px-2 lg:contents lg:overflow-visible lg:p-0 lg:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
+                  className={`min-w-0 w-full flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-lg:overflow-x-auto max-lg:snap-x max-lg:snap-mandatory max-lg:scroll-px-2 max-lg:px-2 lg:contents lg:overflow-visible lg:p-0 lg:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
                 >
                   <div
                     data-showcase-thumb-row
