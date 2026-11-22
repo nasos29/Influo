@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import InfoTooltip from "@/components/InfoTooltip";
 import { buildPlatformMix } from "@/lib/platformMix";
 import { BUCKET_LABELS, type CatalogBenchmark } from "@/lib/catalogBenchmark";
+import { formatFollowerCompact } from "@/lib/parseFollowers";
 
 type Props = {
   lang: "el" | "en";
@@ -125,7 +126,7 @@ export default function StatsInsightsPanel({
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="font-semibold text-slate-800">{row.label[lang]}</span>
                   <span className="text-slate-500 tabular-nums">
-                    {fmt(row.followers)} · {row.pct}%
+                    {formatFollowerCompact(row.followers)} · {row.pct}%
                   </span>
                 </div>
                 <div className="mt-1.5 h-2.5 w-full rounded-full bg-slate-100 overflow-hidden">

@@ -5,6 +5,7 @@ import { useBackGesture, useSessionState } from "@/lib/useFormPersistence";
 import Link from "next/link";
 import { sessionFetch } from "@/lib/sessionFetch";
 import { CATEGORIES, categoryLabel } from "@/lib/categories";
+import { formatFollowerCompact } from "@/lib/parseFollowers";
 import { publicProfilePath } from "@/lib/profileSlug";
 
 export type AiPrefill = {
@@ -393,7 +394,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
               <div>
                 {(() => {
                   const f = result.matches.map((m) => m.followers || 0).filter((n) => n > 0);
-                  const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}K` : String(n);
+                  const fmt = (n: number) => formatFollowerCompact(n);
                   return (
                     <div className="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 via-white to-violet-50 p-4">
                       <div className="flex items-center gap-3">
@@ -422,7 +423,7 @@ export default function CampaignAiWizard({ onClose, onApply }: { onClose: () => 
                         <span className="font-semibold text-slate-900">#{i + 1}</span>
                         <span>
                           {typeof m.score === "number" ? `${m.score}% · ` : ""}
-                          {m.followers ? `${m.followers >= 1000 ? `${Math.round(m.followers / 100) / 10}K` : m.followers} ακόλουθοι · ` : ""}
+                          {m.followers ? `${formatFollowerCompact(m.followers)} ακόλουθοι · ` : ""}
                           {(m.reasons || []).slice(0, 2).join(" · ")}
                         </span>
                       </li>

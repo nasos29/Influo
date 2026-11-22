@@ -23,6 +23,7 @@ import {
 } from "@/lib/brandToolsStorage";
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { COMPLETION_NONE_SUBTITLE, formatCompletionRateDisplay } from "@/lib/completionRate";
+import { formatFollowerCompact } from "@/lib/parseFollowers";
 
 type Props = {
   lang: "el" | "en";
@@ -61,9 +62,7 @@ function escapeHtml(s: string): string {
 
 function fmtFollowers(n: number | null | undefined): string {
   if (n == null || !(n > 0)) return "—";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-  return String(Math.round(n));
+  return formatFollowerCompact(n);
 }
 
 function slugify(s: string): string {

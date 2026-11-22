@@ -4,6 +4,7 @@
  */
 
 import { applyErFlags, copyAuditprErExtras, type ErFlagReason } from '@/lib/engagementFlags';
+import { parseFollowerString } from '@/lib/parseFollowers';
 import { sanitizeTopPosts, type TopPost } from '@/lib/topPosts';
 import { youtubeUsernameForAuditpr } from '@/lib/youtubeHandle';
 
@@ -44,30 +45,15 @@ export function isPrivateProfileError(error: string | null | undefined): boolean
   return /\bprivate\b|ιδιωτικ/i.test(error);
 }
 
-/**
- * Persist exact integers below 1M so 13300 stays 13300 (not collapsed to "13k").
- * Millions stay abbreviated for readability. Admin UI formats with k for display.
- */
+/** Persist exact follower count as plain integer string (no k/M). */
 export function formatFollowers(num: number): string {
   if (!(num > 0)) return '0';
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'M';
   return String(Math.round(num));
 }
 
-/** Parse followers from API: number, "39943", or "39.9k" / "1.2M" so we never lose precision. */
+/** Parse followers from API via shared legacy-aware parser. */
 export function parseFollowersFromApi(value: unknown): number {
-  if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value);
-  const s = typeof value === 'string' ? value.trim() : String(value ?? '');
-  if (!s) return 0;
-  const num = Number(s.replace(/,/g, ''));
-  if (Number.isFinite(num) && !/[kKmM]/.test(s)) return Math.round(num);
-  const match = s.replace(/,/g, '').match(/^([\d.]+)\s*([kKmMκΚ])?$/);
-  if (!match) return 0;
-  const n = parseFloat(match[1]);
-  const suffix = (match[2] || '').toLowerCase();
-  if (suffix === 'k' || suffix === 'κ') return Math.round(n * 1_000);
-  if (suffix === 'm') return Math.round(n * 1_000_000);
-  return Math.round(n);
+  return parseFollowerString(value as string | number | null | undefined);
 }
 
 /**

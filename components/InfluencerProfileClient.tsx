@@ -34,6 +34,7 @@ import CreatorReviewsList from "@/components/CreatorReviewsList";
 import SiteHeader from "@/components/SiteHeader";
 import { getStoredLanguage } from "@/lib/language";
 import { displayNameForLang } from "@/lib/greeklish";
+import { formatFollowerCompact, parseFollowerString } from "@/lib/parseFollowers";
 import { getVisitorId } from "@/lib/visitorId";
 import { trackOutboundSocialClick } from "@/lib/trackOutboundSocial";
 import { categoryTranslations } from "@/components/categoryTranslations";
@@ -300,14 +301,6 @@ function ProfileStatCard({
     </div>
   );
 }
-
-// Helper για μορφοποίηση αριθμών (1330 -> 1.33k, 60000 -> 60k)
-const formatNum = (num?: number) => {
-  if (num === undefined || num === null) return "";
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(2).replace(/\.?0+$/, "") + "M";
-  if (num >= 1_000) return (num / 1_000).toFixed(2).replace(/\.?0+$/, "") + "k";
-  return num.toString();
-};
 
 /** Service prices already on the public profile, or the commercial rate card when loaded. */
 function listedRateCard(profile: ProInfluencer): Record<string, string> | undefined {
@@ -1154,40 +1147,7 @@ export default function InfluencerProfile(props: {
         data.accounts.forEach((acc: any) => {
           if (acc.platform && acc.followers) {
             const platform = acc.platform.toLowerCase();
-            // Parse followers string (e.g., "15k" -> 15000, "1.5M" -> 1500000, "14.600" -> 14600)
-            // Support both "k" and "κ" (Greek kappa), and handle dots as thousands separator
-            let followersNum = 0;
-            // Remove spaces and commas, then convert to lowercase
-            let followersStr = acc.followers.toString().toLowerCase().replace(/\s/g, '').replace(/,/g, '');
-            
-            // Check if it has 'm' or 'M' (millions)
-            if (followersStr.includes('m')) {
-              followersNum = parseFloat(followersStr) * 1000000;
-            } 
-            // Check if it has 'k' or 'κ' (thousands) - Greek kappa support
-            else if (followersStr.includes('k') || followersStr.includes('κ')) {
-              followersNum = parseFloat(followersStr) * 1000;
-            } 
-            // No suffix - could be plain number or number with dot as thousands separator
-            else {
-              // If it has a dot, check if it's thousands separator (e.g., "14.600" -> 14600)
-              // or decimal (e.g., "14.6" -> 14.6)
-              if (followersStr.includes('.')) {
-                const parts = followersStr.split('.');
-                // If the part after dot has 3 digits, it's likely thousands separator (e.g., "14.600")
-                if (parts.length === 2 && parts[1].length === 3 && /^\d+$/.test(parts[1])) {
-                  // Thousands separator: remove dot and parse as integer
-                  followersNum = parseInt(parts[0] + parts[1], 10) || 0;
-                } else {
-                  // Decimal number: parse normally
-                  followersNum = parseFloat(followersStr) || 0;
-                }
-              } else {
-                // No dot, parse as integer
-                followersNum = parseFloat(followersStr) || 0;
-              }
-            }
-            followersObj[platform] = Math.round(followersNum);
+            followersObj[platform] = parseFollowerString(acc.followers);
             
             // Store engagement rate per platform if available (respect admin public-hide)
             if (acc.engagement_display_hidden !== true && acc.engagement_rate) {
@@ -2729,7 +2689,7 @@ export default function InfluencerProfile(props: {
                             platform.key,
                             platformLabel(platform),
                             <span className="text-[15px] font-semibold tabular-nums tracking-tight text-slate-900">
-                              {formatNum(count)}
+                              {formatFollowerCompact(count)}
                             </span>
                           );
                         })}
@@ -2793,7 +2753,7 @@ export default function InfluencerProfile(props: {
                           }`}
                         >
                           {growth30d.growth >= 0 ? "+" : ""}
-                          {formatNum(growth30d.growth)}
+                          {formatFollowerCompact(growth30d.growth)}
                         </p>
                         {growth30d.growthPct != null && (
                           <p

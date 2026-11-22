@@ -14,6 +14,7 @@ import {
   lowestListedPrice,
   priceTierFromMinRate,
 } from "@/lib/publicInfluencer";
+import { parseFollowerString } from "@/lib/parseFollowers";
 import { isAvailableStatus } from "@/lib/trustSignals";
 import { sanitizeSkills, skillLabel } from "@/lib/skills";
 import { searchFold } from "@/lib/searchFold";
@@ -105,14 +106,9 @@ export type DirectoryCandidate = {
   extra_badges?: string[];
 };
 
-/** Followers as the directory cards parsed them (k / m suffixes, commas). */
+/** Followers parsed the same way as directory cards (legacy k/M + grouped thousands). */
 export function directoryFollowerCount(value: unknown): number {
-  if (value == null || value === "") return 0;
-  const clean = String(value).toLowerCase().replace(/,/g, "").trim();
-  if (!clean) return 0;
-  if (clean.includes("k")) return parseFloat(clean) * 1000;
-  if (clean.includes("m")) return parseFloat(clean) * 1_000_000;
-  return parseFloat(clean) || 0;
+  return parseFollowerString(value as string | number | null | undefined);
 }
 
 export function directoryEngagement(rate?: string | Record<string, string> | null): number {

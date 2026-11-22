@@ -2,6 +2,7 @@
 
 import { categoryLabel, categoryTranslations, isGeneralCategory, parseStoredCategories } from "./categories.ts";
 import { formatEuro } from "./formatEuro.ts";
+import { formatFollowerCompact, parseFollowerString } from "./parseFollowers.ts";
 import { INFLUENCER_LANGUAGES } from "./languages.ts";
 import { listedPriceMin } from "./parsePrice.ts";
 import { sanitizeSkills, skillLabel } from "./skills.ts";
@@ -130,19 +131,8 @@ function parseEngagementRate(rate: string | { [key: string]: string } | null | u
   return isNaN(num) ? 0 : num;
 }
 
-/**
- * Parse followers count from string (e.g., "50K", "1.2M", "50000")
- */
 function parseFollowers(followers: string | null | undefined): number {
-  if (!followers) return 0;
-  const clean = followers.toString().toLowerCase().trim().replace(',', '').replace(' ', '');
-  if (clean.endsWith('k')) {
-    return parseFloat(clean) * 1000;
-  } else if (clean.endsWith('m')) {
-    return parseFloat(clean) * 1000000;
-  }
-  const num = parseFloat(clean);
-  return isNaN(num) ? 0 : num;
+  return parseFollowerString(followers);
 }
 
 /**
@@ -868,7 +858,7 @@ export function recommendInfluencers(
         reasons.unshift(lang === "en" ? `Related category: ${label}` : `Σχετική κατηγορία: ${label}`);
       }
       if (best && best.followers >= 1000 && reasons.length < 3) {
-        const n = best.followers >= 1000 ? `${Math.round(best.followers / 100) / 10}K`.replace(".0K", "K") : String(best.followers);
+        const n = formatFollowerCompact(best.followers);
         reasons.push(lang === "en" ? `${n} followers on ${platformLabel(best.platform)}` : `${n} ακόλουθοι στο ${platformLabel(best.platform)}`);
       }
 

@@ -1,23 +1,14 @@
-/** Strip trailing zeros: "1.30" → "1.3", "60.00" → "60". */
-function trimTrailingZeros(s: string): string {
-  return s.replace(/\.?0+$/, "");
-}
+const FOLLOWER_DISPLAY = new Intl.NumberFormat("el-GR");
 
-/**
- * Compact followers for display/storage: 1330 → "1.33k", 60000 → "60k", 1500000 → "1.5M".
- * Uses up to 2 decimals so small-k values keep precision (1.33k not 1.3k).
- */
+/** Full integer with Greek thousands grouping (el-GR): 1449 → «1.449». */
 export function formatFollowerCompact(num: number): string {
-  if (!Number.isFinite(num) || num < 0) return "0";
-  const n = Math.round(num);
-  if (n >= 1_000_000) return trimTrailingZeros((n / 1_000_000).toFixed(2)) + "M";
-  if (n >= 1_000) return trimTrailingZeros((n / 1_000).toFixed(2)) + "k";
-  return String(n);
+  if (!Number.isFinite(num)) return "0";
+  return FOLLOWER_DISPLAY.format(Math.round(num));
 }
 
 /**
  * Normalize any Auditpr/UI followers value for accounts JSON storage.
- * "60000" | 60000 | "60k" → "60k". Keeps display consistent after social refresh.
+ * Always stores plain integer string (no k/M, no separators).
  */
 export function normalizeFollowersForStorage(
   value: string | number | null | undefined
@@ -27,25 +18,63 @@ export function normalizeFollowersForStorage(
     const raw = value == null ? "" : String(value).trim();
     return raw;
   }
-  return formatFollowerCompact(n);
+  return String(Math.round(n));
+}
+
+function parseDecimalToken(s: string): number {
+  const t = s.trim();
+  if (!t) return Number.NaN;
+  if (/,/.test(t) && !/\./.test(t)) {
+    const parts = t.split(",");
+    if (parts.length === 2 && parts[1].length <= 2 && /^\d+$/.test(parts[1])) {
+      return parseFloat(`${parts[0]}.${parts[1]}`);
+    }
+  }
+  return parseFloat(t.replace(",", "."));
+}
+
+function parsePlainNumberToken(s: string): number {
+  if (!/^[\d.,]+$/.test(s)) return Math.round(parseDecimalToken(s) || 0);
+  const lastSep = Math.max(s.lastIndexOf(","), s.lastIndexOf("."));
+  if (lastSep >= 0) {
+    const after = s.slice(lastSep + 1);
+    if (/^\d{3}$/.test(after)) {
+      return parseInt(s.replace(/[.,]/g, ""), 10) || 0;
+    }
+  }
+  const n = parseDecimalToken(s);
+  return Number.isFinite(n) ? Math.round(n) : 0;
 }
 
 /**
- * Parse follower string (e.g. "15k", "1.5M", "14.600") to number.
- * Used for snapshots and growth calculation.
+ * Parse follower strings (legacy k/M, Greek εκ., grouped thousands, plain ints).
+ * Comma/dot + exactly 3 digits with no unit → thousands; comma + unit → decimal.
  */
 export function parseFollowerString(str: string | number | null | undefined): number {
-  if (str == null || str === '') return 0;
-  const clean = String(str).toLowerCase().replace(/\s/g, '').replace(/,/g, '').trim();
-  if (clean.includes('m')) return parseFloat(clean) * 1_000_000;
-  if (clean.includes('k') || clean.includes('κ')) return parseFloat(clean) * 1000;
-  if (clean.includes('.')) {
-    const parts = clean.split('.');
-    if (parts.length === 2 && parts[1].length === 3 && /^\d+$/.test(parts[1]))
-      return parseInt(parts[0] + parts[1], 10) || 0;
+  if (str == null || str === "") return 0;
+  if (typeof str === "number" && Number.isFinite(str)) return Math.round(str);
+
+  let s = String(str).trim().replace(/\u00a0/g, " ").replace(/\s+/g, " ");
+  if (!s || s === "-" || /^n\/a$/i.test(s)) return 0;
+
+  let scale = 1;
+  if (/εκ(ατ)?\.?/i.test(s)) {
+    scale = 1_000_000;
+    s = s.replace(/εκ(ατ)?\.?/gi, "").trim();
+  } else if (/[kκ](?:\s*)$/i.test(s)) {
+    scale = 1000;
+    s = s.replace(/[kκ]\s*$/i, "").trim();
+  } else if (/m\s*$/i.test(s)) {
+    scale = 1_000_000;
+    s = s.replace(/m\s*$/i, "").trim();
   }
-  const num = parseFloat(clean);
-  return Number.isNaN(num) ? 0 : Math.round(num);
+
+  if (scale > 1) {
+    const n = parseDecimalToken(s.replace(/\s/g, ""));
+    return Number.isFinite(n) ? Math.round(n * scale) : 0;
+  }
+
+  return parsePlainNumberToken(s.replace(/\s/g, ""));
 }
 
 /** Sum followers from accounts array (e.g. influencer.accounts). */

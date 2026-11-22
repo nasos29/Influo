@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { categoryLabel as labelForCategory } from "@/lib/categories";
+import { formatFollowerCompact } from "@/lib/parseFollowers";
 import { displayNameForLang } from "@/lib/greeklish";
 import { findPrivateFieldPaths } from "@/lib/publicInfluencer";
 import type { ProfileViewModel } from "@/lib/profileViewModel";
@@ -25,17 +26,7 @@ function categoryLabel(raw: string | undefined): string {
 }
 
 function formatFollowers(count: number): string {
-  if (count >= 1_000_000) {
-    const value = count / 1_000_000;
-    const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
-    return `${String(rounded).replace(/\.0$/, "")}M`;
-  }
-  if (count >= 1000) {
-    const value = count / 1000;
-    const rounded = value >= 10 ? Math.round(value) : Math.round(value * 10) / 10;
-    return `${String(rounded).replace(/\.0$/, "")}K`;
-  }
-  return String(count);
+  return formatFollowerCompact(count);
 }
 
 function topFollowers(profile: ProfileViewModel): { count: number; platform: string } | null {
