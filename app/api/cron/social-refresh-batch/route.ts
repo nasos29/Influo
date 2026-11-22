@@ -4,7 +4,7 @@
  * lists influencers, persists stats, unapproves profile errors, and stores logs.
  *
  * AuditPro contract (do not change): POST with Authorization Bearer CRON_SECRET.
- * Actions: start → { run, influencers, purged }; apply → { ok, result } or
+ * Actions: start → { run, influencers, purged, skip_gemini? }; apply → { ok, result } or
  * { ok:false, unapproved|aborted, ... }; also log, abort, finish.
  * Supabase access is server-side service role only, so column/RLS locks on
  * anon and authenticated do not apply here.
@@ -13,7 +13,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
-import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { flushStatsUpdatedViaZoho, maybeSendStatsEmail } from '@/lib/statsUpdateEmail';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
@@ -27,6 +26,8 @@ import {
   socialAccountsFromRow,
 } from '@/lib/socialRefreshLogs';
 import { handleMissingAccountNoticesForAccounts } from '@/lib/missingAccountEmail';
+import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
+import { isSkipGeminiRequest } from '@/lib/skipGeminiRequest';
 
 export const maxDuration = 60;
 
@@ -182,6 +183,10 @@ export async function POST(request: NextRequest) {
         console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG);
         return NextResponse.json({ run: null, influencers: [], purged: 0, paused: true, message: GEMINI_PAUSED_MSG });
       }
+      const skipGemini = isSkipGeminiRequest(body);
+      if (skipGemini) {
+        console.log('[social-refresh-batch] skip_gemini in request — stats-only batch (no audit refresh).');
+      }
       const cap = refreshMaxTotal();
       if (cap && (await limitedRunAlreadyStarted())) {
         const message = `Bulk refresh capped (SOCIAL_REFRESH_MAX_TOTAL=${cap}) and the trial run already happened; waiting for the cap to be lifted.`;
@@ -200,16 +205,22 @@ export async function POST(request: NextRequest) {
       }
       const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const run = await createSocialRefreshRun(supabaseAdmin, influencers.length);
+      const statsOnlyNote = skipGemini ? ' skip_gemini (stats only, no audit refresh).' : '';
       await appendSocialRefreshLog(supabaseAdmin, {
         run_id: run.id,
         event: 'run_started',
         message: cap
-          ? `${LIMITED_MARKER}: ${influencers.length} of ${all.length} influencers (SOCIAL_REFRESH_MAX_TOTAL=${cap}). Purged ${purged} old run(s) (>45 days).`
-          : `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).`,
+          ? `${LIMITED_MARKER}: ${influencers.length} of ${all.length} influencers (SOCIAL_REFRESH_MAX_TOTAL=${cap}). Purged ${purged} old run(s) (>45 days).${statsOnlyNote}`
+          : `Oracle batch started for ${influencers.length} influencers. Purged ${purged} old run(s) (>45 days).${statsOnlyNote}`,
       });
       // Keep the AuditPro payload shape unchanged.
       const payload = influencers.map(({ extras_score: _extras, ...rest }) => rest);
-      return NextResponse.json({ run, influencers: payload, purged });
+      return NextResponse.json({
+        run,
+        influencers: payload,
+        purged,
+        ...(skipGemini ? { skip_gemini: true, message: 'skip_gemini (stats only, no audit refresh).' } : {}),
+      });
     }
 
     if (action === 'log') {
@@ -413,6 +424,7 @@ export async function POST(request: NextRequest) {
         influencerId,
         auditprBaseUrl: '',
         overridesOnly: true,
+        skipGemini: isSkipGeminiRequest(body),
         instagramOverrides,
         tiktokOverrides,
         youtubeOverrides,
