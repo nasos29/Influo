@@ -8,11 +8,12 @@ import { parseBrandReminderUnsubToken } from "@/lib/brandCampaignReminderMail";
 import { brandReminderPrefsUnsubUrl } from "@/lib/notificationUnsubToken";
 import { upsertNotificationPreferences } from "@/lib/notificationPreferences";
 import { createClient } from "@supabase/supabase-js";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 export const runtime = "nodejs";
 
 function admin() {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(getServerSupabaseUrl(), process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

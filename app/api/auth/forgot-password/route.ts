@@ -3,6 +3,7 @@ import { Resend } from 'resend';
 import { NextResponse } from 'next/server';
 import { buildPasswordResetEmail } from '@/lib/passwordResetEmail';
 import { allowRateLimit, clientIpFromRequest } from '@/lib/simpleRateLimit';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 const NOREPLY = 'noreply@influo.gr';
 
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Too many requests' }, { status: 429 });
     }
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const url = getServerSupabaseUrl();
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     if (!url || !serviceKey) {
       return NextResponse.json({ success: false, error: 'Server configuration error.' }, { status: 500 });

@@ -6,8 +6,9 @@ import {
   convertImageBufferToWebp,
   isConvertibleRasterInput,
 } from '@/lib/serverImageConvert';
+import { getServerSupabaseUrl, publicSupabaseStorageObjectUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseUrl = getServerSupabaseUrl();
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -148,14 +149,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Get public URL
-    const { data: urlData } = supabaseAdmin.storage
-      .from('ticket-attachments')
-      .getPublicUrl(filePath);
+    const publicUrl = publicSupabaseStorageObjectUrl("ticket-attachments", filePath);
 
     return NextResponse.json({
       success: true,
       file: {
-        url: urlData.publicUrl,
+        url: publicUrl,
         filename: file.name,
         size: optimizedUpload.buffer.byteLength,
         content_type: optimizedUpload.contentType,

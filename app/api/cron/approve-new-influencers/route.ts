@@ -25,6 +25,7 @@ import {
   type WrongUsernameHandle,
 } from '@/lib/wrongUsernameHold';
 import { alertAdminUnapproved } from '@/lib/unapprovedAdminAlert';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import {
   appendSocialRefreshLog,
   createSocialRefreshRun,
@@ -36,8 +37,7 @@ import {
 
 export const maxDuration = 60;
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );

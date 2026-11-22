@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/apiAuth';
 import { emailNextSteps } from '@/lib/emailNextSteps';
 import { escapeHtml, sendTransactional } from '@/lib/transactionalEmail';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 // Server-side Supabase client με service role key (Admin privileges)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   {
     auth: {

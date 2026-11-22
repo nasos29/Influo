@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { unstable_cache, revalidatePath, revalidateTag } from "next/cache";
 import { supabaseService } from "@/lib/apiAuth";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import {
   SITE_SETTING_DEFAULTS,
   SITE_SETTING_META,
@@ -67,7 +68,7 @@ async function writeSettingsFile(data: Record<string, unknown>): Promise<void> {
 }
 
 async function loadSettingsRows(): Promise<SettingsRow[]> {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (!getServerSupabaseUrl() || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const file = await readSettingsFileRaw();
     if (!file) return [];
     return Object.entries(file).map(([key, value]) => ({ key, value }));

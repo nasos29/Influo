@@ -5,6 +5,7 @@
 
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { publicSupabaseStorageObjectUrl } from "@/lib/supabaseServerUrl";
 
 export const VIDEO_THUMBS_BUCKET = "video-thumbs";
 /** Photo-mode TikTok frames are often larger than short video covers. */
@@ -142,8 +143,7 @@ export async function persistVideoThumbToStorage(
       return null;
     }
 
-    const { data } = admin.storage.from(VIDEO_THUMBS_BUCKET).getPublicUrl(path);
-    return data?.publicUrl || null;
+    return publicSupabaseStorageObjectUrl(VIDEO_THUMBS_BUCKET, path);
   } catch (e) {
     console.error("[persistVideoThumb]", e);
     return null;

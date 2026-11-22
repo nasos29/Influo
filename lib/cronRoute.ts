@@ -4,6 +4,7 @@
  */
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import { NextRequest, NextResponse } from "next/server";
 
 export function assertCronAuth(request: NextRequest): NextResponse | null {
@@ -25,7 +26,7 @@ export function assertCronAuth(request: NextRequest): NextResponse | null {
 
 /** Service-role Supabase client for cron jobs (no session). */
 export function cronSupabaseAdmin(): SupabaseClient {
-  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  return createClient(getServerSupabaseUrl(), process.env.SUPABASE_SERVICE_ROLE_KEY!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }

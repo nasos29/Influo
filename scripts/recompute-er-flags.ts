@@ -16,6 +16,7 @@
  */
 import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
+import { getServerSupabaseUrl } from "../lib/supabaseServerUrl.ts";
 import { recomputeStoredAccount, type ErCheckInput } from "../lib/engagementFlags.ts";
 
 type Row = {
@@ -33,10 +34,10 @@ function flagChanged(before: ErCheckInput, after: ErCheckInput): boolean {
 
 async function main() {
   const apply = process.argv.includes("--apply");
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getServerSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    console.error("Missing Supabase URL (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_INTERNAL_URL) or SUPABASE_SERVICE_ROLE_KEY");
     process.exit(1);
   }
 

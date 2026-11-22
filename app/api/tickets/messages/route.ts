@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { loadTicketMessages } from "@/lib/supportThreadStore";
 import { requireTicketReader } from "@/lib/ticketAccess";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 

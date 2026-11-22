@@ -3,9 +3,9 @@ import { createClient } from "@supabase/supabase-js";
 import { reopenStatus } from "@/lib/supportThread";
 import { loadTicketMessages } from "@/lib/supportThreadStore";
 import { requireTicketStatusActor } from "@/lib/ticketAccess";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 

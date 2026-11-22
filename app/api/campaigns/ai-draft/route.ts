@@ -8,6 +8,7 @@ import { recommendInfluencers, sharedCategoryKeys } from "@/lib/recommendations"
 import { MATCH_PROFILE_COLUMNS, rowToMatchProfile } from "@/lib/influencerMatchProfile";
 import { packagesForViewer, listedPriceAmount } from "@/lib/servicePackages";
 import { fetchWebsiteBrand, normalizeWebsite, safeFetchImage, looksLikePhotoCover, type SiteBrand } from "@/lib/siteBrand";
+import { publicSupabaseStorageObjectUrl } from "@/lib/supabaseServerUrl";
 
 export const maxDuration = 30;
 
@@ -309,7 +310,7 @@ export async function POST(request: NextRequest) {
       if (img && (await looksLikePhotoCover(site.cover, img.bytes))) {
         const path = `${brand.id}/site-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${img.ext}`;
         const up = await admin.storage.from("campaign-covers").upload(path, img.bytes, { contentType: img.type, upsert: false });
-        if (!up.error) siteCover = admin.storage.from("campaign-covers").getPublicUrl(path).data.publicUrl || null;
+        if (!up.error) siteCover = publicSupabaseStorageObjectUrl("campaign-covers", path);
       }
     } catch (err) {
       console.warn("[ai-draft] site cover failed", err instanceof Error ? err.message.slice(0, 80) : "error");

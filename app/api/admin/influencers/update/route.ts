@@ -25,9 +25,9 @@ import {
   checkNewVideosPlayable,
 } from '@/lib/checkVideoPlayable';
 import { sanitizeSkills } from '@/lib/skills';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );

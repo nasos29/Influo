@@ -5,6 +5,7 @@ import {
   getWeeklyDigestWindow,
 } from "@/lib/brandWeeklyInfluencerDigest";
 import { brandWeeklyDigestEmailHtml } from "@/lib/zohoBrandWeeklyDigestContent";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
  * Window via ?start=&end= (ISO); falls back to last 7 days.
  */
 export async function GET(request: NextRequest) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getServerSupabaseUrl();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return new NextResponse("Unavailable", { status: 503 });
 

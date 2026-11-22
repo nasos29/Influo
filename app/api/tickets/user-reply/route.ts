@@ -6,8 +6,9 @@ import { sendPushAdminSupportTicketUserReply } from '@/lib/push';
 import { USER_REPLY_SPLIT } from '@/lib/supportThread';
 import { insertTicketMessage, loadTicketMessages } from '@/lib/supportThreadStore';
 import { requireTicketOwner } from '@/lib/ticketAccess';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseUrl = getServerSupabaseUrl();
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 function getResend() {

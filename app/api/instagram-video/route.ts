@@ -6,14 +6,14 @@ import {
   resolveInstagramEmbedVideo,
 } from "@/lib/instagramEmbedVideo";
 import type { InstagramEmbedKind } from "@/lib/instagramMediaType";
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 const DAY_SEC = 86400;
 const META_CACHE_DAYS = 1;
 /** Bump when meta payload shape changes (e.g. images[]). */
 const META_CACHE_PREFIX = "ig-meta:v2:";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );

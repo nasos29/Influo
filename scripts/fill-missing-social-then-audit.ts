@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@supabase/supabase-js';
+import { getServerSupabaseUrl } from '../lib/supabaseServerUrl.ts';
 import { offerAuditFields, runAuditGeminiStrict, type AuditAccount, type AuditResult } from '../lib/auditGemini';
 
 const AUDITPR = (process.env.AUDITPR_BASE_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
@@ -9,7 +10,7 @@ const BATCH_IDS_PATH = path.join('reports', 'approve-unapproved-progress.json');
 const DELAY_MS = 1500;
 
 const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );

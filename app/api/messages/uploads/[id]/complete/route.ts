@@ -9,6 +9,7 @@ import {
   resolveChatUploadActor,
   type ChatUploadRow,
 } from "@/lib/chatAttachmentUploadServer";
+import { publicSupabaseStorageObjectUrl } from "@/lib/supabaseServerUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,8 +82,7 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     );
   }
 
-  const { data: pub } = admin.storage.from(MESSAGE_ATTACHMENTS_BUCKET).getPublicUrl(objectName);
-  const publicUrl = pub.publicUrl;
+  const publicUrl = publicSupabaseStorageObjectUrl(MESSAGE_ATTACHMENTS_BUCKET, objectName);
 
   const { data, error } = await actor.admin
     .from("message_attachment_uploads")

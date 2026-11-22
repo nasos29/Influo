@@ -28,11 +28,11 @@ import {
 import { handleMissingAccountNoticesForAccounts } from '@/lib/missingAccountEmail';
 import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { isSkipGeminiRequest } from '@/lib/skipGeminiRequest';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 
 export const maxDuration = 60;
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false, autoRefreshToken: false } }
 );

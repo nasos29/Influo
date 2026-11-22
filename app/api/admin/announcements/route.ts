@@ -11,14 +11,14 @@ import {
   sendAnnouncementViaZohoToSelected,
   type ZohoSelectedContact,
 } from '@/lib/zohoAnnouncementCampaign';
+import { getServerSupabaseUrl } from "@/lib/supabaseServerUrl";
 import {
   ANNOUNCEMENT_EMAIL_SUBJECT,
   announcementEmailHtml,
   dashboardPathForAudience,
 } from '@/lib/zohoAnnouncementContent';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+const supabaseAdmin = createClient(getServerSupabaseUrl(),
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );

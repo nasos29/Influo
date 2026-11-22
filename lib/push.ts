@@ -4,6 +4,7 @@
 
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
+import { getServerSupabaseUrl } from '@/lib/supabaseServerUrl';
 import {
   CREATOR_PROFILE_EDIT_PATH,
   countMatchedPushUsers,
@@ -11,7 +12,7 @@ import {
   influencerSubscriptionOrFilter,
 } from '@/lib/influencerPushBroadcast';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseUrl = getServerSupabaseUrl();
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
