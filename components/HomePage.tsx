@@ -660,7 +660,7 @@ export default function Home({
                     </div>
                   </div>
                   {featuredCollaborations ? (
-                    <div className="relative z-[1] mb-3 w-full min-w-0 md:mb-4 lg:px-2 xl:px-3">
+                    <div className="relative z-[1] mb-3 w-full min-w-0 md:mb-4 lg:-mx-6">
                       <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
                     </div>
                   ) : null}

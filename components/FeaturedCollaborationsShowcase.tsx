@@ -677,7 +677,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <div className="pointer-events-none absolute left-1/2 top-0 z-[6] -translate-x-1/2 -translate-y-1/2">
           <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
         </div>
-        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-2 lg:pb-6 xl:px-3">
+        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-1 lg:pb-6">
         <div className="relative mx-auto flex w-full max-w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-start lg:gap-2">
           <div className="relative flex shrink-0 justify-center lg:justify-start">
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
