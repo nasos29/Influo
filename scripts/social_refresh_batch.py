@@ -18,6 +18,7 @@ from typing import Any
 AUDITPR_URL = os.environ.get("AUDITPR_URL", "http://127.0.0.1:8000").rstrip("/")
 INFLUO_BASE_URL = os.environ.get("INFLUO_BASE_URL", "https://influo.gr").rstrip("/")
 CRON_SECRET = os.environ.get("CRON_SECRET", "").strip()
+SKIP_GEMINI = os.environ.get("SOCIAL_REFRESH_SKIP_GEMINI", "").strip().lower() in ("1", "true", "yes", "on")
 DELAY_SEC = float(os.environ.get("SOCIAL_REFRESH_DELAY_SEC", "1.5"))
 SCRAPE_TIMEOUT = int(os.environ.get("SOCIAL_REFRESH_TIMEOUT_SEC", "120"))
 LOG_DIR = Path(os.environ.get("SOCIAL_REFRESH_LOG_DIR", "/home/ubuntu/auditpro/logs/social-refresh"))
@@ -201,7 +202,11 @@ def main() -> None:
     log(f"Starting Oracle social refresh → {INFLUO_BASE_URL} via {AUDITPR_URL}")
     sessions = check_sessions()
     if not sessions["instagram"] and not sessions["tiktok"]:
-        start = influo_request("POST", "/api/cron/social-refresh-batch", {"action": "start"})
+        start = influo_request(
+            "POST",
+            "/api/cron/social-refresh-batch",
+            {"action": "start", **({"skip_gemini": True} if SKIP_GEMINI else {})},
+        )
         run_id = start["run"]["id"]
         influo_request(
             "POST",
@@ -214,10 +219,15 @@ def main() -> None:
         )
         die("Both Instagram and TikTok sessions are missing. Stopped.")
 
-    start = influo_request("POST", "/api/cron/social-refresh-batch", {"action": "start"})
+    start = influo_request(
+        "POST",
+        "/api/cron/social-refresh-batch",
+        {"action": "start", **({"skip_gemini": True} if SKIP_GEMINI else {})},
+    )
     run = start.get("run") or {}
     run_id = run.get("id")
     influencers = start.get("influencers") or []
+    skip_gemini = bool(start.get("skip_gemini") or SKIP_GEMINI)
     if not run_id:
         die("Influo start did not return run_id")
 
@@ -295,17 +305,16 @@ def main() -> None:
                 die(f"Session died on {platform} @{username}. Stopped after {processed} influencer(s).")
             time.sleep(DELAY_SEC)
 
-        applied = influo_request(
-            "POST",
-            "/api/cron/social-refresh-batch",
-            {
-                "action": "apply",
-                "run_id": run_id,
-                "influencer_id": inf_id,
-                "influencer_name": name,
-                "accounts": scraped,
-            },
-        )
+        apply_payload: dict[str, Any] = {
+            "action": "apply",
+            "run_id": run_id,
+            "influencer_id": inf_id,
+            "influencer_name": name,
+            "accounts": scraped,
+        }
+        if skip_gemini:
+            apply_payload["skip_gemini"] = True
+        applied = influo_request("POST", "/api/cron/social-refresh-batch", apply_payload)
         if applied.get("session_dead") or applied.get("aborted"):
             die(f"Influo aborted for session death on {name}. Stopped after {processed} influencer(s).")
         processed += 1

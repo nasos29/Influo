@@ -4,11 +4,18 @@ import test from "node:test";
 
 const route = fs.readFileSync("app/api/cron/social-refresh-batch/route.ts", "utf8");
 const refresh = fs.readFileSync("lib/refreshSocialStats.ts", "utf8");
+const py = fs.readFileSync("scripts/social_refresh_batch.py", "utf8");
 
-test("social-refresh-batch does not block start when Gemini is paused", () => {
+test("social-refresh-batch uses request-body skip_gemini, not isGeminiPaused", () => {
   assert.doesNotMatch(route, /paused: true,\s*message: GEMINI_PAUSED_MSG/);
+  assert.doesNotMatch(route, /isGeminiPaused/);
+  assert.match(route, /Boolean\(body\?\.skip_gemini\)/);
   assert.match(route, /skip_gemini:\s*true/);
-  assert.match(route, /skipGemini:\s*isGeminiPaused\(\)/);
+});
+
+test("Oracle scraper forwards skip_gemini on start and apply", () => {
+  assert.match(py, /skip_gemini/);
+  assert.match(py, /"action": "apply"/);
 });
 
 test("refreshSocialStats exposes skipGemini", () => {

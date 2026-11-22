@@ -4,7 +4,7 @@
  * lists influencers, persists stats, unapproves profile errors, and stores logs.
  *
  * AuditPro contract (do not change): POST with Authorization Bearer CRON_SECRET.
- * Actions: start → { run, influencers, purged }; apply → { ok, result } or
+ * Actions: start → { run, influencers, purged, skip_gemini? }; apply → { ok, result } or
  * { ok:false, unapproved|aborted, ... }; also log, abort, finish.
  * Supabase access is server-side service role only, so column/RLS locks on
  * anon and authenticated do not apply here.
@@ -13,7 +13,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { copyAuditprErExtras } from '@/lib/engagementFlags';
-import { GEMINI_PAUSED_MSG, isGeminiPaused } from '@/lib/geminiPause';
 import { flushStatsUpdatedViaZoho, maybeSendStatsEmail } from '@/lib/statsUpdateEmail';
 import { doRefreshSocialStats, type InstagramOverrides, type TikTokOverrides, type YouTubeOverrides } from '@/lib/refreshSocialStats';
 import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
@@ -178,9 +177,9 @@ export async function POST(request: NextRequest) {
     const action = String(body?.action || '').trim();
 
     if (action === 'start') {
-      const skipGemini = isGeminiPaused();
+      const skipGemini = Boolean(body?.skip_gemini);
       if (skipGemini) {
-        console.log('[social-refresh-batch] ' + GEMINI_PAUSED_MSG + ' — starting stats-only batch (skip_gemini).');
+        console.log('[social-refresh-batch] skip_gemini in request — stats-only batch (no audit refresh).');
       }
       const cap = refreshMaxTotal();
       if (cap && (await limitedRunAlreadyStarted())) {
@@ -200,7 +199,7 @@ export async function POST(request: NextRequest) {
       }
       const purged = await purgeOldSocialRefreshLogs(supabaseAdmin);
       const run = await createSocialRefreshRun(supabaseAdmin, influencers.length);
-      const statsOnlyNote = skipGemini ? ` ${GEMINI_PAUSED_MSG}; skip_gemini (stats only, no audit refresh).` : '';
+      const statsOnlyNote = skipGemini ? ' skip_gemini (stats only, no audit refresh).' : '';
       await appendSocialRefreshLog(supabaseAdmin, {
         run_id: run.id,
         event: 'run_started',
@@ -214,7 +213,7 @@ export async function POST(request: NextRequest) {
         run,
         influencers: payload,
         purged,
-        ...(skipGemini ? { skip_gemini: true, message: GEMINI_PAUSED_MSG } : {}),
+        ...(skipGemini ? { skip_gemini: true, message: 'skip_gemini (stats only, no audit refresh).' } : {}),
       });
     }
 
@@ -419,7 +418,7 @@ export async function POST(request: NextRequest) {
         influencerId,
         auditprBaseUrl: '',
         overridesOnly: true,
-        skipGemini: isGeminiPaused(),
+        skipGemini: Boolean(body?.skip_gemini),
         instagramOverrides,
         tiktokOverrides,
         youtubeOverrides,
