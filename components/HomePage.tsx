@@ -658,11 +658,13 @@ export default function Home({
                         {txt.brand_showcase_subtitle}
                       </p>
                     </div>
-                    {featuredCollaborations ? (
-                      <div className="relative mb-3 md:mb-4">
-                        <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
-                      </div>
-                    ) : null}
+                  </div>
+                  {featuredCollaborations ? (
+                    <div className="relative z-[1] mb-3 w-full min-w-0 md:mb-4 lg:px-2 xl:px-3">
+                      <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
+                    </div>
+                  ) : null}
+                  <div className="max-w-page mx-auto relative">
                     <div className="relative z-10 text-center mb-10 md:mb-12">
                       <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-5 leading-relaxed">
                         {txt.brand_showcase_cta_text}

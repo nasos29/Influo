@@ -677,7 +677,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         <div className="pointer-events-none absolute left-1/2 top-0 z-[6] -translate-x-1/2 -translate-y-1/2">
           <ShowcaseBrandPill brandName={data.brandName} brandLogoUrl={data.brandLogoUrl} />
         </div>
-        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-4 lg:pb-6">
+        <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-2 lg:pb-6 xl:px-3">
         <div className="relative mx-auto flex w-full max-w-full flex-col items-center gap-4 lg:flex-row lg:items-end lg:justify-start lg:gap-2">
           <div className="relative flex shrink-0 justify-center lg:justify-start">
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
@@ -766,16 +766,16 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
           {thumbnails.length > 0 ? (
             <div
-              className={`flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:justify-end lg:gap-0 min-[1280px]:w-auto min-[1280px]:max-w-none min-[1280px]:flex-none ${thumbsOverflow ? "max-[1279px]:flex-1" : ""} ${THUMBS_COLUMN_HEIGHT}`}
+              className={`flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:min-w-0 lg:flex-1 lg:justify-end lg:gap-0 ${THUMBS_COLUMN_HEIGHT}`}
             >
-              <div className="flex w-full min-w-0 items-end gap-2 lg:min-w-0 lg:gap-1.5">
+              <div className="flex w-full min-w-0 items-end gap-1.5 lg:gap-1.5">
                 {thumbsOverflow ? (
                   <button
                     type="button"
                     aria-label={txt.thumbsPrev}
                     disabled={thumbsAtStart}
                     onClick={() => scrollThumbsBy(-1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white min-[1280px]:hidden"
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -784,13 +784,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 ) : null}
                 <div
                   ref={thumbsScrollerRef}
-                  className={`min-w-0 flex-1 overscroll-x-contain scroll-px-3 scroll-py-1 px-3 pb-2 pt-1 snap-x snap-mandatory ${THUMBS_SCROLLBAR_HIDE} ${
+                  className={`min-w-0 flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 ${THUMBS_SCROLLBAR_HIDE} ${
                     thumbsOverflow
-                      ? "overflow-x-auto min-[1280px]:overflow-x-visible min-[1280px]:snap-none lg:min-w-0 lg:flex-1 lg:px-2 lg:pb-1 lg:pt-1"
-                      : "overflow-x-auto min-[1280px]:overflow-visible min-[1280px]:snap-none lg:flex-none lg:px-0 lg:pb-1 lg:pt-1"
+                      ? `overflow-x-auto snap-x snap-mandatory scroll-px-2 px-2 lg:scroll-px-1.5 lg:px-1.5 lg:pb-1 lg:pt-1`
+                      : `overflow-x-auto snap-x snap-mandatory scroll-px-3 px-3 max-lg:snap-mandatory lg:overflow-visible lg:snap-none lg:scroll-px-0 lg:px-0 lg:pb-1 lg:pt-1`
                   }`}
                 >
-                  <div className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:w-auto lg:gap-2 min-[1280px]:overflow-visible">
+                  <div className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:mx-0 lg:w-auto lg:gap-2">
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
@@ -848,7 +848,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                     aria-label={txt.thumbsNext}
                     disabled={thumbsAtEnd}
                     onClick={() => scrollThumbsBy(1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white min-[1280px]:hidden"
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
