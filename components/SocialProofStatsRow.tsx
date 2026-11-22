@@ -1,15 +1,26 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import CountUp from "@/components/CountUp";
 import type { SocialProofStats } from "@/lib/loadSocialProofStats";
 import { openCampaignsLabel } from "@/lib/pluralize";
 import { Building2, Handshake, Megaphone, Star, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import Image from "next/image";
-
 type Lang = "el" | "en";
 
-const STATS_SECTION_BG = "/images/athos-food-falling.webp";
+/** Base violet gradient + soft dot grid (CSS only, no images). */
+const STATS_SECTION_BG_STYLE: CSSProperties = {
+  backgroundColor: "#2e1065",
+  backgroundImage: [
+    "radial-gradient(ellipse 120% 80% at 50% 0%, rgba(139, 92, 246, 0.45) 0%, transparent 55%)",
+    "radial-gradient(ellipse 90% 60% at 100% 100%, rgba(109, 40, 217, 0.35) 0%, transparent 50%)",
+    "radial-gradient(ellipse 70% 50% at 0% 80%, rgba(91, 33, 182, 0.3) 0%, transparent 45%)",
+    "linear-gradient(135deg, #3b0764 0%, #4c1d95 38%, #5b21b6 68%, #312e81 100%)",
+    "radial-gradient(circle, rgba(255, 255, 255, 0.07) 1px, transparent 1px)",
+  ].join(", "),
+  backgroundSize: "100% 100%, 100% 100%, 100% 100%, 100% 100%, 22px 22px",
+  backgroundPosition: "center, center, center, center, 0 0",
+};
 
 const COPY = {
   el: {
@@ -112,16 +123,12 @@ export default function SocialProofStatsRow({
       className="relative w-full overflow-hidden border-y border-purple-900/10 py-10 md:py-12"
       aria-label={lang === "el" ? "Στατιστικά πλατφόρμας" : "Platform statistics"}
     >
-      <div className="pointer-events-none absolute inset-0" aria-hidden>
-        <Image
-          src={STATS_SECTION_BG}
-          alt=""
-          fill
-          className="object-cover object-center scale-105 blur-[3px] brightness-[0.5] saturate-90"
-          sizes="100vw"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-950/80 via-violet-950/70 to-slate-950/75" />
-        <div className="absolute inset-0 bg-gradient-to-t from-white/15 via-transparent to-purple-900/20" />
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={STATS_SECTION_BG_STYLE}
+        aria-hidden
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-white/[0.08] via-transparent to-violet-400/[0.06]" />
       </div>
 
       <div className="relative w-full max-w-page mx-auto px-4 sm:px-6">
