@@ -5,6 +5,11 @@ import { loadChatActor } from "@/lib/chatActor";
 import { send, siteUrl, shell, buttonHtml } from "@/lib/proposalMail";
 import { escapeHtml } from "@/lib/proposalParty";
 import { deferAfterResponse } from "@/lib/proposalNotify";
+import {
+  isCampaignEligibleForReview,
+  isProposalEligibleForReview,
+  realCompletionRequiredMessage,
+} from "@/lib/reviewEligibility";
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
@@ -184,52 +189,37 @@ export async function POST(req: Request) {
 
     const { data: proposals } = await admin
       .from("proposals")
-      .select("id, brand_email, influencer_agreement_accepted, brand_agreement_accepted, status")
+      .select(
+        "id, brand_email, influencer_agreement_accepted, brand_agreement_accepted, status, delivery_confirmed_at, auto_completed_at"
+      )
       .eq("influencer_id", influencerId)
       .in("status", ["completed", "accepted"]);
 
     const matched = (proposals || []).filter((p) => normEmail(p.brand_email) === brandEmail);
-    const hasAgreement = matched.some(
-      (p) => p.influencer_agreement_accepted === true && p.brand_agreement_accepted === true
-    );
-    // Campaign deals: creators may review the brand once the campaign deliverable is done
-    // (same rule brands use to review creators in /api/reviews).
+    const eligibleViaProposal = matched.some((p) => isProposalEligibleForReview(p));
+
     let eligibleViaCampaign = false;
-    if (!hasAgreement) {
-      const brandIds = new Set<string>();
-      const { data: privRows } = await admin.from("brand_private").select("brand_id").ilike("contact_email", brandEmail);
-      for (const r of privRows || []) if (r.brand_id) brandIds.add(String(r.brand_id));
-      const { data: legacyRows } = await admin.from("brands").select("id").ilike("contact_email", brandEmail);
-      for (const r of legacyRows || []) if (r.id) brandIds.add(String(r.id));
-      if (brandIds.size > 0) {
-        const { data: campaigns } = await admin.from("brand_campaigns").select("id").in("brand_id", [...brandIds]);
-        const campaignIds = (campaigns || []).map((c) => c.id).filter(Boolean);
-        if (campaignIds.length > 0) {
-          const { data: apps } = await admin
-            .from("campaign_applications")
-            .select("id, deliverable_status, delivery_confirmed_at, auto_completed_at")
-            .eq("influencer_id", influencerId)
-            .in("campaign_id", campaignIds)
-            .eq("status", "accepted");
-          eligibleViaCampaign = (apps || []).some(
-            (a) =>
-              !!a.delivery_confirmed_at ||
-              !!a.auto_completed_at ||
-              String(a.deliverable_status || "").toLowerCase() === "approved"
-          );
-        }
+    const brandIds = new Set<string>();
+    const { data: privRows } = await admin.from("brand_private").select("brand_id").ilike("contact_email", brandEmail);
+    for (const r of privRows || []) if (r.brand_id) brandIds.add(String(r.brand_id));
+    const { data: legacyRows } = await admin.from("brands").select("id").ilike("contact_email", brandEmail);
+    for (const r of legacyRows || []) if (r.id) brandIds.add(String(r.id));
+    if (brandIds.size > 0) {
+      const { data: campaigns } = await admin.from("brand_campaigns").select("id").in("brand_id", [...brandIds]);
+      const campaignIds = (campaigns || []).map((c) => c.id).filter(Boolean);
+      if (campaignIds.length > 0) {
+        const { data: apps } = await admin
+          .from("campaign_applications")
+          .select("id, status, deliverable_status, delivery_confirmed_at, auto_completed_at")
+          .eq("influencer_id", influencerId)
+          .in("campaign_id", campaignIds)
+          .eq("status", "accepted");
+        eligibleViaCampaign = (apps || []).some((a) => isCampaignEligibleForReview(a));
       }
     }
-    if (!hasAgreement && !eligibleViaCampaign) {
-      return NextResponse.json(
-        {
-          error:
-            lang === "el"
-              ? "Μπορείτε να αξιολογήσετε μόνο επιχειρήσεις με ολοκληρωμένη συμφωνία στο Influo."
-              : "You can only review brands after a completed Influo agreement.",
-        },
-        { status: 403 }
-      );
+
+    if (!eligibleViaProposal && !eligibleViaCampaign) {
+      return NextResponse.json({ error: realCompletionRequiredMessage(lang) }, { status: 403 });
     }
 
     const { data: existingRows } = await admin

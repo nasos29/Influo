@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { loadOwnProfiles } from "@/lib/ownProfile";
+import { reviewOpenLoginPath } from "@/lib/reviewInvite";
 
 /**
  * Client bridge for signed review star links.
@@ -40,17 +41,17 @@ function ReviewOpenInner() {
       }
 
       const destination = String(data.destination);
+      const party = data.party as "brand" | "influencer";
       const { data: sessionData } = await supabase.auth.getSession();
       const session = sessionData.session;
       if (!session?.access_token) {
         const redirect = `/reviews/open?t=${encodeURIComponent(t)}${lang === "en" ? "&lang=en" : ""}`;
-        router.replace(`/login?redirect=${encodeURIComponent(redirect)}`);
+        router.replace(reviewOpenLoginPath(party === "brand" ? "brand" : "influencer", redirect));
         return;
       }
 
       const profiles = await loadOwnProfiles(supabase);
       if (cancelled) return;
-      const party = data.party as "brand" | "influencer";
       if (party === "brand" && !profiles.ok) {
         setMessage(profiles.message || "Σφάλμα προφίλ");
         return;

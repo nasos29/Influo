@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { isAutocancelBlockedRow } from "@/lib/deliverableAutocancelEligibility";
-import { asDeliveryMode } from "@/lib/deliveryCompletion";
+import { asDeliveryMode, isRealDeliveryComplete } from "@/lib/deliveryCompletion";
 import { mailBrandDeliverySubmitted, siteUrl } from "@/lib/deliveryMail";
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { loadProposal, partyOf, requireActor, influencerContact } from "@/lib/proposalAccess";
@@ -229,6 +229,7 @@ export async function PATCH(request: Request) {
 
       const submittedNow = typeof update.delivery_submitted_at === "string";
       const confirmedNow = typeof update.delivery_confirmed_at === "string";
+      const wasAlreadyComplete = isRealDeliveryComplete(proposal);
       const deliveryMode = String(update.delivery_mode || proposal.delivery_mode || "link");
 
       let { error } = await admin.from("proposals").update(update).eq("id", id);
@@ -288,7 +289,7 @@ export async function PATCH(request: Request) {
                 dashboardUrl: `${siteUrl()}/brand/dashboard?tab=proposals`,
               });
             }
-            if (confirmedNow) {
+            if (confirmedNow && !wasAlreadyComplete) {
               await notifyRealCollaborationComplete(admin, {
                 source: "proposal",
                 id: proposal.id,

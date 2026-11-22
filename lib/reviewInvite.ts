@@ -145,6 +145,12 @@ export function reviewDeclineUrl(
   return `${siteUrl()}/reviews/decline?${qs.toString()}`;
 }
 
+/** Login path when opening a signed review link without a session. */
+export function reviewOpenLoginPath(party: ReviewParty, returnPath: string): string {
+  const base = party === "brand" ? "/brand/login" : "/login";
+  return `${base}?redirect=${encodeURIComponent(returnPath)}`;
+}
+
 /** Destination after auth for a validated open token. */
 export function reviewOpenDestination(
   payload: ReviewOpenPayload,
