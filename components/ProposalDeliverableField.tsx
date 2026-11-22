@@ -452,73 +452,44 @@ export default function ProposalDeliverableField({
               {txt.eventMode}
             </button>
           </div>
+          <label className="flex items-start gap-2 text-xs text-slate-700">
+            <input
+              type="checkbox"
+              checked={showcaseConsent}
+              onChange={(e) => setShowcaseConsent(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300"
+            />
+            <span className="min-w-0">
+              <span className="block font-medium text-slate-800">
+                {lang === "el"
+                  ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
+                  : "Show publicly in “Recent collaborations”"}
+              </span>
+            </span>
+          </label>
+          <input
+            ref={inputRef}
+            type="url"
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              setOk(false);
+              setError(null);
+            }}
+            placeholder={txt.placeholder}
+            className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
+          />
           {mode === "link" ? (
-            <>
-              <label className="flex items-start gap-2 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={showcaseConsent}
-                  onChange={(e) => setShowcaseConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                />
-                <span className="min-w-0">
-                  <span className="block font-medium text-slate-800">
-                    {lang === "el"
-                      ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
-                      : "Show publicly in “Recent collaborations”"}
-                  </span>
-                </span>
-              </label>
-              <input
-                ref={inputRef}
-                type="url"
-                value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  setOk(false);
-                  setError(null);
-                }}
-                placeholder={txt.placeholder}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
-              />
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void saveLink()}
-                className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? txt.saving : txt.save}
-              </button>
-            </>
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => void saveLink()}
+              className="inline-flex min-h-10 items-center text-sm px-4 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? txt.saving : txt.save}
+            </button>
           ) : (
             <>
-              <label className="flex items-start gap-2 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={showcaseConsent}
-                  onChange={(e) => setShowcaseConsent(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
-                />
-                <span className="min-w-0">
-                  <span className="block font-medium text-slate-800">
-                    {lang === "el"
-                      ? "Να φαίνεται δημόσια στις «Πρόσφατες συνεργασίες»"
-                      : "Show publicly in “Recent collaborations”"}
-                  </span>
-                </span>
-              </label>
-              <input
-                ref={inputRef}
-                type="url"
-                value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  setOk(false);
-                  setError(null);
-                }}
-                placeholder={txt.placeholder}
-                className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2"
-              />
               <textarea
                 value={note}
                 onChange={(e) => {
