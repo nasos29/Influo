@@ -743,13 +743,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
         </div>
         <div className="relative z-10 p-4 pt-7 sm:p-5 sm:pt-8 md:p-6 lg:px-1 lg:pb-6">
         <div className="relative mx-auto flex w-full max-w-full min-w-0 items-end justify-center gap-1.5">
-          {clusterOverflow ? (
+          {clusterOverflow && !isShortLandscape ? (
             <button
               type="button"
               aria-label={txt.thumbsPrev}
               disabled={clusterAtStart}
               onClick={() => scrollClusterBy(-1)}
-              className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
+              className={`${SHOWCASE_ARROW_BTN} max-sm:hidden`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -947,13 +947,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           ) : null}
             </div>
           </div>
-          {clusterOverflow ? (
+          {clusterOverflow && !isShortLandscape ? (
             <button
               type="button"
               aria-label={txt.thumbsNext}
               disabled={clusterAtEnd}
               onClick={() => scrollClusterBy(1)}
-              className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
+              className={`${SHOWCASE_ARROW_BTN} max-sm:hidden`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
