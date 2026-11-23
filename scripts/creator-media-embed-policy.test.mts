@@ -83,6 +83,13 @@ test("hosted-only top posts drop unhosted IG/TikTok, keep YouTube", () => {
   );
 });
 
+test("hosted-only top posts hide section when every IG/TikTok lacks playUrl", () => {
+  const ig = "https://www.instagram.com/p/nohost/";
+  const posts = [{ url: ig, platform: "instagram", type: "photo" as const }];
+  const filtered = filterTopPostsForHostedOnly(posts, new Map(), true);
+  assert.equal(filtered.length, 0);
+});
+
 test("hosted-only portfolio cell hides failed link jobs", () => {
   assert.equal(
     hostedOnlyPortfolioCell({
