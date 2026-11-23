@@ -48,15 +48,27 @@ const COPY = {
 
 const THUMBS_SCROLLBAR_HIDE =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const SHOWCASE_ARROW_BTN =
+  "inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white";
 
 /** Hero + thumbs in one row (desktop-style). Portrait phones (<640px) use stacked layout; keep JS matchMedia in sync. */
 const SHOWCASE_ROW_MIN_WIDTH_PX = 640;
 const SHOWCASE_ROW_MQ = `(min-width: ${SHOWCASE_ROW_MIN_WIDTH_PX}px)`;
+/** Phone landscape only (short viewport). Keep JS matchMedia in sync with these classes. */
+const SHOWCASE_SHORT_LANDSCAPE_MQ = "(orientation: landscape) and (max-height: 32rem)";
 
 const SHOWCASE_LANDSCAPE_SHORT =
   "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(82dvh,26rem)] [@media(orientation:landscape)_and_(max-height:32rem)]:sm:scroll-my-2";
 const SHOWCASE_THUMB_LANDSCAPE_SHORT =
-  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(42dvh,13.3rem)]";
+  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(56dvh,18rem)]";
+/** Width of 3 landscape thumbs + 2 gaps (gap-2 = 0.5rem), aspect 10/16. */
+const SHOWCASE_LANDSCAPE_THUMB_RAIL =
+  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:w-[calc(3*(min(56dvh,18rem)*10/16)+1rem)] [@media(orientation:landscape)_and_(max-height:32rem)]:sm:max-w-full [@media(orientation:landscape)_and_(max-height:32rem)]:sm:flex-none";
+
+function isShowcaseThumbsRailScroll() {
+  return !window.matchMedia(SHOWCASE_ROW_MQ).matches || window.matchMedia(SHOWCASE_SHORT_LANDSCAPE_MQ).matches;
+}
+
 
 const PLATFORM_LABEL: Record<FeaturedCollaborationPlatform, string> = {
   instagram: "Instagram",
@@ -438,6 +450,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   const [clusterOverflow, setClusterOverflow] = useState(false);
   const [clusterAtStart, setClusterAtStart] = useState(true);
   const [clusterAtEnd, setClusterAtEnd] = useState(false);
+  const [isShortLandscape, setIsShortLandscape] = useState(false);
   const txt = COPY[lang];
 
   const coarseChromeHidden = !isFinePointer && !touchChromeVisible;
@@ -466,6 +479,14 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
 
   useEffect(() => {
     setIsFinePointer(window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(SHOWCASE_SHORT_LANDSCAPE_MQ);
+    const onChange = () => setIsShortLandscape(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, []);
 
   useEffect(() => () => clearTouchHideTimer(), [clearTouchHideTimer]);
@@ -499,13 +520,13 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   );
 
   const syncClusterScrollState = useCallback(() => {
-    const lg = window.matchMedia(SHOWCASE_ROW_MQ).matches;
-    const scrollEl = lg ? clusterScrollerRef.current : thumbsScrollerRef.current;
+    const thumbsRail = isShowcaseThumbsRailScroll();
+    const scrollEl = thumbsRail ? thumbsScrollerRef.current : clusterScrollerRef.current;
     if (!scrollEl) return;
-    const track = lg
-      ? (scrollEl.firstElementChild as HTMLElement | null)
-      : scrollEl.querySelector<HTMLElement>("[data-showcase-thumb-row]");
-    const contentWidth = lg && track ? track.scrollWidth : scrollEl.scrollWidth;
+    const track = thumbsRail
+      ? scrollEl.querySelector<HTMLElement>("[data-showcase-thumb-row]")
+      : (scrollEl.firstElementChild as HTMLElement | null);
+    const contentWidth = !thumbsRail && track ? track.scrollWidth : scrollEl.scrollWidth;
     const overflow = contentWidth > scrollEl.clientWidth + 1;
     setClusterOverflow(overflow);
     if (!overflow) {
@@ -518,14 +539,16 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   }, []);
 
   const scrollClusterBy = useCallback((dir: -1 | 1) => {
-    const lg = window.matchMedia(SHOWCASE_ROW_MQ).matches;
-    const el = lg ? clusterScrollerRef.current : thumbsScrollerRef.current;
+    const thumbsRail = isShowcaseThumbsRailScroll();
+    const el = thumbsRail ? thumbsScrollerRef.current : clusterScrollerRef.current;
     if (!el) return;
-    const item = el.querySelector<HTMLElement>("[data-showcase-cluster-item]");
+    const item = el.querySelector<HTMLElement>(
+      thumbsRail ? "[data-showcase-thumb]" : "[data-showcase-cluster-item]"
+    );
     const gap = (() => {
-      const row = lg
-        ? (el.firstElementChild as HTMLElement | null)
-        : el.querySelector<HTMLElement>("[data-showcase-thumb-row]");
+      const row = thumbsRail
+        ? el.querySelector<HTMLElement>("[data-showcase-thumb-row]")
+        : (el.firstElementChild as HTMLElement | null);
       if (!row) return 8;
       const g = getComputedStyle(row).columnGap;
       const n = parseFloat(g);
@@ -550,15 +573,18 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     const thumbRow = thumbsEl?.querySelector("[data-showcase-thumb-row]");
     if (thumbRow) ro.observe(thumbRow);
     const onMq = () => syncClusterScrollState();
-    const mq = window.matchMedia(SHOWCASE_ROW_MQ);
-    mq.addEventListener("change", onMq);
+    const mqRow = window.matchMedia(SHOWCASE_ROW_MQ);
+    const mqShort = window.matchMedia(SHOWCASE_SHORT_LANDSCAPE_MQ);
+    mqRow.addEventListener("change", onMq);
+    mqShort.addEventListener("change", onMq);
     return () => {
       clusterEl?.removeEventListener("scroll", onScrollCluster);
       thumbsEl?.removeEventListener("scroll", onScrollCluster);
       ro.disconnect();
-      mq.removeEventListener("change", onMq);
+      mqRow.removeEventListener("change", onMq);
+      mqShort.removeEventListener("change", onMq);
     };
-  }, [thumbnails.length, activeId, syncClusterScrollState]);
+  }, [thumbnails.length, activeId, isShortLandscape, syncClusterScrollState]);
 
   const advanceHero = useCallback(() => {
     stopCurrentHeroMedia();
@@ -676,6 +702,22 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     [isFinePointer, showTouchChrome, touchChromeVisible]
   );
 
+  let clusterScrollerLayoutClass =
+    "w-max max-w-full max-sm:w-full pb-2 sm:overflow-visible sm:snap-none sm:scroll-px-0 sm:px-0 sm:pb-1 sm:pt-1";
+  if (isShortLandscape) {
+    clusterScrollerLayoutClass =
+      "w-full min-w-0 max-w-full overflow-visible snap-none scroll-px-0 px-0 pb-2 sm:pb-1 sm:pt-1";
+  } else if (clusterOverflow) {
+    clusterScrollerLayoutClass =
+      "w-full min-w-0 max-w-full flex-1 pb-2 sm:overflow-x-auto sm:snap-x sm:snap-mandatory sm:scroll-px-2 sm:px-2 sm:pb-1 sm:pt-1";
+  }
+  let thumbSnapClass = "";
+  if (isShortLandscape) {
+    thumbSnapClass = "snap-start";
+  } else if (clusterOverflow) {
+    thumbSnapClass = "sm:snap-start";
+  }
+
   return (
     <div className="relative">
       <div className="relative overflow-visible rounded-2xl md:rounded-3xl">
@@ -707,7 +749,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               aria-label={txt.thumbsPrev}
               disabled={clusterAtStart}
               onClick={() => scrollClusterBy(-1)}
-              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-sm:hidden"
+              className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -716,15 +758,11 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           ) : null}
           <div
             ref={clusterScrollerRef}
-            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-sm:overflow-visible max-sm:snap-none max-sm:scroll-px-0 max-sm:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
-              clusterOverflow
-                ? `w-full min-w-0 max-w-full flex-1 pb-2 sm:overflow-x-auto sm:snap-x sm:snap-mandatory sm:scroll-px-2 sm:px-2 sm:pb-1 sm:pt-1`
-                : `w-max max-w-full max-sm:w-full pb-2 sm:overflow-visible sm:snap-none sm:scroll-px-0 sm:px-0 sm:pb-1 sm:pt-1`
-            }`}
+            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-sm:overflow-visible max-sm:snap-none max-sm:scroll-px-0 max-sm:px-0 ${THUMBS_SCROLLBAR_HIDE} ${clusterScrollerLayoutClass}`}
           >
             <div className="mx-auto flex w-full max-w-full min-w-0 flex-col items-center gap-4 sm:w-max sm:max-w-none sm:flex-row sm:items-end sm:justify-center sm:gap-2">
           <div
-            className={`relative flex min-w-0 shrink-0 justify-center max-sm:w-full max-sm:max-w-full max-sm:touch-pan-y ${clusterOverflow ? "sm:snap-start" : ""}`}
+            className={`relative flex min-w-0 shrink-0 justify-center max-sm:w-full max-sm:max-w-full max-sm:touch-pan-y ${clusterOverflow && !isShortLandscape ? "sm:snap-start" : ""}`}
             data-showcase-cluster-item
           >
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
@@ -812,15 +850,15 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex w-full max-w-full min-w-0 flex-col items-center gap-2 sm:contents sm:gap-0">
-              <div className="flex w-full min-w-0 items-end gap-1.5 max-sm:pb-0 sm:contents">
+            <div className={isShortLandscape ? "flex min-w-0 flex-row items-end gap-1.5" : "flex w-full max-w-full min-w-0 flex-col items-center gap-2 sm:contents sm:gap-0"}>
+              <div className={isShortLandscape ? "flex min-w-0 items-end gap-1.5" : "flex w-full min-w-0 items-end gap-1.5 max-sm:pb-0 sm:contents"}>
                 {clusterOverflow ? (
                   <button
                     type="button"
                     aria-label={txt.thumbsPrev}
                     disabled={clusterAtStart}
                     onClick={() => scrollClusterBy(-1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white sm:hidden"
+                    className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "" : "sm:hidden"}`}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -829,20 +867,22 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 ) : null}
                 <div
                   ref={thumbsScrollerRef}
-                  className={`min-w-0 w-full flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-2 max-sm:px-2 sm:contents sm:overflow-visible sm:p-0 sm:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
+                  className={isShortLandscape
+                    ? `min-w-0 overflow-x-auto overscroll-x-contain scroll-py-1 py-1 snap-x snap-mandatory ${SHOWCASE_LANDSCAPE_THUMB_RAIL} ${THUMBS_SCROLLBAR_HIDE}`
+                    : `min-w-0 w-full flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-2 max-sm:px-2 sm:contents sm:overflow-visible sm:p-0 sm:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
                 >
                   <div
                     data-showcase-thumb-row
-                    className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 sm:contents sm:gap-2"
+                    className={isShortLandscape
+                      ? "flex w-max max-w-none flex-row items-end gap-2"
+                      : "mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 sm:contents sm:gap-2"}
                   >
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
                   data-showcase-cluster-item
                   data-showcase-thumb
-                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-sm:snap-start ${
-                    clusterOverflow ? "sm:snap-start" : ""
-                  }`}
+                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-sm:snap-start ${thumbSnapClass}`}
                 >
                 <div className={THUMB_FRAME}>
                   <button
@@ -895,7 +935,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                     aria-label={txt.thumbsNext}
                     disabled={clusterAtEnd}
                     onClick={() => scrollClusterBy(1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white sm:hidden"
+                    className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "" : "sm:hidden"}`}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -913,7 +953,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               aria-label={txt.thumbsNext}
               disabled={clusterAtEnd}
               onClick={() => scrollClusterBy(1)}
-              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-sm:hidden"
+              className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
