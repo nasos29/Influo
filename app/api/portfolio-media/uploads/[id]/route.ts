@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { sniffMediaType, validateChunk } from "@/lib/portfolioUpload";
 import {
   UPLOAD_COLUMNS,
@@ -25,6 +26,62 @@ export const dynamic = "force-dynamic";
 type Params = Promise<{ id: string }>;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type UploadActor = { admin: SupabaseClient; influencerId: string };
+
+type FinalizeUploadResult =
+  | { status: "noop"; row: UploadRow }
+  | { status: "incomplete"; received: number }
+  | { status: "assembly_failed" }
+  | { status: "finalized"; row: UploadRow };
+
+/** All contiguous bytes on disk → assemble source, mark uploaded, queue worker (idempotent). */
+async function finalizeUploadFromDisk(actor: UploadActor, row: UploadRow): Promise<FinalizeUploadResult> {
+  if (row.status !== "uploading") {
+    return { status: "noop", row };
+  }
+  const totalBytes = Number(row.total_bytes);
+  const chunkBytes = Number(row.chunk_bytes);
+  const dir = await ensureUploadDir(row.influencer_id, row.id);
+  const received = await contiguousReceivedBytes(dir, totalBytes, chunkBytes);
+  if (received !== totalBytes) {
+    return { status: "incomplete", received };
+  }
+  try {
+    await assembleSourceFile(dir, totalBytes, chunkBytes, row.file_name, row.mime_type);
+  } catch {
+    return { status: "assembly_failed" };
+  }
+  const { data } = await actor.admin
+    .from("creator_media_uploads")
+    .update({ status: "uploaded", received_bytes: totalBytes, updated_at: new Date().toISOString() })
+    .eq("id", row.id)
+    .eq("status", "uploading")
+    .select(UPLOAD_COLUMNS)
+    .maybeSingle();
+  triggerPortfolioMediaWorker();
+  if (data) {
+    return { status: "finalized", row: data as UploadRow };
+  }
+  const reloaded = await loadUpload(actor.admin, row.id, actor.influencerId);
+  return { status: "noop", row: reloaded || row };
+}
+
+function finalizeUploadResponse(result: FinalizeUploadResult, row: UploadRow): NextResponse {
+  switch (result.status) {
+    case "noop":
+      return NextResponse.json({ upload: uploadJson(result.row) });
+    case "incomplete":
+      return NextResponse.json(
+        { error: "Upload incomplete", upload: uploadJson({ ...row, received_bytes: result.received }) },
+        { status: 409 }
+      );
+    case "assembly_failed":
+      return NextResponse.json({ error: "Assembly failed" }, { status: 500 });
+    case "finalized":
+      return NextResponse.json({ upload: uploadJson(result.row) });
+  }
+}
 
 async function actorAndUpload(request: NextRequest, params: Params) {
   const { id } = await params;
@@ -79,6 +136,9 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
         .update({ received_bytes: merged.received_bytes, updated_at: new Date().toISOString() })
         .eq("id", row.id);
     }
+    if (received === totalBytes) {
+      return finalizeUploadResponse(await finalizeUploadFromDisk(actor, merged as UploadRow), merged as UploadRow);
+    }
     return NextResponse.json({ upload: uploadJson(merged as UploadRow) });
   }
 
@@ -121,6 +181,9 @@ export async function PUT(request: NextRequest, { params }: { params: Params }) 
     .select(UPLOAD_COLUMNS)
     .maybeSingle();
   const fresh = (updated as UploadRow | null) || { ...row, received_bytes: received };
+  if (received === totalBytes) {
+    return finalizeUploadResponse(await finalizeUploadFromDisk(actor, fresh as UploadRow), fresh as UploadRow);
+  }
   return NextResponse.json({ upload: uploadJson(fresh as UploadRow) });
 }
 
@@ -141,32 +204,17 @@ export async function POST(request: NextRequest, { params }: { params: Params })
     triggerPortfolioMediaWorker();
     return NextResponse.json({ upload: uploadJson((data as UploadRow | null) || row) });
   }
+  if (body.action === "retry" && row.status === "uploading") {
+    const totalBytes = Number(row.total_bytes);
+    const chunkBytes = Number(row.chunk_bytes);
+    const dir = await ensureUploadDir(row.influencer_id, row.id);
+    const received = await contiguousReceivedBytes(dir, totalBytes, chunkBytes);
+    if (received === totalBytes) {
+      return finalizeUploadResponse(await finalizeUploadFromDisk(actor, row), row);
+    }
+  }
   if (body.action !== "complete") return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  if (row.status !== "uploading") return NextResponse.json({ upload: uploadJson(row) });
-
-  const totalBytes = Number(row.total_bytes);
-  const chunkBytes = Number(row.chunk_bytes);
-  const dir = await ensureUploadDir(row.influencer_id, row.id);
-  const received = await contiguousReceivedBytes(dir, totalBytes, chunkBytes);
-  if (received !== totalBytes) {
-    return NextResponse.json({ error: "Upload incomplete", upload: uploadJson({ ...row, received_bytes: received }) }, { status: 409 });
-  }
-
-  try {
-    await assembleSourceFile(dir, totalBytes, chunkBytes, row.file_name, row.mime_type);
-  } catch {
-    return NextResponse.json({ error: "Assembly failed" }, { status: 500 });
-  }
-
-  const { data } = await actor.admin
-    .from("creator_media_uploads")
-    .update({ status: "uploaded", received_bytes: totalBytes, updated_at: new Date().toISOString() })
-    .eq("id", row.id)
-    .eq("status", "uploading")
-    .select(UPLOAD_COLUMNS)
-    .maybeSingle();
-  triggerPortfolioMediaWorker();
-  return NextResponse.json({ upload: uploadJson((data as UploadRow | null) || row) });
+  return finalizeUploadResponse(await finalizeUploadFromDisk(actor, row), row);
 }
 
 /** Cancel an upload that is not yet processed; staged chunks are removed. */
