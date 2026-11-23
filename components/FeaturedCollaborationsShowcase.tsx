@@ -406,7 +406,7 @@ function HeroSeekBar({
 const HERO_FRAME =
   `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full sm:h-[min(56.7vh,29.3rem)] ${SHOWCASE_LANDSCAPE_SHORT}`;
 const THUMB_FRAME =
-  `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] max-sm:w-28 sm:h-[min(35.4vh,18.3rem)] sm:w-auto ${SHOWCASE_THUMB_LANDSCAPE_SHORT}`;
+  `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] max-sm:w-28 sm:h-[min(35.4vh,18.3rem)] sm:w-auto xl:h-[min(48vh,24rem)] ${SHOWCASE_THUMB_LANDSCAPE_SHORT}`;
 function ShowcaseBrandPill({
   brandName,
   brandLogoUrl,
