@@ -25,6 +25,7 @@ import {
   type WrongUsernameHandle,
 } from '@/lib/wrongUsernameHold';
 import { alertAdminUnapproved } from '@/lib/unapprovedAdminAlert';
+import { isProtectedTestAccount } from '@/lib/protectedAccount';
 import { writeApproveNewInsightsAdminNote } from '@/lib/approveNewInsightsNotes';
 import { runApproveNewPreview } from '@/lib/approveNewDryRun';
 import { runLenientInsightsCheck } from '@/lib/lenientInsightsCheck';
@@ -436,6 +437,31 @@ export async function POST(request: NextRequest) {
           await writeWrongUsernameHold(influencerId, handlesSnapshotFromScrapeAccounts(accounts));
         }
         return NextResponse.json({ ok: false, skipped: true, errors: profileErrors.map((a) => a.error) });
+      }
+
+      const { data: identityRow } = await supabaseAdmin
+        .from('influencers')
+        .select('display_name, contact_email')
+        .eq('id', influencerId)
+        .maybeSingle();
+      if (
+        isProtectedTestAccount({
+          display_name: identityRow?.display_name ?? influencerName,
+          contact_email: identityRow?.contact_email,
+        })
+      ) {
+        const reason = 'Δοκιμαστικός λογαριασμός (test): χωρίς αυτόματη έγκριση';
+        await appendSocialRefreshLog(supabaseAdmin, {
+          run_id: runId,
+          level: 'info',
+          influencer_id: influencerId,
+          influencer_name: influencerName,
+          event: 'skipped',
+          message: `Left unapproved (protected test account). ${reason}`,
+        });
+        await incrementRunCounters(runId, 'influencers_unapproved');
+        await alertAdminUnapproved(supabaseAdmin, { runId, influencerId, influencerName, reason });
+        return NextResponse.json({ ok: false, skipped: true, test_account: true });
       }
 
       const instagramOverrides: InstagramOverrides = {};

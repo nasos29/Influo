@@ -5,6 +5,10 @@ import { adminInboxAddress } from '@/lib/adminMessageSummary';
 import { emailNextSteps } from '@/lib/emailNextSteps';
 import { sendPushToBrand, getAdminPushRecipient } from '@/lib/push';
 import { appendSocialRefreshLog } from '@/lib/socialRefreshLogs';
+import {
+  unapprovedAdminAlertAlreadyToday,
+  unapprovedAdminAlertDedupeKey,
+} from '@/lib/unapprovedAdminAlertDedupe';
 
 const EVENT = 'admin_alert_unapproved';
 
@@ -14,7 +18,7 @@ function esc(s: string): string {
 
 /**
  * Tell ONLY the admin that a new creator was left unapproved, with the reason.
- * Deduped per creator + reason via social_refresh_logs (no schema change). Never throws.
+ * Deduped per creator + reason at most once per Europe/Athens day via social_refresh_logs. Never throws.
  */
 export async function alertAdminUnapproved(
   supabaseAdmin: SupabaseClient,
@@ -22,34 +26,27 @@ export async function alertAdminUnapproved(
 ): Promise<void> {
   try {
     const reason = (opts.reason || 'Άγνωστος λόγος').slice(0, 500);
-    const key = `${opts.influencerId}|${reason}`;
+    const key = unapprovedAdminAlertDedupeKey(opts.influencerId, reason);
     const { data: prior } = await supabaseAdmin
       .from('social_refresh_logs')
-      .select('id')
+      .select('id, created_at')
       .eq('event', EVENT)
       .eq('influencer_id', opts.influencerId)
       .eq('message', key)
-      .limit(1);
-    if (prior && prior.length) return;
-
-    await appendSocialRefreshLog(supabaseAdmin, {
-      run_id: opts.runId,
-      level: 'info',
-      influencer_id: opts.influencerId,
-      influencer_name: opts.influencerName,
-      event: EVENT,
-      message: key,
-    });
+      .order('created_at', { ascending: false })
+      .limit(12);
+    if (unapprovedAdminAlertAlreadyToday(prior ?? [])) return;
 
     const site = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.influo.gr').replace(/\/$/, '');
     const name = opts.influencerName || 'Creator';
 
-    const queued = await enqueueAdminDigestItem(supabaseAdmin, 'unapproved', {
+    await enqueueAdminDigestItem(supabaseAdmin, 'unapproved', {
       name,
       detail: reason,
       influencerId: opts.influencerId,
-    });
-    if (!queued && process.env.RESEND_API_KEY) {
+    }).catch(() => undefined);
+
+    if (process.env.RESEND_API_KEY) {
       const to = adminInboxAddress(process.env.ADMIN_EMAIL);
       const resend = new Resend(process.env.RESEND_API_KEY);
       const { error } = await resend.emails.send({
@@ -73,6 +70,15 @@ ${emailNextSteps("unapproved_admin_alert")}</div>`,
         tag: `admin-unapproved-${opts.influencerId}`,
       });
     }
+
+    await appendSocialRefreshLog(supabaseAdmin, {
+      run_id: opts.runId,
+      level: 'info',
+      influencer_id: opts.influencerId,
+      influencer_name: opts.influencerName,
+      event: EVENT,
+      message: key,
+    });
   } catch (err) {
     console.warn('[unapproved alert]', err instanceof Error ? err.message : err);
   }
