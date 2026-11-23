@@ -1,22 +1,16 @@
 import type { Metadata } from "next";
-import { unstable_cache } from "next/cache";
 import CollaborationsListingPage from "@/components/CollaborationsListingPage";
 import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
 
-export const revalidate = 3600;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Collaborations | Influo",
   description: "Recent completed brand–creator collaborations on Influo.",
 };
 
-const cached = unstable_cache(
-  () => loadRecentCollaborations(24, { surface: "listing" }),
-  ["collaborations-listing-en", "listing-surface"],
-  { revalidate: 3600, tags: ["recent-collaborations"] }
-);
-
 export default async function CollaborationsPageEn() {
-  const items = await cached();
+  const items = await loadRecentCollaborations(24, { surface: "listing" });
   return <CollaborationsListingPage items={items} lang="en" />;
 }
