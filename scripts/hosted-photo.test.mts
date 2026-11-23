@@ -171,6 +171,18 @@ test("HostedPhotoPlayer expand opener uses lucide Maximize2 stroke icon", () => 
   assert.doesNotMatch(src, /M7 14H5v5h5v-2H7v-3/);
 });
 
+test("HostedPhotoPlayer renders photo in-card; portal only for lightbox", () => {
+  const src = readFileSync("components/HostedPhotoPlayer.tsx", "utf8");
+  assert.match(src, /data-hosted-in-card="true"/);
+  assert.match(src, /absolute inset-0 overflow-hidden bg-black/);
+  assert.match(src, /mounted && lightbox[\s\S]*createPortal/);
+  assert.doesNotMatch(
+    src,
+    /mounted\s*\?\s*createPortal\([\s\S]*?\{shell\}/,
+    "collapsed view must not portal the in-card shell"
+  );
+});
+
 test("InstagramStaticCarousel dots are clickable buttons", () => {
   const src = readFileSync("components/InstagramStaticCarousel.tsx", "utf8");
   const tablist = src.slice(src.indexOf('role="tablist"'));

@@ -64,6 +64,14 @@ function TopPostCard({
   if (
     igTikTokHostedOnly &&
     (provider === "instagram" || provider === "tiktok") &&
+    !hostedMedia?.playUrl
+  ) {
+    return null;
+  }
+
+  if (
+    igTikTokHostedOnly &&
+    (provider === "instagram" || provider === "tiktok") &&
     hostedMedia?.playUrl
   ) {
     const ratio = hostedTopPostAspectRatio(hostedMedia, provider);

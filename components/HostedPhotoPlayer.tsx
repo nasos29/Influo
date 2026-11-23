@@ -72,6 +72,34 @@ function readBox(el: HTMLElement | null): Box | null {
   return { width: r.width, height: r.height, left: r.left, top: r.top };
 }
 
+function HostedPhotoMedia({
+  isCarousel,
+  images,
+  cover,
+  uiLang,
+}: {
+  isCarousel: boolean;
+  images: string[];
+  cover: string;
+  uiLang: "el" | "en";
+}) {
+  if (isCarousel) {
+    return <InstagramStaticCarousel images={images} lang={uiLang} />;
+  }
+  if (!cover) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- self-hosted WebP on our CDN
+    <img
+      src={cover}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      className="absolute inset-0 z-[5] h-full w-full object-cover"
+      draggable={false}
+    />
+  );
+}
+
 /**
  * In-card viewer for self-hosted photos and carousels (no play chrome).
  */
@@ -211,47 +239,40 @@ export default function HostedPhotoPlayer({
   const backdropOpen = expanded && !closing && (flipReady || reduceMotion);
   const cover = images[0] || media.posterUrl || media.playUrl;
 
-  const shell = box ? (
-    <div
-      data-hosted-shell="true"
-      data-hosted-expanded={expanded && !closing ? "true" : "false"}
-      className="overflow-hidden bg-black"
-      style={{
-        position: "fixed",
-        width: box.width,
-        height: box.height,
-        left: box.left,
-        top: box.top,
-        zIndex: lightbox ? 210 : 20,
-        borderRadius: 12,
-        boxShadow: lightbox ? "0 25px 50px -12px rgba(0,0,0,0.45)" : "none",
-        transform: flip || "none",
-        transformOrigin: "top left",
-        transition:
-          !flipReady || reduceMotion
-            ? "none"
-            : `transform ${ANIM_MS}ms ${ANIM_EASE}, box-shadow ${ANIM_MS}ms ${ANIM_EASE}`,
-      }}
-      onTransitionEnd={onShellTransitionEnd}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest("[data-hosted-expand]")) return;
-        expand();
-      }}
-    >
-      {isCarousel ? (
-        <InstagramStaticCarousel images={images} lang={uiLang} />
-      ) : cover ? (
-        // eslint-disable-next-line @next/next/no-img-element -- self-hosted WebP on our CDN
-        <img
-          src={cover}
-          alt=""
-          loading="lazy"
-          decoding="async"
-          className="absolute inset-0 z-[5] h-full w-full object-cover"
-          draggable={false}
+  const lightboxShell =
+    lightbox && box ? (
+      <div
+        data-hosted-shell="true"
+        data-hosted-expanded={expanded && !closing ? "true" : "false"}
+        className="overflow-hidden bg-black"
+        style={{
+          position: "fixed",
+          width: box.width,
+          height: box.height,
+          left: box.left,
+          top: box.top,
+          zIndex: 210,
+          borderRadius: 12,
+          boxShadow: "0 25px 50px -12px rgba(0,0,0,0.45)",
+          transform: flip || "none",
+          transformOrigin: "top left",
+          transition:
+            !flipReady || reduceMotion
+              ? "none"
+              : `transform ${ANIM_MS}ms ${ANIM_EASE}, box-shadow ${ANIM_MS}ms ${ANIM_EASE}`,
+        }}
+        onTransitionEnd={onShellTransitionEnd}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("[data-hosted-close]")) return;
+          collapse();
+        }}
+      >
+        <HostedPhotoMedia
+          isCarousel={isCarousel}
+          images={images}
+          cover={cover}
+          uiLang={uiLang}
         />
-      ) : null}
-      {lightbox ? (
         <button
           type="button"
           data-hosted-close="true"
@@ -267,7 +288,27 @@ export default function HostedPhotoPlayer({
             <path d="M18.3 5.71 12 12.01 5.7 5.7 4.29 7.11 10.59 13.4 4.29 19.7 5.7 21.11 12 14.82 18.29 21.11 19.7 19.7 13.41 13.4 19.71 7.11z" />
           </svg>
         </button>
-      ) : (
+      </div>
+    ) : null;
+
+  return (
+    <>
+      <div
+        ref={slotRef}
+        data-hosted-in-card="true"
+        className="absolute inset-0 overflow-hidden bg-black"
+        style={{ visibility: lightbox ? "hidden" : "visible" }}
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("[data-hosted-expand]")) return;
+          expand();
+        }}
+      >
+        <HostedPhotoMedia
+          isCarousel={isCarousel}
+          images={images}
+          cover={cover}
+          uiLang={uiLang}
+        />
         <button
           type="button"
           data-hosted-expand="true"
@@ -281,28 +322,20 @@ export default function HostedPhotoPlayer({
         >
           <Maximize2 className="h-4 w-4" strokeWidth={2.25} aria-hidden />
         </button>
-      )}
-    </div>
-  ) : null;
-
-  return (
-    <>
-      <div ref={slotRef} className="pointer-events-none absolute inset-0" aria-hidden />
-      {mounted
+      </div>
+      {mounted && lightbox
         ? createPortal(
             <>
-              {lightbox ? (
-                <div
-                  data-hosted-backdrop="true"
-                  className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md"
-                  style={{
-                    opacity: backdropOpen ? 1 : 0,
-                    transition: reduceMotion ? "none" : `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
-                  }}
-                  onClick={collapse}
-                />
-              ) : null}
-              {shell}
+              <div
+                data-hosted-backdrop="true"
+                className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md"
+                style={{
+                  opacity: backdropOpen ? 1 : 0,
+                  transition: reduceMotion ? "none" : `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
+                }}
+                onClick={collapse}
+              />
+              {lightboxShell}
             </>,
             document.body
           )

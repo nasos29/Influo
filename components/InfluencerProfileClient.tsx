@@ -26,7 +26,6 @@ import { isAllowedPortfolioUrl } from "@/lib/videoLinks";
 import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
-import PendingHostedSocialCard from "@/components/PendingHostedSocialCard";
 import { useHostedCreatorMedia } from "@/lib/useCreatorMedia";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import { isHostedPhotoMedia, resolvePortfolioHostedMedia } from "@/lib/hostedMediaRender";
@@ -3413,13 +3412,23 @@ export default function InfluencerProfile(props: {
                                           });
                                           if (hostedOnlyCell === "hide") return null;
                                           if (hostedOnlyCell === "pending" && provider) {
+                                            if (!isOwnProfile) return null;
+                                            const pendingNote =
+                                              lang === "en"
+                                                ? "Processing — it will appear shortly"
+                                                : "Σε επεξεργασία — θα εμφανιστεί σύντομα";
+                                            const pendingRatio =
+                                              provider === "tiktok" ? "9 / 16" : "4 / 5";
                                             return (
                                               <div key={vid} className="w-full">
-                                                <PendingHostedSocialCard
-                                                  provider={provider as "instagram" | "tiktok"}
-                                                  url={vid}
-                                                  lang={lang}
-                                                />
+                                                <div
+                                                  className="relative mx-auto flex w-full max-w-[360px] items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-200 bg-slate-50 shadow-sm"
+                                                  style={{ aspectRatio: pendingRatio }}
+                                                >
+                                                  <p className="px-4 text-center text-sm font-medium text-slate-500">
+                                                    {pendingNote}
+                                                  </p>
+                                                </div>
                                               </div>
                                             );
                                           }
