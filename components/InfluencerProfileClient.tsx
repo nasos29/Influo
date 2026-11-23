@@ -3580,9 +3580,10 @@ export default function InfluencerProfile(props: {
             </div>
             <div
               ref={profileSidebarStickyGroupRef}
-              className={`flex flex-col gap-6 lg:self-start${
+              className={`flex flex-col gap-6 self-start${
                 profileSidebarGroupSticky ? " lg:sticky lg:top-24 lg:z-30" : ""
               }`}
+              style={{ alignSelf: "start" }}
             >
                  {showHireBar && activeTab !== "audience" ? (
                    <div className="hidden lg:block">
