@@ -1,9 +1,9 @@
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Οδηγοί influencer marketing στην Ελλάδα: τιμές, ROI, συμβόλαια | Influo",
+  title: "Blog: τιμές, ROI και συμβόλαια influencer marketing | Influo",
   description:
-    "Πρακτικοί οδηγοί για brands και creators: τιμές influencers, engagement rate, micro vs macro, συμβόλαια και μέτρηση ROI.",
+    "Άρθρα και οδηγοί για brands και creators στην Ελλάδα: επιλογή influencers, engagement, τιμές, συμβάσεις και μέτρηση αποτελεσμάτων.",
   path: "/blog",
   enPath: "/en/blog",
 });

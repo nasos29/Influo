@@ -1,9 +1,9 @@
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Influencer marketing guides for Greece: rates, ROI, contracts | Influo",
+  title: "Blog: rates, ROI and influencer contracts | Influo",
   description:
-    "Practical guides for brands and creators: influencer rates, engagement, micro vs macro, contracts and measuring ROI.",
+    "Guides for brands and creators in Greece: choosing influencers, engagement, rates, contracts and measuring campaign results.",
   path: "/en/blog",
   elPath: "/blog",
   enPath: "/en/blog",

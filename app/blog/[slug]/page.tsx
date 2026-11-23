@@ -6,6 +6,7 @@ import Link from "next/link";
 import { use } from "react";
 import Footer from "../../../components/Footer";
 import SiteHeader from "@/components/SiteHeader";
+import BlogPostResourceLinks from "@/components/BlogPostResourceLinks";
 import React from "react";
 import { getBlogPosts, type BlogPost as BlogPostType } from "@/lib/blogPosts";
 import { getStoredLanguage } from "@/lib/language";
@@ -2701,6 +2702,8 @@ export default function BlogPostPage({ params }: { params: Promise<{ slug: strin
           </div>
         </div>
       </article>
+
+      <BlogPostResourceLinks />
 
       <Footer lang={lang} />
     </div>

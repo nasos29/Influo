@@ -3,9 +3,9 @@ import { pageMetadata } from "@/lib/pageMetadata";
 import { categorySeoKeywords } from "@/lib/categories";
 
 export const metadata = pageMetadata({
-  title: "Ελληνικά brands που ζητούν συνεργασία με influencers | Influo",
+  title: "Κατάλογος επιχειρήσεων — καμπάνιες για influencers | Influo",
   description:
-    "Δες επιχειρήσεις που ψάχνουν creators για καμπάνιες στην Ελλάδα. Κάνε αίτηση και κλείσε πληρωμένη συνεργασία — εγγραφή δωρεάν.",
+    "Ανακάλυψε ελληνικές επιχειρήσεις με ανοιχτές καμπάνιες. Βρες brand στο niche σου, κάνε αίτηση και κλείσε πληρωμένη συνεργασία — δωρεάν εγγραφή.",
   path: "/brands",
   enPath: "/en/brands",
   keywords: ["brands Ελλάδα", "επιχειρήσεις influencers", ...categorySeoKeywords()],

@@ -1,9 +1,9 @@
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Βρες πληρωμένες συνεργασίες με brands — δωρεάν προφίλ | Influo",
+  title: "Καμπάνιες και πληρωμένες συνεργασίες για creators | Influo",
   description:
-    "Φτιάξε δωρεάν επαγγελματικό προφίλ influencer, κάνε αίτηση σε καμπάνιες και κλείσε συνεργασίες με ελληνικά brands, με προστασία πληρωμής.",
+    "Δημιούργησε δωρεάν προφίλ, δες ανοιχτές καμπάνιες brands και κλείσε συνεργασίες στην Ελλάδα — με διαχείριση και προστασία πληρωμής στο Influo.",
   path: "/for-influencers",
   enPath: "/en/for-influencers",
 });

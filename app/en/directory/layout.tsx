@@ -1,9 +1,5 @@
 import JsonLdScript from "@/components/JsonLdScript";
 import { breadcrumbJsonLd } from "@/lib/breadcrumbJsonLd";
-import { directoryEnMetadata } from "@/lib/directoryMetadata";
-
-export const metadata = directoryEnMetadata;
-
 const breadcrumbLd = breadcrumbJsonLd([
   { name: "Home", path: "/en" },
   { name: "Influencer Directory", path: "/en/directory" },

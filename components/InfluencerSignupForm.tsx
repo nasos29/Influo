@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { trackSignUp } from "@/lib/ga";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import Image from "next/image";
@@ -237,8 +238,16 @@ export default function InfluencerSignupForm() {
   // Load language from localStorage on client-side
   useEffect(() => {
     setLang(getStoredLanguage());
-  }, []); 
-  const [step, setStep] = useState(1); 
+  }, []);
+
+  const [step, setStep] = useState(1);
+  const signUpTracked = useRef(false);
+
+  useEffect(() => {
+    if (step !== 4 || signUpTracked.current) return;
+    signUpTracked.current = true;
+    trackSignUp("creator", "email");
+  }, [step]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(""); 
   const [showPassword, setShowPassword] = useState(false);

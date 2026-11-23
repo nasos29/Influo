@@ -1,9 +1,9 @@
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Βρες Έλληνες influencers για την επιχείρησή σου | Influo",
+  title: "Κατάλογος influencers και δημοσίευση καμπανιών | Influo",
   description:
-    "Βρες verified influencers στην Ελλάδα, δημοσίευσε καμπάνια και διαχειρίσου συνεργασίες από ένα dashboard. AI προτάσεις, δωρεάν εγγραφή.",
+    "Ψάξε verified creators στον κατάλογο, δημοσίευσε brief και διαχειρίσου προτάσεις και συνεργασίες από ένα dashboard. Δωρεάν εγγραφή.",
   path: "/for-brands",
   enPath: "/en/for-brands",
 });

@@ -9,6 +9,7 @@ export function blogPostMetadata(post: BlogPost, lang: "el" | "en"): Metadata {
   return {
     title: { absolute: title },
     description,
+    robots: { index: true, follow: true },
     alternates: {
       canonical: path,
       languages: languageAlternates(`/blog/${post.slug}`, `/en/blog/${post.slug}`),
@@ -33,6 +34,7 @@ export function blogPostingJsonLd(post: BlogPost, lang: "el" | "en"): Record<str
     headline: post.title[lang],
     description: post.excerpt[lang],
     datePublished: post.date,
+    dateModified: post.date,
     inLanguage: lang,
     image: post.image,
     mainEntityOfPage: absoluteUrl(path),
