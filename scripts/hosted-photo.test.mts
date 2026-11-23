@@ -183,6 +183,24 @@ test("HostedPhotoPlayer renders photo in-card; portal only for lightbox", () => 
   );
 });
 
+test("HostedVideoPlayer renders video in-card; portal only for lightbox", () => {
+  const src = readFileSync("components/HostedVideoPlayer.tsx", "utf8");
+  assert.match(src, /data-hosted-in-card="true"/);
+  assert.match(src, /absolute inset-0 overflow-hidden bg-black/);
+  assert.match(src, /mounted && lightbox[\s\S]*createPortal/);
+  assert.match(src, /!lightbox \? renderPlayerShell\(false\)/);
+  assert.doesNotMatch(
+    src,
+    /pointer-events-none absolute inset-0" aria-hidden/,
+    "in-card slot must host the player, not an empty placeholder"
+  );
+  assert.doesNotMatch(
+    src,
+    /mounted\s*\?\s*createPortal\([\s\S]*renderPlayerShell\(false\)/,
+    "collapsed view must not portal the in-card shell"
+  );
+});
+
 test("InstagramStaticCarousel dots are clickable buttons", () => {
   const src = readFileSync("components/InstagramStaticCarousel.tsx", "utf8");
   const tablist = src.slice(src.indexOf('role="tablist"'));

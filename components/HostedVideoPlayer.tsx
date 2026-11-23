@@ -615,30 +615,61 @@ export default function HostedVideoPlayer({
   const reduceMotion = mounted && prefersReducedMotion();
   const backdropOpen = expanded && !closing && (flipReady || reduceMotion);
 
-  const player = box ? (
+  useLayoutEffect(() => {
+    const el = mediaVideoRef.current;
+    if (!el) return;
+    if (currentTime > 0 && Number.isFinite(el.duration)) {
+      try {
+        el.currentTime = currentTime;
+      } catch {
+        /* seek out of range during source swap */
+      }
+    }
+    if (playing && el.paused) void el.play().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync playback only when moving between in-card and portaled shell
+  }, [lightbox]);
+
+  const renderPlayerShell = (portaled: boolean) => {
+    if (portaled && !box) return null;
+    return (
     <div
       ref={shellRef}
       data-hosted-shell="true"
       data-hosted-expanded={expanded && !closing ? "true" : "false"}
       className="overflow-hidden bg-black"
-      style={{
-        position: "fixed",
-        width: box.width,
-        height: box.height,
-        left: box.left,
-        top: box.top,
-        zIndex: lightbox ? 210 : 20,
-        borderRadius: 12,
-        boxShadow: lightbox ? "0 25px 50px -12px rgba(0,0,0,0.45)" : "none",
-        transform: flip || "none",
-        transformOrigin: "top left",
-        transition:
-          !flipReady || reduceMotion
-            ? "none"
-            : `transform ${ANIM_MS}ms ${ANIM_EASE}, box-shadow ${ANIM_MS}ms ${ANIM_EASE}`,
-        willChange: flipReady && lightbox && !reduceMotion ? "transform" : undefined,
-      }}
-      onTransitionEnd={onShellTransitionEnd}
+      style={
+        portaled
+          ? {
+              position: "fixed",
+              width: box!.width,
+              height: box!.height,
+              left: box!.left,
+              top: box!.top,
+              zIndex: 210,
+              borderRadius: 12,
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.45)",
+              transform: flip || "none",
+              transformOrigin: "top left",
+              transition:
+                !flipReady || reduceMotion
+                  ? "none"
+                  : `transform ${ANIM_MS}ms ${ANIM_EASE}, box-shadow ${ANIM_MS}ms ${ANIM_EASE}`,
+              willChange: flipReady && !reduceMotion ? "transform" : undefined,
+            }
+          : {
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              zIndex: 20,
+              borderRadius: 12,
+              boxShadow: "none",
+              transform: "none",
+              transformOrigin: "top left",
+              transition: "none",
+            }
+      }
+      onTransitionEnd={portaled ? onShellTransitionEnd : undefined}
       onMouseEnter={() => {
         if (!finePointerHoverRef.current) return;
         hoveringRef.current = true;
@@ -726,7 +757,7 @@ export default function HostedVideoPlayer({
           setControlsVisible(true);
         }}
       />
-      {lightbox ? (
+      {portaled ? (
         <button
           type="button"
           data-hosted-close="true"
@@ -935,26 +966,32 @@ export default function HostedVideoPlayer({
         <TikTokSoundPromptButton label={TIKTOK_SOUND_COPY[uiLang]} onClick={onTapForSound} />
       ) : null}
     </div>
-  ) : null;
+    );
+  };
 
   return (
     <>
-      <div ref={slotRef} className="pointer-events-none absolute inset-0" aria-hidden />
-      {mounted
+      <div
+        ref={slotRef}
+        data-hosted-in-card="true"
+        className="absolute inset-0 overflow-hidden bg-black"
+        style={{ visibility: lightbox ? "hidden" : "visible" }}
+      >
+        {!lightbox ? renderPlayerShell(false) : null}
+      </div>
+      {mounted && lightbox
         ? createPortal(
             <>
-              {lightbox ? (
-                <div
-                  data-hosted-backdrop="true"
-                  className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md"
-                  style={{
-                    opacity: backdropOpen ? 1 : 0,
-                    transition: reduceMotion ? "none" : `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
-                  }}
-                  onClick={collapse}
-                />
-              ) : null}
-              {player}
+              <div
+                data-hosted-backdrop="true"
+                className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md"
+                style={{
+                  opacity: backdropOpen ? 1 : 0,
+                  transition: reduceMotion ? "none" : `opacity ${ANIM_MS}ms ${ANIM_EASE}`,
+                }}
+                onClick={collapse}
+              />
+              {renderPlayerShell(true)}
             </>,
             document.body
           )
