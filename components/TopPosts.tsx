@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
+import PendingHostedSocialCard from "@/components/PendingHostedSocialCard";
 import { detectProvider } from "@/lib/videoThumbnail";
 import {
   collectTopPosts,
@@ -12,6 +13,7 @@ import {
 import { formatDisplayDate } from "@/lib/formatDate";
 import type { HostedMedia } from "@/lib/creatorMedia";
 import { lookupHostedMedia } from "@/lib/useCreatorMedia";
+import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 
 const COPY = {
   title: { el: "Κορυφαία posts", en: "Top posts" },
@@ -40,15 +42,54 @@ function TopPostCard({
   lang,
   onUnavailable,
   hostedMedia,
+  igTikTokHostedOnly,
 }: {
   post: TopPost;
   lang: "el" | "en";
   onUnavailable: () => void;
   hostedMedia?: HostedMedia | null;
+  igTikTokHostedOnly?: boolean;
 }) {
   const provider = detectProvider(post.url);
   const dateLabel = formatPostedAt(post.posted_at, lang);
   if (!provider) return null;
+
+  if (
+    igTikTokHostedOnly &&
+    (provider === "instagram" || provider === "tiktok") &&
+    !hostedMedia?.playUrl
+  ) {
+    return (
+      <div className="w-full min-w-0">
+        <PendingHostedSocialCard provider={provider} url={post.url} lang={lang} />
+        <PostMeta post={post} lang={lang} dateLabel={dateLabel} />
+      </div>
+    );
+  }
+
+  if (
+    igTikTokHostedOnly &&
+    (provider === "instagram" || provider === "tiktok") &&
+    hostedMedia?.playUrl
+  ) {
+    const ratio =
+      hostedMedia.width && hostedMedia.height
+        ? `${hostedMedia.width} / ${hostedMedia.height}`
+        : provider === "tiktok"
+          ? "9 / 16"
+          : "4 / 5";
+    return (
+      <div className="w-full min-w-0">
+        <div
+          className="relative mx-auto w-full max-w-[360px] overflow-hidden rounded-xl bg-black shadow-md"
+          style={{ aspectRatio: ratio }}
+        >
+          <HostedMediaPlayer media={hostedMedia} lang={lang} autoplayOnMount={false} />
+        </div>
+        <PostMeta post={post} lang={lang} dateLabel={dateLabel} />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-w-0">
@@ -109,10 +150,12 @@ export default function TopPosts({
   accounts,
   lang,
   hostedByUrl,
+  igTikTokHostedOnly = false,
 }: Readonly<{
   accounts?: AccountLike[] | null;
   lang: "el" | "en";
   hostedByUrl?: Map<string, HostedMedia>;
+  igTikTokHostedOnly?: boolean;
 }>) {
   // 3 slots: best of each platform, then next-best overall. Collect a few
   // spares so an unavailable embed can be replaced by the next post.
@@ -125,17 +168,19 @@ export default function TopPosts({
     const params = new URLSearchParams();
     for (const url of candidateKey.split("|")) params.append("u", url);
     let cancelled = false;
-    fetch(`/api/top-posts/availability?${params.toString()}`)
-      .then((res) => (res.ok ? res.json() : { unavailable: [] }))
-      .then((data: { unavailable?: string[] }) => {
-        if (cancelled || !Array.isArray(data.unavailable) || !data.unavailable.length) return;
-        setHidden((prev) => new Set([...prev, ...data.unavailable!]));
-      })
-      .catch(() => {});
+    if (!igTikTokHostedOnly) {
+      fetch(`/api/top-posts/availability?${params.toString()}`)
+        .then((res) => (res.ok ? res.json() : { unavailable: [] }))
+        .then((data: { unavailable?: string[] }) => {
+          if (cancelled || !Array.isArray(data.unavailable) || !data.unavailable.length) return;
+          setHidden((prev) => new Set([...prev, ...data.unavailable!]));
+        })
+        .catch(() => {});
+    }
     return () => {
       cancelled = true;
     };
-  }, [candidateKey]);
+  }, [candidateKey, igTikTokHostedOnly]);
 
   const posts = candidates
     .filter((p) => !hidden.has(p.url) || Boolean(hostedByUrl && lookupHostedMedia(hostedByUrl, p.url)))
@@ -154,6 +199,7 @@ export default function TopPosts({
             <TopPostCard
               post={post}
               lang={lang}
+              igTikTokHostedOnly={igTikTokHostedOnly}
               hostedMedia={hostedByUrl ? lookupHostedMedia(hostedByUrl, post.url) : null}
               onUnavailable={() => setHidden((prev) => new Set(prev).add(post.url))}
             />

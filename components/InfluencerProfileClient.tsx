@@ -26,6 +26,7 @@ import { isAllowedPortfolioUrl } from "@/lib/videoLinks";
 import { youtubeChannelUrl } from "@/lib/youtubeHandle";
 import VideoThumbnail from "@/components/VideoThumbnail";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
+import PendingHostedSocialCard from "@/components/PendingHostedSocialCard";
 import { useHostedCreatorMedia } from "@/lib/useCreatorMedia";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import { isHostedPhotoMedia, resolvePortfolioHostedMedia } from "@/lib/hostedMediaRender";
@@ -139,6 +140,7 @@ interface ProInfluencer extends Influencer {
   service_packages?: PublicPackageView[];
   calculatedCompletionRate?: number;
   created_at?: string;
+  ig_tiktok_hosted_only?: boolean;
   /** Gemini audit (updated only when followers/engagement/avg_likes are refreshed). */
   auditpr_audit?: {
     scoreBreakdown: string[];
@@ -674,7 +676,10 @@ export default function InfluencerProfile(props: {
   }, [profile?.videos]);
 
   const portfolioItems = portfolioVideoList ?? basePortfolioItems;
-  const hostedByUrl = useHostedCreatorMedia(profile?.id ? String(profile.id) : null);
+  const igTikTokHostedOnly = profile?.ig_tiktok_hosted_only === true;
+  const hostedByUrl = useHostedCreatorMedia(profile?.id ? String(profile.id) : null, {
+    pollMs: igTikTokHostedOnly ? 15_000 : 0,
+  });
 
   const portfolioTikTokFallbacks = useMemo(() => {
     return collectTopPosts(profile?.accounts, 24)
@@ -1228,6 +1233,7 @@ export default function InfluencerProfile(props: {
         rate_card: commercialRef.current?.rate_card,
         calculatedCompletionRate: calculatedCompletionRate,
         created_at: data.created_at,
+        ig_tiktok_hosted_only: data.ig_tiktok_hosted_only === true,
         auditpr_audit: data.auditpr_audit ?? undefined,
       });
     }
@@ -3038,7 +3044,12 @@ export default function InfluencerProfile(props: {
                   avgLikes={profile.avg_likes}
                   accounts={profile.accounts}
                 />
-                <TopPosts accounts={profile.accounts} lang={lang} hostedByUrl={hostedByUrl} />
+                <TopPosts
+                  accounts={profile.accounts}
+                  lang={lang}
+                  hostedByUrl={hostedByUrl}
+                  igTikTokHostedOnly={igTikTokHostedOnly}
+                />
               </div>
             )}
             <div className="lg:col-span-2 space-y-8 min-w-0">
@@ -3342,11 +3353,42 @@ export default function InfluencerProfile(props: {
                                             );
                                         };
 
-                                        if (resolvedHosted && (isSelfHostedPortfolioUrl(vid) || isHostedPhotoMedia(resolvedHosted))) {
+                                        if (
+                                            resolvedHosted &&
+                                            (isSelfHostedPortfolioUrl(vid) ||
+                                                isHostedPhotoMedia(resolvedHosted) ||
+                                                (igTikTokHostedOnly &&
+                                                    (provider === "instagram" || provider === "tiktok")))
+                                        ) {
                                             return portfolioPlayerShell(resolvedHosted);
                                         }
 
-                                        if (provider && embedUrl && !isImage) {
+                                        if (
+                                            igTikTokHostedOnly &&
+                                            provider &&
+                                            (provider === "instagram" || provider === "tiktok") &&
+                                            !resolvedHosted
+                                        ) {
+                                            return (
+                                                <div key={vid} className="w-full">
+                                                    <PendingHostedSocialCard
+                                                        provider={provider}
+                                                        url={vid}
+                                                        lang={lang}
+                                                    />
+                                                </div>
+                                            );
+                                        }
+
+                                        if (
+                                            provider &&
+                                            embedUrl &&
+                                            !isImage &&
+                                            !(
+                                                igTikTokHostedOnly &&
+                                                (provider === "instagram" || provider === "tiktok")
+                                            )
+                                        ) {
                                             return (
                                                 <div key={vid} className="w-full">
                                                     <SocialEmbedCard

@@ -6,6 +6,10 @@ import { ensureBilingualBio } from '@/lib/bioTranslate';
 import { ensureProfileSlug } from '@/lib/profileSlugAssign';
 import { revalidatePublicProfileById } from '@/lib/revalidatePublicProfile';
 import { buildNewInfluencerApprovalPatch } from '@/lib/approveNewApprovalPatch';
+import {
+  enqueueCreatorMediaJobsAndRunWorker,
+  enqueueTopPostsAndRunWorker,
+} from '@/lib/enqueueCreatorMediaJobs';
 
 function escapeHtml(s: string): string {
   return String(s)
@@ -130,6 +134,29 @@ export async function finalizeNewInfluencerApproval(
     console.error('[approve-new] revalidate', err);
   });
   await markProfileChangesReviewed(supabaseAdmin, influencerId).catch(() => undefined);
+
+  try {
+    const { data: mediaRow } = await supabaseAdmin
+      .from('influencers')
+      .select('videos, accounts, hidden_videos')
+      .eq('id', influencerId)
+      .maybeSingle();
+    if (mediaRow) {
+      const videos = Array.isArray(mediaRow.videos)
+        ? mediaRow.videos.filter((u): u is string => typeof u === 'string')
+        : [];
+      await enqueueCreatorMediaJobsAndRunWorker(supabaseAdmin, influencerId, videos);
+      await enqueueTopPostsAndRunWorker(
+        supabaseAdmin,
+        influencerId,
+        Array.isArray(mediaRow.accounts) ? mediaRow.accounts : null,
+        mediaRow.hidden_videos
+      );
+    }
+  } catch (e) {
+    console.error('[approve-new] enqueue hosted media', e);
+  }
+
   const name = inf.display_name || String(influencerId);
   const email = String(inf.contact_email || '').trim();
   if (email) {
