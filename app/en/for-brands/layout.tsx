@@ -1,9 +1,9 @@
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Find Greek influencers for your business | Influo",
+  title: "Influencer directory and campaign publishing | Influo",
   description:
-    "Find verified influencers in Greece, publish campaigns and manage collaborations from one dashboard. AI matching, free sign-up.",
+    "Search verified creators in the directory, publish a brief and manage proposals and collaborations from one dashboard. Free sign-up.",
   path: "/en/for-brands",
   elPath: "/for-brands",
   enPath: "/en/for-brands",

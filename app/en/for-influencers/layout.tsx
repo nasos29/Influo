@@ -1,9 +1,9 @@
 import { pageMetadata } from "@/lib/pageMetadata";
 
 export const metadata = pageMetadata({
-  title: "Find paid brand collaborations — free creator profile | Influo",
+  title: "Campaigns and paid brand collabs for creators | Influo",
   description:
-    "Build a free professional influencer profile, apply to campaigns and close collaborations with Greek brands, with payment protection.",
+    "Create a free profile, browse open brand campaigns and close paid collaborations in Greece — managed on Influo with payment protection.",
   path: "/en/for-influencers",
   elPath: "/for-influencers",
   enPath: "/en/for-influencers",

@@ -1,7 +1,8 @@
 "use client";
 
 import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { trackSignUp } from "@/lib/ga";
 import { supabase } from '@/lib/supabaseClient';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -123,6 +124,7 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [success, setSuccess] = useState(false);
+  const signUpTracked = useRef(false);
   const [step, setStep] = useState(1);
   
   const router = useRouter();
@@ -131,6 +133,12 @@ export default function BrandSignupForm({ embedded = false }: { embedded?: boole
   useEffect(() => {
     setLang(getStoredLanguage());
   }, []);
+
+  useEffect(() => {
+    if (!success || signUpTracked.current) return;
+    signUpTracked.current = true;
+    trackSignUp("brand", "email");
+  }, [success]);
 
   const [brandName, setBrandName] = useState("");
   const [contactPerson, setContactPerson] = useState("");

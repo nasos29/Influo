@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Footer from "./Footer";
 import SiteHeader from "@/components/SiteHeader";
@@ -81,6 +82,41 @@ export default function BlogPageFrame({ lang: routeLang, serverPosts }: Props) {
 
       <section className="py-16 px-6">
         <div className="max-w-page mx-auto">
+          <p className="text-center text-slate-600 max-w-2xl mx-auto mb-10 text-base leading-relaxed">
+            {lang === "el" ? (
+              <>
+                Ψάχνετε creators ή καμπάνιες; Δείτε τον{" "}
+                <Link href="/directory" className="text-blue-600 font-medium hover:underline">
+                  κατάλογο influencers
+                </Link>{" "}
+                ή εγγραφείτε ως{" "}
+                <Link href="/for-influencers" className="text-blue-600 font-medium hover:underline">
+                  creator
+                </Link>{" "}
+                /{" "}
+                <Link href="/for-brands" className="text-blue-600 font-medium hover:underline">
+                  brand
+                </Link>
+                .
+              </>
+            ) : (
+              <>
+                Looking for creators or campaigns? Browse the{" "}
+                <Link href="/en/directory" className="text-blue-600 font-medium hover:underline">
+                  influencer directory
+                </Link>{" "}
+                or sign up as a{" "}
+                <Link href="/en/for-influencers" className="text-blue-600 font-medium hover:underline">
+                  creator
+                </Link>{" "}
+                or{" "}
+                <Link href="/en/for-brands" className="text-blue-600 font-medium hover:underline">
+                  brand
+                </Link>
+                .
+              </>
+            )}
+          </p>
           <BlogListing posts={posts} lang={lang} />
         </div>
       </section>
