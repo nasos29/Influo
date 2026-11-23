@@ -336,6 +336,74 @@ print("ok")
   assert.match(r.stdout, /ok/);
 });
 
+test("resolve_photo_image_urls uses tikwm for TikTok /video/ slideshow when yt-dlp has no images", () => {
+  const script = `
+from unittest.mock import patch
+from host_creator_media import resolve_photo_image_urls, is_tiktok_photo_host_candidate
+
+video_url = "https://www.tiktok.com/@stavroulita_mom_of_3/video/7707317966244924675"
+platform = "tiktok"
+assert is_tiktok_photo_host_candidate(video_url, platform)
+slides = ["https://cdn.example/slide-a.jpg", "https://cdn.example/slide-b.jpg"]
+
+def fake_probe(*_a, **_k):
+    return {"vcodec": "none", "ext": "mp3", "url": video_url}
+
+def fake_tikwm(u):
+    assert u == video_url
+    return slides
+
+with patch("host_creator_media.ytdlp_probe_info", fake_probe):
+    with patch("host_creator_media.tikwm_fetch_photo_urls", fake_tikwm):
+        out = resolve_photo_image_urls(video_url, platform, None)
+
+assert out == slides
+print("ok")
+`;
+  const r = runHostCreatorPython(script);
+  assert.equal(r.status, 0, r.stderr || r.stdout || String(r.error));
+  assert.match(r.stdout, /ok/);
+});
+
+test("is_image_file rejects audio; image_to_webp refuses mp3", () => {
+  const script = `
+import tempfile
+from pathlib import Path
+from host_creator_media import is_image_file, require_image_file, image_to_webp
+
+with tempfile.TemporaryDirectory() as td:
+    work = Path(td)
+    mp3 = work / "source.mp3"
+    mp3.write_bytes(b"ID3\\x04\\x00\\x00\\x00\\x00\\x00\\x00")  # ID3 header + minimal body
+    assert not is_image_file(mp3)
+    try:
+        require_image_file(mp3)
+        raise AssertionError("expected require_image_file to fail")
+    except RuntimeError as e:
+        assert "non-image" in str(e).lower()
+
+    png = work / "tiny.png"
+    png.write_bytes(
+        b"\\x89PNG\\r\\n\\x1a\\n\\x00\\x00\\x00\\rIHDR\\x00\\x00\\x00\\x01"
+        b"\\x00\\x00\\x00\\x01\\x08\\x02\\x00\\x00\\x00\\x90wS\\xde\\x00\\x00\\x00\\x0cIDATx\\x9cc\\x00\\x01\\x00\\x00\\x05\\x00\\x01\\r\\n-\\xb4\\x00\\x00\\x00\\x00IEND\\xaeB\\x60\\x82"
+    )
+    assert is_image_file(png)
+
+    try:
+        image_to_webp(mp3, work / "photo.webp")
+        raise AssertionError("image_to_webp must not accept mp3")
+    except RuntimeError as e:
+        assert "non-image" in str(e).lower()
+
+host_src = Path("host_creator_media.py").read_text(encoding="utf-8")
+assert "image_to_webp(source, webp)" not in host_src, "must not convert yt-dlp audio download to photo"
+print("ok")
+`;
+  const r = runHostCreatorPython(script);
+  assert.equal(r.status, 0, r.stderr || r.stdout || String(r.error));
+  assert.match(r.stdout, /ok/);
+});
+
 test("is_tiktok_photo_post_url: direct /photo/ and short-link redirect", () => {
   const script = `
 from unittest.mock import patch
