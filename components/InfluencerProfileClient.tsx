@@ -852,7 +852,13 @@ export default function InfluencerProfile(props: {
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
       const stickyTop = 6 * rem;
       const available = window.innerHeight - stickyTop;
-      setProfileSidebarGroupSticky(el.scrollHeight <= available);
+      const styles = getComputedStyle(el);
+      const gap = parseFloat(styles.rowGap || styles.gap || "0") || 0;
+      const children = Array.from(el.children) as HTMLElement[];
+      const contentHeight = children.reduce((sum, child, i) => {
+        return sum + child.getBoundingClientRect().height + (i > 0 ? gap : 0);
+      }, 0);
+      setProfileSidebarGroupSticky(contentHeight <= available);
     };
 
     measure();
@@ -3574,7 +3580,7 @@ export default function InfluencerProfile(props: {
             </div>
             <div
               ref={profileSidebarStickyGroupRef}
-              className={`flex flex-col gap-6${
+              className={`flex flex-col gap-6 lg:self-start${
                 profileSidebarGroupSticky ? " lg:sticky lg:top-24 lg:z-30" : ""
               }`}
             >
