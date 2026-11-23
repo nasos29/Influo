@@ -521,7 +521,14 @@ def is_tiktok_photo_post_url(url: str) -> bool:
 
 
 def is_tiktok_photo_host_candidate(url: str, platform: str | None) -> bool:
-    return platform == "tiktok" and is_tiktok_photo_post_url(url)
+    """TikTok /photo/ posts and slideshow /video/ URLs (audio-only yt-dlp) eligible for tikwm."""
+    if platform != "tiktok":
+        return False
+    n = normalize_source_url(url)
+    if re.search(r"/(?:photo|video)/\d+", n, re.I):
+        return True
+    resolved = resolve_tiktok_redirect_url(url) if is_tiktok_short_link(url) else None
+    return bool(resolved and re.search(r"/(?:photo|video)/\d+", resolved, re.I))
 
 
 def is_photo_first_post_url(url: str, platform: str | None) -> bool:
@@ -577,7 +584,7 @@ def resolve_photo_image_urls(
     cookies: Path | None,
     info: dict[str, Any] | None = None,
 ) -> list[str]:
-    """Yt-dlp image metadata first; tikwm for TikTok /photo/ when yt-dlp yields nothing."""
+    """Yt-dlp image metadata first; tikwm for TikTok /photo/ or slideshow /video/ when yt-dlp yields nothing."""
     if info is None:
         try:
             info = ytdlp_probe_info(url, platform, cookies)
@@ -636,6 +643,82 @@ def classify_ytdlp_info(info: dict[str, Any]) -> tuple[str, list[str]]:
     return "photo", []
 
 
+_AUDIO_EXTENSIONS = {".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".flac", ".wma"}
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif", ".avif", ".tif", ".tiff"}
+
+
+def _read_file_head(path: Path, size: int = 16) -> bytes:
+    with path.open("rb") as f:
+        return f.read(size)
+
+
+def _magic_looks_like_image(head: bytes) -> bool:
+    if head.startswith(b"\xff\xd8\xff"):
+        return True
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return True
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return True
+    if len(head) >= 12 and head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return True
+    if head.startswith(b"BM"):
+        return True
+    return False
+
+
+def _magic_looks_like_audio(head: bytes) -> bool:
+    if head.startswith(b"ID3"):
+        return True
+    if len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0:
+        return True
+    if len(head) >= 8 and head[4:8] == b"ftyp":
+        return True
+    return False
+
+
+def is_image_file(path: Path) -> bool:
+    """True when path is a still image, not audio or a real video file."""
+    if not path.is_file():
+        return False
+    ext = path.suffix.lower()
+    if ext in _AUDIO_EXTENSIONS:
+        return False
+    head = _read_file_head(path)
+    if _magic_looks_like_audio(head):
+        return False
+    if _magic_looks_like_image(head):
+        return True
+    if ext in _IMAGE_EXTENSIONS:
+        try:
+            info = ffprobe_info(path)
+        except Exception:
+            return False
+        codec = (info.get("codec") or "").lower()
+        if codec in {"", "none"}:
+            return False
+        if probe_is_video(info):
+            return False
+        if codec in {"mjpeg", "png", "gif", "webp", "bmp", "apng"}:
+            return True
+    try:
+        info = ffprobe_info(path)
+    except Exception:
+        return False
+    codec = (info.get("codec") or "").lower()
+    audio = (info.get("audio_codec") or "").lower()
+    if audio and codec in {"", "none"}:
+        return False
+    if codec in {"mjpeg", "png", "gif", "webp", "bmp", "apng"}:
+        return True
+    return not probe_is_video(info) and bool(codec) and int(info.get("width") or 0) >= 1
+
+
+def require_image_file(path: Path) -> None:
+    if not is_image_file(path):
+        ext = path.suffix.lower() or "unknown"
+        raise RuntimeError(f"refusing to encode non-image as photo: {path.name} (.{ext.lstrip('.')})")
+
+
 def download_remote_image(url: str, dest: Path) -> None:
     req = urllib.request.Request(
         url,
@@ -653,6 +736,7 @@ def download_remote_image(url: str, dest: Path) -> None:
 
 
 def image_to_webp(source: Path, dest: Path) -> None:
+    require_image_file(source)
     candidates = [source]
     magick = shutil.which("magick") or shutil.which("convert")
     if magick:
@@ -1748,9 +1832,9 @@ def process_influencer(sb: Supabase, influencer_id: str, cookies: Path | None, o
                 if image_urls:
                     stored = upload_photo_assets(store, folder, image_urls, item_dir, base_meta)
                 else:
-                    webp = item_dir / "photo.webp"
-                    image_to_webp(source, webp)
-                    stored = store_photo_webps(store, folder, [webp], {**base_meta, "source_still": True})
+                    raise RuntimeError(
+                        "no video stream and no image URLs available for photo hosting"
+                    )
                 row = {
                     "influencer_id": influencer_id,
                     "source_url": url,
