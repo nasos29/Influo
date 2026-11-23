@@ -48,6 +48,8 @@ const COPY = {
 
 const THUMBS_SCROLLBAR_HIDE =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
+const SHOWCASE_ARROW_BTN =
+  "inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white";
 
 /** Hero + thumbs in one row (desktop-style). Portrait phones (<640px) use stacked layout; keep JS matchMedia in sync. */
 const SHOWCASE_ROW_MIN_WIDTH_PX = 640;
@@ -700,6 +702,22 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     [isFinePointer, showTouchChrome, touchChromeVisible]
   );
 
+  let clusterScrollerLayoutClass =
+    "w-max max-w-full max-sm:w-full pb-2 sm:overflow-visible sm:snap-none sm:scroll-px-0 sm:px-0 sm:pb-1 sm:pt-1";
+  if (isShortLandscape) {
+    clusterScrollerLayoutClass =
+      "w-full min-w-0 max-w-full overflow-visible snap-none scroll-px-0 px-0 pb-2 sm:pb-1 sm:pt-1";
+  } else if (clusterOverflow) {
+    clusterScrollerLayoutClass =
+      "w-full min-w-0 max-w-full flex-1 pb-2 sm:overflow-x-auto sm:snap-x sm:snap-mandatory sm:scroll-px-2 sm:px-2 sm:pb-1 sm:pt-1";
+  }
+  let thumbSnapClass = "";
+  if (isShortLandscape) {
+    thumbSnapClass = "snap-start";
+  } else if (clusterOverflow) {
+    thumbSnapClass = "sm:snap-start";
+  }
+
   return (
     <div className="relative">
       <div className="relative overflow-visible rounded-2xl md:rounded-3xl">
@@ -731,7 +749,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               aria-label={txt.thumbsPrev}
               disabled={clusterAtStart}
               onClick={() => scrollClusterBy(-1)}
-              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
+              className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -740,13 +758,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           ) : null}
           <div
             ref={clusterScrollerRef}
-            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-sm:overflow-visible max-sm:snap-none max-sm:scroll-px-0 max-sm:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
-              isShortLandscape
-                ? `w-full min-w-0 max-w-full overflow-visible snap-none scroll-px-0 px-0 pb-2 sm:pb-1 sm:pt-1`
-                : clusterOverflow
-                ? `w-full min-w-0 max-w-full flex-1 pb-2 sm:overflow-x-auto sm:snap-x sm:snap-mandatory sm:scroll-px-2 sm:px-2 sm:pb-1 sm:pt-1`
-                : `w-max max-w-full max-sm:w-full pb-2 sm:overflow-visible sm:snap-none sm:scroll-px-0 sm:px-0 sm:pb-1 sm:pt-1`
-            }`}
+            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-sm:overflow-visible max-sm:snap-none max-sm:scroll-px-0 max-sm:px-0 ${THUMBS_SCROLLBAR_HIDE} ${clusterScrollerLayoutClass}`}
           >
             <div className="mx-auto flex w-full max-w-full min-w-0 flex-col items-center gap-4 sm:w-max sm:max-w-none sm:flex-row sm:items-end sm:justify-center sm:gap-2">
           <div
@@ -846,7 +858,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                     aria-label={txt.thumbsPrev}
                     disabled={clusterAtStart}
                     onClick={() => scrollClusterBy(-1)}
-                    className={`inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white ${isShortLandscape ? "" : "sm:hidden"}`}
+                    className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "" : "sm:hidden"}`}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -870,9 +882,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                   key={card.applicationId}
                   data-showcase-cluster-item
                   data-showcase-thumb
-                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-sm:snap-start ${
-                    isShortLandscape ? "snap-start" : clusterOverflow ? "sm:snap-start" : ""
-                  }`}
+                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-sm:snap-start ${thumbSnapClass}`}
                 >
                 <div className={THUMB_FRAME}>
                   <button
@@ -925,7 +935,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                     aria-label={txt.thumbsNext}
                     disabled={clusterAtEnd}
                     onClick={() => scrollClusterBy(1)}
-                    className={`inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white ${isShortLandscape ? "" : "sm:hidden"}`}
+                    className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "" : "sm:hidden"}`}
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -943,7 +953,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               aria-label={txt.thumbsNext}
               disabled={clusterAtEnd}
               onClick={() => scrollClusterBy(1)}
-              className={`inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
+              className={`${SHOWCASE_ARROW_BTN} ${isShortLandscape ? "hidden" : "max-sm:hidden"}`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
