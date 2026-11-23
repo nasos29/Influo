@@ -432,9 +432,10 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
   base.rate_card_flags = rateCardFlags(row.rate_card);
   base.service_packages = publicServicePackages(row.service_packages, row.rate_card, "en", row.accounts);
   base.service_extras = publicExtrasFromRateCard(row.rate_card, priceTierFromMinRate);
-  base.ig_tiktok_hosted_only = creatorIgTikTokHostedOnly(
-    typeof row.approved_at === "string" ? row.approved_at : null
-  );
+  base.ig_tiktok_hosted_only = creatorIgTikTokHostedOnly({
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    approvedAt: typeof row.approved_at === "string" ? row.approved_at : null,
+  });
   return base;
 }
 

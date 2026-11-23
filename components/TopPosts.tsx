@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import SocialEmbedCard from "@/components/SocialEmbedCard";
-import PendingHostedSocialCard from "@/components/PendingHostedSocialCard";
 import { detectProvider } from "@/lib/videoThumbnail";
 import {
   collectTopPosts,
@@ -14,6 +13,7 @@ import { formatDisplayDate } from "@/lib/formatDate";
 import type { HostedMedia } from "@/lib/creatorMedia";
 import { lookupHostedMedia } from "@/lib/useCreatorMedia";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
+import { filterTopPostsForHostedOnly } from "@/lib/topPostsHostedOnly";
 
 const COPY = {
   title: { el: "Κορυφαία posts", en: "Top posts" },
@@ -37,6 +37,13 @@ function formatPostedAt(iso: string | null | undefined, _lang: "el" | "en"): str
   return formatDisplayDate(iso);
 }
 
+function hostedTopPostAspectRatio(hostedMedia: HostedMedia, provider: "instagram" | "tiktok"): string {
+  if (hostedMedia.width && hostedMedia.height) {
+    return `${hostedMedia.width} / ${hostedMedia.height}`;
+  }
+  return provider === "tiktok" ? "9 / 16" : "4 / 5";
+}
+
 function TopPostCard({
   post,
   lang,
@@ -57,27 +64,9 @@ function TopPostCard({
   if (
     igTikTokHostedOnly &&
     (provider === "instagram" || provider === "tiktok") &&
-    !hostedMedia?.playUrl
-  ) {
-    return (
-      <div className="w-full min-w-0">
-        <PendingHostedSocialCard provider={provider} url={post.url} lang={lang} />
-        <PostMeta post={post} lang={lang} dateLabel={dateLabel} />
-      </div>
-    );
-  }
-
-  if (
-    igTikTokHostedOnly &&
-    (provider === "instagram" || provider === "tiktok") &&
     hostedMedia?.playUrl
   ) {
-    const ratio =
-      hostedMedia.width && hostedMedia.height
-        ? `${hostedMedia.width} / ${hostedMedia.height}`
-        : provider === "tiktok"
-          ? "9 / 16"
-          : "4 / 5";
+    const ratio = hostedTopPostAspectRatio(hostedMedia, provider);
     return (
       <div className="w-full min-w-0">
         <div
@@ -182,9 +171,13 @@ export default function TopPosts({
     };
   }, [candidateKey, igTikTokHostedOnly]);
 
-  const posts = candidates
-    .filter((p) => !hidden.has(p.url) || Boolean(hostedByUrl && lookupHostedMedia(hostedByUrl, p.url)))
-    .slice(0, TOP_POSTS_DISPLAY_LIMIT);
+  const posts = filterTopPostsForHostedOnly(
+    candidates.filter(
+      (p) => !hidden.has(p.url) || Boolean(hostedByUrl && lookupHostedMedia(hostedByUrl, p.url))
+    ),
+    hostedByUrl,
+    igTikTokHostedOnly
+  ).slice(0, TOP_POSTS_DISPLAY_LIMIT);
   if (!posts.length) return null;
 
   return (

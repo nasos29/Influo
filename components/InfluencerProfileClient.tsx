@@ -31,6 +31,8 @@ import { useHostedCreatorMedia } from "@/lib/useCreatorMedia";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import { isHostedPhotoMedia, resolvePortfolioHostedMedia } from "@/lib/hostedMediaRender";
 import { isSelfHostedPortfolioUrl } from "@/lib/portfolioHosted";
+import { usePublicPortfolioLinkPhases } from "@/lib/usePublicPortfolioLinkPhases";
+import { hostedOnlyPortfolioCell } from "@/lib/hostedOnlyPortfolioCell";
 import { getBadges, getBadgeStyles } from "@/lib/badges";
 import Avatar from "@/components/Avatar";
 import CreatorReviewsList from "@/components/CreatorReviewsList";
@@ -680,6 +682,11 @@ export default function InfluencerProfile(props: {
   const hostedByUrl = useHostedCreatorMedia(profile?.id ? String(profile.id) : null, {
     pollMs: igTikTokHostedOnly ? 15_000 : 0,
   });
+  const { phaseForUrl: portfolioLinkPhaseForUrl } = usePublicPortfolioLinkPhases(
+    profile?.id ? String(profile.id) : null,
+    igTikTokHostedOnly ? portfolioItems : [],
+    { pollMs: igTikTokHostedOnly ? 15_000 : 0 }
+  );
 
   const portfolioTikTokFallbacks = useMemo(() => {
     return collectTopPosts(profile?.accounts, 24)
@@ -3363,21 +3370,25 @@ export default function InfluencerProfile(props: {
                                             return portfolioPlayerShell(resolvedHosted);
                                         }
 
-                                        if (
-                                            igTikTokHostedOnly &&
-                                            provider &&
-                                            (provider === "instagram" || provider === "tiktok") &&
-                                            !resolvedHosted
-                                        ) {
+                                        {
+                                          const hostedOnlyCell = hostedOnlyPortfolioCell({
+                                            igTikTokHostedOnly,
+                                            provider,
+                                            hasHostedMedia: Boolean(resolvedHosted),
+                                            linkPhase: portfolioLinkPhaseForUrl(vid),
+                                          });
+                                          if (hostedOnlyCell === "hide") return null;
+                                          if (hostedOnlyCell === "pending" && provider) {
                                             return (
-                                                <div key={vid} className="w-full">
-                                                    <PendingHostedSocialCard
-                                                        provider={provider}
-                                                        url={vid}
-                                                        lang={lang}
-                                                    />
-                                                </div>
+                                              <div key={vid} className="w-full">
+                                                <PendingHostedSocialCard
+                                                  provider={provider as "instagram" | "tiktok"}
+                                                  url={vid}
+                                                  lang={lang}
+                                                />
+                                              </div>
                                             );
+                                          }
                                         }
 
                                         if (
