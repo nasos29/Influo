@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import PlatformBrandIcon from "@/components/PlatformBrandIcon";
-import VideoThumbnail from "@/components/VideoThumbnail";
 import { getCachedImageUrl } from "@/lib/imageProxy";
 import { displayServiceType } from "@/lib/campaignServiceLabel";
 import { formatDisplayDate } from "@/lib/formatDate";
@@ -89,8 +88,8 @@ function ListingMedia({ item, lang }: { item: RecentCollaborationCard; lang: Lan
   }
 
   if (
-    item.postUrl &&
-    (item.postProvider === "instagram" || item.postProvider === "tiktok")
+    item.postProvider === "instagram" ||
+    item.postProvider === "tiktok"
   ) {
     const provider = item.postProvider;
     return (
@@ -102,7 +101,9 @@ function ListingMedia({ item, lang }: { item: RecentCollaborationCard; lang: Lan
           className={`absolute inset-0 bg-gradient-to-br ${PENDING_GRADIENT[provider]} opacity-15`}
           aria-hidden
         />
-        <VideoThumbnail url={item.postUrl} alt="" fill className="object-cover" />
+        <div className="absolute inset-0 flex items-center justify-center" aria-hidden>
+          <PlatformBrandIcon platform={provider} className="h-12 w-12 text-slate-400/80" />
+        </div>
         <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-10">
           <PlatformBrandIcon platform={provider} className="h-5 w-5 shrink-0 text-white" />
           <p className="text-xs font-medium text-white">{PLACEHOLDER_COPY.preparing[lang]}</p>
