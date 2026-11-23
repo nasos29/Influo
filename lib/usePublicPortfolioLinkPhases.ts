@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { portfolioLinkSourceKey, portfolioLinkUiPhase, type PortfolioLinkUiPhase } from "@/lib/portfolioHosted";
 
 type PhaseRow = { sourceKey: string; phase: PortfolioLinkUiPhase };
@@ -12,6 +12,8 @@ export function usePublicPortfolioLinkPhases(
 ) {
   const [rows, setRows] = useState<PhaseRow[]>([]);
   const pollMs = opts?.pollMs && opts.pollMs > 0 ? opts.pollMs : 0;
+  const urlsRef = useRef(portfolioUrls);
+  urlsRef.current = portfolioUrls;
 
   const watchKey = useMemo(
     () => portfolioUrls.map((u) => portfolioLinkSourceKey(u)).filter(Boolean).sort().join("|"),
@@ -21,12 +23,12 @@ export function usePublicPortfolioLinkPhases(
   useEffect(() => {
     const id = String(influencerId || "").trim();
     if (!id || !watchKey) {
-      setRows([]);
+      setRows((r) => (r.length ? [] : r));
       return;
     }
     let cancelled = false;
     const params = new URLSearchParams({ influencerId: id });
-    for (const url of portfolioUrls) {
+    for (const url of urlsRef.current) {
       const u = String(url || "").trim();
       if (u) params.append("u", u);
     }
@@ -47,7 +49,7 @@ export function usePublicPortfolioLinkPhases(
       cancelled = true;
       if (timer) clearInterval(timer);
     };
-  }, [influencerId, watchKey, pollMs, portfolioUrls]);
+  }, [influencerId, watchKey, pollMs]);
 
   const byKey = useMemo(() => {
     const map = new Map<string, PortfolioLinkUiPhase>();

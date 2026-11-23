@@ -91,6 +91,8 @@ import {
   directoryPathFromReferrer,
 } from "@/lib/directoryReturn";
 
+const EMPTY_PORTFOLIO_URLS: string[] = [];
+
 type Params = Promise<{ id: string }>;
 
 type ProfileAccount = {
@@ -685,7 +687,7 @@ export default function InfluencerProfile(props: {
   });
   const { phaseForUrl: portfolioLinkPhaseForUrl } = usePublicPortfolioLinkPhases(
     profile?.id ? String(profile.id) : null,
-    igTikTokHostedOnly ? portfolioItems : [],
+    igTikTokHostedOnly ? portfolioItems : EMPTY_PORTFOLIO_URLS,
     { pollMs: igTikTokHostedOnly ? 15_000 : 0 }
   );
 
