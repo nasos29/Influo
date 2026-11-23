@@ -664,6 +664,8 @@ export default function InfluencerProfile(props: {
   const [profile, setProfile] = useState<ProInfluencer | null>((props.initialProfile as ProInfluencer | null) ?? null);
   const [loading, setLoading] = useState(!props.initialProfile);
   const profileTabsNavRef = useRef<HTMLElement | null>(null);
+  const profileSidebarStickyGroupRef = useRef<HTMLDivElement | null>(null);
+  const [profileSidebarGroupSticky, setProfileSidebarGroupSticky] = useState(true);
   const profileCardRef = useRef<HTMLDivElement | null>(null);
   const profileAvatarRef = useRef<HTMLDivElement | null>(null);
   const profileStatsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -836,6 +838,32 @@ export default function InfluencerProfile(props: {
   }, [searchParams, sessionChecked]);
   /** Commercial row (raw min_rate) still loads only for brand, admin, or the owner. */
   const revealPrices = isBrand || isAdmin || isOwnProfile;
+
+  useEffect(() => {
+    const el = profileSidebarStickyGroupRef.current;
+    if (!el || typeof window === "undefined") return;
+
+    const measure = () => {
+      const lg = window.matchMedia("(min-width: 1024px)").matches;
+      if (!lg) {
+        setProfileSidebarGroupSticky(true);
+        return;
+      }
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const stickyTop = 6 * rem;
+      const available = window.innerHeight - stickyTop;
+      setProfileSidebarGroupSticky(el.scrollHeight <= available);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [profile, activeTab, sessionChecked, isOwnProfile, isAdmin, loading, lang, revealPrices]);
   const commercialRef = useRef<{
     min_rate?: string;
     rate_card?: ProInfluencer["rate_card"];
@@ -3544,9 +3572,14 @@ export default function InfluencerProfile(props: {
                   </div>
                 )}
             </div>
-            <div className="flex flex-col gap-6">
+            <div
+              ref={profileSidebarStickyGroupRef}
+              className={`flex flex-col gap-6${
+                profileSidebarGroupSticky ? " lg:sticky lg:top-24 lg:z-30" : ""
+              }`}
+            >
                  {showHireBar && activeTab !== "audience" ? (
-                   <div className="sticky top-24 z-30 hidden lg:block">
+                   <div className="hidden lg:block">
                      <ProfileHireCard variant="desktop" {...hireCardProps} />
                    </div>
                  ) : null}
