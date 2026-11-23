@@ -38,6 +38,15 @@ test("insights rules pass when within tolerance", () => {
   assert.equal(out.passed, true);
 });
 
+test("insights rules fail when every scrape failed but vision returned metrics", () => {
+  const out = evaluateInsightsRulesAgainstScrape(
+    [{ platform: "instagram", username: "foo", followers: "1000", ok: false }],
+    [{ platform: "instagram", username: "foo", followers: 1000, avg_likes: 10 }]
+  );
+  assert.equal(out.passed, false);
+  assert.match(out.reason, /All scrapes failed/i);
+});
+
 test("empty insights_urls skips Gemini", async () => {
   const out = await runLenientInsightsCheck({
     insights_urls: [],

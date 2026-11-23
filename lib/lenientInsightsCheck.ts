@@ -84,6 +84,15 @@ export function evaluateInsightsRulesAgainstScrape(
   if (visionAccounts.length === 0) {
     return { passed: false, reason: 'No metrics extracted from insights screenshots' };
   }
+  const hasComparableScrape = scrapedAccounts.some((acc) => {
+    if (acc.ok === false) return false;
+    const platform = String(acc.platform || '').toLowerCase();
+    const username = String(acc.username || '').trim();
+    return Boolean(platform && username);
+  });
+  if (!hasComparableScrape) {
+    return { passed: false, reason: 'All scrapes failed; nothing to compare against insights' };
+  }
   return { passed: true, reason: 'Insights screenshots match scraped metrics' };
 }
 

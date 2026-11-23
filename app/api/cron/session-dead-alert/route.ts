@@ -20,19 +20,28 @@ export async function POST(request: NextRequest) {
   if (denied) return denied;
 
   const body = await request.json().catch(() => ({}));
-  const detail = String(body?.message || body?.detail || 'AuditPro session dead / cookies failed').slice(0, 800);
+  const job = String(body?.job || '').trim();
+  const detail = String(
+    body?.message || body?.detail || body?.details || 'AuditPro session dead / cookies failed'
+  ).slice(0, 800);
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     return NextResponse.json({ ok: false, error: 'RESEND_API_KEY not configured' }, { status: 503 });
   }
 
   const resend = new Resend(key);
+  const subject = job
+    ? `Influo AuditPro: session dead (${job})`
+    : 'Influo AuditPro: session dead (ApproveNew stopped)';
+  const jobLine = job
+    ? `<p style="font-family:system-ui,sans-serif;font-size:13px;color:#4b5563"><strong>Job:</strong> ${job.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] || c)}</p>`
+    : '';
   const { error } = await resend.emails.send({
     from: 'Influo <noreply@influo.gr>',
     to: [ALERT_TO],
-    subject: 'Influo AuditPro: session dead (ApproveNew stopped)',
+    subject,
     html: `<p style="font-family:system-ui,sans-serif;font-size:14px;line-height:1.5;color:#1f2937">AuditPro session dead / cookies failed; job stopped; no creators changed.</p>
-<p style="font-family:system-ui,sans-serif;font-size:13px;color:#4b5563">${detail.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] || c)}</p>`,
+${jobLine}<p style="font-family:system-ui,sans-serif;font-size:13px;color:#4b5563">${detail.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c] || c)}</p>`,
   });
   if (error) {
     return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
