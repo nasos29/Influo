@@ -54,9 +54,9 @@ const SHOWCASE_ROW_MIN_WIDTH_PX = 640;
 const SHOWCASE_ROW_MQ = `(min-width: ${SHOWCASE_ROW_MIN_WIDTH_PX}px)`;
 
 const SHOWCASE_LANDSCAPE_SHORT =
-  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(50dvh,18rem)]";
+  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(82dvh,26rem)] [@media(orientation:landscape)_and_(max-height:32rem)]:sm:scroll-my-2";
 const SHOWCASE_THUMB_LANDSCAPE_SHORT =
-  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(40dvh,14.4rem)]";
+  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(42dvh,13.3rem)]";
 
 const PLATFORM_LABEL: Record<FeaturedCollaborationPlatform, string> = {
   instagram: "Instagram",
@@ -394,7 +394,7 @@ function HeroSeekBar({
 const HERO_FRAME =
   `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full sm:h-[min(56.7vh,29.3rem)] ${SHOWCASE_LANDSCAPE_SHORT}`;
 const THUMB_FRAME =
-  `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] max-sm:w-28 sm:h-[min(49.9vh,25.8rem)] sm:w-auto ${SHOWCASE_THUMB_LANDSCAPE_SHORT}`;
+  `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] max-sm:w-28 sm:h-[min(35.4vh,18.3rem)] sm:w-auto ${SHOWCASE_THUMB_LANDSCAPE_SHORT}`;
 function ShowcaseBrandPill({
   brandName,
   brandLogoUrl,
