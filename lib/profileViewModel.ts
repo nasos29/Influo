@@ -48,6 +48,8 @@ export type ProfileViewModel = {
     has_price?: boolean;
   }>;
   created_at?: string;
+  /** When true, public IG/TikTok media is self-hosted only (no official embeds). */
+  ig_tiktok_hosted_only?: boolean;
   profile_slug?: string | null;
   auditpr_audit?: {
     scoreBreakdown: string[];
@@ -173,6 +175,7 @@ export function viewModelFromPublicRow(row: Record<string, unknown>): ProfileVie
       ? (data.service_packages as ProfileViewModel["service_packages"])
       : [],
     created_at: typeof data.created_at === "string" ? data.created_at : undefined,
+    ig_tiktok_hosted_only: data.ig_tiktok_hosted_only === true,
     profile_slug: typeof data.profile_slug === "string" ? data.profile_slug : null,
     auditpr_audit:
       audit && typeof audit === "object"

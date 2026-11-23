@@ -884,6 +884,7 @@ export default function InfluencerSignupForm() {
       }
 
       if (!insertError) {
+        void sessionFetch("/api/portfolio-media/kick", { method: "POST" }).catch(() => undefined);
         const token = authData?.session?.access_token as string | undefined;
         const headers: Record<string, string> = { "Content-Type": "application/json" };
         if (token) headers.Authorization = `Bearer ${token}`;

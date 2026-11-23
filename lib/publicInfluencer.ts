@@ -11,6 +11,7 @@
 
 import { formatEuro } from "@/lib/formatEuro";
 import { isListedPrice, listedPriceMin } from "@/lib/parsePrice";
+import { creatorIgTikTokHostedOnly } from "@/lib/creatorMediaEmbedPolicy";
 import { sanitizeTopPosts } from "@/lib/topPosts";
 import { accountsWithoutHiddenTopPosts, visibleVideos } from "@/lib/hiddenVideos";
 import { filterPublicPortfolioVideos } from "@/lib/videoLinks";
@@ -67,6 +68,9 @@ export const PUBLIC_PROFILE_EXTRA_COLUMNS = [
 
 /** Read server-side only so the public payload can say "a price exists" without the amount. */
 export const PRICING_SOURCE_COLUMNS = ["min_rate", "rate_card", "service_packages"] as const;
+
+/** Server-side only; drives `ig_tiktok_hosted_only` on the public profile payload. */
+export const PROFILE_APPROVAL_POLICY_COLUMNS = ["approved_at"] as const;
 
 export const NEWLY_APPROVED_EXTRA_COLUMNS = ["videos", "hidden_videos", "video_thumbnails"] as const;
 
@@ -428,6 +432,10 @@ export function toPublicProfile(row: Record<string, unknown>): Record<string, un
   base.rate_card_flags = rateCardFlags(row.rate_card);
   base.service_packages = publicServicePackages(row.service_packages, row.rate_card, "en", row.accounts);
   base.service_extras = publicExtrasFromRateCard(row.rate_card, priceTierFromMinRate);
+  base.ig_tiktok_hosted_only = creatorIgTikTokHostedOnly({
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    approvedAt: typeof row.approved_at === "string" ? row.approved_at : null,
+  });
   return base;
 }
 
@@ -471,6 +479,7 @@ export const PROFILE_QUERY_COLUMNS = [
   ...DIRECTORY_CARD_COLUMNS,
   ...PUBLIC_PROFILE_EXTRA_COLUMNS,
   ...PRICING_SOURCE_COLUMNS,
+  ...PROFILE_APPROVAL_POLICY_COLUMNS,
 ] as const;
 
 /**

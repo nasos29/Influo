@@ -35,6 +35,8 @@ Sync design:
 
 The profile UI calls `collectTopPosts` and prefers a hosted player when a matching `creator_media` row exists; otherwise it falls back to the official embed.
 
+**New creators** (`created_at` or `approved_at` on or after `IG_TIKTOK_HOSTED_ONLY_APPROVED_SINCE`, default `2026-11-22T22:00:00.000Z` / 23 Nov 2026 00:00 Athens, overridable via env) never get IG/TikTok official embeds on the public profile — only self-hosted playback, a “Preparing video…” cover while a link job is pending, or the item is hidden after the job fails. Unhosted IG/TikTok top posts are omitted entirely. YouTube is unchanged. Approval, signup, and social refresh kick the worker with `--links-only`; upload completion still uses `--uploads-only`.
+
 Photo posts and carousels (Instagram `/p/`, TikTok `/photo/`) are included in the same hosting queues. The worker uses yt-dlp JSON metadata (`entries` / thumbnails) with the same cookies as video downloads, encodes slides to WebP (max 1440px, quality ~82), and stores `creator_media.media_type` as `photo` or `carousel` (`metadata.carousel_urls` for slide order). Mixed carousels that include a video slide are still handled as video.
 
 `scripts/host_creator_media.py` and `scripts/process_creator_media_jobs.py` accept `--retry-failed-photos` to list failed rows whose errors match prior no-video / TikTok 403 patterns; add `--execute` to re-host them (default is dry-run counts only).

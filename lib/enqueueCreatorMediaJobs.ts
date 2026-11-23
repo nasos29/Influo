@@ -137,7 +137,7 @@ export async function enqueueCreatorMediaJobsAndRunWorker(
   urls: Iterable<string>
 ): Promise<number> {
   const n = await enqueueCreatorMediaJobs(admin, influencerId, urls);
-  if (n > 0) triggerPortfolioMediaWorker();
+  if (n > 0) triggerPortfolioMediaWorker("links-only");
   return n;
 }
 
@@ -148,6 +148,6 @@ export async function enqueueTopPostsAndRunWorker(
   hiddenRaw?: unknown
 ): Promise<number> {
   const n = await enqueueTopPostsFromAccounts(admin, influencerId, accounts, hiddenRaw);
-  if (n > 0) triggerPortfolioMediaWorker();
+  if (n > 0) triggerPortfolioMediaWorker("links-only");
   return n;
 }
