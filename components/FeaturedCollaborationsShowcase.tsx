@@ -49,6 +49,15 @@ const COPY = {
 const THUMBS_SCROLLBAR_HIDE =
   "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";
 
+/** Hero + thumbs in one row (desktop-style). Portrait phones (<640px) use stacked layout; keep JS matchMedia in sync. */
+const SHOWCASE_ROW_MIN_WIDTH_PX = 640;
+const SHOWCASE_ROW_MQ = `(min-width: ${SHOWCASE_ROW_MIN_WIDTH_PX}px)`;
+
+const SHOWCASE_LANDSCAPE_SHORT =
+  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(50dvh,18rem)]";
+const SHOWCASE_THUMB_LANDSCAPE_SHORT =
+  "[@media(orientation:landscape)_and_(max-height:32rem)]:sm:h-[min(40dvh,14.4rem)]";
+
 const PLATFORM_LABEL: Record<FeaturedCollaborationPlatform, string> = {
   instagram: "Instagram",
   tiktok: "TikTok",
@@ -381,11 +390,11 @@ function HeroSeekBar({
   );
 }
 
-/** Hero/thumb caps: ~10% shorter again vs prior MAG-1; lg:gap-4; thumbs in one horizontal row; 2xl widens ratio. */
+/** Hero/thumb caps: row layout sm+ (height-based thumb rail); portrait mobile max-sm keeps fixed-width thumbs. */
 const HERO_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full lg:h-[min(56.7vh,29.3rem)]";
+  `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] h-[min(56.7vh,25.1rem)] w-auto max-w-full sm:h-[min(56.7vh,29.3rem)] ${SHOWCASE_LANDSCAPE_SHORT}`;
 const THUMB_FRAME =
-  "relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] w-28 sm:w-32 md:w-36 lg:h-[min(49.9vh,25.8rem)] lg:w-auto";
+  `relative shrink-0 overflow-hidden rounded-xl md:rounded-2xl bg-slate-900 aspect-[10/16] 2xl:aspect-[11/16] max-sm:w-28 sm:h-[min(49.9vh,25.8rem)] sm:w-auto ${SHOWCASE_THUMB_LANDSCAPE_SHORT}`;
 function ShowcaseBrandPill({
   brandName,
   brandLogoUrl,
@@ -490,7 +499,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   );
 
   const syncClusterScrollState = useCallback(() => {
-    const lg = window.matchMedia("(min-width: 1024px)").matches;
+    const lg = window.matchMedia(SHOWCASE_ROW_MQ).matches;
     const scrollEl = lg ? clusterScrollerRef.current : thumbsScrollerRef.current;
     if (!scrollEl) return;
     const track = lg
@@ -509,7 +518,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
   }, []);
 
   const scrollClusterBy = useCallback((dir: -1 | 1) => {
-    const lg = window.matchMedia("(min-width: 1024px)").matches;
+    const lg = window.matchMedia(SHOWCASE_ROW_MQ).matches;
     const el = lg ? clusterScrollerRef.current : thumbsScrollerRef.current;
     if (!el) return;
     const item = el.querySelector<HTMLElement>("[data-showcase-cluster-item]");
@@ -541,7 +550,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
     const thumbRow = thumbsEl?.querySelector("[data-showcase-thumb-row]");
     if (thumbRow) ro.observe(thumbRow);
     const onMq = () => syncClusterScrollState();
-    const mq = window.matchMedia("(min-width: 1024px)");
+    const mq = window.matchMedia(SHOWCASE_ROW_MQ);
     mq.addEventListener("change", onMq);
     return () => {
       clusterEl?.removeEventListener("scroll", onScrollCluster);
@@ -698,7 +707,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               aria-label={txt.thumbsPrev}
               disabled={clusterAtStart}
               onClick={() => scrollClusterBy(-1)}
-              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-lg:hidden"
+              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-sm:hidden"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -707,15 +716,15 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           ) : null}
           <div
             ref={clusterScrollerRef}
-            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-lg:overflow-visible max-lg:snap-none max-lg:scroll-px-0 max-lg:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
+            className={`min-w-0 overscroll-x-contain scroll-py-1 pt-1 max-sm:overflow-visible max-sm:snap-none max-sm:scroll-px-0 max-sm:px-0 ${THUMBS_SCROLLBAR_HIDE} ${
               clusterOverflow
-                ? `w-full min-w-0 max-w-full flex-1 pb-2 lg:overflow-x-auto lg:snap-x lg:snap-mandatory lg:scroll-px-2 lg:px-2 lg:pb-1 lg:pt-1`
-                : `w-max max-w-full max-lg:w-full pb-2 lg:overflow-visible lg:snap-none lg:scroll-px-0 lg:px-0 lg:pb-1 lg:pt-1`
+                ? `w-full min-w-0 max-w-full flex-1 pb-2 sm:overflow-x-auto sm:snap-x sm:snap-mandatory sm:scroll-px-2 sm:px-2 sm:pb-1 sm:pt-1`
+                : `w-max max-w-full max-sm:w-full pb-2 sm:overflow-visible sm:snap-none sm:scroll-px-0 sm:px-0 sm:pb-1 sm:pt-1`
             }`}
           >
-            <div className="mx-auto flex w-full max-w-full min-w-0 flex-col items-center gap-4 lg:w-max lg:max-w-none lg:flex-row lg:items-end lg:justify-center lg:gap-2">
+            <div className="mx-auto flex w-full max-w-full min-w-0 flex-col items-center gap-4 sm:w-max sm:max-w-none sm:flex-row sm:items-end sm:justify-center sm:gap-2">
           <div
-            className={`relative flex min-w-0 shrink-0 justify-center max-lg:w-full max-lg:max-w-full max-lg:touch-pan-y ${clusterOverflow ? "lg:snap-start" : ""}`}
+            className={`relative flex min-w-0 shrink-0 justify-center max-sm:w-full max-sm:max-w-full max-sm:touch-pan-y ${clusterOverflow ? "sm:snap-start" : ""}`}
             data-showcase-cluster-item
           >
             <div className="rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-1 hover:shadow-xl md:rounded-2xl">
@@ -803,15 +812,15 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           </div>
 
           {thumbnails.length > 0 ? (
-            <div className="flex w-full max-w-full min-w-0 flex-col items-center gap-2 lg:contents lg:gap-0">
-              <div className="flex w-full min-w-0 items-end gap-1.5 max-lg:pb-0 lg:contents">
+            <div className="flex w-full max-w-full min-w-0 flex-col items-center gap-2 sm:contents sm:gap-0">
+              <div className="flex w-full min-w-0 items-end gap-1.5 max-sm:pb-0 sm:contents">
                 {clusterOverflow ? (
                   <button
                     type="button"
                     aria-label={txt.thumbsPrev}
                     disabled={clusterAtStart}
                     onClick={() => scrollClusterBy(-1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white lg:hidden"
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white sm:hidden"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
@@ -820,19 +829,19 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                 ) : null}
                 <div
                   ref={thumbsScrollerRef}
-                  className={`min-w-0 w-full flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-lg:overflow-x-auto max-lg:snap-x max-lg:snap-mandatory max-lg:scroll-px-2 max-lg:px-2 lg:contents lg:overflow-visible lg:p-0 lg:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
+                  className={`min-w-0 w-full flex-1 overscroll-x-contain scroll-py-1 pb-2 pt-1 max-sm:overflow-x-auto max-sm:snap-x max-sm:snap-mandatory max-sm:scroll-px-2 max-sm:px-2 sm:contents sm:overflow-visible sm:p-0 sm:snap-none ${THUMBS_SCROLLBAR_HIDE}`}
                 >
                   <div
                     data-showcase-thumb-row
-                    className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 lg:contents lg:gap-2"
+                    className="mx-auto flex w-max max-w-none flex-row items-end justify-center gap-3 sm:contents sm:gap-2"
                   >
               {thumbnails.map((card) => (
                 <div
                   key={card.applicationId}
                   data-showcase-cluster-item
                   data-showcase-thumb
-                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-lg:snap-start ${
-                    clusterOverflow ? "lg:snap-start" : ""
+                  className={`shrink-0 rounded-xl shadow-none transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-lg md:rounded-2xl max-sm:snap-start ${
+                    clusterOverflow ? "sm:snap-start" : ""
                   }`}
                 >
                 <div className={THUMB_FRAME}>
@@ -886,7 +895,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
                     aria-label={txt.thumbsNext}
                     disabled={clusterAtEnd}
                     onClick={() => scrollClusterBy(1)}
-                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white lg:hidden"
+                    className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white sm:hidden"
                   >
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
@@ -904,7 +913,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
               aria-label={txt.thumbsNext}
               disabled={clusterAtEnd}
               onClick={() => scrollClusterBy(1)}
-              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-lg:hidden"
+              className="inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-slate-200 disabled:hover:bg-white max-sm:hidden"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
