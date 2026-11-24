@@ -5,9 +5,9 @@ import {
   aggregateProfileAnalytics,
   athensDayKeysInRange,
   defaultInfluencerStatsPeriod,
-  filterByCreatedAt,
   parsePlatformAccount,
   proposalBudgetAmount,
+  isSocialOutboundProfileClick,
 } from "@/lib/adminInfluencerStats";
 import { avgOf } from "@/lib/adminPlatformStats";
 import { totalFollowersFromAccounts } from "@/lib/parseFollowers";
@@ -18,42 +18,28 @@ import {
   type FollowerSnapshotPoint,
   type SnapshotAccountFollowers,
 } from "@/lib/followerGrowth";
+import {
+  boundInfluencerAllTimeRange,
+  fetchCapped,
+  headCount,
+  INFLUENCER_ANALYTICS_ROW_CAP,
+  INFLUENCER_CACHE_MS,
+  influencerPeriodAnalyticsTotals,
+  runInBatches,
+  STATS_REQUEST_TIMEOUT_MS,
+} from "@/lib/adminStatsRouteHelpers";
+import { isTimeoutError, TimeoutError, withTimeout } from "@/lib/withTimeout";
 
 const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
 
 const APPLICATION_STATUSES = ["pending", "accepted", "withdrawn", "rejected", "shortlisted"] as const;
 const PROPOSAL_STATUSES = ["pending", "accepted", "completed", "rejected", "cancelled"] as const;
 
-type PagedQuery = {
-  eq(column: string, value: string): PagedQuery;
-  gte(column: string, value: string): PagedQuery;
-  lt(column: string, value: string): PagedQuery;
-  in(column: string, values: string[]): PagedQuery;
-  order(column: string, options: { ascending: boolean }): PagedQuery;
-  range(from: number, to: number): PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
-};
+type InfluencerCache = { key: string; payload: unknown; fetchedAt: number };
+let influencerCache: InfluencerCache | null = null;
 
-async function fetchPaged<T>(
-  admin: SupabaseClient,
-  table: string,
-  select: string,
-  apply: (q: PagedQuery) => PagedQuery,
-  orderCol = "created_at"
-): Promise<T[]> {
-  const rows: T[] = [];
-  const pageSize = 1000;
-  let from = 0;
-  while (true) {
-    const base = admin.from(table).select(select) as unknown as PagedQuery;
-    const query = apply(base);
-    const { data, error } = await query.order(orderCol, { ascending: true }).range(from, from + pageSize - 1);
-    if (error) break;
-    const batch = (data ?? []) as T[];
-    rows.push(...batch);
-    if (batch.length < pageSize) break;
-    from += pageSize;
-  }
-  return rows;
+function cacheKey(id: string, start: string | null, end: string | null, allTime: boolean): string {
+  return JSON.stringify({ id, start, end, allTime });
 }
 
 function parseStoredSnapshotAccounts(raw: unknown): SnapshotAccountFollowers[] | null {
@@ -182,13 +168,180 @@ async function countMessagesInPeriod(
   return total;
 }
 
-function statusCounts<T extends { status: string }>(rows: T[], statuses: readonly string[]): Record<string, number> {
+async function statusTotalsForInfluencer(
+  admin: SupabaseClient,
+  table: string,
+  influencerId: string,
+  statuses: readonly string[],
+  start: string | null,
+  end: string | null
+): Promise<{ total: number; byStatus: Record<string, number> }> {
+  const fns = statuses.map((status) => async () => {
+    const q = {
+      table,
+      eq: { influencer_id: influencerId, status },
+      dateCol: undefined as string | undefined,
+      gte: undefined as string | undefined,
+      lt: undefined as string | undefined,
+    };
+    if (start || end) {
+      q.dateCol = "created_at";
+      if (start) q.gte = start;
+      if (end) q.lt = end;
+    }
+    return { status, n: await headCount(admin, q) };
+  });
+  const rows = await runInBatches(fns);
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const { status, n } of rows) {
+    byStatus[status] = n;
+    total += n;
+  }
+  return { total, byStatus };
+}
+
+async function buildInfluencerPayload(
+  admin: SupabaseClient,
+  id: string,
+  start: string | null,
+  end: string | null,
+  allTime: boolean
+) {
+  const dayKeys = start && end ? athensDayKeysInRange(start, end) : null;
+
+  const [totals, growth, convResult, proposalsByStatus, applicationsByStatus, reviewAvg, influencerRow] =
+    await Promise.all([
+      influencerPeriodAnalyticsTotals(admin, id, start, end),
+      loadFollowerGrowth(admin, id),
+      admin.from("conversations").select("id").eq("influencer_id", id).limit(500),
+      statusTotalsForInfluencer(admin, "proposals", id, PROPOSAL_STATUSES, start, end),
+      statusTotalsForInfluencer(admin, "campaign_applications", id, APPLICATION_STATUSES, start, end),
+      (async () => {
+        const base = { table: "influencer_reviews", eq: { influencer_id: id } } as const;
+        const window = {
+          ...base,
+          dateCol: "created_at" as const,
+          ...(start ? { gte: start } : {}),
+          ...(end ? { lt: end } : {}),
+        };
+        const count = await headCount(admin, start || end ? window : base);
+        const ratings = await fetchCapped<{ rating: number }>(
+          admin,
+          "influencer_reviews",
+          "rating",
+          (q) => {
+            let cur = q.eq("influencer_id", id);
+            if (start) cur = cur.gte("created_at", start);
+            if (end) cur = cur.lt("created_at", end);
+            return cur;
+          },
+          500
+        );
+        const nums = ratings.map((r) => Number(r.rating)).filter((n) => Number.isFinite(n));
+        return { count, avg: avgOf(nums) };
+      })(),
+      admin.from("influencers").select("accounts").eq("id", id).maybeSingle(),
+    ]);
+
+  const dailyRows = await fetchCapped<{ event_type: string; created_at: string }>(
+    admin,
+    "influencer_analytics",
+    "event_type, created_at",
+    (q) => {
+      let cur = q.eq("influencer_id", id);
+      if (start) cur = cur.gte("created_at", start);
+      if (end) cur = cur.lt("created_at", end);
+      return cur;
+    },
+    INFLUENCER_ANALYTICS_ROW_CAP
+  );
+
+  const socialMetaRows = await fetchCapped<{ created_at: string; metadata: unknown }>(
+    admin,
+    "influencer_analytics",
+    "created_at, metadata",
+    (q) => {
+      let cur = q.eq("influencer_id", id).eq("event_type", "profile_click").filter("metadata->>source", "eq", "social_outbound");
+      if (start) cur = cur.gte("created_at", start);
+      if (end) cur = cur.lt("created_at", end);
+      return cur;
+    },
+    2000
+  );
+
+  const dailyAggregate = aggregateProfileAnalytics(dailyRows, dayKeys);
+  const analytics = {
+    ...dailyAggregate,
+    profileViews: totals.profileViews,
+    profileClicksInfluo: totals.profileClicksInfluo,
+    socialOutboundClicks: totals.socialOutboundClicks,
+    socialOutboundByPlatform: buildSocialByPlatform(socialMetaRows),
+  };
+
+  const recentResult = await (async () => {
+    let q = admin
+      .from("influencer_analytics")
+      .select("id, event_type, metadata, created_at")
+      .eq("influencer_id", id)
+      .order("created_at", { ascending: false })
+      .limit(40);
+    if (start) q = q.gte("created_at", start);
+    if (end) q = q.lt("created_at", end);
+    return q;
+  })();
+
+  const earningsRows = await fetchCapped<{
+    status: string;
+    budget: string | null;
+    counter_proposal_budget: string | null;
+  }>(
+    admin,
+    "proposals",
+    "status, budget, counter_proposal_budget",
+    (q) => {
+      let cur = q.eq("influencer_id", id).in("status", ["accepted", "completed"]);
+      if (start) cur = cur.gte("created_at", start);
+      if (end) cur = cur.lt("created_at", end);
+      return cur;
+    },
+    500
+  );
+
+  const recentEvents = recentResult.error ? [] : recentResult.data ?? [];
+
+  const proposalsTotal = proposalsByStatus.total;
+  const collaborations = (proposalsByStatus.byStatus.accepted ?? 0) + (proposalsByStatus.byStatus.completed ?? 0);
+  const earnings = earningsRows.reduce((sum, p) => sum + proposalBudgetAmount(p), 0);
+
+  const conversationIds = (convResult.data ?? []).map((c) => c.id as string);
+  const messagesCount = await countMessagesInPeriod(admin, conversationIds, start, end);
+
+  const accountsRaw = influencerRow.data?.accounts;
+  const accounts = Array.isArray(accountsRaw)
+    ? accountsRaw.map(parsePlatformAccount).filter((a): a is NonNullable<typeof a> => a != null)
+    : [];
+
+  return {
+    period: { start, end, allTimeCapped: allTime || undefined },
+    analytics,
+    proposals: { total: proposalsTotal, byStatus: proposalsByStatus.byStatus, collaborations, earnings },
+    applications: { total: applicationsByStatus.total, byStatus: applicationsByStatus.byStatus },
+    messages: { total: messagesCount },
+    reviews: { count: reviewAvg.count, avgRating: reviewAvg.avg },
+    growth,
+    platformAccounts: accounts,
+    recentEvents,
+  };
+}
+
+function buildSocialByPlatform(rows: { metadata: unknown }[]): Record<string, number> {
   const out: Record<string, number> = {};
-  for (const s of statuses) out[s] = 0;
   for (const row of rows) {
-    const key = row.status;
-    if (key in out) out[key] += 1;
-    else out[key] = (out[key] ?? 0) + 1;
+    if (!isSocialOutboundProfileClick({ event_type: "profile_click", metadata: row.metadata })) continue;
+    const m = row.metadata as Record<string, unknown> | undefined;
+    const p = typeof m?.platform === "string" ? m.platform.toLowerCase() : "unknown";
+    out[p] = (out[p] ?? 0) + 1;
   }
   return out;
 }
@@ -207,8 +360,9 @@ export async function GET(request: NextRequest) {
   let start = (searchParams.get("start") || "").trim() || null;
   let end = (searchParams.get("end") || "").trim() || null;
   if (allTime) {
-    start = null;
-    end = null;
+    const capped = boundInfluencerAllTimeRange();
+    start = capped.start;
+    end = capped.end;
   } else if (!start && !end) {
     const def = defaultInfluencerStatsPeriod();
     start = def.start;
@@ -217,93 +371,22 @@ export async function GET(request: NextRequest) {
     end = new Date().toISOString();
   }
 
+  const key = cacheKey(id, start, end, allTime);
+  const now = Date.now();
+  if (influencerCache && influencerCache.key === key && now - influencerCache.fetchedAt < INFLUENCER_CACHE_MS) {
+    return NextResponse.json(influencerCache.payload, { headers: CACHE_HEADERS });
+  }
+
   const admin = supabaseService();
-  const dayKeys = start && end ? athensDayKeysInRange(start, end) : null;
 
-  const analyticsApply = (q: PagedQuery) => {
-    let query = q.eq("influencer_id", id);
-    if (start) query = query.gte("created_at", start);
-    if (end) query = query.lt("created_at", end);
-    return query;
-  };
-
-  const [analyticsRows, recentResult, growth, convRows, proposalRows, applicationRows, reviewRows, influencerRow] =
-    await Promise.all([
-      fetchPaged<{ event_type: string; created_at: string; metadata: unknown }>(
-        admin,
-        "influencer_analytics",
-        "created_at,event_type,metadata",
-        analyticsApply
-      ),
-      (async () => {
-        let q = admin
-          .from("influencer_analytics")
-          .select("id, event_type, metadata, created_at")
-          .eq("influencer_id", id)
-          .order("created_at", { ascending: false })
-          .limit(40);
-        if (start) q = q.gte("created_at", start);
-        if (end) q = q.lt("created_at", end);
-        return q;
-      })(),
-      loadFollowerGrowth(admin, id),
-      fetchPaged<{ id: string }>(admin, "conversations", "id", (q) => q.eq("influencer_id", id)),
-      fetchPaged<{ status: string; created_at: string; budget: string | null; counter_proposal_budget: string | null }>(
-        admin,
-        "proposals",
-        "status, created_at, budget, counter_proposal_budget",
-        (q) => q.eq("influencer_id", id)
-      ),
-      fetchPaged<{ status: string; created_at: string }>(admin, "campaign_applications", "status, created_at", (q) =>
-        q.eq("influencer_id", id)
-      ),
-      fetchPaged<{ rating: number; created_at: string }>(admin, "influencer_reviews", "rating, created_at", (q) =>
-        q.eq("influencer_id", id)
-      ),
-      admin.from("influencers").select("accounts").eq("id", id).maybeSingle(),
-    ]);
-
-  const recentEvents = recentResult.error ? [] : recentResult.data ?? [];
-
-  const analytics = aggregateProfileAnalytics(analyticsRows, dayKeys);
-
-  const proposalsInPeriod = filterByCreatedAt(proposalRows, start, end);
-  const applicationsInPeriod = filterByCreatedAt(applicationRows, start, end);
-  const reviewsInPeriod = filterByCreatedAt(reviewRows, start, end);
-
-  const proposalsByStatus = statusCounts(proposalsInPeriod, PROPOSAL_STATUSES);
-  const applicationsByStatus = statusCounts(applicationsInPeriod, APPLICATION_STATUSES);
-  const proposalsTotal = proposalsInPeriod.length;
-  const collaborations = (proposalsByStatus.accepted ?? 0) + (proposalsByStatus.completed ?? 0);
-
-  const earnings = proposalsInPeriod
-    .filter((p) => p.status === "accepted" || p.status === "completed")
-    .reduce((sum, p) => sum + proposalBudgetAmount(p), 0);
-
-  const ratings = reviewsInPeriod.map((r) => Number(r.rating)).filter((n) => Number.isFinite(n));
-  const reviewsCount = reviewsInPeriod.length;
-  const reviewsAvg = avgOf(ratings);
-
-  const conversationIds = convRows.map((c) => c.id);
-  const messagesCount = await countMessagesInPeriod(admin, conversationIds, start, end);
-
-  const accountsRaw = influencerRow.data?.accounts;
-  const accounts = Array.isArray(accountsRaw)
-    ? accountsRaw.map(parsePlatformAccount).filter((a): a is NonNullable<typeof a> => a != null)
-    : [];
-
-  return NextResponse.json(
-    {
-      period: { start, end },
-      analytics,
-      proposals: { total: proposalsTotal, byStatus: proposalsByStatus, collaborations, earnings },
-      applications: { total: applicationsInPeriod.length, byStatus: applicationsByStatus },
-      messages: { total: messagesCount },
-      reviews: { count: reviewsCount, avgRating: reviewsAvg },
-      growth,
-      platformAccounts: accounts,
-      recentEvents,
-    },
-    { headers: CACHE_HEADERS }
-  );
+  try {
+    const payload = await withTimeout(buildInfluencerPayload(admin, id, start, end, allTime), STATS_REQUEST_TIMEOUT_MS);
+    influencerCache = { key, payload, fetchedAt: now };
+    return NextResponse.json(payload, { headers: CACHE_HEADERS });
+  } catch (err) {
+    if (isTimeoutError(err) || err instanceof TimeoutError) {
+      return NextResponse.json({ error: "timeout" }, { status: 504, headers: CACHE_HEADERS });
+    }
+    throw err;
+  }
 }
