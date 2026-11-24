@@ -66,6 +66,7 @@ import { normalizeGender } from "@/lib/gender";
 import { publicProfilePath } from "@/lib/profileSlug";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
+import AdminPlatformStatsTab from "./AdminPlatformStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import Avatar from "./Avatar";
 import ToastViewport, { useToasts, type ToastTone } from "@/components/ui/Toast";
@@ -353,7 +354,8 @@ const t = {
     reach: "Απήχηση",
     pipeline: "Pipeline",
     tab_inf: "Δημιουργοί",
-    tab_inf_analytics: "Στατιστικά",
+    tab_inf_analytics: "Στατιστικά creator",
+    tab_platform_stats: "Στατιστικά",
     tab_deals: "Προτάσεις",
     tab_brands: "Επιχειρήσεις",
     tab_campaigns: "Καμπάνιες brands",
@@ -454,7 +456,8 @@ const t = {
     reach: "Total Reach",
     pipeline: "Pipeline",
     tab_inf: "Influencers",
-    tab_inf_analytics: "Analytics",
+    tab_inf_analytics: "Creator stats",
+    tab_platform_stats: "Statistics",
     tab_deals: "Proposals",
     tab_brands: "Companies",
     tab_blog: "Blog",
@@ -4785,6 +4788,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             {(
               [
                 { id: "overview", label: { el: "Επισκόπηση", en: "Overview" }[lang], icon: LayoutDashboard, count: 0 },
+                { id: "platform_stats", label: txt.tab_platform_stats, icon: BarChart3, count: 0 },
                 { id: "influencers", label: txt.tab_inf, icon: Users, count: 0 },
                 { id: "influencer_stats", label: txt.tab_inf_analytics, icon: BarChart3, count: 0 },
                 { id: "proposals", label: txt.tab_deals, icon: FileText, count: pendingProposalsCount },
@@ -5418,6 +5422,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </div>
               )}
             </>
+          )}
+
+          {activeTab === "platform_stats" && (
+            <AdminPlatformStatsTab lang={lang} />
           )}
 
           {activeTab === "influencer_stats" && (
