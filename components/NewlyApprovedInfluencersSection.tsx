@@ -200,6 +200,7 @@ export default function NewlyApprovedInfluencersSection({
                 >
                   <Link
                     href={publicProfilePath(inf.profile_slug, inf.id)}
+                    prefetch={false}
                     className="block group"
                     onClick={() => {
                       fetch("/api/analytics/track", {

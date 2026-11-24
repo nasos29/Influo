@@ -152,6 +152,7 @@ export default function TopInfluencersSection({
                 </span>
                 <Link
                   href={publicProfilePath(inf.profile_slug, inf.id)}
+                  prefetch={false}
                   className="block group"
                   onClick={() => {
                     fetch("/api/analytics/track", {

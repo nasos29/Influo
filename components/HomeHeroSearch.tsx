@@ -115,6 +115,7 @@ export default function HomeHeroSearch({
               <Link
                 key={String(inf.id)}
                 href={publicProfilePath(inf.profile_slug ?? null, String(inf.id))}
+                prefetch={false}
                 title={inf.name}
                 className="relative inline-block h-10 w-10 overflow-hidden rounded-full border-2 border-white bg-slate-100 shadow-sm transition hover:z-10 hover:scale-110"
               >

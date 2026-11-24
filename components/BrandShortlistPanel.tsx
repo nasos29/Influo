@@ -176,6 +176,7 @@ export default function BrandShortlistPanel({
                     ) : null}
                     <Link
                       href={publicProfilePath(item.profileSlug, item.influencerId)}
+                      prefetch={false}
                       className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800"
                     >
                       {el ? "Προφίλ" : "Profile"}
