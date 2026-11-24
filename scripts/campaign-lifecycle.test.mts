@@ -9,6 +9,7 @@ import {
   isCampaignAcceptingApplications,
   normalizeDeadlineForOpen,
   parseApplicationWindowDays,
+  resolveSaveDeadlineIso,
 } from "../lib/campaignLifecycle.ts";
 
 test("normalizeDeadlineForOpen: past deadline clears for open", () => {
@@ -79,6 +80,38 @@ test("campaignClosesAt respects defaultDays override after interim cutoff", () =
   );
   const expected = new Date(new Date(openedAt).getTime() + 20 * 24 * 60 * 60 * 1000);
   assert.equal(closes.toISOString(), expected.toISOString());
+});
+
+test("resolveSaveDeadlineIso: stay-open edit keeps null legacy deadline", () => {
+  const openedAt = "2026-11-09T12:00:00.000Z";
+  assert.equal(
+    resolveSaveDeadlineIso({
+      status: "open",
+      openingNow: false,
+      wasOpen: true,
+      existingDeadline: null,
+      openAnchorIso: openedAt,
+      windowDays: 7,
+      draftAnchor: openedAt,
+    }),
+    null
+  );
+});
+
+test("resolveSaveDeadlineIso: reopen sets deadline from window", () => {
+  const openedAt = "2026-11-25T12:00:00.000Z";
+  assert.equal(
+    resolveSaveDeadlineIso({
+      status: "open",
+      openingNow: true,
+      wasOpen: false,
+      existingDeadline: null,
+      openAnchorIso: openedAt,
+      windowDays: 7,
+      draftAnchor: null,
+    }),
+    deadlineFromOpenedAt(openedAt, 7)
+  );
 });
 
 test("deadlineFromOpenedAt adds exact N×24h", () => {

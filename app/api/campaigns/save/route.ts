@@ -6,14 +6,14 @@ import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { findContactInfo } from "@/lib/contactFilter";
 import {
-  deadlineFromOpenedAt,
   parseApplicationWindowDays,
+  resolveSaveDeadlineIso,
 } from "@/lib/campaignLifecycle";
 import { normalizeCategoryToken } from "@/lib/categories";
 import { refreshCampaignEnglish } from "@/lib/campaignTranslate";
 
 const CONTACT_BLOCKED = {
-  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνο. Η επικοινωνία γίνεται μέσα από το Influo.",
+  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
   en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
 } as const;
 
@@ -178,14 +178,16 @@ export async function POST(request: NextRequest) {
       ? (existing?.opened_at ?? nowIso)
       : null;
 
-  let deadlineIso: string | null = null;
-  if (status === "open" && openAnchorIso) {
-    deadlineIso = deadlineFromOpenedAt(openAnchorIso, windowDays);
-  } else if (status === "draft") {
-    const anchor =
-      existing?.opened_at ?? existing?.created_at ?? (existing ? nowIso : null);
-    if (anchor) deadlineIso = deadlineFromOpenedAt(anchor, windowDays);
-  }
+  const deadlineIso = resolveSaveDeadlineIso({
+    status,
+    openingNow,
+    wasOpen,
+    existingDeadline: existing?.deadline,
+    openAnchorIso,
+    windowDays,
+    draftAnchor:
+      existing?.opened_at ?? existing?.created_at ?? (existing ? nowIso : null),
+  });
 
   const payload: Record<string, unknown> = {
     title,

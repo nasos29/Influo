@@ -63,6 +63,33 @@ export function deadlineFromOpenedAt(openedAtIso: string, days: number): string 
   return new Date(new Date(openedAtIso).getTime() + days * DAY_MS).toISOString();
 }
 
+export type ResolveSaveDeadlineInput = {
+  status: string;
+  openingNow: boolean;
+  wasOpen: boolean;
+  existingDeadline: string | null | undefined;
+  openAnchorIso: string | null;
+  windowDays: number;
+  draftAnchor: string | null;
+};
+
+/**
+ * Campaign save payload deadline. Legacy no-deadline open rows stay null on
+ * stay-open edits; new opens and reopens set opened_at + window days.
+ */
+export function resolveSaveDeadlineIso(input: ResolveSaveDeadlineInput): string | null {
+  if (input.status === "open" && input.openAnchorIso) {
+    if (input.wasOpen && !input.openingNow && input.existingDeadline == null) {
+      return null;
+    }
+    return deadlineFromOpenedAt(input.openAnchorIso, input.windowDays);
+  }
+  if (input.status === "draft" && input.draftAnchor) {
+    return deadlineFromOpenedAt(input.draftAnchor, input.windowDays);
+  }
+  return null;
+}
+
 /** Infer picker value when editing an existing row. */
 export function inferApplicationWindowDays(
   deadline: string | null | undefined,
