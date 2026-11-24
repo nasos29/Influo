@@ -2457,22 +2457,7 @@ export default function InfluencerProfile(props: {
                   min_rate: profile.min_rate || badgeMinRateFromTier(profile.price_tier),
                   extra_badges: extraBadges,
                 }, lang);
-                
-                // Debug: log badge calculation (always log for debugging)
-                console.log('Badge calculation:', {
-                  verified: profile.verified,
-                  accountAgeDays,
-                  created_at: profile.created_at,
-                  badgesCount: badges.length,
-                  badges: badges.map(b => b.type),
-                  profileData: {
-                    created_at: profile.created_at,
-                    verified: profile.verified,
-                    followers: profile.followers,
-                    engagement_rate: profile.engagement_rate
-                  }
-                });
-                
+
                 return badges.length > 0 ? (
                   <div className="mb-2 flex flex-wrap justify-center gap-2 md:justify-end">
                     {badges.map((badge, idx) => (

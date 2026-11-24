@@ -167,7 +167,7 @@ export default function SimilarInfluencers({
 
           return (
             <div key={row.id} data-carousel-card className={INFLUENCER_CAROUSEL_CARD_CLASS}>
-              <Link href={href} className="block group">
+              <Link href={href} prefetch={false} className="block group">
                 <InfluencerCard
                   name={name}
                   avatar={row.avatar_url || ""}

@@ -1053,7 +1053,7 @@ export default function Directory({
         </p>
       ) : null}
 
-      {loading ? (
+      {loading && influencers.length === 0 ? (
         <div className={cardGridClass}>
           {[...Array(8)].map((_, i) => (
             <div key={i} className="animate-pulse">
@@ -1075,6 +1075,7 @@ export default function Directory({
               return (
                 <Link
                   href={publicProfilePath(inf.profile_slug, inf.id)}
+                  prefetch={false}
                   key={inf.id}
                   className="block group min-w-0"
                   onClick={() => {
