@@ -351,36 +351,42 @@ export default function AdminPlatformStatsTab({ lang }: { lang: "el" | "en" }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
+    const labels = tr[lang];
     try {
       const headers = await adminAuthHeaders();
       const [overviewRes, trafficRes] = await Promise.all([
-        fetch("/api/admin/stats/overview", { headers }),
-        fetch("/api/admin/stats/traffic", { headers }),
+        fetch("/api/admin/stats/overview", { headers, signal }),
+        fetch("/api/admin/stats/traffic", { headers, signal }),
       ]);
+      if (signal?.aborted) return;
       const json = (await overviewRes.json()) as OverviewPayload;
       if (!overviewRes.ok) {
-        setError(json.error || txt.error);
+        setError(json.error || labels.error);
         setData(null);
         setTraffic(null);
         return;
       }
       setData(json);
       const trafficJson = (await trafficRes.json()) as TrafficPayload;
-      setTraffic(trafficRes.ok ? trafficJson : { configured: false, error: txt.trafficLoadError });
-    } catch {
-      setError(txt.error);
+      if (signal?.aborted) return;
+      setTraffic(trafficRes.ok ? trafficJson : { configured: false, error: labels.trafficLoadError });
+    } catch (err) {
+      if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
+      setError(tr[lang].error);
       setData(null);
       setTraffic(null);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
-  }, [txt.error, txt.trafficLoadError]);
+  }, [lang]);
 
   useEffect(() => {
-    void load();
+    const ac = new AbortController();
+    void load(ac.signal);
+    return () => ac.abort();
   }, [load]);
 
   const funnelBase = useMemo(() => Math.max(data?.funnel.signups ?? 0, 1), [data]);

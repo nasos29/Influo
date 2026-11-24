@@ -5,6 +5,7 @@ import { buildServiceAccountJwt } from "@/lib/ga4Jwt";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const CACHE_MS = 10 * 60 * 1000;
 const TOKEN_REFRESH_BUFFER_SEC = 120;
+export const GA4_MAX_DATE_RANGES = 4;
 
 export type Ga4TrafficResponse = {
   configured: boolean;
@@ -73,7 +74,7 @@ async function fetchAccessToken(clientEmail: string, privateKey: string): Promis
   }
 }
 
-type DateRangeSpec = { name: string; startDate: string; endDate: string };
+export type DateRangeSpec = { name: string; startDate: string; endDate: string };
 
 type RunReportResponse = {
   rows?: {
@@ -139,34 +140,101 @@ function periodBoundsToYmd(): {
   };
 }
 
-function periodKpiFromRowValues(vals: { value?: string }[]): PeriodKpi {
-  return {
-    today: parseMetricInt(vals[0]?.value),
-    d7: parseMetricInt(vals[1]?.value),
-    prev7: parseMetricInt(vals[2]?.value),
-    d30: parseMetricInt(vals[3]?.value),
-    prev30: parseMetricInt(vals[4]?.value),
-  };
+type PeriodRangeMap = {
+  today: DateRangeSpec;
+  d7: DateRangeSpec;
+  prev7: DateRangeSpec;
+  d30: DateRangeSpec;
+  prev30: DateRangeSpec;
+};
+
+/** Split 5 logical ranges into batches of at most 4 for GA4 runReport. */
+export function splitGa4DateRangeBatches(
+  ranges: PeriodRangeMap
+): { batch: { startDate: string; endDate: string }[]; keys: (keyof PeriodKpi)[] }[] {
+  const ordered: (keyof PeriodKpi)[] = ["today", "d7", "prev7", "d30", "prev30"];
+  const specs = [ranges.today, ranges.d7, ranges.prev7, ranges.d30, ranges.prev30];
+  return [
+    {
+      batch: specs.slice(0, 4).map((r) => ({ startDate: r.startDate, endDate: r.endDate })),
+      keys: ordered.slice(0, 4),
+    },
+    {
+      batch: [specs[4]].map((r) => ({ startDate: r.startDate, endDate: r.endDate })),
+      keys: [ordered[4]],
+    },
+  ];
 }
 
-function kpiFromMetricReports(
-  reports: Record<string, RunReportResponse | null>
+function dateRangeIndex(value: string | undefined): number | null {
+  if (!value) return null;
+  const m = /^date_range_(\d+)$/.exec(value.trim());
+  if (!m) return null;
+  const idx = Number(m[1]);
+  return Number.isFinite(idx) ? idx : null;
+}
+
+/** Parse GA4 rows with `dateRange` dimension into metric counts keyed by period field. */
+export function parseGa4DateRangeMetricRows(
+  report: RunReportResponse | null | undefined,
+  keys: (keyof PeriodKpi)[],
+  metricIndex = 0
+): Partial<Record<keyof PeriodKpi, number>> {
+  const out: Partial<Record<keyof PeriodKpi, number>> = {};
+  if (!report?.rows?.length) return out;
+  for (const row of report.rows) {
+    const idx = dateRangeIndex(row.dimensionValues?.[0]?.value);
+    if (idx == null || idx < 0 || idx >= keys.length) continue;
+    const key = keys[idx];
+    out[key] = parseMetricInt(row.metricValues?.[metricIndex]?.value);
+  }
+  return out;
+}
+
+function mergePeriodSlices(...slices: Partial<Record<keyof PeriodKpi, number>>[]): PeriodKpi {
+  const merged: PeriodKpi = { today: 0, d7: 0, prev7: 0, d30: 0, prev30: 0 };
+  for (const slice of slices) {
+    for (const k of ["today", "d7", "prev7", "d30", "prev30"] as const) {
+      if (typeof slice[k] === "number") merged[k] = slice[k]!;
+    }
+  }
+  return merged;
+}
+
+async function runKpiReportBatch(
+  accessToken: string,
+  propId: string,
+  batch: { startDate: string; endDate: string }[],
+  keys: (keyof PeriodKpi)[]
+): Promise<RunReportResponse | null> {
+  if (batch.length > GA4_MAX_DATE_RANGES) return null;
+  return runReport(accessToken, propId, {
+    dateRanges: batch,
+    dimensions: [{ name: "dateRange" }],
+    metrics: [{ name: "activeUsers" }, { name: "sessions" }, { name: "newUsers" }],
+  });
+}
+
+function kpiFromBatchReports(
+  reports: (RunReportResponse | null)[],
+  batches: { keys: (keyof PeriodKpi)[] }[]
 ): { users: PeriodKpi; sessions: PeriodKpi; newUsers: PeriodKpi } | null {
-  const ranges = periodBoundsToYmd();
-  const rangeList = [ranges.today, ranges.d7, ranges.prev7, ranges.d30, ranges.prev30];
+  const userSlices: Partial<Record<keyof PeriodKpi, number>>[] = [];
+  const sessionSlices: Partial<Record<keyof PeriodKpi, number>>[] = [];
+  const newUserSlices: Partial<Record<keyof PeriodKpi, number>>[] = [];
 
-  const extract = (metricName: string): PeriodKpi | null => {
-    const report = reports[metricName];
-    if (!report?.rows?.[0]?.metricValues) return null;
-    const vals = report.rows[0].metricValues;
-    if (vals.length < rangeList.length) return null;
-    return periodKpiFromRowValues(vals);
-  };
+  for (let i = 0; i < reports.length; i++) {
+    const report = reports[i];
+    const keys = batches[i]?.keys ?? [];
+    userSlices.push(parseGa4DateRangeMetricRows(report, keys, 0));
+    sessionSlices.push(parseGa4DateRangeMetricRows(report, keys, 1));
+    newUserSlices.push(parseGa4DateRangeMetricRows(report, keys, 2));
+  }
 
-  const users = extract("activeUsers");
-  const sessions = extract("sessions");
-  const newUsers = extract("newUsers");
-  if (!users || !sessions || !newUsers) return null;
+  const users = mergePeriodSlices(...userSlices);
+  const sessions = mergePeriodSlices(...sessionSlices);
+  const newUsers = mergePeriodSlices(...newUserSlices);
+  if (!users && !sessions) return null;
   return { users, sessions, newUsers };
 }
 
@@ -176,45 +244,36 @@ async function fetchKpiMetrics(accessToken: string, propId: string): Promise<{
   newUsers: PeriodKpi;
 } | null> {
   const ranges = periodBoundsToYmd();
-  const dateRanges = [ranges.today, ranges.d7, ranges.prev7, ranges.d30, ranges.prev30].map((r) => ({
-    startDate: r.startDate,
-    endDate: r.endDate,
-  }));
+  const batches = splitGa4DateRangeBatches(ranges);
 
-  const runForMetric = (name: string) =>
-    runReport(accessToken, propId, {
-      dateRanges,
-      metrics: [{ name }],
-    });
+  const reports = await Promise.all(
+    batches.map((b) => runKpiReportBatch(accessToken, propId, b.batch, b.keys))
+  );
 
-  const [activeUsers, sessions, newUsers] = await Promise.all([
-    runForMetric("activeUsers"),
-    runForMetric("sessions"),
-    runForMetric("newUsers"),
-  ]);
-
-  return kpiFromMetricReports({ activeUsers, sessions, newUsers });
+  return kpiFromBatchReports(reports, batches);
 }
 
 async function fetchSignUpKpi(accessToken: string, propId: string): Promise<PeriodKpi | null> {
   const ranges = periodBoundsToYmd();
-  const dateRanges = [ranges.today, ranges.d7, ranges.prev7, ranges.d30, ranges.prev30].map((r) => ({
-    startDate: r.startDate,
-    endDate: r.endDate,
-  }));
-  const report = await runReport(accessToken, propId, {
-    dateRanges,
-    metrics: [{ name: "eventCount" }],
-    dimensionFilter: {
-      filter: {
-        fieldName: "eventName",
-        stringFilter: { matchType: "EXACT", value: "sign_up" },
+  const batches = splitGa4DateRangeBatches(ranges);
+
+  const slices: Partial<Record<keyof PeriodKpi, number>>[] = [];
+  for (const b of batches) {
+    if (b.batch.length > GA4_MAX_DATE_RANGES) return null;
+    const report = await runReport(accessToken, propId, {
+      dateRanges: b.batch,
+      dimensions: [{ name: "dateRange" }],
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "eventName",
+          stringFilter: { matchType: "EXACT", value: "sign_up" },
+        },
       },
-    },
-  });
-  const vals = report?.rows?.[0]?.metricValues;
-  if (!vals || vals.length < dateRanges.length) return null;
-  return periodKpiFromRowValues(vals);
+    });
+    slices.push(parseGa4DateRangeMetricRows(report, b.keys, 0));
+  }
+  return mergePeriodSlices(...slices);
 }
 
 async function fetchTopChannels(

@@ -295,7 +295,7 @@ export default function AdminInfluencerStatsTab({
     }
   }, [filtered, selectedId]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     if (!selectedId) return;
     setLoading(true);
     setError(false);
@@ -321,24 +321,30 @@ export default function AdminInfluencerStatsTab({
 
       const res = await fetch(`/api/admin/stats/influencer?${params.toString()}`, {
         headers: await adminAuthHeaders(),
+        signal,
       });
+      if (signal?.aborted) return;
       if (!res.ok) {
         setPayload(null);
         setError(true);
         return;
       }
       const data = (await res.json()) as InfluencerStatsPayload;
+      if (signal?.aborted) return;
       setPayload(data);
-    } catch {
+    } catch (err) {
+      if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
       setPayload(null);
       setError(true);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [selectedId, period, customStart, customEnd]);
 
   useEffect(() => {
-    void load();
+    const ac = new AbortController();
+    void load(ac.signal);
+    return () => ac.abort();
   }, [load]);
 
   const views = payload?.analytics.profileViews ?? 0;
