@@ -1,9 +1,9 @@
 import { readFileSync, existsSync } from "node:fs";
 import { athensYmdFromIso, addAthensYmdDays, buildStatsPeriodBounds, type PeriodKpi } from "@/lib/adminPlatformStats";
 import { buildServiceAccountJwt } from "@/lib/ga4Jwt";
+import { createStatsSwrCache } from "@/lib/adminStatsSingleFlight";
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const CACHE_MS = 10 * 60 * 1000;
 const TOKEN_REFRESH_BUFFER_SEC = 120;
 export const GA4_MAX_DATE_RANGES = 4;
 
@@ -21,10 +21,9 @@ export type Ga4TrafficResponse = {
 type ServiceAccountKey = { client_email?: string; private_key?: string };
 
 type TokenCache = { accessToken: string; expiresAtSec: number };
-type PayloadCache = { payload: Ga4TrafficResponse; fetchedAt: number };
 
 let tokenCache: TokenCache | null = null;
-let payloadCache: PayloadCache | null = null;
+const trafficCache = createStatsSwrCache<Ga4TrafficResponse>();
 
 function readServiceAccount(): { client_email: string; private_key: string } | null {
   const keyPath = process.env.GA4_SA_KEY_FILE?.trim();
@@ -352,15 +351,13 @@ async function fetchGa4TrafficUncached(): Promise<Ga4TrafficResponse> {
   };
 }
 
-/** Server-side GA4 traffic snapshot for admin (10-minute in-memory cache on success). */
+/** Server-side GA4 traffic snapshot for admin (SWR + single-flight). */
 export async function getGa4TrafficPayload(): Promise<Ga4TrafficResponse> {
-  const now = Date.now();
-  if (payloadCache && now - payloadCache.fetchedAt < CACHE_MS && payloadCache.payload.configured) {
-    return payloadCache.payload;
+  try {
+    return await trafficCache.serve(() => fetchGa4TrafficUncached());
+  } catch {
+    const stale = trafficCache.peek();
+    if (stale) return stale;
+    return { configured: false, error: "Could not load traffic from GA4." };
   }
-  const fresh = await fetchGa4TrafficUncached();
-  if (fresh.configured) {
-    payloadCache = { payload: fresh, fetchedAt: now };
-  }
-  return fresh;
 }

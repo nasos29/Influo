@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rejectUnlessAdmin, supabaseService } from "@/lib/apiAuth";
 import {
-  aggregateProfileAnalytics,
   athensDayKeysInRange,
   defaultInfluencerStatsPeriod,
   parsePlatformAccount,
   proposalBudgetAmount,
-  isSocialOutboundProfileClick,
 } from "@/lib/adminInfluencerStats";
 import { avgOf } from "@/lib/adminPlatformStats";
 import { totalFollowersFromAccounts } from "@/lib/parseFollowers";
@@ -22,12 +20,12 @@ import {
   boundInfluencerAllTimeRange,
   fetchCapped,
   headCount,
-  INFLUENCER_ANALYTICS_ROW_CAP,
-  INFLUENCER_CACHE_MS,
+  influencerAnalyticsDailyByHead,
   influencerPeriodAnalyticsTotals,
   runInBatches,
   STATS_REQUEST_TIMEOUT_MS,
 } from "@/lib/adminStatsRouteHelpers";
+import { createStatsSwrCache } from "@/lib/adminStatsSingleFlight";
 import { isTimeoutError, TimeoutError, withTimeout } from "@/lib/withTimeout";
 
 const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
@@ -35,8 +33,16 @@ const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
 const APPLICATION_STATUSES = ["pending", "accepted", "withdrawn", "rejected", "shortlisted"] as const;
 const PROPOSAL_STATUSES = ["pending", "accepted", "completed", "rejected", "cancelled"] as const;
 
-type InfluencerCache = { key: string; payload: unknown; fetchedAt: number };
-let influencerCache: InfluencerCache | null = null;
+const influencerCacheByKey = new Map<string, ReturnType<typeof createStatsSwrCache<unknown>>>();
+
+function influencerCacheForKey(key: string) {
+  let cache = influencerCacheByKey.get(key);
+  if (!cache) {
+    cache = createStatsSwrCache<unknown>();
+    influencerCacheByKey.set(key, cache);
+  }
+  return cache;
+}
 
 function cacheKey(id: string, start: string | null, end: string | null, allTime: boolean): string {
   return JSON.stringify({ id, start, end, allTime });
@@ -244,39 +250,13 @@ async function buildInfluencerPayload(
       admin.from("influencers").select("accounts").eq("id", id).maybeSingle(),
     ]);
 
-  const dailyRows = await fetchCapped<{ event_type: string; created_at: string }>(
-    admin,
-    "influencer_analytics",
-    "event_type, created_at",
-    (q) => {
-      let cur = q.eq("influencer_id", id);
-      if (start) cur = cur.gte("created_at", start);
-      if (end) cur = cur.lt("created_at", end);
-      return cur;
-    },
-    INFLUENCER_ANALYTICS_ROW_CAP
-  );
-
-  const socialMetaRows = await fetchCapped<{ created_at: string; metadata: unknown }>(
-    admin,
-    "influencer_analytics",
-    "created_at, metadata",
-    (q) => {
-      let cur = q.eq("influencer_id", id).eq("event_type", "profile_click").filter("metadata->>source", "eq", "social_outbound");
-      if (start) cur = cur.gte("created_at", start);
-      if (end) cur = cur.lt("created_at", end);
-      return cur;
-    },
-    2000
-  );
-
-  const dailyAggregate = aggregateProfileAnalytics(dailyRows, dayKeys);
+  const daily = await influencerAnalyticsDailyByHead(admin, id, dayKeys);
   const analytics = {
-    ...dailyAggregate,
     profileViews: totals.profileViews,
     profileClicksInfluo: totals.profileClicksInfluo,
     socialOutboundClicks: totals.socialOutboundClicks,
-    socialOutboundByPlatform: buildSocialByPlatform(socialMetaRows),
+    socialOutboundByPlatform: {} as Record<string, number>,
+    daily,
   };
 
   const recentResult = await (async () => {
@@ -335,17 +315,6 @@ async function buildInfluencerPayload(
   };
 }
 
-function buildSocialByPlatform(rows: { metadata: unknown }[]): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const row of rows) {
-    if (!isSocialOutboundProfileClick({ event_type: "profile_click", metadata: row.metadata })) continue;
-    const m = row.metadata as Record<string, unknown> | undefined;
-    const p = typeof m?.platform === "string" ? m.platform.toLowerCase() : "unknown";
-    out[p] = (out[p] ?? 0) + 1;
-  }
-  return out;
-}
-
 export async function GET(request: NextRequest) {
   const denied = await rejectUnlessAdmin(request);
   if (denied) return denied;
@@ -372,18 +341,19 @@ export async function GET(request: NextRequest) {
   }
 
   const key = cacheKey(id, start, end, allTime);
-  const now = Date.now();
-  if (influencerCache && influencerCache.key === key && now - influencerCache.fetchedAt < INFLUENCER_CACHE_MS) {
-    return NextResponse.json(influencerCache.payload, { headers: CACHE_HEADERS });
-  }
-
+  const cache = influencerCacheForKey(key);
   const admin = supabaseService();
 
   try {
-    const payload = await withTimeout(buildInfluencerPayload(admin, id, start, end, allTime), STATS_REQUEST_TIMEOUT_MS);
-    influencerCache = { key, payload, fetchedAt: now };
+    const payload = await cache.serve(() =>
+      withTimeout(buildInfluencerPayload(admin, id, start, end, allTime), STATS_REQUEST_TIMEOUT_MS)
+    );
     return NextResponse.json(payload, { headers: CACHE_HEADERS });
   } catch (err) {
+    const stale = cache.peek();
+    if (stale) {
+      return NextResponse.json(stale, { headers: CACHE_HEADERS });
+    }
     if (isTimeoutError(err) || err instanceof TimeoutError) {
       return NextResponse.json({ error: "timeout" }, { status: 504, headers: CACHE_HEADERS });
     }
