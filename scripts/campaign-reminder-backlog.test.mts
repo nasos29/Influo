@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  CAMPAIGN_DEFAULT_DAYS,
+  CAMPAIGN_INTERIM_DEFAULT_DAYS,
   CAMPAIGN_LEGACY_DEFAULT_DAYS,
   campaignClosesAt,
 } from "../lib/campaignLifecycle.ts";
@@ -27,7 +27,7 @@ test("no-deadline post-cutoff campaign uses 15-day close", () => {
   }).getTime();
   assert.equal(due, expected);
   const days = (due! - new Date(openedAt).getTime()) / DAY_MS;
-  assert.equal(days, CAMPAIGN_DEFAULT_DAYS);
+  assert.equal(days, CAMPAIGN_INTERIM_DEFAULT_DAYS);
 });
 
 test("no-deadline pre-cutoff campaign uses 30-day close", () => {

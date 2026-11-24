@@ -188,8 +188,8 @@ export const faqs: FAQItem[] = [
       en: "How long does a campaign stay open?"
     },
     answer: {
-      el: "Κλείνει αυτόματα στην προθεσμία της· αν δεν έχει προθεσμία, 15 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν, το brand παίρνει υπενθύμιση email· όταν κλείσει, ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — μόνο κλείνουν. Για ξανάνοιγμα: επεξεργασία → κατάσταση «Ανοιχτή» (νέο 15ήμερο)· αν η προθεσμία είχε περάσει, ανοίγει αυτόματα για 15 μέρες.",
-      en: "It closes automatically on its deadline; with no deadline, 15 days after opening. The card shows “Closes automatically in N days” or “Ends in…”. Three days before close the brand gets an email reminder; when it closes, the brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — only closed. To reopen: edit → set status to Open (new 15-day window); if the deadline had passed, it opens automatically for 15 days."
+      el: "Όταν δημιουργείτε ή επεξεργάζεστε καμπάνια, επιλέγετε παράθυρο αιτήσεων 3, 7 ή 14 ημέρες (προεπιλογή 7) από τη στιγμή του ανοίγματος. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν, το brand παίρνει υπενθύμιση email· όταν κλείσει, ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — μόνο κλείνουν. Για ξανάνοιγμα: επεξεργασία → κατάσταση «Ανοιχτή» με νέο παράθυρο αιτήσεων.",
+      en: "When you create or edit a campaign, you choose a 3, 7, or 14-day application window (default 7) from when it opens. The card shows “Closes automatically in N days” or “Ends in…”. Three days before close the brand gets an email reminder; when it closes, the brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — only closed. To reopen: edit → set status to Open with a new application window."
     }
   },
   {

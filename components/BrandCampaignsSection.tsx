@@ -32,8 +32,12 @@ import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { pendingAppsSlaLabel } from "@/lib/campaignPendingApps";
 import { responseText } from "@/lib/bilingualError";
 import { campaignField } from "@/lib/campaignLocalized";
-import { useSiteSettings } from "@/components/SiteSettingsProvider";
-import { CAMPAIGN_DEFAULT_DAYS } from "@/lib/campaignLifecycle";
+import {
+  APPLICATION_WINDOW_DAYS,
+  deadlineFromOpenedAt,
+  inferApplicationWindowDays,
+  type ApplicationWindowDays,
+} from "@/lib/campaignLifecycle";
 import DealCancelDialog from "@/components/DealCancelDialog";
 import { canCancelCampaignDeal } from "@/lib/campaignDealCancelEligibility";
 import { cancelledByDisplay } from "@/lib/dealCancelEligibility";
@@ -177,16 +181,10 @@ function langPack<K extends string>(rows: Record<K, LangPair>) {
   return pack;
 }
 
-function deadlineAutoCloseCopy(lang: "el" | "en", days: number): string {
+function applicationWindowHelp(lang: "el" | "en"): string {
   return lang === "el"
-    ? `Αν δεν ορίσετε προθεσμία, η καμπάνια κλείνει αυτόματα σε ${days} μέρες.`
-    : `If you do not set a deadline, the campaign closes automatically after ${days} days.`;
-}
-
-function deadlineClearedOnOpenCopy(lang: "el" | "en", days: number): string {
-  return lang === "el"
-    ? `Η παλιά προθεσμία είχε περάσει, οπότε η καμπάνια άνοιξε για ${days} μέρες. Μπορείτε να ορίσετε νέα προθεσμία από την επεξεργασία.`
-    : `The old deadline had passed, so the campaign reopened for ${days} days. You can set a new deadline by editing it.`;
+    ? "Οι αιτήσεις κλείνουν αυτόματα μετά από τόσες ημέρες από τη στιγμή που η καμπάνια ανοίγει δημόσια (ή ξανανοίγει)."
+    : "Applications close automatically this many days after the campaign is opened publicly (or reopened).";
 }
 
 const extra = langPack({
@@ -200,7 +198,6 @@ const extra = langPack({
   comp_product: { el: "Προϊόν", en: "Product" },
   comp_both: { el: "Χρήματα και προϊόν", en: "Money and product" },
   date_order: { el: "Μορφή ηη/μμ/εεεε, π.χ. 15/11/2026.", en: "Format dd/mm/yyyy, e.g. 15/11/2026." },
-  deadline_after_start: { el: "Η προθεσμία πρέπει να είναι μετά την ημερομηνία έναρξης.", en: "The deadline must be after the start date." },
   contact_hint: {
     el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
     en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
@@ -264,7 +261,7 @@ const txt = langPack({
   form_budget: { el: "Budget (€)", en: "Budget (€)" },
   form_category: { el: "Κατηγορία", en: "Category" },
   form_deliverables: { el: "Παράδοση / deliverables (προαιρετικό)", en: "Deliverables (optional)" },
-  form_deadline: { el: "Προθεσμία (προαιρετικό)", en: "Deadline (optional)" },
+  form_app_window: { el: "Παράθυρο αιτήσεων", en: "Application window" },
   form_status: { el: "Κατάσταση", en: "Status" },
   status_draft: { el: "Πρόχειρο", en: "Draft" },
   status_open: { el: "Ανοιχτή (δημόσια)", en: "Open (public)" },
@@ -382,7 +379,7 @@ const emptyForm = () => ({
   budget: "",
   category: "",
   deliverables: "",
-  deadline: "",
+  application_window_days: 7 as ApplicationWindowDays,
   starts_on: "",
   location: "",
   min_followers: "",
@@ -397,7 +394,7 @@ const emptyForm = () => ({
 });
 
 type CampaignForm = ReturnType<typeof emptyForm>;
-type FieldKey = "title" | "description" | "category" | "location" | "platforms" | "deliverables" | "compensation_type" | "budget" | "starts_on" | "deadline" | "slots" | "status";
+type FieldKey = "title" | "description" | "category" | "location" | "platforms" | "deliverables" | "compensation_type" | "budget" | "starts_on" | "application_window_days" | "slots" | "status";
 
 const DRAFT_KEY = (brandId: string) => `influo:campaign-draft:${brandId}`;
 
@@ -599,8 +596,6 @@ export default function BrandCampaignsSection({
   /** Opens the existing create form once, from /brand/dashboard?tab=campaigns&new=1. */
   startNew?: boolean;
 }) {
-  const settings = useSiteSettings();
-  const campaignDefaultDays = settings.campaign_default_days || CAMPAIGN_DEFAULT_DAYS;
   const t = txt[lang];
   const x = extra[lang];
   const wz = wiz[lang];
@@ -635,7 +630,6 @@ export default function BrandCampaignsSection({
   const [approveShowcaseByApp, setApproveShowcaseByApp] = useState<Record<string, boolean>>({});
   /** Application ids whose deliverable details are expanded (marks seen on open). */
   const [openDeliverableIds, setOpenDeliverableIds] = useState<Record<string, boolean>>({});
-  const [deadlineClearedNotice, setDeadlineClearedNotice] = useState(false);
   const [step, setStep] = useState(1);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [draftRestored, setDraftRestored] = useState(false);
@@ -871,9 +865,15 @@ export default function BrandCampaignsSection({
     try {
       const raw = localStorage.getItem(DRAFT_KEY(brandId));
       if (!raw) return null;
-      const parsed = JSON.parse(raw) as { form?: Partial<CampaignForm>; step?: number; at?: number };
+      const parsed = JSON.parse(raw) as { form?: Partial<CampaignForm> & { deadline?: string }; step?: number; at?: number };
       if (!parsed.form || !parsed.at || Date.now() - parsed.at > 14 * 24 * 3600 * 1000) return null;
-      return { form: { ...emptyForm(), ...parsed.form }, step: Math.max(1, Math.min(3, Number(parsed.step) || 1)) };
+      const merged = { ...emptyForm(), ...parsed.form };
+      delete (merged as { deadline?: string }).deadline;
+      const w = Number(merged.application_window_days);
+      if (!APPLICATION_WINDOW_DAYS.includes(w as ApplicationWindowDays)) {
+        merged.application_window_days = 7;
+      }
+      return { form: merged, step: Math.max(1, Math.min(3, Number(parsed.step) || 1)) };
     } catch {
       return null;
     }
@@ -1001,7 +1001,7 @@ export default function BrandCampaignsSection({
       deliverables: parsed.rest,
       cover_url: row.cover_url || "",
       chips: parsed.chips,
-      deadline: ymd(row.deadline),
+      application_window_days: inferApplicationWindowDays(row.deadline, row.opened_at, row.created_at),
       starts_on: ymd(row.starts_on),
       location: row.location || "",
       min_followers: row.min_followers != null ? String(row.min_followers) : "",
@@ -1116,9 +1116,7 @@ export default function BrandCampaignsSection({
         const rangeMsg = DATE_RANGE_MSG[el ? "el" : "en"];
         if (!e.starts_on && form.starts_on > b.max) e.starts_on = rangeMsg;
         if (!e.starts_on && editing === "new" && form.starts_on < b.min) e.starts_on = rangeMsg;
-        if (form.deadline && (form.deadline > b.max || (editing === "new" && form.deadline < b.min))) e.deadline = rangeMsg;
       }
-      if (!e.deadline && form.deadline && form.starts_on && form.deadline <= form.starts_on) e.deadline = x.deadline_after_start;
       if (form.slots && !(parseInt(form.slots, 10) > 0)) e.slots = el ? "Οι θέσεις πρέπει να είναι θετικός αριθμός ή «Χωρίς όριο»." : "Spots must be a positive number or “No limit”.";
     }
     if (n === 3) {
@@ -1197,7 +1195,7 @@ export default function BrandCampaignsSection({
         category: normalizeCategoryToken(form.category) || form.category,
         deliverables: buildDeliverables(form.chips, form.deliverables),
         status: form.status,
-        deadline: form.deadline || null,
+        application_window_days: form.application_window_days,
         starts_on: form.starts_on,
         location: form.location.trim(),
         requires_presence: form.requires_presence,
@@ -1224,7 +1222,6 @@ export default function BrandCampaignsSection({
       const data = (await res.json().catch(() => ({}))) as {
         ok?: boolean;
         id?: string;
-        deadlineCleared?: boolean;
         error?: string;
         message?: { el?: string; en?: string } | string;
         field?: string;
@@ -1270,7 +1267,6 @@ export default function BrandCampaignsSection({
       } else {
         toastSuccess(x.saved);
       }
-      setDeadlineClearedNotice(!!data.deadlineCleared);
       if (editing === "new") {
         clearDraft();
         clearSessionKeys("influo:ai-wizard:");
@@ -2039,10 +2035,32 @@ export default function BrandCampaignsSection({
                   <FieldError msg={fieldErrors.starts_on} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t.form_deadline}</label>
-                  <DmyDateField min={form.starts_on || campaignDateBounds().min} max={campaignDateBounds().max} value={form.deadline} onChange={(deadline) => { setForm({ ...form, deadline }); clearFieldError("deadline"); }} />
-                  <p className="text-xs text-slate-500 mt-1">{deadlineAutoCloseCopy(lang, campaignDefaultDays)}</p>
-                  <FieldError msg={fieldErrors.deadline} />
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-slate-700 mb-1">{t.form_app_window}</legend>
+                    <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t.form_app_window}>
+                      {APPLICATION_WINDOW_DAYS.map((d) => {
+                        const on = form.application_window_days === d;
+                        const dayLabel = lang === "el" ? `${d} ημέρες` : `${d} days`;
+                        return (
+                          <button
+                            key={d}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            onClick={() => {
+                              setForm({ ...form, application_window_days: d });
+                              clearFieldError("application_window_days");
+                            }}
+                            className={`min-h-9 rounded-full border px-4 text-sm font-medium transition ${on ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}
+                          >
+                            {dayLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">{applicationWindowHelp(lang)}</p>
+                  </fieldset>
+                  <FieldError msg={fieldErrors.application_window_days} />
                 </div>
               </div>
             </div>
@@ -2094,7 +2112,7 @@ export default function BrandCampaignsSection({
                       budget: parseFloat(form.budget) || 0,
                       category: form.category || null,
                       deliverables: buildDeliverables(form.chips, form.deliverables) || null,
-                      deadline: form.deadline || null,
+                      deadline: deadlineFromOpenedAt(new Date().toISOString(), form.application_window_days),
                       created_at: new Date().toISOString(),
                       platforms: form.platforms,
                       cover_url: form.cover_url || null,
@@ -2134,25 +2152,6 @@ export default function BrandCampaignsSection({
             <p className="text-xs text-slate-500">{lang === "el" ? "Μπορείτε να κάνετε αλλαγές και μετά την αποθήκευση." : "You can still make changes after saving."}</p>
           )}
         </form>
-      )}
-
-      {deadlineClearedNotice && (
-        <div
-          role="status"
-          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex gap-3 items-start"
-        >
-          <p className="text-sm text-amber-950 flex-1 min-w-0 leading-relaxed">
-            {deadlineClearedOnOpenCopy(lang, campaignDefaultDays)}
-          </p>
-          <button
-            type="button"
-            onClick={() => setDeadlineClearedNotice(false)}
-            className="shrink-0 text-amber-800/80 hover:text-amber-950 text-sm font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 rounded"
-            aria-label={lang === "el" ? "Κλείσιμο" : "Dismiss"}
-          >
-            ✕
-          </button>
-        </div>
       )}
 
       {invites.length > 0 && (

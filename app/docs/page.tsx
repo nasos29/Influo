@@ -391,8 +391,8 @@ const FAQ_ITEMS: FaqEntry[] = [
       en: "How long does a campaign stay open?",
     },
     a: {
-      el: "Κλείνει αυτόματα στην προθεσμία· χωρίς προθεσμία, 15 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν το brand παίρνει υπενθύμιση· στο κλείσιμο ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Δεν διαγράφονται — για ξανάνοιγμα: κατάσταση «Ανοιχτή» (νέο 15ήμερο)· αν η προθεσμία είχε περάσει, ανοίγει αυτόματα για 15 μέρες.",
-      en: "It closes on its deadline; with no deadline, 15 days after opening. The card shows “Closes automatically in N days” or “Ends in…”. Three days before, the brand gets a reminder; on close, brand and pending applicants are emailed. Expired campaigns leave the public list. They are not deleted — to reopen set status to Open (new 15-day window); if the deadline had passed, it opens automatically for 15 days.",
+      el: "Επιλέγετε παράθυρο αιτήσεων 3, 7 ή 14 ημέρες (προεπιλογή 7) από το άνοιγμα· η προθεσμία αποθηκεύεται αυτόματα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…». 3 μέρες πριν το brand παίρνει υπενθύμιση· στο κλείσιμο ενημερώνονται brand και αιτούντες σε εκκρεμότητα. Οι ληγμένες δεν εμφανίζονται δημόσια. Για ξανάνοιγμα: κατάσταση «Ανοιχτή» με νέο παράθυρο αιτήσεων.",
+      en: "You choose a 3, 7, or 14-day application window (default 7) from opening; the close time is saved automatically. The card shows “Closes automatically in N days” or “Ends in…”. Three days before, the brand gets a reminder; on close, brand and pending applicants are emailed. Expired campaigns leave the public list. To reopen, set status to Open with a new application window.",
     },
   },
   {
@@ -1266,8 +1266,8 @@ export default function DocsPage() {
             <ul className="list-disc list-inside space-y-2 text-slate-700 mb-6 max-w-prose">
               <li>
                 {lang === 'el'
-                  ? 'Η καμπάνια κλείνει αυτόματα στην προθεσμία της. Αν δεν έχει προθεσμία, κλείνει 15 μέρες μετά το άνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…».'
-                  : 'The campaign closes automatically on its deadline. With no deadline, it closes 15 days after opening. The card shows “Closes automatically in N days” or “Ends in…”.'}
+                  ? 'Στο φόρμα επιλέγετε παράθυρο αιτήσεων 3, 7 ή 14 ημέρες (προεπιλογή 7)· κλείνει αυτόματα τόσες μέρες μετά το άνοιγμα ή το ξανάνοιγμα. Η κάρτα δείχνει «Κλείνει αυτόματα σε N μέρες» ή «Λήγει σε…».'
+                  : 'In the form you pick a 3, 7, or 14-day application window (default 7); it closes automatically that many days after opening or reopening. The card shows “Closes automatically in N days” or “Ends in…”.'}
               </li>
               <li>
                 {lang === 'el'
@@ -1281,8 +1281,8 @@ export default function DocsPage() {
               </li>
               <li>
                 {lang === 'el'
-                  ? 'Οι καμπάνιες δεν διαγράφονται, μόνο κλείνουν. Για να την ξανανοίξει, το brand την επεξεργάζεται και βάζει κατάσταση «Ανοιχτή», οπότε ξεκινά νέο 15ήμερο. Αν η προθεσμία είχε περάσει, ανοίγει αυτόματα για 15 μέρες.'
-                  : 'Campaigns are not deleted — only closed. To reopen, the brand edits it and sets status to Open, starting a new 15-day window. If the deadline had passed, it opens automatically for 15 days.'}
+                  ? 'Οι καμπάνιες δεν διαγράφονται, μόνο κλείνουν. Για ξανάνοιγμα: επεξεργασία, κατάσταση «Ανοιχτή» και νέο παράθυρο αιτήσεων 3, 7 ή 14 ημερών.'
+                  : 'Campaigns are not deleted — only closed. To reopen, edit, set status to Open, and pick a new 3, 7, or 14-day application window.'}
               </li>
             </ul>
 

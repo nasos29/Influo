@@ -15,7 +15,7 @@ import {
 test("defaults match current product behavior", () => {
   assert.equal(SITE_SETTING_DEFAULTS.creator_cards_per_row_wide, 5);
   assert.equal(SITE_SETTING_DEFAULTS.campaign_cards_per_row_wide, 4);
-  assert.equal(SITE_SETTING_DEFAULTS.campaign_default_days, 15);
+  assert.equal(SITE_SETTING_DEFAULTS.campaign_default_days, 7);
   assert.equal(SITE_SETTING_DEFAULTS.admin_notice_read_retention_days, 5);
   assert.equal(SITE_SETTING_DEFAULTS.homepage_creators_count, 10);
   assert.equal(SITE_SETTING_DEFAULTS.homepage_campaigns_count, 3);
@@ -36,7 +36,7 @@ test("coerce clamps invalid values to defaults", () => {
   assert.equal(coerceSiteSetting("creator_cards_per_row_wide", 2), 5);
   assert.equal(coerceSiteSetting("creator_cards_per_row_wide", 99), 5);
   assert.equal(coerceSiteSetting("campaign_cards_per_row_wide", "4"), 4);
-  assert.equal(coerceSiteSetting("campaign_default_days", "nope"), 15);
+  assert.equal(coerceSiteSetting("campaign_default_days", "nope"), 7);
   assert.equal(coerceSiteSetting("homepage_creators_count", 21), 10);
   assert.equal(coerceSiteSetting("blog_posts_per_row_wide", 4), 4);
   assert.equal(coerceSiteSetting("filter_ui_variant", 3), 3);
