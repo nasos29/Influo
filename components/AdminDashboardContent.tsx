@@ -21,6 +21,7 @@ import {
   Megaphone,
   Menu,
   MessageSquare,
+  MessageSquareQuote,
   Moon,
   Newspaper,
   Settings,
@@ -31,6 +32,7 @@ import {
 } from "lucide-react";
 import AdminRecentCollaborationsPanel from "@/components/AdminRecentCollaborationsPanel";
 import AdminReportsPanel from "@/components/AdminReportsPanel";
+import AdminReviewsPanel from "@/components/AdminReviewsPanel";
 import { supabase } from "@/lib/supabaseClient";
 import { sessionFetch } from "@/lib/sessionFetch";
 import Image from "next/image";
@@ -2192,6 +2194,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
   const [activeTab, setActiveTab] = useState("overview");
   const [newReportsCount, setNewReportsCount] = useState(0);
+  const [reviewsCount, setReviewsCount] = useState(0);
   const adminTabsRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const nav = adminTabsRef.current;
@@ -3516,6 +3519,20 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     };
   }, []);
   useEffect(() => {
+    let cancelled = false;
+    void sessionFetch("/api/admin/reviews?limit=1")
+      .then((r) => r.json())
+      .then((body) => {
+        if (cancelled) return;
+        if (typeof body.total === "number") setReviewsCount(body.total);
+        else if (typeof body.summary?.total === "number") setReviewsCount(body.summary.total);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
     const id = linkedConversationId.current;
     if (!id) return;
     const match = conversations.find((c) => c.id === id);
@@ -4762,6 +4779,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                 { id: "announcements", label: txt.tab_announcements, icon: Bell, count: 0 },
                 { id: "social_cron", label: txt.tab_social_cron, icon: Activity, count: 0 },
                 { id: "recent_collabs", label: { el: "Συνεργασίες", en: "Collabs" }[lang], icon: Star, count: 0 },
+                { id: "reviews", label: { el: "Αξιολογήσεις", en: "Reviews" }[lang], icon: MessageSquareQuote, count: reviewsCount },
                 { id: "reports", label: { el: "Αναφορές", en: "Reports" }[lang], icon: Flag, count: newReportsCount },
               ] as const
             ).map((tab) => {
@@ -6638,6 +6656,12 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
           {activeTab === "recent_collabs" && (
             <div className="p-4 sm:p-6">
               <AdminRecentCollaborationsPanel lang={lang} />
+            </div>
+          )}
+
+          {activeTab === "reviews" && (
+            <div className="p-4 sm:p-6">
+              <AdminReviewsPanel lang={lang} onCount={setReviewsCount} />
             </div>
           )}
 
