@@ -269,6 +269,8 @@ function notifyAcceptedApplication(input: {
 }
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import { ACTIVE_PROPOSAL_STATUSES } from "@/lib/campaignProposalIdempotency";
+import { isCampaignAcceptingApplications } from "@/lib/campaignLifecycle";
+import { getSiteSettings } from "@/lib/siteSettingsServer";
 
 const STATUSES = new Set(["pending", "shortlisted", "rejected", "accepted"]);
 
@@ -376,11 +378,41 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
 
   const { data: campaign } = await admin
     .from("brand_campaigns")
-    .select("id, status")
+    .select("id, status, deadline, opened_at, created_at")
     .eq("id", campaignId)
     .maybeSingle();
-  if (!campaign || campaign.status !== "open") {
-    return NextResponse.json({ error: "Campaign not available" }, { status: 400 });
+  if (!campaign) {
+    return NextResponse.json(
+      {
+        error: "campaign_not_available",
+        message: { el: "Η καμπάνια δεν είναι διαθέσιμη.", en: "This campaign is not available." },
+      },
+      { status: 400 }
+    );
+  }
+  const settings = await getSiteSettings();
+  const defaultDays = settings.campaign_default_days;
+  const accepting = isCampaignAcceptingApplications(
+    {
+      status: String(campaign.status || ""),
+      deadline: campaign.deadline ?? null,
+      opened_at: campaign.opened_at ?? null,
+      created_at: campaign.created_at ?? new Date(0).toISOString(),
+    },
+    new Date(),
+    { defaultDays }
+  );
+  if (!accepting) {
+    return NextResponse.json(
+      {
+        error: "campaign_not_available",
+        message: {
+          el: "Η καμπάνια δεν δέχεται πλέον αιτήσεις (έληξε ή κλείστηκε).",
+          en: "This campaign is no longer accepting applications (deadline passed or closed).",
+        },
+      },
+      { status: 400 }
+    );
   }
   const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
   if (slotsFull(slotInfo)) {

@@ -5,12 +5,15 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { findContactInfo } from "@/lib/contactFilter";
-import { normalizeDeadlineForOpen } from "@/lib/campaignLifecycle";
+import {
+  deadlineFromOpenedAt,
+  parseApplicationWindowDays,
+} from "@/lib/campaignLifecycle";
 import { normalizeCategoryToken } from "@/lib/categories";
 import { refreshCampaignEnglish } from "@/lib/campaignTranslate";
 
 const CONTACT_BLOCKED = {
-  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνα. Η επικοινωνία γίνεται μέσα από το Influo.",
+  el: "Για την ασφάλειά σας δεν επιτρέπονται links, email ή τηλέφωνο. Η επικοινωνία γίνεται μέσα από το Influo.",
   en: "For your safety, links, emails and phone numbers aren't allowed. Communication happens inside Influo.",
 } as const;
 
@@ -25,17 +28,6 @@ const TEXT_FIELDS = ["title", "description", "deliverables", "location"] as cons
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value : value == null ? "" : String(value);
-}
-
-function parseDeadlineIso(raw: string): string | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return new Date(`${trimmed}T12:00:00`).toISOString();
-  }
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toISOString();
 }
 
 export async function POST(request: NextRequest) {
@@ -71,6 +63,10 @@ export async function POST(request: NextRequest) {
   const platforms = Array.isArray(body.platforms)
     ? body.platforms.filter((p): p is string => typeof p === "string" && !!p.trim()).map((p) => p.trim())
     : [];
+
+  const windowDays = parseApplicationWindowDays(
+    body.application_window_days ?? body.application_days
+  );
 
   if (!title || !description) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
@@ -161,33 +157,35 @@ export async function POST(request: NextRequest) {
     existing = data;
   }
 
-  const deadlineYmd = asString(body.deadline).trim();
   {
     const b = campaignDateBounds();
     if (startsOn > b.max || (!campaignId && startsOn < b.min)) {
       return NextResponse.json({ error: "date_out_of_range", message: DATE_RANGE_MSG.el }, { status: 400 });
     }
-    if (deadlineYmd && /^\d{4}-\d{2}-\d{2}$/.test(deadlineYmd) && (deadlineYmd > b.max || (!campaignId && deadlineYmd < b.min))) {
-      return NextResponse.json({ error: "date_out_of_range", message: DATE_RANGE_MSG.el }, { status: 400 });
-    }
-  }
-  if (deadlineYmd && /^\d{4}-\d{2}-\d{2}$/.test(deadlineYmd) && deadlineYmd <= startsOn) {
-    return NextResponse.json({ error: "deadline_after_start" }, { status: 400 });
   }
 
   const now = new Date();
   const nowIso = now.toISOString();
-  let deadlineIso = deadlineYmd ? parseDeadlineIso(deadlineYmd) : null;
-  let deadlineCleared = false;
-  if (status === "open") {
-    const normalized = normalizeDeadlineForOpen(deadlineIso, now);
-    deadlineIso = normalized.deadline;
-    deadlineCleared = normalized.clearedPastDeadline;
-  }
 
   const wasOpen = existing?.status === "open";
   const wasClosed = existing?.status === "closed";
   const category = normalizeCategoryToken(categoryRaw) || categoryRaw;
+
+  const openingNow = status === "open" && !wasOpen;
+  const openAnchorIso = openingNow
+    ? nowIso
+    : status === "open"
+      ? (existing?.opened_at ?? nowIso)
+      : null;
+
+  let deadlineIso: string | null = null;
+  if (status === "open" && openAnchorIso) {
+    deadlineIso = deadlineFromOpenedAt(openAnchorIso, windowDays);
+  } else if (status === "draft") {
+    const anchor =
+      existing?.opened_at ?? existing?.created_at ?? (existing ? nowIso : null);
+    if (anchor) deadlineIso = deadlineFromOpenedAt(anchor, windowDays);
+  }
 
   const payload: Record<string, unknown> = {
     title,
@@ -216,7 +214,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Server-owned reopen / close stamps — never trust client opened_at / brand_id.
-  if (status === "open" && !wasOpen) {
+  if (openingNow) {
     payload.opened_at = nowIso;
     payload.close_reminder_sent_at = null;
     payload.closed_at = null;
@@ -311,5 +309,5 @@ export async function POST(request: NextRequest) {
   );
 
   revalidatePublicCampaigns(id);
-  return NextResponse.json({ ok: true, id, deadlineCleared });
+  return NextResponse.json({ ok: true, id });
 }

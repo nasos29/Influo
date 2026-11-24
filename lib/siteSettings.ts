@@ -100,16 +100,16 @@ export const SITE_SETTING_META: Record<SiteSettingKey, SiteSettingMeta> = {
   },
   campaign_default_days: {
     key: "campaign_default_days",
-    default: 15,
-    min: 7,
+    default: 7,
+    min: 3,
     max: 60,
     label: {
-      el: "Προεπιλεγμένη διάρκεια καμπάνιας (ημέρες)",
-      en: "Default campaign duration (days)",
+      el: "Προεπιλεγμένο παράθυρο αιτήσεων (ημέρες, legacy)",
+      en: "Default application window (days, legacy)",
     },
     description: {
-      el: "Αν το brand δεν ορίσει προθεσμία, η καμπάνια κλείνει αυτόματα μετά από τόσες ημέρες.",
-      en: "If a brand sets no deadline, the campaign auto-closes after this many days.",
+      el: "Για παλιές καμπάνιες χωρίς προθεσμία που άνοιξαν μετά τις αλλαγές: κλείνουν αυτόματα μετά από τόσες ημέρες. Νέα καμπάνιες επιλέγουν 3, 7 ή 14 ημέρες στο φόρμα.",
+      en: "Legacy no-deadline campaigns opened after the cutoffs: auto-close after this many days. New campaigns pick 3, 7, or 14 days in the form.",
     },
     public: true,
   },
