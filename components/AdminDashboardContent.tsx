@@ -89,6 +89,7 @@ import AdminChatInbox, { openAdminChatWithUser } from "@/components/AdminChatInb
 import { logoutEverywhere } from "@/lib/authSession";
 import {
   adminCampaignSeenKey,
+  adminReviewsSeenKey,
   companySeenKey,
   conversationSeenKey,
   countUnseenIds,
@@ -2195,6 +2196,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [activeTab, setActiveTab] = useState("overview");
   const [newReportsCount, setNewReportsCount] = useState(0);
   const [reviewsCount, setReviewsCount] = useState(0);
+  const [reviewIds, setReviewIds] = useState<string[]>([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const adminTabsRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const nav = adminTabsRef.current;
@@ -3306,6 +3309,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   }, [viewerId, activeTab, adminCampaigns, campaignsLoaded]);
 
+  useEffect(() => {
+    if (!viewerId || typeof window === "undefined") return;
+    const store = window.localStorage;
+    if (activeTab === "reviews") {
+      setReviewsCount(0);
+      if (reviewsLoaded) writeIdList(store, adminReviewsSeenKey(viewerId), reviewIds);
+    } else if (reviewsLoaded) {
+      setReviewsCount(countUnseenIds(reviewIds, readIdList(store, adminReviewsSeenKey(viewerId))));
+    }
+  }, [viewerId, activeTab, reviewIds, reviewsLoaded]);
+
   // Initial load once
   useEffect(() => {
     void fetchData();
@@ -3524,8 +3538,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       .then((r) => r.json())
       .then((body) => {
         if (cancelled) return;
-        if (typeof body.total === "number") setReviewsCount(body.total);
-        else if (typeof body.summary?.total === "number") setReviewsCount(body.summary.total);
+        if (Array.isArray(body.ids)) {
+          setReviewIds(body.ids.map(String).filter((id: string) => id.length > 0));
+        }
+        setReviewsLoaded(true);
       })
       .catch(() => {});
     return () => {
@@ -6661,7 +6677,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
           {activeTab === "reviews" && (
             <div className="p-4 sm:p-6">
-              <AdminReviewsPanel lang={lang} onCount={setReviewsCount} />
+              <AdminReviewsPanel lang={lang} />
             </div>
           )}
 

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  adminReviewsSeenKey,
   badgeAfterOpen,
   brandApplicationSeenKey,
   brandProposalAlertIds,
@@ -100,4 +101,14 @@ test("opening companies hides the unverified brands already on screen", () => {
   writeIdList(store, companySeenKey("admin-1"), pending);
   assert.equal(countUnseenIds(pending, readIdList(store, companySeenKey("admin-1"))), 0);
   assert.equal(countUnseenIds([...pending, "brand-c"], readIdList(store, companySeenKey("admin-1"))), 1);
+});
+
+test("admin reviews seen key and opening the tab hides review ids", () => {
+  assert.equal(adminReviewsSeenKey("admin-1"), "influo.seen.admin-1.admin-reviews");
+  const store = memoryStore();
+  const reviews = ["rev-1", "rev-2"];
+  assert.equal(countUnseenIds(reviews, []), 2);
+  writeIdList(store, adminReviewsSeenKey("admin-1"), reviews);
+  assert.equal(countUnseenIds(reviews, readIdList(store, adminReviewsSeenKey("admin-1"))), 0);
+  assert.equal(countUnseenIds([...reviews, "rev-3"], readIdList(store, adminReviewsSeenKey("admin-1"))), 1);
 });

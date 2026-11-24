@@ -237,7 +237,7 @@ export async function GET(req: NextRequest) {
   if (error || countError) {
     const msg = error?.message || countError?.message || "Query failed";
     return NextResponse.json(
-      { items: [], summary: buildSummary([]), total: 0, error: msg },
+      { items: [], summary: buildSummary([]), total: 0, ids: [], error: msg },
       { status: 500 }
     );
   }
@@ -251,10 +251,12 @@ export async function GET(req: NextRequest) {
 
   const summary = buildSummary(items);
   const sliced = items.slice(0, limit);
+  const ids = items.map((item) => item.id);
 
   return NextResponse.json({
     items: sliced,
     summary,
     total: totalAll ?? summary.total,
+    ids,
   });
 }
