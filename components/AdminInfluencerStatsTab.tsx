@@ -1,45 +1,51 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import FollowerGrowthChart from "@/components/FollowerGrowthChart";
+import DmyDateField from "@/components/DmyDateField";
 import { formatEuro } from "@/lib/formatEuro";
 import { formatDisplayDate, formatDisplayDateTime } from "@/lib/formatDate";
-import DmyDateField from "@/components/DmyDateField";
+import { type FollowerGrowthPoint } from "@/lib/followerGrowth";
+import { supabase } from "@/lib/supabaseClient";
 
-interface AnalyticsStats {
-  profileViews: number;
-  profileClicks: number;
-  socialOutboundClicks?: number;
-  socialOutboundByPlatform?: Record<string, number>;
-  proposalsSent: number;
-  messagesSent: number;
-  conversationsStarted: number;
-  totalEarnings: number;
-  totalEvents: number;
-  eventsByDate: Record<
-    string,
-    {
-      views: number;
-      clicks: number;
-      socialOutbound: number;
-      proposals: number;
-      messages: number;
-      conversations: number;
-    }
-  >;
-}
-
-interface AnalyticsEventRow {
-  id?: string;
-  event_type: string;
-  created_at: string;
-  metadata?: unknown;
+interface InfluencerStatsPayload {
+  period: { start: string | null; end: string | null };
+  analytics: {
+    profileViews: number;
+    profileClicksInfluo: number;
+    socialOutboundClicks: number;
+    socialOutboundByPlatform: Record<string, number>;
+    daily: { date: string; views: number; clicks: number }[];
+  };
+  proposals: {
+    total: number;
+    byStatus: Record<string, number>;
+    collaborations: number;
+    earnings: number;
+  };
+  applications: { total: number; byStatus: Record<string, number> };
+  messages: { total: number };
+  reviews: { count: number; avgRating: number | null };
+  growth: {
+    currentTotal: number;
+    growth: number | null;
+    growthPct: number | null;
+    series: FollowerGrowthPoint[];
+  };
+  platformAccounts: {
+    platform: string;
+    followers: number;
+    engagement_rate: string;
+    avg_likes: string;
+  }[];
+  recentEvents: { id?: string; event_type: string; created_at: string; metadata?: unknown }[];
 }
 
 const tr = {
   el: {
     title: "Στατιστικά ανά influencer",
     subtitle:
-      "Ό,τι μετράνε συνήθως πλατφόρμες marketplace: προβολές, κλικ, funnel (προβολή → επαφή → συνομιλία → πρόταση), έσοδα, κατανομή ανά κοινωνικό δίκτυο και χρονοσειρά.",
+      "Προβολές/κλικ από analytics, πραγματικές προτάσεις, αιτήσεις καμπανιών, μηνύματα, έσοδα, αξιολογήσεις και ακολουθοί ανά πλατφόρμα.",
     pick: "Επιλογή influencer",
     search: "Αναζήτηση ονόματος…",
     period: "Περίοδος",
@@ -55,39 +61,40 @@ const tr = {
     loading: "Φόρτωση…",
     noInfluencers: "Δεν υπάρχουν influencers.",
     noSelection: "Επίλεξε influencer για να δεις στατιστικά.",
-    noData: "Δεν υπάρχουν γεγονότα για αυτή την περίοδο.",
+    loadError: "Δεν φορτώθηκαν τα στατιστικά.",
     profileViews: "Προβολές προφίλ",
-    profileClicks: "Κλικ προς προφίλ Influo",
+    profileClicks: "Κλικ προφίλ Influo",
     socialOutbound: "Έξοδος προς κοινωνικά",
-    proposals: "Προτάσεις (events)",
+    applications: "Αιτήσεις καμπανιών",
+    proposals: "Προτάσεις",
+    collaborations: "Συνεργασίες (αποδ./ολοκλ.)",
     messages: "Μηνύματα",
-    conversations: "Συνομιλίες",
     earnings: "Έσοδα (αποδεκτές/ολοκληρωμένες)",
-    totalEvents: "Σύνολο events",
-    funnel: "Funnel (ποσοστά επί προβολών)",
-    stepViews: "Προβολές",
-    stepClicks: "Κλικ προφίλ",
-    stepConv: "Νέες συνομιλίες",
-    stepMsg: "Μηνύματα",
-    stepProp: "Προτάσεις",
-    ctr: "CTR κλικ/προβολή",
-    outboundShare: "Έξοδος κοιν. / (κλικ+έξοδος)",
-    msgPerConv: "Μηνύματα / συνομιλία",
-    platforms: "Έξοδος ανά πλατφόρμα",
-    chart: "Χρονοσειρά (ανά ημέρα)",
-    recent: "Πρόσφατα events",
+    reviews: "Αξιολογήσεις",
+    reviewsAvg: "Μέσος βαθμός",
+    outboundPlatforms: "Έξοδος ανά πλατφόρμα (κλικ)",
+    dailyChart: "Ημερήσιες προβολές & κλικ Influo",
+    chartViews: "Προβολές",
+    chartClicks: "Κλικ Influo",
+    recent: "Πρόσφατα events (analytics)",
     colType: "Τύπος",
     colTime: "Ώρα",
     colMeta: "Σημείωση",
+    platformAccounts: "Λογαριασμοί (τρέχον προφίλ)",
+    followers: "Followers",
+    er: "ER",
+    avgLikes: "Μ. likes",
+    ctr: "CTR κλικ/προβολή",
     growthTitle: "Ακόλουθοι (εκτίμηση)",
     growthCurrent: "Τρέχον σύνολο",
-    growth30d: "Μεταβολή 15 ημ.",
+    growth15d: "Μεταβολή 15 ημ.",
     growthNA: "Δεν υπάρχει ιστορικό snapshots",
+    noDaily: "Δεν υπάρχουν ημερήσιες τιμές για αυτή την περίοδο.",
   },
   en: {
     title: "Per-influencer analytics",
     subtitle:
-      "Typical marketplace metrics: impressions/views, clicks, funnel (view → contact → chat → proposal), revenue, social breakdown, and timeline.",
+      "Analytics views/clicks, real proposals, campaign applications, messages, earnings, reviews, and per-platform followers.",
     pick: "Select influencer",
     search: "Search by name…",
     period: "Period",
@@ -103,51 +110,59 @@ const tr = {
     loading: "Loading…",
     noInfluencers: "No influencers loaded.",
     noSelection: "Pick an influencer to see stats.",
-    noData: "No events for this period.",
+    loadError: "Could not load statistics.",
     profileViews: "Profile views",
     profileClicks: "Influo profile clicks",
     socialOutbound: "Outbound to social",
-    proposals: "Proposals (events)",
+    applications: "Campaign applications",
+    proposals: "Proposals",
+    collaborations: "Collaborations (acc./completed)",
     messages: "Messages",
-    conversations: "Conversations",
     earnings: "Earnings (accepted/completed)",
-    totalEvents: "Total events",
-    funnel: "Funnel (% of profile views)",
-    stepViews: "Views",
-    stepClicks: "Profile clicks",
-    stepConv: "New conversations",
-    stepMsg: "Messages",
-    stepProp: "Proposals",
-    ctr: "Click-through (clicks/views)",
-    outboundShare: "Social outbound / (clicks+outbound)",
-    msgPerConv: "Messages per conversation",
-    platforms: "Outbound by platform",
-    chart: "Timeline (by day)",
-    recent: "Recent events",
+    reviews: "Reviews",
+    reviewsAvg: "Avg. rating",
+    outboundPlatforms: "Outbound clicks by platform",
+    dailyChart: "Daily views & Influo clicks",
+    chartViews: "Views",
+    chartClicks: "Influo clicks",
+    recent: "Recent analytics events",
     colType: "Type",
     colTime: "Time",
     colMeta: "Note",
+    platformAccounts: "Accounts (current profile)",
+    followers: "Followers",
+    er: "ER",
+    avgLikes: "Avg. likes",
+    ctr: "Click-through (clicks/views)",
     growthTitle: "Followers (estimate)",
     growthCurrent: "Current total",
-    growth30d: "15-day change",
+    growth15d: "15-day change",
     growthNA: "No snapshot history",
+    noDaily: "No daily values for this period.",
   },
 };
+
+async function adminAuthHeaders(): Promise<Record<string, string>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+}
 
 function eventLabel(type: string, lang: "el" | "en"): string {
   const el: Record<string, string> = {
     profile_view: "Προβολή προφίλ",
     profile_click: "Κλικ προφίλ",
-    proposal_sent: "Πρόταση",
-    message_sent: "Μήνυμα",
-    conversation_started: "Συνομιλία",
+    proposal_sent: "Πρόταση (event)",
+    message_sent: "Μήνυμα (event)",
+    conversation_started: "Συνομιλία (event)",
   };
   const en: Record<string, string> = {
     profile_view: "Profile view",
     profile_click: "Profile click",
-    proposal_sent: "Proposal",
-    message_sent: "Message",
-    conversation_started: "Conversation",
+    proposal_sent: "Proposal (event)",
+    message_sent: "Message (event)",
+    conversation_started: "Conversation (event)",
   };
   return (lang === "el" ? el : en)[type] || type;
 }
@@ -155,6 +170,65 @@ function eventLabel(type: string, lang: "el" | "en"): string {
 function pct(n: number, d: number): string {
   if (d <= 0) return "0%";
   return `${Math.min(100, Math.round((n / d) * 1000) / 10)}%`;
+}
+
+function DailyVolumeChart({
+  lang,
+  daily,
+  viewsLabel,
+  clicksLabel,
+}: {
+  lang: "el" | "en";
+  daily: { date: string; views: number; clicks: number }[];
+  viewsLabel: string;
+  clicksLabel: string;
+}) {
+  const maxVal = Math.max(1, ...daily.map((d) => Math.max(d.views, d.clicks)));
+  const barMaxPx = 120;
+
+  if (!daily.length) {
+    return <p className="text-sm text-slate-500">{tr[lang].noDaily}</p>;
+  }
+
+  return (
+    <div>
+      <div className="flex items-end gap-1 overflow-x-auto pb-2 min-h-[140px]">
+        {daily.map((d) => {
+          const vH = (d.views / maxVal) * barMaxPx;
+          const cH = (d.clicks / maxVal) * barMaxPx;
+          return (
+            <div key={d.date} className="flex flex-col items-center shrink-0 w-7" title={`${formatDisplayDate(d.date)}`}>
+              <div className="flex items-end justify-center gap-0.5 h-[124px] w-full">
+                <div
+                  className="w-2.5 bg-blue-500 rounded-t-sm min-h-[2px]"
+                  style={{ height: `${Math.max(d.views > 0 ? 2 : 0, vH)}px` }}
+                  title={`${viewsLabel}: ${d.views}`}
+                />
+                <div
+                  className="w-2.5 bg-violet-500 rounded-t-sm min-h-[2px]"
+                  style={{ height: `${Math.max(d.clicks > 0 ? 2 : 0, cH)}px` }}
+                  title={`${clicksLabel}: ${d.clicks}`}
+                />
+              </div>
+              <span className="text-[9px] text-slate-400 mt-1 rotate-[-45deg] origin-top-left whitespace-nowrap max-w-[48px] overflow-hidden">
+                {formatDisplayDate(d.date).replace(/\//g, "/")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex gap-4 text-[11px] text-slate-600 mt-2">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 bg-blue-500 rounded-sm" />
+          {viewsLabel}
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 bg-violet-500 rounded-sm" />
+          {clicksLabel}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminInfluencerStatsTab({
@@ -170,14 +244,9 @@ export default function AdminInfluencerStatsTab({
   const [period, setPeriod] = useState<"7d" | "30d" | "quarter" | "year" | "all" | "custom">("30d");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
-  const [stats, setStats] = useState<AnalyticsStats | null>(null);
-  const [events, setEvents] = useState<AnalyticsEventRow[]>([]);
+  const [payload, setPayload] = useState<InfluencerStatsPayload | null>(null);
   const [loading, setLoading] = useState(false);
-  const [growth, setGrowth] = useState<{
-    currentTotal: number;
-    growth?: number;
-    growthPct?: number;
-  } | null>(null);
+  const [error, setError] = useState(false);
 
   const uniqueInfluencers = useMemo(() => {
     const seen = new Set<string>();
@@ -189,12 +258,10 @@ export default function AdminInfluencerStatsTab({
       deduped.push(u);
     }
 
-    // Count display names (case-insensitive) so same-named profiles can be told apart.
     const nameKey = (u: (typeof influencers)[number]) => (u.display_name || "").trim().toLowerCase();
     const nameCounts = new Map<string, number>();
     for (const u of deduped) nameCounts.set(nameKey(u), (nameCounts.get(nameKey(u)) ?? 0) + 1);
 
-    // Within a shared name, count emails too: if emails also collide, fall back to the short id.
     const nameEmailCounts = new Map<string, number>();
     for (const u of deduped) {
       const k = `${nameKey(u)}|${(u.contact_email || "").trim().toLowerCase()}`;
@@ -231,109 +298,58 @@ export default function AdminInfluencerStatsTab({
   const load = useCallback(async () => {
     if (!selectedId) return;
     setLoading(true);
+    setError(false);
     try {
-      let startDate: string | null = null;
+      const params = new URLSearchParams({ id: selectedId });
       const endIso = new Date().toISOString();
 
-      if (period === "7d") {
-        const d = new Date();
-        d.setDate(d.getDate() - 7);
-        startDate = d.toISOString();
-      } else if (period === "30d") {
-        const d = new Date();
-        d.setDate(d.getDate() - 30);
-        startDate = d.toISOString();
-      } else if (period === "quarter") {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 3);
-        startDate = d.toISOString();
-      } else if (period === "year") {
-        const d = new Date();
-        d.setFullYear(d.getFullYear() - 1);
-        startDate = d.toISOString();
-      } else if (period === "all") {
-        startDate = null;
-      } else if (period === "custom") {
-        startDate = customStart ? new Date(customStart).toISOString() : null;
-      }
-
-      const params = new URLSearchParams({ influencerId: selectedId });
       if (period === "all") {
-        /* full history: no date filters on events */
+        params.set("range", "all");
       } else if (period === "custom") {
-        if (startDate) params.set("startDate", startDate);
-        if (customEnd) params.set("endDate", new Date(customEnd).toISOString());
-        else params.set("endDate", endIso);
+        if (customStart) params.set("start", new Date(customStart).toISOString());
+        if (customEnd) params.set("end", new Date(customEnd).toISOString());
+        else params.set("end", endIso);
       } else {
-        if (startDate) params.set("startDate", startDate);
-        params.set("endDate", endIso);
+        const d = new Date();
+        if (period === "7d") d.setDate(d.getDate() - 7);
+        else if (period === "30d") d.setDate(d.getDate() - 30);
+        else if (period === "quarter") d.setMonth(d.getMonth() - 3);
+        else if (period === "year") d.setFullYear(d.getFullYear() - 1);
+        params.set("start", d.toISOString());
+        params.set("end", endIso);
       }
 
-      const [res, gRes] = await Promise.all([
-        fetch(`/api/analytics/stats?${params.toString()}`),
-        fetch(`/api/influencer/${encodeURIComponent(selectedId)}/growth`),
-      ]);
-
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data.stats ?? null);
-        setEvents(Array.isArray(data.events) ? data.events : []);
-      } else {
-        setStats(null);
-        setEvents([]);
+      const res = await fetch(`/api/admin/stats/influencer?${params.toString()}`, {
+        headers: await adminAuthHeaders(),
+      });
+      if (!res.ok) {
+        setPayload(null);
+        setError(true);
+        return;
       }
-
-      if (gRes.ok) {
-        const g = await gRes.json();
-        setGrowth({
-          currentTotal: g.currentTotal ?? 0,
-          growth: g.growth,
-          growthPct: g.growthPct,
-        });
-      } else {
-        setGrowth(null);
-      }
+      const data = (await res.json()) as InfluencerStatsPayload;
+      setPayload(data);
     } catch {
-      setStats(null);
-      setEvents([]);
-      setGrowth(null);
+      setPayload(null);
+      setError(true);
     } finally {
       setLoading(false);
     }
   }, [selectedId, period, customStart, customEnd]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const chartData = useMemo(() => {
-    if (!stats?.eventsByDate) return [];
-    return Object.entries(stats.eventsByDate)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([date, data]) => {
-        const dayTotal =
-          data.views +
-          data.clicks +
-          (data.socialOutbound ?? 0) +
-          data.proposals +
-          data.messages +
-          data.conversations;
-        return {
-          dateKey: date,
-          label: formatDisplayDate(date),
-          ...data,
-          socialOutbound: data.socialOutbound ?? 0,
-          dayTotal,
-        };
-      });
-  }, [stats]);
+  const views = payload?.analytics.profileViews ?? 0;
+  const clicks = payload?.analytics.profileClicksInfluo ?? 0;
+  const outbound = payload?.analytics.socialOutboundClicks ?? 0;
+  const growth = payload?.growth;
 
-  const views = stats?.profileViews ?? 0;
-  const clicks = stats?.profileClicks ?? 0;
-  const outbound = stats?.socialOutboundClicks ?? 0;
-  const conv = stats?.conversationsStarted ?? 0;
-  const msg = stats?.messagesSent ?? 0;
-  const prop = stats?.proposalsSent ?? 0;
+  const maxFollowers = useMemo(() => {
+    const list = payload?.platformAccounts ?? [];
+    return Math.max(1, ...list.map((a) => a.followers));
+  }, [payload?.platformAccounts]);
 
   return (
     <div className="space-y-6">
@@ -433,174 +449,124 @@ export default function AdminInfluencerStatsTab({
 
       {selectedId && loading && <p className="text-sm text-slate-500">{txt.loading}</p>}
 
-      {selectedId && !loading && stats && stats.totalEvents === 0 && (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">{txt.noData}</p>
+      {selectedId && !loading && error && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">{txt.loadError}</p>
       )}
 
-      {selectedId && !loading && stats && stats.totalEvents > 0 && (
+      {selectedId && !loading && payload && (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             <Kpi label={txt.profileViews} value={views} />
             <Kpi label={txt.profileClicks} value={clicks} />
             <Kpi label={txt.socialOutbound} value={outbound} />
-            <Kpi label={txt.conversations} value={conv} />
-            <Kpi label={txt.messages} value={msg} />
-            <Kpi label={txt.proposals} value={prop} />
-            <Kpi label={txt.totalEvents} value={stats.totalEvents} />
-            <Kpi label={txt.earnings} value={formatEuro(stats.totalEarnings, lang, 0)} accent />
+            <Kpi label={txt.applications} value={payload.applications.total} />
+            <Kpi label={txt.proposals} value={payload.proposals.total} />
+            <Kpi label={txt.collaborations} value={payload.proposals.collaborations} />
+            <Kpi label={txt.messages} value={payload.messages.total} />
+            <Kpi
+              label={txt.reviews}
+              value={
+                payload.reviews.count > 0
+                  ? `${payload.reviews.count}${payload.reviews.avgRating != null ? ` · ${payload.reviews.avgRating}` : ""}`
+                  : "0"
+              }
+            />
+            <Kpi label={txt.earnings} value={formatEuro(payload.proposals.earnings, lang, 0)} accent />
           </div>
 
-          {growth && (
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-2">{txt.growthTitle}</h3>
-              <div className="flex flex-wrap gap-6 text-sm">
-                <div>
-                  <span className="text-slate-500">{txt.growthCurrent}: </span>
-                  <span className="font-semibold text-slate-900">{growth.currentTotal.toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500">{txt.growth30d}: </span>
-                  {growth.growth != null ? (
-                    <span className={`font-semibold ${growth.growth >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
-                      {growth.growth >= 0 ? "+" : ""}
-                      {growth.growth.toLocaleString()}
-                      {growth.growthPct != null ? ` (${growth.growthPct >= 0 ? "+" : ""}${growth.growthPct}%)` : ""}
-                    </span>
-                  ) : (
-                    <span className="text-slate-500">{txt.growthNA}</span>
-                  )}
-                </div>
+          <p className="text-xs text-slate-500">
+            {txt.ctr}: <strong className="text-slate-800">{pct(clicks, views)}</strong>
+          </p>
+
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-slate-900 mb-2">{txt.growthTitle}</h3>
+            <div className="flex flex-wrap gap-6 text-sm mb-4">
+              <div>
+                <span className="text-slate-500">{txt.growthCurrent}: </span>
+                <span className="font-semibold text-slate-900">{(growth?.currentTotal ?? 0).toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-slate-500">{txt.growth15d}: </span>
+                {growth?.growth != null ? (
+                  <span className={`font-semibold ${growth.growth >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                    {growth.growth >= 0 ? "+" : ""}
+                    {growth.growth.toLocaleString()}
+                    {growth.growthPct != null ? ` (${growth.growthPct >= 0 ? "+" : ""}${growth.growthPct}%)` : ""}
+                  </span>
+                ) : (
+                  <span className="text-slate-500">{txt.growthNA}</span>
+                )}
               </div>
             </div>
-          )}
-
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-3">{txt.funnel}</h3>
-              <ul className="space-y-2 text-sm">
-                <FunnelRow label={txt.stepViews} value={views} base={views} />
-                <FunnelRow label={txt.stepClicks} value={clicks} base={views} />
-                <FunnelRow label={txt.stepConv} value={conv} base={views} />
-                <FunnelRow label={txt.stepMsg} value={msg} base={views} />
-                <FunnelRow label={txt.stepProp} value={prop} base={views} />
-              </ul>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-3">KPI</h3>
-              <ul className="space-y-2 text-sm text-slate-700">
-                <li>
-                  <span className="text-slate-500">{txt.ctr}: </span>
-                  <strong>{pct(clicks, views)}</strong>
-                </li>
-                <li>
-                  <span className="text-slate-500">{txt.outboundShare}: </span>
-                  <strong>{pct(outbound, clicks + outbound)}</strong>
-                </li>
-                <li>
-                  <span className="text-slate-500">{txt.msgPerConv}: </span>
-                  <strong>{conv > 0 ? (msg / conv).toFixed(1) : "—"}</strong>
-                </li>
-              </ul>
-            </div>
+            {growth?.series?.length ? <FollowerGrowthChart lang={lang} points={growth.series} /> : null}
           </div>
 
-          {Object.keys(stats.socialOutboundByPlatform ?? {}).length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-3">{txt.platforms}</h3>
-              <div className="space-y-2">
-                {Object.entries(stats.socialOutboundByPlatform ?? {})
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([plat, n]) => {
-                    const max = Math.max(...Object.values(stats.socialOutboundByPlatform ?? {}), 1);
-                    return (
-                      <div key={plat}>
-                        <div className="flex justify-between text-xs mb-0.5">
-                          <span className="capitalize text-slate-700">{plat}</span>
-                          <span className="font-medium">{n}</span>
+          {(payload.platformAccounts.length > 0 || Object.keys(payload.analytics.socialOutboundByPlatform).length > 0) && (
+            <div className="grid md:grid-cols-2 gap-4">
+              {payload.platformAccounts.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3">{txt.platformAccounts}</h3>
+                  <div className="space-y-3">
+                    {[...payload.platformAccounts]
+                      .sort((a, b) => b.followers - a.followers)
+                      .map((acc) => (
+                        <div key={acc.platform}>
+                          <div className="flex justify-between text-xs mb-0.5 gap-2">
+                            <span className="capitalize text-slate-700 font-medium">{acc.platform}</span>
+                            <span className="text-slate-600 text-right">
+                              {acc.followers.toLocaleString()} {txt.followers}
+                              {acc.engagement_rate ? ` · ${txt.er} ${acc.engagement_rate}` : ""}
+                              {acc.avg_likes ? ` · ${txt.avgLikes} ${acc.avg_likes}` : ""}
+                            </span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-indigo-500 rounded-full"
+                              style={{ width: `${(acc.followers / maxFollowers) * 100}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${(n / max) * 100}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-
-          {chartData.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <h3 className="text-sm font-bold text-slate-900 mb-4">{txt.chart}</h3>
-              <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-                {chartData.map((item) => (
-                  <div key={item.dateKey} className="space-y-1">
-                    <div className="flex justify-between text-xs text-slate-600">
-                      <span>{item.label}</span>
-                      <span className="font-medium text-slate-800">{item.dayTotal}</span>
-                    </div>
-                    <div className="flex h-5 w-full rounded overflow-hidden bg-slate-100">
-                      {item.dayTotal > 0 && (
-                        <>
-                          {item.views > 0 && (
-                            <div
-                              className="bg-blue-500 h-full min-w-[2px]"
-                              style={{ width: `${(item.views / item.dayTotal) * 100}%` }}
-                              title={`${txt.profileViews}: ${item.views}`}
-                            />
-                          )}
-                          {item.clicks > 0 && (
-                            <div
-                              className="bg-purple-500 h-full min-w-[2px]"
-                              style={{ width: `${(item.clicks / item.dayTotal) * 100}%` }}
-                              title={`${txt.profileClicks}: ${item.clicks}`}
-                            />
-                          )}
-                          {item.socialOutbound > 0 && (
-                            <div
-                              className="bg-cyan-500 h-full min-w-[2px]"
-                              style={{ width: `${(item.socialOutbound / item.dayTotal) * 100}%` }}
-                              title={`${txt.socialOutbound}: ${item.socialOutbound}`}
-                            />
-                          )}
-                          {item.proposals > 0 && (
-                            <div
-                              className="bg-green-500 h-full min-w-[2px]"
-                              style={{ width: `${(item.proposals / item.dayTotal) * 100}%` }}
-                              title={`${txt.proposals}: ${item.proposals}`}
-                            />
-                          )}
-                          {item.messages > 0 && (
-                            <div
-                              className="bg-yellow-500 h-full min-w-[2px]"
-                              style={{ width: `${(item.messages / item.dayTotal) * 100}%` }}
-                              title={`${txt.messages}: ${item.messages}`}
-                            />
-                          )}
-                          {item.conversations > 0 && (
-                            <div
-                              className="bg-red-500 h-full min-w-[2px]"
-                              style={{ width: `${(item.conversations / item.dayTotal) * 100}%` }}
-                              title={`${txt.conversations}: ${item.conversations}`}
-                            />
-                          )}
-                        </>
-                      )}
-                    </div>
+                      ))}
                   </div>
-                ))}
-              </div>
-              <div className="flex flex-wrap gap-3 mt-4 text-[11px] text-slate-600">
-                <Legend color="bg-blue-500" label={txt.profileViews} />
-                <Legend color="bg-purple-500" label={txt.profileClicks} />
-                <Legend color="bg-cyan-500" label={txt.socialOutbound} />
-                <Legend color="bg-green-500" label={txt.proposals} />
-                <Legend color="bg-yellow-500" label={txt.messages} />
-                <Legend color="bg-red-500" label={txt.conversations} />
-              </div>
+                </div>
+              )}
+              {Object.keys(payload.analytics.socialOutboundByPlatform).length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3">{txt.outboundPlatforms}</h3>
+                  <div className="space-y-2">
+                    {Object.entries(payload.analytics.socialOutboundByPlatform)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([plat, n]) => {
+                        const max = Math.max(...Object.values(payload.analytics.socialOutboundByPlatform), 1);
+                        return (
+                          <div key={plat}>
+                            <div className="flex justify-between text-xs mb-0.5">
+                              <span className="capitalize text-slate-700">{plat}</span>
+                              <span className="font-medium">{n}</span>
+                            </div>
+                            <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-cyan-500 rounded-full" style={{ width: `${(n / max) * 100}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {events.length > 0 && (
+          <div className="bg-white border border-slate-200 rounded-xl p-4">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">{txt.dailyChart}</h3>
+            <DailyVolumeChart
+              lang={lang}
+              daily={payload.analytics.daily}
+              viewsLabel={txt.chartViews}
+              clicksLabel={txt.chartClicks}
+            />
+          </div>
+
+          {payload.recentEvents.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-200">
                 <h3 className="text-sm font-bold text-slate-900">{txt.recent}</h3>
@@ -615,7 +581,7 @@ export default function AdminInfluencerStatsTab({
                     </tr>
                   </thead>
                   <tbody>
-                    {events.slice(0, 40).map((ev, i) => {
+                    {payload.recentEvents.map((ev, i) => {
                       const meta = ev.metadata as Record<string, unknown> | undefined;
                       const note =
                         ev.event_type === "profile_click" && meta?.source === "social_outbound"
@@ -652,25 +618,5 @@ function Kpi({ label, value, accent }: { label: string; value: string | number; 
       <div className={`text-xl font-bold ${accent ? "text-emerald-800" : "text-slate-900"}`}>{value}</div>
       <div className={`text-[11px] mt-0.5 leading-tight ${accent ? "text-emerald-700" : "text-slate-600"}`}>{label}</div>
     </div>
-  );
-}
-
-function FunnelRow({ label, value, base }: { label: string; value: number; base: number }) {
-  return (
-    <li className="flex justify-between items-center gap-2">
-      <span className="text-slate-600">{label}</span>
-      <span className="font-medium text-slate-900">
-        {value} <span className="text-slate-400 font-normal">({pct(value, base)})</span>
-      </span>
-    </li>
-  );
-}
-
-function Legend({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className={`w-2.5 h-2.5 rounded ${color}`} />
-      {label}
-    </span>
   );
 }
