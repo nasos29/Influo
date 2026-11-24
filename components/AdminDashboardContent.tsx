@@ -66,6 +66,7 @@ import { normalizeGender } from "@/lib/gender";
 import { publicProfilePath } from "@/lib/profileSlug";
 import PushNotificationPrompt from "./PushNotificationPrompt";
 import AdminInfluencerStatsTab from "./AdminInfluencerStatsTab";
+import AdminPlatformStatsTab from "./AdminPlatformStatsTab";
 import SocialRefreshLogsPanel from "./SocialRefreshLogsPanel";
 import Avatar from "./Avatar";
 import ToastViewport, { useToasts, type ToastTone } from "@/components/ui/Toast";
@@ -89,6 +90,7 @@ import AdminChatInbox, { openAdminChatWithUser } from "@/components/AdminChatInb
 import { logoutEverywhere } from "@/lib/authSession";
 import {
   adminCampaignSeenKey,
+  adminReviewsSeenKey,
   companySeenKey,
   conversationSeenKey,
   countUnseenIds,
@@ -352,7 +354,8 @@ const t = {
     reach: "Απήχηση",
     pipeline: "Pipeline",
     tab_inf: "Δημιουργοί",
-    tab_inf_analytics: "Στατιστικά",
+    tab_inf_analytics: "Στατιστικά creator",
+    tab_platform_stats: "Στατιστικά",
     tab_deals: "Προτάσεις",
     tab_brands: "Επιχειρήσεις",
     tab_campaigns: "Καμπάνιες brands",
@@ -453,7 +456,8 @@ const t = {
     reach: "Total Reach",
     pipeline: "Pipeline",
     tab_inf: "Influencers",
-    tab_inf_analytics: "Analytics",
+    tab_inf_analytics: "Creator stats",
+    tab_platform_stats: "Statistics",
     tab_deals: "Proposals",
     tab_brands: "Companies",
     tab_blog: "Blog",
@@ -2195,6 +2199,8 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [activeTab, setActiveTab] = useState("overview");
   const [newReportsCount, setNewReportsCount] = useState(0);
   const [reviewsCount, setReviewsCount] = useState(0);
+  const [reviewIds, setReviewIds] = useState<string[]>([]);
+  const [reviewsLoaded, setReviewsLoaded] = useState(false);
   const adminTabsRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     const nav = adminTabsRef.current;
@@ -3306,6 +3312,17 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     }
   }, [viewerId, activeTab, adminCampaigns, campaignsLoaded]);
 
+  useEffect(() => {
+    if (!viewerId || typeof window === "undefined") return;
+    const store = window.localStorage;
+    if (activeTab === "reviews") {
+      setReviewsCount(0);
+      if (reviewsLoaded) writeIdList(store, adminReviewsSeenKey(viewerId), reviewIds);
+    } else if (reviewsLoaded) {
+      setReviewsCount(countUnseenIds(reviewIds, readIdList(store, adminReviewsSeenKey(viewerId))));
+    }
+  }, [viewerId, activeTab, reviewIds, reviewsLoaded]);
+
   // Initial load once
   useEffect(() => {
     void fetchData();
@@ -3524,8 +3541,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       .then((r) => r.json())
       .then((body) => {
         if (cancelled) return;
-        if (typeof body.total === "number") setReviewsCount(body.total);
-        else if (typeof body.summary?.total === "number") setReviewsCount(body.summary.total);
+        if (Array.isArray(body.ids)) {
+          setReviewIds(body.ids.map(String).filter((id: string) => id.length > 0));
+        }
+        setReviewsLoaded(true);
       })
       .catch(() => {});
     return () => {
@@ -4769,6 +4788,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
             {(
               [
                 { id: "overview", label: { el: "Επισκόπηση", en: "Overview" }[lang], icon: LayoutDashboard, count: 0 },
+                { id: "platform_stats", label: txt.tab_platform_stats, icon: BarChart3, count: 0 },
                 { id: "influencers", label: txt.tab_inf, icon: Users, count: 0 },
                 { id: "influencer_stats", label: txt.tab_inf_analytics, icon: BarChart3, count: 0 },
                 { id: "proposals", label: txt.tab_deals, icon: FileText, count: pendingProposalsCount },
@@ -5402,6 +5422,10 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
               </div>
               )}
             </>
+          )}
+
+          {activeTab === "platform_stats" && (
+            <AdminPlatformStatsTab lang={lang} />
           )}
 
           {activeTab === "influencer_stats" && (
@@ -6661,7 +6685,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
 
           {activeTab === "reviews" && (
             <div className="p-4 sm:p-6">
-              <AdminReviewsPanel lang={lang} onCount={setReviewsCount} />
+              <AdminReviewsPanel lang={lang} />
             </div>
           )}
 

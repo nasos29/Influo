@@ -17,6 +17,10 @@ export function adminCampaignSeenKey(userId: string): string {
   return `influo.seen.${userId}.admin-campaigns`;
 }
 
+export function adminReviewsSeenKey(userId: string): string {
+  return `influo.seen.${userId}.admin-reviews`;
+}
+
 export function brandApplicationSeenKey(userId: string): string {
   return `influo.seen.${userId}.brand-applications`;
 }

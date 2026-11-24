@@ -118,13 +118,7 @@ function directionLabel(
   return short ? t.c2bShort : t.directionC2B;
 }
 
-export default function AdminReviewsPanel({
-  lang,
-  onCount,
-}: {
-  lang: Lang;
-  onCount?: (n: number) => void;
-}) {
+export default function AdminReviewsPanel({ lang }: { lang: Lang }) {
   const txt = COPY[lang];
   const [items, setItems] = useState<ReviewItem[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -156,17 +150,6 @@ export default function AdminReviewsPanel({
       if (body.summary && typeof body.summary === "object") {
         setSummary(body.summary as Summary);
       }
-      if (typeof body.total === "number") {
-        onCount?.(body.total);
-      } else if (
-        body.summary &&
-        typeof (body.summary as Summary).total === "number" &&
-        direction === "all" &&
-        ratingFilter === "all" &&
-        !search.trim()
-      ) {
-        onCount?.((body.summary as Summary).total);
-      }
     } catch {
       setError(txt.loadError);
       setItems([]);
@@ -174,7 +157,7 @@ export default function AdminReviewsPanel({
     } finally {
       setLoading(false);
     }
-  }, [direction, onCount, ratingFilter, search, txt.loadError]);
+  }, [direction, ratingFilter, search, txt.loadError]);
 
   useEffect(() => {
     const t = window.setTimeout(() => void load(), search ? 300 : 0);
