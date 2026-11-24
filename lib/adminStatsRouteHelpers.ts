@@ -1,14 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  addAthensYmdDays,
+  athensDayStartIso,
   athensYmdFromIso,
   buildStatsPeriodBounds,
   type PeriodKpi,
   type StatsPeriodBounds,
 } from "@/lib/adminPlatformStats";
+import { STATS_SWR_MS } from "@/lib/adminStatsSingleFlight";
 
 export const STATS_REQUEST_TIMEOUT_MS = 8000;
-export const OVERVIEW_CACHE_MS = 60_000;
-export const INFLUENCER_CACHE_MS = 60_000;
+export const OVERVIEW_CACHE_MS = STATS_SWR_MS;
+export const INFLUENCER_CACHE_MS = STATS_SWR_MS;
 export const QUERY_BATCH_SIZE = 8;
 export const ANALYTICS_SERIES_ROW_CAP = 8000;
 export const EMAIL_LOG_ROW_CAP = 500;
@@ -186,6 +189,101 @@ export function analyticsDailyFromLightRows(
     clicks: daily[date]?.clicks ?? 0,
     social: daily[date]?.social ?? 0,
   }));
+}
+
+const DAILY_HEAD_MAX_DAYS = 7;
+
+function capDayKeysForHeadCounts(dayKeys: string[]): string[] {
+  return dayKeys.length > DAILY_HEAD_MAX_DAYS ? dayKeys.slice(-DAILY_HEAD_MAX_DAYS) : dayKeys;
+}
+
+/** Daily profile views/clicks via head counts (no row downloads). Social split stays 0. */
+export async function platformAnalyticsDailyByHead(
+  admin: SupabaseClient,
+  bounds: StatsPeriodBounds
+): Promise<{ date: string; views: number; clicks: number; social: number }[]> {
+  const activeDays = capDayKeysForHeadCounts(bounds.dayKeys30);
+  const countJobs: (() => Promise<number>)[] = [];
+  for (const ymd of activeDays) {
+    const gte = athensDayStartIso(ymd);
+    const lt = athensDayStartIso(addAthensYmdDays(ymd, 1));
+    countJobs.push(() =>
+      headCount(admin, {
+        table: "influencer_analytics",
+        dateCol: "created_at",
+        gte,
+        lt,
+        eq: { event_type: "profile_view" },
+      })
+    );
+    countJobs.push(() =>
+      headCount(admin, {
+        table: "influencer_analytics",
+        dateCol: "created_at",
+        gte,
+        lt,
+        eq: { event_type: "profile_click" },
+        metaNeqOrNull: { path: "source", value: "social_outbound" },
+      })
+    );
+  }
+  const counts = await runInBatches(countJobs);
+  const byDate = new Map<string, { views: number; clicks: number }>();
+  for (let i = 0; i < activeDays.length; i++) {
+    byDate.set(activeDays[i]!, {
+      views: counts[i * 2] ?? 0,
+      clicks: counts[i * 2 + 1] ?? 0,
+    });
+  }
+  return bounds.dayKeys30.map((date) => {
+    const row = byDate.get(date);
+    return { date, views: row?.views ?? 0, clicks: row?.clicks ?? 0, social: 0 };
+  });
+}
+
+export async function influencerAnalyticsDailyByHead(
+  admin: SupabaseClient,
+  influencerId: string,
+  dayKeys: string[] | null
+): Promise<{ date: string; views: number; clicks: number }[]> {
+  if (!dayKeys?.length) return [];
+  const activeDays = capDayKeysForHeadCounts(dayKeys);
+  const countJobs: (() => Promise<number>)[] = [];
+  for (const ymd of activeDays) {
+    const gte = athensDayStartIso(ymd);
+    const lt = athensDayStartIso(addAthensYmdDays(ymd, 1));
+    countJobs.push(() =>
+      headCount(admin, {
+        table: "influencer_analytics",
+        dateCol: "created_at",
+        gte,
+        lt,
+        eq: { influencer_id: influencerId, event_type: "profile_view" },
+      })
+    );
+    countJobs.push(() =>
+      headCount(admin, {
+        table: "influencer_analytics",
+        dateCol: "created_at",
+        gte,
+        lt,
+        eq: { influencer_id: influencerId, event_type: "profile_click" },
+        metaNeqOrNull: { path: "source", value: "social_outbound" },
+      })
+    );
+  }
+  const counts = await runInBatches(countJobs);
+  const byDate = new Map<string, { views: number; clicks: number }>();
+  for (let i = 0; i < activeDays.length; i++) {
+    byDate.set(activeDays[i]!, {
+      views: counts[i * 2] ?? 0,
+      clicks: counts[i * 2 + 1] ?? 0,
+    });
+  }
+  return dayKeys.map((date) => {
+    const row = byDate.get(date);
+    return { date, views: row?.views ?? 0, clicks: row?.clicks ?? 0 };
+  });
 }
 
 export async function influencerPeriodAnalyticsTotals(

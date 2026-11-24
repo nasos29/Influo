@@ -8,7 +8,9 @@ import {
   parseHomepageFeaturedCollaborationViewsSetting,
 } from "@/lib/homepageFeaturedCollaborationViews";
 import { isCuratedFeaturedCollaborationId } from "@/lib/homepageFeaturedCollaborations";
+import { featuredCollaborationPlatform } from "@/lib/featuredCollaborationPlatform";
 import { loadFeaturedCollaborationViewPlan } from "@/lib/loadFeaturedCollaborationViewPlan";
+import { fetchTikTokPublicPlayCount } from "@/lib/tikTokPublicPlayCount";
 import {
   getHomepageFeaturedCollaborationViewsSetting,
   getHomepageFeaturedCollaborationsSetting,
@@ -83,10 +85,29 @@ export async function POST(request: NextRequest) {
 
   const collabConfig = await getHomepageFeaturedCollaborationsSetting();
   const previousRaw = await getHomepageFeaturedCollaborationViewsSetting();
+  const plan = await loadFeaturedCollaborationViewPlan(
+    parseHomepageFeaturedCollaborationViewsSetting(previousRaw)?.items,
+    collabConfig
+  );
+
+  const mergedIncoming = [...items];
+  const byApp = new Map(mergedIncoming.map((row) => [row.applicationId, row]));
+  for (const planItem of plan.items) {
+    if (!planItem.url?.trim()) continue;
+    if (featuredCollaborationPlatform(planItem.url) !== "tiktok") continue;
+    const views = await fetchTikTokPublicPlayCount(planItem.url);
+    const prev = byApp.get(planItem.applicationId);
+    byApp.set(planItem.applicationId, {
+      applicationId: planItem.applicationId,
+      url: (prev?.url || planItem.url).trim(),
+      views,
+    });
+  }
+
   const merged = mergeFeaturedCollaborationViews(
     collabConfig.applicationIds,
     previousRaw,
-    items
+    [...byApp.values()]
   );
 
   const upsert = await upsertJsonSiteSetting(

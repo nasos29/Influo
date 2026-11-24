@@ -22,6 +22,7 @@ import { useSiteSettings } from "@/components/SiteSettingsProvider";
 import { filterUiVariantFromSetting } from "@/lib/siteSettings";
 import DirectoryFilters from "@/components/DirectoryFilters";
 import { rememberDirectoryReturn, restoreDirectoryScroll } from "@/lib/directoryReturn";
+import { readDirectoryListCache, writeDirectoryListCache } from "@/lib/directoryListCache";
 import { parseFollowerString } from "@/lib/parseFollowers";
 
 const CATEGORY_KEYS = new Set<string>(CATEGORIES);
@@ -376,8 +377,6 @@ export default function Directory({
       badgeFilter === "All" &&
       availabilityFilter === "available" &&
       (isHomePreview || page === 1);
-    if (!(filtersAreDefault && initialInfluencers.length > 0)) setLoading(true);
-
     const params = new URLSearchParams();
     params.set("page", isHomePreview ? "1" : String(page));
     params.set("pageSize", String(isHomePreview ? homeLimit : PAGE_SIZE));
@@ -398,6 +397,18 @@ export default function Directory({
     if (ageMax.trim()) params.set("ageMax", ageMax.trim());
     if (badgeFilter !== "All") params.set("badge", badgeFilter);
     params.set("availability", availabilityFilter);
+
+    const queryKey = params.toString();
+    const cached = readDirectoryListCache(queryKey);
+    if (cached) {
+      setInfluencers(cached.influencers as Influencer[]);
+      setTotal(cached.total);
+      setRelaxedMax(cached.relaxedMax);
+      setLoading(false);
+      return;
+    }
+
+    if (!(filtersAreDefault && initialInfluencers.length > 0)) setLoading(true);
 
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
@@ -485,8 +496,15 @@ export default function Directory({
 
         if (!isMountedRef.current) return;
         setInfluencers(realInfluencers);
-        setTotal(typeof result.total === "number" ? result.total : realInfluencers.length);
-        setRelaxedMax(typeof result.relaxedMax === "number" ? result.relaxedMax : null);
+        const nextTotal = typeof result.total === "number" ? result.total : realInfluencers.length;
+        const nextRelaxed = typeof result.relaxedMax === "number" ? result.relaxedMax : null;
+        setTotal(nextTotal);
+        setRelaxedMax(nextRelaxed);
+        writeDirectoryListCache(queryKey, {
+          influencers: realInfluencers,
+          total: nextTotal,
+          relaxedMax: nextRelaxed,
+        });
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") return;
         if (isMountedRef.current) {

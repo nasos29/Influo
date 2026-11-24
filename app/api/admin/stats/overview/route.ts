@@ -11,19 +11,18 @@ import {
   type StatsPeriodBounds,
 } from "@/lib/adminPlatformStats";
 import {
-  ANALYTICS_SERIES_ROW_CAP,
-  analyticsDailyFromLightRows,
   buildPeriodKpi,
   EMAIL_LOG_ROW_CAP,
   fetchCapped,
   headCount,
-  OVERVIEW_CACHE_MS,
+  platformAnalyticsDailyByHead,
   platformAnalyticsKpis,
   REVIEW_RATINGS_ROW_CAP,
   runInBatches,
   STATS_REQUEST_TIMEOUT_MS,
   statusTotalsBatched,
 } from "@/lib/adminStatsRouteHelpers";
+import { createStatsSwrCache } from "@/lib/adminStatsSingleFlight";
 import { isTimeoutError, TimeoutError, withTimeout } from "@/lib/withTimeout";
 
 const CACHE_HEADERS = { "Cache-Control": "private, no-store" };
@@ -61,8 +60,7 @@ type OverviewPayload = {
   };
 };
 
-type OverviewCache = { payload: OverviewPayload; fetchedAt: number };
-let overviewCache: OverviewCache | null = null;
+const overviewCache = createStatsSwrCache<OverviewPayload>();
 
 function emailTypeTops(
   rows: { type: string; sent_at: string }[],
@@ -193,9 +191,9 @@ async function buildOverviewPayload(admin: SupabaseClient): Promise<OverviewPayl
     brandSignupRows,
     topInfluencers,
     topBrands,
-    analyticsSeriesRows,
     emailRows,
     reviewRatings,
+    analyticsDaily,
   ] = await Promise.all([
     fetchCapped<{ created_at: string }>(
       admin,
@@ -213,17 +211,6 @@ async function buildOverviewPayload(admin: SupabaseClient): Promise<OverviewPayl
     ),
     admin.from("influencers").select("category, location, display_name, contact_email").eq("approved", true),
     admin.from("brands").select("industry, brand_name, contact_email").eq("verified", true),
-    fetchCapped<{ event_type: string; created_at: string }>(
-      admin,
-      "influencer_analytics",
-      "event_type, created_at",
-      (q) =>
-        q
-          .gte("created_at", bounds.d30Start)
-          .lt("created_at", bounds.tomorrowStart)
-          .in("event_type", ["profile_view", "profile_click"]),
-      ANALYTICS_SERIES_ROW_CAP
-    ),
     fetchCapped<{ type: string; sent_at: string }>(
       admin,
       "email_log",
@@ -239,6 +226,7 @@ async function buildOverviewPayload(admin: SupabaseClient): Promise<OverviewPayl
       (q) => q.gte("created_at", bounds.d30Start).lt("created_at", bounds.tomorrowStart),
       REVIEW_RATINGS_ROW_CAP
     ),
+    platformAnalyticsDailyByHead(admin, bounds),
   ]);
 
   const dailySignups = bucketSignupsByDay(
@@ -275,8 +263,6 @@ async function buildOverviewPayload(admin: SupabaseClient): Promise<OverviewPayl
     }
     for (const c of splitDelimitedLabels(row.industry as string)) industryLabels.push(c);
   }
-
-  const analyticsDaily = analyticsDailyFromLightRows(analyticsSeriesRows, bounds);
 
   const ratingsByPeriod = {
     d7: [] as number[],
@@ -337,18 +323,18 @@ export async function GET(request: NextRequest) {
   const denied = await rejectUnlessAdmin(request);
   if (denied) return denied;
 
-  const now = Date.now();
-  if (overviewCache && now - overviewCache.fetchedAt < OVERVIEW_CACHE_MS) {
-    return NextResponse.json(overviewCache.payload, { headers: CACHE_HEADERS });
-  }
-
   const admin = supabaseService();
 
   try {
-    const payload = await withTimeout(buildOverviewPayload(admin), STATS_REQUEST_TIMEOUT_MS);
-    overviewCache = { payload, fetchedAt: now };
+    const payload = await overviewCache.serve(() =>
+      withTimeout(buildOverviewPayload(admin), STATS_REQUEST_TIMEOUT_MS)
+    );
     return NextResponse.json(payload, { headers: CACHE_HEADERS });
   } catch (err) {
+    const stale = overviewCache.peek();
+    if (stale) {
+      return NextResponse.json(stale, { headers: CACHE_HEADERS });
+    }
     if (isTimeoutError(err) || err instanceof TimeoutError) {
       return NextResponse.json({ error: "timeout" }, { status: 504, headers: CACHE_HEADERS });
     }

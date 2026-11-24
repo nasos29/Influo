@@ -223,6 +223,12 @@ export default function HostedVideoPlayer({
   const slotRef = useRef<HTMLDivElement | null>(null);
   const ignoreTapUntilRef = useRef(0);
   const closingRef = useRef(false);
+  const playbackBridgeRef = useRef<{
+    time: number;
+    playing: boolean;
+    muted: boolean;
+    volume: number;
+  } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [slotBox, setSlotBox] = useState<Box | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -237,6 +243,40 @@ export default function HostedVideoPlayer({
     toggle,
     pauseSelf,
   } = usePortfolioMediaControls("native", true, { claimOnMount: autoplayOnMount });
+
+  const snapshotPlayback = useCallback(() => {
+    const el = mediaVideoRef.current;
+    if (!el) return;
+    playbackBridgeRef.current = {
+      time: Number.isFinite(el.currentTime) ? el.currentTime : 0,
+      playing: !el.paused && !el.ended,
+      muted: el.muted,
+      volume: Number.isFinite(el.volume) ? el.volume : volume,
+    };
+  }, [mediaVideoRef, volume]);
+
+  const applyPlaybackBridge = useCallback(
+    (el: HTMLVideoElement) => {
+      const snap = playbackBridgeRef.current;
+      if (!snap) return;
+      try {
+        if (Number.isFinite(snap.time)) el.currentTime = snap.time;
+      } catch {
+        /* seek not ready */
+      }
+      if (volumeSliderSupported) {
+        const level = snap.muted ? 0 : snap.volume;
+        el.volume = level > 0 ? level : lastNonZeroVolumeRef.current || 1;
+      }
+      el.muted = snap.muted;
+      setMuted(snap.muted);
+      setVolume(snap.muted ? 0 : snap.volume);
+      setCurrentTime(snap.time);
+      if (snap.playing) void el.play().catch(() => {});
+      else el.pause();
+    },
+    [volumeSliderSupported]
+  );
 
   const lightbox = expanded || closing;
   const box = lightbox && expandedBox ? expandedBox : slotBox;
@@ -298,6 +338,7 @@ export default function HostedVideoPlayer({
 
   const collapse = useCallback(() => {
     if (closingRef.current || !expanded) return;
+    snapshotPlayback();
     const from = readBox(slotRef.current) || slotBox;
     const to = expandedBox;
     if (!from || !to || prefersReducedMotion()) {
@@ -309,13 +350,14 @@ export default function HostedVideoPlayer({
     setFlipReady(true);
     setFlip(invertTransform(from, to));
     showControls();
-  }, [expanded, expandedBox, slotBox, finishClose, showControls]);
+  }, [expanded, expandedBox, slotBox, finishClose, showControls, snapshotPlayback]);
 
   const expandOrToggle = useCallback(() => {
     if (expanded || closingRef.current) {
       collapse();
       return;
     }
+    snapshotPlayback();
     const from = readBox(slotRef.current) || slotBox;
     if (!from) return;
     const to = enlargedBox(from.width, from.height);
@@ -336,7 +378,7 @@ export default function HostedVideoPlayer({
         setFlip("");
       });
     });
-  }, [expanded, slotBox, collapse, showControls]);
+  }, [expanded, slotBox, collapse, showControls, snapshotPlayback]);
 
   useLayoutEffect(() => {
     setMounted(true);
@@ -618,16 +660,9 @@ export default function HostedVideoPlayer({
   useLayoutEffect(() => {
     const el = mediaVideoRef.current;
     if (!el) return;
-    if (currentTime > 0 && Number.isFinite(el.duration)) {
-      try {
-        el.currentTime = currentTime;
-      } catch {
-        /* seek out of range during source swap */
-      }
-    }
-    if (playing && el.paused) void el.play().catch(() => {});
+    applyPlaybackBridge(el);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync playback only when moving between in-card and portaled shell
-  }, [lightbox]);
+  }, [lightbox, applyPlaybackBridge]);
 
   const renderPlayerShell = (portaled: boolean) => {
     if (portaled && !box) return null;
@@ -734,8 +769,17 @@ export default function HostedVideoPlayer({
           if (Number.isFinite(d)) setDuration(d);
         }}
         onLoadedMetadata={(e) => {
-          const d = e.currentTarget.duration;
+          const el = e.currentTarget;
+          const d = el.duration;
           if (Number.isFinite(d)) setDuration(d);
+          if (playbackBridgeRef.current) applyPlaybackBridge(el);
+          else if (Number.isFinite(currentTime)) {
+            try {
+              el.currentTime = currentTime;
+            } catch {
+              /* not seekable yet */
+            }
+          }
         }}
         onError={() => {
           const next = fallbackUrls(media, playUrl)[0];
