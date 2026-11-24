@@ -8,6 +8,17 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 
 const GA_PROPERTY_URL = "https://analytics.google.com/";
 
+type TrafficPayload = {
+  configured: boolean;
+  error?: string;
+  users?: PeriodKpi;
+  sessions?: PeriodKpi;
+  newUsers?: PeriodKpi;
+  signUp?: PeriodKpi;
+  topChannels?: { channel: string; sessions: number }[];
+  topLandingPages?: { path: string; sessions: number }[];
+};
+
 type OverviewPayload = {
   kpis: Record<string, PeriodKpi>;
   dailySignups: { date: string; creators: number; brands: number }[];
@@ -50,7 +61,16 @@ const tr = {
     vsPrev: "vs προηγ.",
     total: "Σύνολο",
     siteTrafficTitle: "Traffic ιστότοπου",
-    siteTrafficNote: "Ο επισκεψιμότητας του ιστότοπου μετράται στο Google Analytics — όχι στη βάση Influo.",
+    siteTrafficNote: "Ο επισκεψιμότητας του ιστότοπου μετράεται στο Google Analytics — όχι στη βάση Influo.",
+    siteTrafficNoteLive: "Δεδομένα GA4 (Europe/Athens) — η πλατφόρμα Influo παραμένει ξεχωριστά παρακάτω.",
+    trafficNotConfigured: "Το GA4 δεν είναι ρυθμισμένο στο server (GA4_PROPERTY_ID / GA4_SA_KEY_FILE).",
+    trafficLoadError: "Δεν φορτώθηκε το traffic από το GA4.",
+    gaUsers: "Χρήστες (active)",
+    gaSessions: "Sessions",
+    gaNewUsers: "Νέοι χρήστες",
+    gaSignUp: "Events sign_up",
+    topChannels: "Κορυφαία κανάλια (30ημ.)",
+    topLandingPages: "Κορυφαίες landing σελίδες (30ημ.)",
     openGa: "Άνοιγμα Google Analytics",
     funnel: "Funnel (τελευταίες 30 ημέρες / αποθέματα)",
     signups: "Νέες εγγραφές (30ημ.)",
@@ -90,6 +110,15 @@ const tr = {
     total: "Total",
     siteTrafficTitle: "Website traffic",
     siteTrafficNote: "Website visits are measured in Google Analytics — not in the Influo database.",
+    siteTrafficNoteLive: "GA4 data (Europe/Athens) — in-app Influo metrics remain below.",
+    trafficNotConfigured: "GA4 is not configured on the server (GA4_PROPERTY_ID / GA4_SA_KEY_FILE).",
+    trafficLoadError: "Could not load traffic from GA4.",
+    gaUsers: "Users (active)",
+    gaSessions: "Sessions",
+    gaNewUsers: "New users",
+    gaSignUp: "sign_up events",
+    topChannels: "Top channels (30d)",
+    topLandingPages: "Top landing pages (30d)",
     openGa: "Open Google Analytics",
     funnel: "Funnel (last 30 days / stock)",
     signups: "New sign-ups (30d)",
@@ -204,6 +233,33 @@ function FunnelBar({ label, value, base }: { label: string; value: number; base:
   );
 }
 
+function ChannelBars({
+  items,
+  lang,
+}: {
+  items: { channel: string; sessions: number }[];
+  lang: "el" | "en";
+}) {
+  const txt = tr[lang];
+  if (!items.length) return <p className="text-sm text-slate-500">{txt.empty}</p>;
+  const max = Math.max(...items.map((i) => i.sessions), 1);
+  return (
+    <ul className="space-y-2">
+      {items.map((item) => (
+        <li key={item.channel}>
+          <div className="flex justify-between text-xs mb-0.5">
+            <span className="text-slate-700 truncate pr-2">{item.channel}</span>
+            <span className="font-medium text-slate-900 shrink-0">{item.sessions.toLocaleString()}</span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div className="h-full bg-violet-500 rounded-full" style={{ width: `${(item.sessions / max) * 100}%` }} />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function TopBars({ items, lang }: { items: { label: string; count: number }[]; lang: "el" | "en" }) {
   const txt = tr[lang];
   if (!items.length) return <p className="text-sm text-slate-500">{txt.empty}</p>;
@@ -291,6 +347,7 @@ function DailySignupsChart({
 export default function AdminPlatformStatsTab({ lang }: { lang: "el" | "en" }) {
   const txt = tr[lang];
   const [data, setData] = useState<OverviewPayload | null>(null);
+  const [traffic, setTraffic] = useState<TrafficPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -298,21 +355,29 @@ export default function AdminPlatformStatsTab({ lang }: { lang: "el" | "en" }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/stats/overview", { headers: await adminAuthHeaders() });
-      const json = (await res.json()) as OverviewPayload;
-      if (!res.ok) {
+      const headers = await adminAuthHeaders();
+      const [overviewRes, trafficRes] = await Promise.all([
+        fetch("/api/admin/stats/overview", { headers }),
+        fetch("/api/admin/stats/traffic", { headers }),
+      ]);
+      const json = (await overviewRes.json()) as OverviewPayload;
+      if (!overviewRes.ok) {
         setError(json.error || txt.error);
         setData(null);
+        setTraffic(null);
         return;
       }
       setData(json);
+      const trafficJson = (await trafficRes.json()) as TrafficPayload;
+      setTraffic(trafficRes.ok ? trafficJson : { configured: false, error: txt.trafficLoadError });
     } catch {
       setError(txt.error);
       setData(null);
+      setTraffic(null);
     } finally {
       setLoading(false);
     }
-  }, [txt.error]);
+  }, [txt.error, txt.trafficLoadError]);
 
   useEffect(() => {
     void load();
@@ -366,20 +431,59 @@ export default function AdminPlatformStatsTab({ lang }: { lang: "el" | "en" }) {
         </button>
       </div>
 
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/80 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-bold text-slate-900">{txt.siteTrafficTitle}</h3>
-          <p className="text-xs text-slate-600 mt-1 max-w-xl">{txt.siteTrafficNote}</p>
-        </div>
-        <a
-          href={GA_PROPERTY_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+      <div className="space-y-4">
+        <div
+          className={`rounded-xl p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 ${
+            traffic?.configured
+              ? "border border-slate-200 bg-white"
+              : "border border-dashed border-slate-300 bg-slate-50/80"
+          }`}
         >
-          {txt.openGa}
-          <ExternalLink className="w-4 h-4" />
-        </a>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">{txt.siteTrafficTitle}</h3>
+            <p className="text-xs text-slate-600 mt-1 max-w-xl">
+              {traffic?.configured ? txt.siteTrafficNoteLive : txt.siteTrafficNote}
+            </p>
+            {!traffic?.configured ? (
+              <p className="text-xs text-slate-500 mt-2">{traffic?.error ?? txt.trafficNotConfigured}</p>
+            ) : traffic.error ? (
+              <p className="text-xs text-amber-800 mt-2">{traffic.error}</p>
+            ) : null}
+          </div>
+          <a
+            href={GA_PROPERTY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800 shrink-0"
+          >
+            {txt.openGa}
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
+
+        {traffic?.configured && traffic.users && traffic.sessions && traffic.newUsers ? (
+          <>
+            <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+              <KpiCard label={txt.gaUsers} kpi={traffic.users} lang={lang} />
+              <KpiCard label={txt.gaSessions} kpi={traffic.sessions} lang={lang} />
+              <KpiCard label={txt.gaNewUsers} kpi={traffic.newUsers} lang={lang} />
+              {traffic.signUp ? <KpiCard label={txt.gaSignUp} kpi={traffic.signUp} lang={lang} /> : null}
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-white border border-slate-200 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-slate-900 mb-3">{txt.topChannels}</h3>
+                <ChannelBars items={traffic.topChannels ?? []} lang={lang} />
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-4">
+                <h3 className="text-sm font-bold text-slate-900 mb-3">{txt.topLandingPages}</h3>
+                <TopBars
+                  items={(traffic.topLandingPages ?? []).map((p) => ({ label: p.path, count: p.sessions }))}
+                  lang={lang}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
