@@ -89,6 +89,7 @@ import type { ProfileViewModel } from "@/lib/profileViewModel";
 import {
   consumeDirectoryReturnPath,
   directoryPathFromReferrer,
+  shouldUseHistoryBackForDirectory,
 } from "@/lib/directoryReturn";
 
 const EMPTY_PORTFOLIO_URLS: string[] = [];
@@ -1678,19 +1679,20 @@ export default function InfluencerProfile(props: {
 
   const goBackToDirectory = useCallback(() => {
     const fallback = lang === "en" ? "/en/directory" : "/directory";
-    // Prefer explicit push (filters + scroll via session) over router.back(),
-    // which is a no-op when history is empty / same-entry / soft-nav quirks.
     const remembered = consumeDirectoryReturnPath();
-    if (remembered) {
-      router.push(remembered);
-      return;
-    }
     const fromRef = directoryPathFromReferrer();
-    if (fromRef) {
-      router.push(fromRef);
+    if (
+      typeof window !== "undefined" &&
+      shouldUseHistoryBackForDirectory({
+        historyLength: window.history.length,
+        rememberedPath: remembered,
+        referrerPath: fromRef,
+      })
+    ) {
+      router.back();
       return;
     }
-    router.push(fallback);
+    router.push(remembered || fromRef || fallback);
   }, [lang, router]);
 
   const goToPlainDirectory = useCallback(() => {
