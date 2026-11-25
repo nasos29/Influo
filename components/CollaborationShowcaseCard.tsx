@@ -62,9 +62,15 @@ const COLLABORATION_MEDIA_MAX_HEIGHT = "min(72vh, 520px)";
 /** Width follows the height cap so a full-bleed 9/16 frame cannot grow past it. */
 const COLLABORATION_MEDIA_MAX_WIDTH = `min(100%, calc(${COLLABORATION_MEDIA_MAX_HEIGHT} * 9 / 16))`;
 
+/** Card matches the capped 9/16 frame so nothing shows beside the video. */
+export const COLLABORATION_CARD_STYLE: CSSProperties = {
+  width: "100%",
+  maxWidth: COLLABORATION_MEDIA_MAX_WIDTH,
+};
+
 export const COLLABORATION_MEDIA_SHELL_STYLE: CSSProperties = {
   aspectRatio: COLLABORATION_MEDIA_ASPECT,
-  width: COLLABORATION_MEDIA_MAX_WIDTH,
+  width: "100%",
   maxHeight: COLLABORATION_MEDIA_MAX_HEIGHT,
 };
 
@@ -132,7 +138,7 @@ function ResultLine({
 }
 
 function ListingHostedMedia({ item, lang }: { item: RecentCollaborationCard; lang: Lang }) {
-  const shellClass = "relative mx-auto overflow-hidden rounded-t-2xl bg-slate-950";
+  const shellClass = "relative w-full overflow-hidden rounded-t-2xl bg-black";
 
   if (item.hostedMedia) {
     return (
@@ -175,23 +181,31 @@ function ListingHostedMedia({ item, lang }: { item: RecentCollaborationCard; lan
 }
 
 function ShowcaseEmbedMedia({ item, lang }: { item: RecentCollaborationCard; lang: Lang }) {
+  if (item.hostedMedia) {
+    return (
+      <div className="relative w-full overflow-hidden bg-black" style={COLLABORATION_MEDIA_SHELL_STYLE}>
+        <HostedMediaPlayer media={item.hostedMedia} lang={lang} autoplayOnMount={false} />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative bg-slate-50">
-      <div className="relative mx-auto overflow-hidden" style={COLLABORATION_MEDIA_SHELL_STYLE}>
-        <div className="absolute inset-0">
-          {item.postUrl && item.postProvider ? (
-            <SocialEmbedCard
-              provider={item.postProvider}
-              originalUrl={item.postUrl}
-              lang={lang}
-              hostedMedia={item.hostedMedia ?? null}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500">
-              {item.brandName}
-            </div>
-          )}
-        </div>
+    <div className="relative w-full overflow-hidden bg-black" style={COLLABORATION_MEDIA_SHELL_STYLE}>
+      <div className="absolute inset-0">
+        {item.postUrl && item.postProvider ? (
+          <SocialEmbedCard
+            provider={item.postProvider}
+            originalUrl={item.postUrl}
+            lang={lang}
+            fillFrame
+            width={9}
+            height={16}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center bg-black text-sm text-slate-300">
+            {item.brandName}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -215,8 +229,11 @@ export default function CollaborationShowcaseCard({
   const bodyGap = variant === "listing" ? "gap-4 p-4 md:p-5" : "gap-3 p-4";
 
   return (
-    <article className="flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200 hover:shadow-md">
-      <div className="relative">
+    <article
+      className="mx-auto flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-shadow duration-200 hover:shadow-md"
+      style={COLLABORATION_CARD_STYLE}
+    >
+      <div className="relative w-full">
         {variant === "showcase" ? (
           <ShowcaseEmbedMedia item={item} lang={lang} />
         ) : (
@@ -224,7 +241,7 @@ export default function CollaborationShowcaseCard({
         )}
         {platform ? (
           <span
-            className={`pointer-events-none absolute left-3 top-3 rounded-md px-2 py-1 text-[11px] font-semibold tracking-wide text-slate-800 shadow-sm backdrop-blur-sm ring-1 ${
+            className={`pointer-events-none absolute left-3 top-3 z-30 rounded-md px-2 py-1 text-[11px] font-semibold tracking-wide text-slate-800 shadow-sm ring-1 ${
               variant === "showcase"
                 ? "bg-white/60 ring-white/40"
                 : "bg-white/75 ring-white/50"

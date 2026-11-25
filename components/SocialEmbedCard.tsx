@@ -55,6 +55,11 @@ interface SocialEmbedCardProps {
   onUnavailable?: () => void;
   /** When set, play the Influo-hosted file instead of an off-site embed. */
   hostedMedia?: HostedMedia | null;
+  /**
+   * Fill the parent frame edge to edge (no inner card chrome, no letterbox).
+   * Used by collaboration cards whose shell is already 9/16.
+   */
+  fillFrame?: boolean;
 }
 
 const COPY = {
@@ -177,6 +182,7 @@ export default function SocialEmbedCard({
   height,
   onUnavailable,
   hostedMedia = null,
+  fillFrame = false,
 }: SocialEmbedCardProps) {
   const finalWidth = width || DEFAULT_DIMENSIONS[provider].width;
   const finalHeight = height || DEFAULT_DIMENSIONS[provider].height;
@@ -738,18 +744,26 @@ export default function SocialEmbedCard({
     !nativeVideoUrl &&
     carouselImages.length > 1;
 
+  const rootClass = fillFrame ? "h-full w-full" : "w-full max-w-full";
+  const chromeClass = fillFrame
+    ? "relative h-full w-full overflow-hidden bg-black"
+    : "bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full";
+  const mediaBoxClass = fillFrame
+    ? "absolute inset-0 overflow-hidden bg-black"
+    : "relative w-full overflow-hidden bg-slate-100";
+
   if (hostedPhotoReady && hostedMedia) {
     const ratio =
       hostedMedia.width && hostedMedia.height
         ? `${hostedMedia.width} / ${hostedMedia.height}`
         : `${finalWidth} / ${finalHeight}`;
     return (
-      <div className="w-full max-w-full" ref={rootRef}>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
+      <div className={rootClass} ref={rootRef}>
+        <div className={chromeClass}>
           <div
             ref={playerBoxRef}
-            className="relative w-full overflow-hidden bg-slate-100"
-            style={{ aspectRatio: ratio, minHeight: 300 }}
+            className={mediaBoxClass}
+            style={fillFrame ? undefined : { aspectRatio: ratio, minHeight: 300 }}
           >
             <HostedMediaPlayer
               media={hostedMedia}
@@ -764,14 +778,16 @@ export default function SocialEmbedCard({
   }
 
   return (
-    <div className="w-full max-w-full" ref={rootRef}>
-      <div className="bg-white rounded-xl border border-slate-200 shadow-md overflow-hidden w-full max-w-full">
+    <div className={rootClass} ref={rootRef}>
+      <div className={chromeClass}>
         <div
           ref={playerBoxRef}
-          className={`relative w-full overflow-hidden bg-slate-100 ${
-            showStaticPhoto || showCarousel ? "cursor-default" : ""
-          }`}
-          style={{ aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }}
+          className={`${mediaBoxClass} ${showStaticPhoto || showCarousel ? "cursor-default" : ""}`}
+          style={
+            fillFrame
+              ? undefined
+              : { aspectRatio: `${finalWidth} / ${finalHeight}`, minHeight: 300 }
+          }
         >
           <div
             className={`absolute inset-0 bg-gradient-to-br ${COLORS[provider]}`}
@@ -803,8 +819,9 @@ export default function SocialEmbedCard({
           {!showStaticPhoto && !showCarousel ? (
             <>
               {/* Keep the cover underneath the iframe so about:blank / 403
-                  never leaves a black card. */}
-              {coverSrc ? (
+                  never leaves a black card. Collaboration frames (fillFrame)
+                  must not keep a poster behind the player. */}
+              {coverSrc && !fillFrame ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={coverSrc}
@@ -904,7 +921,9 @@ export default function SocialEmbedCard({
                   controls
                   autoPlay
                   playsInline
-                  className="absolute inset-0 z-[5] h-full w-full bg-black object-contain"
+                  className={`absolute inset-0 z-[5] h-full w-full bg-black ${
+                    fillFrame ? "object-cover" : "object-contain"
+                  }`}
                   ref={(el) => {
                     mediaVideoRef.current = el;
                     if (el) el.setAttribute("referrerpolicy", "no-referrer");

@@ -71,7 +71,7 @@ export default function CollaborationsListingPage({
           >
             <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-3">
               {items.map((item) => (
-                <li key={item.id} className="min-w-0">
+                <li key={item.id} className="flex w-full min-w-0 justify-center">
                   <CollaborationShowcaseCard item={item} lang={lang} variant="listing" />
                 </li>
               ))}
