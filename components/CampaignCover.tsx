@@ -84,7 +84,7 @@ export default function CampaignCover({
   sizes = "(max-width: 768px) 100vw, 400px",
   priority = false,
   showBrandMark = true,
-  /** On ≥lg screens, cap frame height (px) and switch main image to object-cover. Mobile unchanged. */
+  /** On ≥lg screens, cap frame height (px); main image stays object-contain (blurred fill covers letterbox). Mobile unchanged. */
   desktopMaxHeightPx,
 }: {
   coverUrl?: string | null;
@@ -193,7 +193,7 @@ export default function CampaignCover({
             src={displayCover as string}
             alt={title}
             fill
-            className={desktopCap ? "object-contain lg:object-cover lg:object-center" : "object-contain"}
+            className="object-contain"
             sizes={sizes}
             priority={priority}
             onError={() => (useFallback ? setFallbackFailed(true) : setCoverFailed(true))}
