@@ -53,6 +53,16 @@ export function consumeDirectoryReturnPath(): string | null {
   }
 }
 
+/** Use `history.back()` when the prior entry is the directory (avoids stacking duplicate history). */
+export function shouldUseHistoryBackForDirectory(input: {
+  historyLength: number;
+  rememberedPath: string | null;
+  referrerPath: string | null;
+}): boolean {
+  if (input.historyLength <= 1) return false;
+  return Boolean(input.rememberedPath || input.referrerPath);
+}
+
 /** Same-origin directory URL from document.referrer (includes query). */
 export function directoryPathFromReferrer(): string | null {
   if (typeof window === "undefined" || typeof document === "undefined") return null;

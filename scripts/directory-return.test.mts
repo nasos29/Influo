@@ -5,6 +5,7 @@ import {
   directoryPathFromReferrer,
   rememberDirectoryReturn,
   restoreDirectoryScroll,
+  shouldUseHistoryBackForDirectory,
 } from "../lib/directoryReturn.ts";
 
 describe("directoryReturn", () => {
@@ -34,6 +35,41 @@ describe("directoryReturn", () => {
     const path = consumeDirectoryReturnPath();
     assert.equal(path, "/directory?category=Fashion&page=2");
     assert.equal(store.get("influo:directory-return-scroll"), "640");
+  });
+
+  it("shouldUseHistoryBackForDirectory prefers back when history has a directory source", () => {
+    assert.equal(
+      shouldUseHistoryBackForDirectory({
+        historyLength: 3,
+        rememberedPath: "/directory?page=2",
+        referrerPath: null,
+      }),
+      true,
+    );
+    assert.equal(
+      shouldUseHistoryBackForDirectory({
+        historyLength: 2,
+        rememberedPath: null,
+        referrerPath: "/en/directory",
+      }),
+      true,
+    );
+    assert.equal(
+      shouldUseHistoryBackForDirectory({
+        historyLength: 1,
+        rememberedPath: "/directory",
+        referrerPath: "/directory",
+      }),
+      false,
+    );
+    assert.equal(
+      shouldUseHistoryBackForDirectory({
+        historyLength: 5,
+        rememberedPath: null,
+        referrerPath: null,
+      }),
+      false,
+    );
   });
 
   it("directoryPathFromReferrer accepts same-origin directory URLs", () => {
