@@ -506,38 +506,26 @@ textarea:focus-visible {
   }
 }
 
-/* Homepage / collaborations: recent collaborations row (same pattern as open campaigns). */
-.grid-home-collaborations {
+/*
+ * Collaboration cards (/campaigns, /collaborations, homepage section):
+ * match creator profile portfolio — 1 col mobile, 2 cols md+, gap-6, ~725px grid.
+ */
+.grid-collaboration-showcase {
   display: grid;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+  max-width: 45.3125rem; /* 725px ≈ 2×~351px tiles + 24px gap */
   grid-auto-rows: 1fr;
   align-items: stretch;
-  justify-content: start;
 }
-.grid-home-collaborations > * {
+.grid-collaboration-showcase > * {
   min-width: 0;
-  width: 100%;
-  height: 100%;
-  justify-self: stretch;
-}
-@media (max-width: 767px) {
-  .grid-home-collaborations {
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(16.5rem, 82vw);
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scroll-snap-type: x mandatory;
-    scroll-padding-inline: 0.25rem;
-    padding-bottom: 0.25rem;
-    -webkit-overflow-scrolling: touch;
-  }
-  .grid-home-collaborations > * {
-    scroll-snap-align: start;
-  }
+  display: flex;
 }
 @media (min-width: 768px) {
-  .grid-home-collaborations {
-    grid-template-columns: repeat(var(--home-collab-cols, 3), minmax(0, 1fr));
+  .grid-collaboration-showcase {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
