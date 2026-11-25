@@ -363,8 +363,8 @@ function scoreChannelFromProfile(profile: ProInfluencer, growthPct: number | nul
 }
 
 const BACK_TO_DIRECTORY = {
-  el: "Πίσω στον κατάλογο",
-  en: "Back to directory",
+  el: "Πίσω",
+  en: "Back",
 } as const;
 
 const SEE_FULL_DIRECTORY = {
