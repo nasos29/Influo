@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import type { CSSProperties } from "react";
 import HostedMediaPlayer from "@/components/HostedMediaPlayer";
 import PlatformBrandIcon from "@/components/PlatformBrandIcon";
 import { getCachedImageUrl } from "@/lib/imageProxy";
@@ -53,8 +54,19 @@ const PENDING_GRADIENT: Record<"instagram" | "tiktok", string> = {
   tiktok: "from-black to-gray-900",
 };
 
-/** 9/16 media shell — matches profile portfolio video tiles (max-w-[360px]). */
+/** 9/16 media shell. Height is capped; width shrinks so the frame stays 9/16. */
 export const COLLABORATION_MEDIA_ASPECT = "9 / 16" as const;
+
+const COLLABORATION_MEDIA_MAX_HEIGHT = "min(72vh, 520px)";
+
+/** Width follows the height cap so a full-bleed 9/16 frame cannot grow past it. */
+const COLLABORATION_MEDIA_MAX_WIDTH = `min(100%, calc(${COLLABORATION_MEDIA_MAX_HEIGHT} * 9 / 16))`;
+
+export const COLLABORATION_MEDIA_SHELL_STYLE: CSSProperties = {
+  aspectRatio: COLLABORATION_MEDIA_ASPECT,
+  width: COLLABORATION_MEDIA_MAX_WIDTH,
+  maxHeight: COLLABORATION_MEDIA_MAX_HEIGHT,
+};
 
 function Avatar({
   src,
@@ -120,12 +132,11 @@ function ResultLine({
 }
 
 function ListingHostedMedia({ item, lang }: { item: RecentCollaborationCard; lang: Lang }) {
-  const shellClass =
-    "relative mx-auto w-full max-w-[360px] overflow-hidden rounded-t-2xl bg-slate-950";
+  const shellClass = "relative mx-auto overflow-hidden rounded-t-2xl bg-slate-950";
 
   if (item.hostedMedia) {
     return (
-      <div className={shellClass} style={{ aspectRatio: COLLABORATION_MEDIA_ASPECT }}>
+      <div className={shellClass} style={COLLABORATION_MEDIA_SHELL_STYLE}>
         <HostedMediaPlayer media={item.hostedMedia} lang={lang} autoplayOnMount={false} />
       </div>
     );
@@ -136,7 +147,7 @@ function ListingHostedMedia({ item, lang }: { item: RecentCollaborationCard; lan
     return (
       <div
         className={`${shellClass} bg-slate-100`}
-        style={{ aspectRatio: COLLABORATION_MEDIA_ASPECT }}
+        style={COLLABORATION_MEDIA_SHELL_STYLE}
       >
         <div
           className={`absolute inset-0 bg-gradient-to-br ${PENDING_GRADIENT[provider]} opacity-15`}
@@ -156,7 +167,7 @@ function ListingHostedMedia({ item, lang }: { item: RecentCollaborationCard; lan
   return (
     <div
       className={`${shellClass} flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 px-6 text-center`}
-      style={{ aspectRatio: COLLABORATION_MEDIA_ASPECT }}
+      style={COLLABORATION_MEDIA_SHELL_STYLE}
     >
       <p className="text-sm font-medium text-slate-600">{PLACEHOLDER_COPY[lang]}</p>
     </div>
@@ -166,22 +177,21 @@ function ListingHostedMedia({ item, lang }: { item: RecentCollaborationCard; lan
 function ShowcaseEmbedMedia({ item, lang }: { item: RecentCollaborationCard; lang: Lang }) {
   return (
     <div className="relative bg-slate-50">
-      <div
-        className="relative mx-auto w-full max-w-[360px] overflow-hidden"
-        style={{ aspectRatio: COLLABORATION_MEDIA_ASPECT }}
-      >
-        {item.postUrl && item.postProvider ? (
-          <SocialEmbedCard
-            provider={item.postProvider}
-            originalUrl={item.postUrl}
-            lang={lang}
-            hostedMedia={item.hostedMedia ?? null}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500">
-            {item.brandName}
-          </div>
-        )}
+      <div className="relative mx-auto overflow-hidden" style={COLLABORATION_MEDIA_SHELL_STYLE}>
+        <div className="absolute inset-0">
+          {item.postUrl && item.postProvider ? (
+            <SocialEmbedCard
+              provider={item.postProvider}
+              originalUrl={item.postUrl}
+              lang={lang}
+              hostedMedia={item.hostedMedia ?? null}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-sm text-slate-500">
+              {item.brandName}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

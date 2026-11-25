@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import {
-  useEffect,
-  useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { SECTION_TITLE_CLASS } from "@/lib/sectionTitle";
 import type { RecentCollaborationCard } from "@/lib/loadRecentCollaborations";
@@ -30,6 +29,19 @@ const COPY = {
     next: "Next collaborations",
   },
 } as const;
+
+/** Matches Tailwind `md` and `.grid-collaboration-showcase` two-column breakpoint. */
+const DESKTOP_MQ = "(min-width: 768px)";
+
+function subscribeDesktop(onChange: () => void) {
+  const mq = window.matchMedia(DESKTOP_MQ);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function desktopSnapshot() {
+  return window.matchMedia(DESKTOP_MQ).matches;
+}
 
 function NavButtons({
   lang,
@@ -88,15 +100,15 @@ export default function RecentCollaborationsSection({
 
   const totalPages = Math.max(1, Math.ceil(items.length / safePageSize));
   const showArrows = items.length > safePageSize;
+  const pageIndex = Math.min(page, totalPages - 1);
 
-  useEffect(() => {
-    setPage((p) => Math.min(p, totalPages - 1));
-  }, [totalPages]);
+  const start = pageIndex * safePageSize;
+  const pageItems = items.slice(start, start + safePageSize);
 
-  const pageItems = useMemo(() => {
-    const start = page * safePageSize;
-    return items.slice(start, start + safePageSize);
-  }, [items, page, safePageSize]);
+  // One list for every viewport. Desktop pages in JS so we never mount a second
+  // player per item (CSS `hidden` cannot beat an unlayered `display: grid`).
+  const isDesktop = useSyncExternalStore(subscribeDesktop, desktopSnapshot, () => false);
+  const visibleItems = isDesktop ? pageItems : items;
 
   if (!items.length) return null;
 
@@ -113,26 +125,16 @@ export default function RecentCollaborationsSection({
         {showArrows ? (
           <NavButtons
             lang={lang}
-            onPrev={() => setPage((p) => Math.max(0, p - 1))}
-            onNext={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            canPrev={page > 0}
-            canNext={page < totalPages - 1}
+            onPrev={() => setPage((p) => Math.max(0, Math.min(p, totalPages - 1) - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages - 1, Math.min(p, totalPages - 1) + 1))}
+            canPrev={pageIndex > 0}
+            canNext={pageIndex < totalPages - 1}
           />
         ) : null}
       </div>
 
-      {/* Mobile: full-width 9/16 tiles, single column (no snap carousel). */}
-      <ul className="grid-collaboration-showcase mt-8 md:hidden">
-        {items.map((item) => (
-          <li key={item.id}>
-            <CollaborationShowcaseCard item={item} lang={lang} variant="showcase" />
-          </li>
-        ))}
-      </ul>
-
-      {/* Desktop: paged 2-col grid matching portfolio tile width. */}
-      <ul className="grid-collaboration-showcase mt-8 hidden md:grid">
-        {pageItems.map((item) => (
+      <ul className="grid-collaboration-showcase mt-8">
+        {visibleItems.map((item) => (
           <li key={item.id}>
             <CollaborationShowcaseCard item={item} lang={lang} variant="showcase" />
           </li>
