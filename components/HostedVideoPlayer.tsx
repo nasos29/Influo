@@ -124,6 +124,15 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+/** Finite duration in seconds, or null for NaN / Infinity / <= 0. */
+function positiveDuration(seconds: number): number | null {
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+}
+
+function durationFromMedia(durationMs: number | null | undefined): number {
+  return durationMs && durationMs > 0 ? durationMs / 1000 : 0;
+}
+
 type Box = { width: number; height: number; left: number; top: number };
 
 function prefersReducedMotion(): boolean {
@@ -208,7 +217,7 @@ export default function HostedVideoPlayer({
   const startedRef = useRef(false);
   const [playUrl, setPlayUrl] = useState(() => pickHostedPlaybackUrl(media));
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(() => durationFromMedia(media.durationMs));
   const [controlsVisible, setControlsVisible] = useState(true);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hoveringRef = useRef(false);
@@ -558,27 +567,38 @@ export default function HostedVideoPlayer({
     showControls();
   }, [mediaVideoRef, onTapForSound, persistAudio, showSound, showControls, volume]);
 
+  const knownDuration = useCallback(
+    (el: HTMLVideoElement | null) => positiveDuration(el?.duration ?? NaN) ?? positiveDuration(duration),
+    [duration]
+  );
+
   const seekTo = useCallback(
     (time: number) => {
       const el = mediaVideoRef.current;
-      if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
-      const next = Math.min(Math.max(0, time), el.duration);
-      el.currentTime = next;
+      const known = knownDuration(el);
+      if (!el || known == null) return;
+      const next = Math.min(Math.max(0, time), known);
+      try {
+        el.currentTime = next;
+      } catch {
+        /* not seekable yet */
+      }
       setCurrentTime(next);
     },
-    [mediaVideoRef]
+    [knownDuration, mediaVideoRef]
   );
 
   const timeFromClientX = useCallback(
     (clientX: number) => {
       const el = mediaVideoRef.current;
       const bar = barRef.current;
-      if (!el || !bar || !Number.isFinite(el.duration) || el.duration <= 0) return 0;
+      const known = knownDuration(el);
+      if (!bar || known == null) return 0;
       const rect = bar.getBoundingClientRect();
       const ratio = rect.width <= 0 ? 0 : Math.min(Math.max(0, clientX - rect.left), rect.width) / rect.width;
-      return ratio * el.duration;
+      return ratio * known;
     },
-    [mediaVideoRef]
+    [knownDuration, mediaVideoRef]
   );
 
   const onSeekPointerDown = useCallback(
@@ -621,6 +641,16 @@ export default function HostedVideoPlayer({
     },
     [seekTo, showControls, timeFromClientX]
   );
+
+  const syncDurationFromElement = useCallback((el: HTMLVideoElement | null) => {
+    if (!el || el.readyState < 1) return;
+    const d = positiveDuration(el.duration);
+    if (d != null) setDuration(d);
+  }, []);
+
+  useLayoutEffect(() => {
+    syncDurationFromElement(mediaVideoRef.current);
+  }, [mediaVideoRef, playUrl, syncDurationFromElement]);
 
   useEffect(() => {
     if (!autoplayOnMount) return;
@@ -757,6 +787,7 @@ export default function HostedVideoPlayer({
         className="absolute inset-0 z-[5] h-full w-full bg-black object-cover"
         ref={(el) => {
           mediaVideoRef.current = el;
+          syncDurationFromElement(el);
         }}
         data-hosted-player="true"
         data-source-kind={sourceKind(media, playUrl)}
@@ -765,13 +796,13 @@ export default function HostedVideoPlayer({
           setCurrentTime(e.currentTarget.currentTime);
         }}
         onDurationChange={(e) => {
-          const d = e.currentTarget.duration;
-          if (Number.isFinite(d)) setDuration(d);
+          const d = positiveDuration(e.currentTarget.duration);
+          if (d != null) setDuration(d);
         }}
         onLoadedMetadata={(e) => {
           const el = e.currentTarget;
-          const d = el.duration;
-          if (Number.isFinite(d)) setDuration(d);
+          const d = positiveDuration(el.duration);
+          if (d != null) setDuration(d);
           if (playbackBridgeRef.current) applyPlaybackBridge(el);
           else if (Number.isFinite(currentTime)) {
             try {

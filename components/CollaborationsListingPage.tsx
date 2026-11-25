@@ -69,9 +69,9 @@ export default function CollaborationsListingPage({
             className="mx-auto max-w-page px-6 pb-16 pt-8 md:pb-20 md:pt-10"
             aria-label={txt.title}
           >
-            <ul className="grid-collaboration-showcase">
+            <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-3">
               {items.map((item) => (
-                <li key={item.id}>
+                <li key={item.id} className="min-w-0">
                   <CollaborationShowcaseCard item={item} lang={lang} variant="listing" />
                 </li>
               ))}

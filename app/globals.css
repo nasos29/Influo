@@ -507,25 +507,29 @@ textarea:focus-visible {
 }
 
 /*
- * Collaboration cards (/campaigns, /collaborations, homepage section):
- * match creator profile portfolio — 1 col mobile, 2 cols md+, gap-6, ~725px grid.
+ * Recent-collaborations showcase (/campaigns, homepage). 1 col mobile, 2 cols
+ * from md, gap 24px, ~725px so desktop cells stay near a portfolio tile.
+ * /collaborations uses its own 1 / sm:2 / xl:3 grid.
+ * In @layer components so Tailwind utilities (hidden, md:grid, …) win.
  */
-.grid-collaboration-showcase {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 45.3125rem; /* 725px ≈ 2×~351px tiles + 24px gap */
-  grid-auto-rows: 1fr;
-  align-items: stretch;
-}
-.grid-collaboration-showcase > * {
-  min-width: 0;
-  display: flex;
-}
-@media (min-width: 768px) {
+@layer components {
   .grid-collaboration-showcase {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+    width: 100%;
+    max-width: 45.3125rem; /* 725px ≈ 2×~351px tiles + 24px gap */
+    grid-auto-rows: 1fr;
+    align-items: stretch;
+  }
+  .grid-collaboration-showcase > * {
+    min-width: 0;
+    display: flex;
+  }
+  @media (min-width: 768px) {
+    .grid-collaboration-showcase {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 }
 
