@@ -36,6 +36,9 @@ test("collaboration media shell keeps 9/16 under a 72vh / 520px cap", () => {
   assert.match(card, /9 \/ 16/);
   assert.match(card, /autoplayOnMount=\{false\}/);
   assert.doesNotMatch(card, /max-w-\[360px\]/);
+  assert.match(card, /maxWidth: COLLABORATION_MEDIA_MAX_WIDTH/);
+  assert.match(card, /style=\{COLLABORATION_CARD_STYLE\}/);
+  assert.match(listing, /justify-center/);
 });
 
 test("hosted player seeds duration and ignores non-positive metadata", () => {

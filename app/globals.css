@@ -521,10 +521,13 @@ textarea:focus-visible {
     max-width: 45.3125rem; /* 725px ≈ 2×~351px tiles + 24px gap */
     grid-auto-rows: 1fr;
     align-items: stretch;
+    justify-items: center;
   }
   .grid-collaboration-showcase > * {
     min-width: 0;
+    width: 100%;
     display: flex;
+    justify-content: center;
   }
   @media (min-width: 768px) {
     .grid-collaboration-showcase {
