@@ -3,7 +3,13 @@
 import { audienceMissingKind, isAudienceNoAccess, type DemographicsListFilter } from "@/lib/audience";
 import AudienceMissingBadge from "@/components/AudienceMissingBadge";
 import { DataQualityBadge, DataQualityList, DataQualityNotes, type DataQualityMap } from "@/components/admin/DataQualityPanel";
+import { AudienceAuthenticityBadge } from "@/components/admin/AudienceAuthenticityBadge";
 import { creatorDataQualityFlags } from "@/lib/creatorDataQuality";
+import {
+  computeAudienceAuthenticity,
+  type AudienceAuthenticity,
+  type AuthenticityListFilter,
+} from "@/lib/audienceAuthenticity";
 import { useImageCrop, LOGO_CROP, LOGO_HINT } from "@/components/ImageCropDialog";
 import { diffProfileChange } from "@/lib/profileChangeDiff";
 import { useEffect, useState, useRef } from "react";
@@ -2070,6 +2076,13 @@ const EditProfileModal = ({
                             ) : null}
                         </div>
 
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <AudienceAuthenticityBadge
+                            auth={computeAudienceAuthenticity({ accounts: (user as { accounts?: unknown }).accounts })}
+                            lang={lang}
+                          />
+                        </div>
+
                         <DataQualityNotes
                           influencerId={String(user.id)}
                           name={String(user.display_name || "").trim()}
@@ -2247,11 +2260,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
   const [demographicsFilter, setDemographicsFilter] = useState<DemographicsListFilter>("all");
+  const [authenticityFilter, setAuthenticityFilter] = useState<AuthenticityListFilter>("all");
   const [reasonFilter, setReasonFilter] = useState<string>("all");
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [influencersPage, setInfluencersPage] = useState(1);
   const [dataQuality, setDataQuality] = useState<DataQualityMap>({});
   const [dataQualityOpen, setDataQualityOpen] = useState(false);
+  const [authenticityMap, setAuthenticityMap] = useState<Record<string, AudienceAuthenticity>>({});
+  const [authenticityCounts, setAuthenticityCounts] = useState({ suspicious: 0, review: 0 });
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -2259,6 +2275,30 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         const res = await fetch("/api/admin/influencers/data-quality", { headers: await adminAuthHeaders() });
         const body = (await res.json().catch(() => ({}))) as { flags?: DataQualityMap };
         if (alive && res.ok && body.flags) setDataQuality(body.flags);
+      } catch {
+        /* admin hint only */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/influencers/authenticity", { headers: await adminAuthHeaders() });
+        const body = (await res.json().catch(() => ({}))) as {
+          map?: Record<string, AudienceAuthenticity>;
+          counts?: { suspicious?: number; review?: number };
+        };
+        if (alive && res.ok && body.map) {
+          setAuthenticityMap(body.map);
+          setAuthenticityCounts({
+            suspicious: body.counts?.suspicious ?? 0,
+            review: body.counts?.review ?? 0,
+          });
+        }
       } catch {
         /* admin hint only */
       }
@@ -3164,12 +3204,14 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     q?: string;
     status?: "all" | "verified" | "pending";
     demographics?: DemographicsListFilter;
+    authenticity?: AuthenticityListFilter;
   }) => {
     const page = opts.page;
     const append = !!opts.append;
     const q = opts.q ?? debouncedSearch;
     const status = opts.status ?? statusFilter;
     const demographics = opts.demographics ?? demographicsFilter;
+    const authenticity = opts.authenticity ?? authenticityFilter;
     if (append) setInfluencersLoadingMore(true);
     else if (!opts.silent) setInfluencersLoading(true);
     if (!opts.silent) setInfluencersError(null);
@@ -3183,6 +3225,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
       });
       if (q.trim()) params.set("q", q.trim());
       if (demographics !== "all") params.set("demographics", demographics);
+      if (authenticity !== "all") params.set("authenticity", authenticity);
       const res = await withTimeout(
         fetch(`/api/admin/influencers?${params}`, {
           headers: await adminAuthHeaders(),
@@ -3424,7 +3467,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
     setSelectedUsers([]);
     void fetchInfluencersPage({ page: 1, q: debouncedSearch, status: statusFilter, demographics: demographicsFilter });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, statusFilter, demographicsFilter]);
+  }, [debouncedSearch, statusFilter, demographicsFilter, authenticityFilter]);
 
   useEffect(() => {
     const t = window.setTimeout(() => setBrandSearchDebounced(brandSearchQuery), 300);
@@ -4496,6 +4539,7 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
         });
         if (debouncedSearch.trim()) params.set("q", debouncedSearch.trim());
         if (demographicsFilter !== "all") params.set("demographics", demographicsFilter);
+        if (authenticityFilter !== "all") params.set("authenticity", authenticityFilter);
         const res = await fetch(`/api/admin/influencers?${params}`, {
           headers: await adminAuthHeaders(),
         });
@@ -5059,6 +5103,24 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                     <option value="empty">{lang === "el" ? "Χωρίς δημογραφικά (κενά)" : "No demographics (empty)"}</option>
                   </select>
                   <select
+                    value={authenticityFilter}
+                    onChange={(e) => setAuthenticityFilter(e.target.value as AuthenticityListFilter)}
+                    aria-label={lang === "el" ? "Φίλτρο αυθεντικότητας κοινού" : "Audience authenticity filter"}
+                    className="px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900/10 focus:border-slate-500 shrink-0 max-w-full"
+                  >
+                    <option value="all">{lang === "el" ? "Αυθεντικότητα: όλοι" : "Authenticity: all"}</option>
+                    <option value="suspicious">
+                      {lang === "el"
+                        ? `Ύποπτοι (${authenticityCounts.suspicious})`
+                        : `Suspicious (${authenticityCounts.suspicious})`}
+                    </option>
+                    <option value="review">
+                      {lang === "el"
+                        ? `Για έλεγχο (${authenticityCounts.review})`
+                        : `For review (${authenticityCounts.review})`}
+                    </option>
+                  </select>
+                  <select
                     value={reasonFilter}
                     onChange={(e) => setReasonFilter(e.target.value)}
                     aria-label={lang === "el" ? "Λόγος αναμονής" : "Pending reason"}
@@ -5214,6 +5276,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                           <p className="font-semibold text-slate-900 break-words">
                             {u.display_name}{" "}
                             <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} />
+                            <AudienceAuthenticityBadge
+                              auth={
+                                authenticityMap[String(u.id)] ??
+                                computeAudienceAuthenticity({ accounts: u.accounts })
+                              }
+                              lang={lang}
+                            />
                           </p>
                           <div className="mt-1 flex flex-wrap gap-1 min-w-0">
                             <AudienceMissingBadge kind={audienceMissingKind(u)} lang={lang} />
@@ -5298,6 +5367,13 @@ export default function AdminDashboardContent({ adminEmail }: { adminEmail: stri
                                 <div className="font-medium text-slate-900 break-words min-w-0">
                                   <span className="break-words">{u.display_name}</span>{" "}
                                   <DataQualityBadge flags={dataQuality[String(u.id)]?.flags} />
+                                  <AudienceAuthenticityBadge
+                                    auth={
+                                      authenticityMap[String(u.id)] ??
+                                      computeAudienceAuthenticity({ accounts: u.accounts })
+                                    }
+                                    lang={lang}
+                                  />
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1 min-w-0 max-w-full">
                                   <AudienceMissingBadge kind={audienceMissingKind(u)} lang={lang} />
