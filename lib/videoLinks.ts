@@ -1,5 +1,7 @@
 import { detectMediaPlatform } from "@/lib/creatorMedia";
 import { isPortfolioStillImageUrl, isSelfHostedPortfolioUrl } from "@/lib/portfolioHosted";
+import { isInstagramShareUrl, resolveInstagramShareUrl } from "@/lib/resolveInstagramShareUrl";
+import type { ShareResolveFetch } from "@/lib/resolveInstagramShareUrl";
 
 /** Inline copy for Facebook portfolio-link rejection (no translation files). */
 export const FACEBOOK_VIDEO_LINK_ERROR = {
@@ -135,6 +137,31 @@ export function prepareVideosForSave(videos: unknown): PrepareVideosResult {
       continue;
     }
     out.push(cleaned.url);
+  }
+  return { ok: true, videos: out };
+}
+
+export type PrepareVideosAsyncResult =
+  | { ok: true; videos: string[] }
+  | { ok: false; reason: PortfolioLinkRejectReason | "instagram_share_unresolved" };
+
+/** Like prepareVideosForSave but canonicalizes Instagram share links when saving server-side. */
+export async function prepareVideosForSaveAsync(
+  videos: unknown,
+  fetchImpl?: ShareResolveFetch
+): Promise<PrepareVideosAsyncResult> {
+  const base = prepareVideosForSave(videos);
+  if (!base.ok) return base;
+
+  const out: string[] = [];
+  for (const link of base.videos) {
+    if (isInstagramShareUrl(link)) {
+      const resolved = await resolveInstagramShareUrl(link, fetchImpl);
+      if (!resolved.ok) return { ok: false, reason: "instagram_share_unresolved" };
+      out.push(resolved.url);
+    } else {
+      out.push(link);
+    }
   }
   return { ok: true, videos: out };
 }

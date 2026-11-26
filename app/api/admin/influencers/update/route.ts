@@ -14,7 +14,7 @@ import {
 } from '@/lib/validateBirthDate';
 import {
   portfolioLinkValidationError,
-  prepareVideosForSave,
+  prepareVideosForSaveAsync,
   portfolioPostLimit,
   portfolioLimitMessage,
 } from '@/lib/videoLinks';
@@ -129,13 +129,16 @@ export async function POST(request: NextRequest) {
     }
 
     if ('videos' in patch) {
-      const prepared = prepareVideosForSave(patch.videos);
+      const prepared = await prepareVideosForSaveAsync(patch.videos);
       const lang = birthDateLangFromRequest(request);
       if (!prepared.ok) {
-        return NextResponse.json(
-          { error: portfolioLinkValidationError(prepared.reason, lang === 'en' ? 'en' : 'el') },
-          { status: 400 }
-        );
+        const err =
+          prepared.reason === "instagram_share_unresolved"
+            ? lang === "en"
+              ? "This Instagram share link could not be resolved. Open it in the app and copy the post link."
+              : "Δεν ήταν δυνατή η επίλυση του share link Instagram. Άνοιξέ το στην εφαρμογή και αντέγραψε το link του post."
+            : portfolioLinkValidationError(prepared.reason, lang === 'en' ? 'en' : 'el');
+        return NextResponse.json({ error: err }, { status: 400 });
       }
       const existingVideos = Array.isArray(existing.videos)
         ? (existing.videos as string[])

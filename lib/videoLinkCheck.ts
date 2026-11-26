@@ -3,6 +3,9 @@
  * Unknown (rate limit, timeout, 5xx, login wall, malformed) is never "missing".
  */
 
+import { isInstagramSharePathUrl } from "@/lib/instagramShortcode";
+import { resolveInstagramPostUrlIfNeeded } from "@/lib/resolveInstagramShareUrl";
+
 export type VideoPlatform = "instagram" | "tiktok" | "youtube";
 
 export type LinkOutcome = "live" | "missing" | "unknown";
@@ -58,7 +61,10 @@ export function classifyVideoUrl(raw: string): { platform: VideoPlatform; kind: 
   const url = (raw || "").trim();
   if (!url) return null;
 
-  if (/instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+/i.test(url)) {
+  if (
+    /instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+/i.test(url) ||
+    isInstagramSharePathUrl(url)
+  ) {
     return { platform: "instagram", kind: "post" };
   }
   if (/tiktok\.com\/@[^/?#\s]+\/(?:video|photo)\/\d+/i.test(url)) {
@@ -249,8 +255,9 @@ export async function checkVideoLink(raw: string): Promise<LinkCheck | null> {
   if (!classified) return null;
 
   if (classified.platform === "instagram") {
-    const canonical = instagramCanonical(raw);
-    if (!canonical) return null;
+    const resolved = await resolveInstagramPostUrlIfNeeded(raw);
+    const canonical = instagramCanonical(resolved) || instagramCanonical(raw);
+    if (!canonical) return { outcome: "unknown", platform: "instagram", httpStatus: null, detail: "share_unresolved" };
     return oembed("instagram", canonical);
   }
 

@@ -5,7 +5,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parseSocialPostUrl } from "@/lib/socialPostUrl";
+import { parseSocialPostUrlResolved } from "@/lib/socialPostUrl";
 import type { ShowcaseAddPostPayload } from "@/lib/showcaseAddPost";
 
 export type ApplyAddPostResult =
@@ -17,7 +17,7 @@ export async function applyShowcaseAddPost(
   payload: ShowcaseAddPostPayload,
   rawUrl: string
 ): Promise<ApplyAddPostResult> {
-  const parsed = parseSocialPostUrl(rawUrl);
+  const parsed = await parseSocialPostUrlResolved(rawUrl);
   if (!parsed.ok) {
     return { ok: false, reason: "invalid_url", message: parsed.error };
   }

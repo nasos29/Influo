@@ -1,6 +1,6 @@
 // Helper functions for video thumbnail generation
 import { resolveYouTubeVideoId as resolveYtId } from "./videoThumbnailYoutube";
-import { extractInstagramMedia } from "./instagramShortcode";
+import { extractInstagramMedia, isInstagramSharePathUrl } from "./instagramShortcode";
 import { extractTikTokVideoId, isTikTokShortLink } from "./tikTokPlayer";
 
 export { resolveYouTubeVideoId } from "./videoThumbnailYoutube";
@@ -25,8 +25,8 @@ export function getVideoThumbnail(url: string): string | null {
     return `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
   }
 
-  // Instagram Reels/Posts/TV (optional username segment)
-  if (IG_MEDIA_RE.test(url)) {
+  // Instagram Reels/Posts/TV (optional username segment) + mobile share links
+  if (IG_MEDIA_RE.test(url) || isInstagramSharePathUrl(url)) {
     return `/api/video-thumbnail?url=${encodeURIComponent(url)}`;
   }
 
@@ -48,6 +48,7 @@ export function isEmbeddableVideoUrl(url: string): boolean {
 
   if (resolveYtId(clean)) return true;
   if (extractInstagramMedia(clean)) return true;
+  if (isInstagramSharePathUrl(clean)) return true;
   if (TT_VIDEO_RE.test(clean)) return true;
   if (isTikTokShortLink(clean)) return true;
   // Already-resolved numeric TikTok paths without @user
