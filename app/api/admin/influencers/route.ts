@@ -9,6 +9,11 @@ import {
   matchesDemographicsListFilter,
   parseDemographicsListFilter,
 } from "@/lib/audience";
+import {
+  computeAudienceAuthenticity,
+  matchesAuthenticityListFilter,
+  parseAuthenticityListFilter,
+} from "@/lib/audienceAuthenticity";
 
 /** Columns needed by the admin influencers table / row actions (not full profile). */
 const LIST_COLUMNS = [
@@ -151,6 +156,7 @@ export async function GET(request: NextRequest) {
     const orderAsc = (url.searchParams.get("order") || "desc").toLowerCase() === "asc";
     const sortColumn = sort === "display_name" ? "display_name" : "created_at";
     const demographics = parseDemographicsListFilter(url.searchParams.get("demographics"));
+    const authenticity = parseAuthenticityListFilter(url.searchParams.get("authenticity"));
 
     const buildListQuery = (columns: string, opts?: { range?: boolean; count?: boolean }) => {
       const withCount = opts?.count !== false;
@@ -190,24 +196,67 @@ export async function GET(request: NextRequest) {
 
     const DEMOGRAPHICS_SCAN_PAGE = 1000;
 
+    const snapshotsByInfluencer = new Map<
+      string,
+      Array<{
+        total_followers: number | null;
+        snapshot_at: string;
+        accounts?: Array<{ platform: string; username: string; followers: number }> | null;
+      }>
+    >();
+
+    async function loadFollowerSnapshotsForAuthenticity(): Promise<void> {
+      if (authenticity === "all" || snapshotsByInfluencer.size > 0) return;
+      const { data: snaps } = await admin
+        .from("influencer_follower_snapshots")
+        .select("influencer_id, total_followers, snapshot_at, accounts")
+        .gte("snapshot_at", new Date(Date.now() - 120 * 86400_000).toISOString())
+        .order("snapshot_at", { ascending: false })
+        .limit(20000);
+      for (const s of snaps || []) {
+        const k = String(s.influencer_id);
+        const arr = snapshotsByInfluencer.get(k) || [];
+        if (arr.length < 2) {
+          arr.push({
+            total_followers: s.total_followers,
+            snapshot_at: s.snapshot_at,
+            accounts: Array.isArray(s.accounts) ? s.accounts : null,
+          });
+        }
+        snapshotsByInfluencer.set(k, arr);
+      }
+    }
+
     async function loadListPage(columns: string): Promise<{
       data: unknown[] | null;
       error: { message: string } | null;
       count: number | null;
     }> {
-      if (demographics === "all") {
+      if (demographics === "all" && authenticity === "all") {
         const built = buildListQuery(columns);
         const listQuery = applySearch(built.qy, built.pattern);
         const result = await listQuery;
         return { data: result.data, error: result.error, count: result.count };
       }
 
-      const demoCols = "id, created_at, display_name, audience_top_age, audience_male_percent, audience_female_percent";
+      await loadFollowerSnapshotsForAuthenticity();
+
+      type ScanRow = {
+        id: string | number;
+        audience_top_age?: string | null;
+        audience_male_percent?: number | null;
+        audience_female_percent?: number | null;
+        accounts?: unknown;
+      };
       const matchedIds: string[] = [];
       for (let from = 0; ; from += DEMOGRAPHICS_SCAN_PAGE) {
+        const scanCols =
+          authenticity !== "all"
+            ? ("id, created_at, display_name, audience_top_age, audience_male_percent, audience_female_percent, accounts" as const)
+            : ("id, created_at, display_name, audience_top_age, audience_male_percent, audience_female_percent" as const);
         let scan = admin
           .from("influencers")
-          .select(demoCols)
+          .select(scanCols)
           .order(sortColumn, { ascending: orderAsc })
           .range(from, from + DEMOGRAPHICS_SCAN_PAGE - 1);
         scan = applyStatusFilter(scan, status);
@@ -217,16 +266,17 @@ export async function GET(request: NextRequest) {
         if (scanned.error) {
           return { data: null, error: scanned.error, count: null };
         }
-        const rows = (scanned.data || []) as Array<{
-          id: string | number;
-          audience_top_age?: string | null;
-          audience_male_percent?: number | null;
-          audience_female_percent?: number | null;
-        }>;
+        const rows = (scanned.data || []) as unknown as ScanRow[];
         for (const row of rows) {
-          if (matchesDemographicsListFilter(row, demographics)) {
-            matchedIds.push(String(row.id));
+          if (demographics !== "all" && !matchesDemographicsListFilter(row, demographics)) continue;
+          if (authenticity !== "all") {
+            const auth = computeAudienceAuthenticity({
+              accounts: row.accounts,
+              snapshots: snapshotsByInfluencer.get(String(row.id)),
+            });
+            if (!matchesAuthenticityListFilter(auth, authenticity)) continue;
           }
+          matchedIds.push(String(row.id));
         }
         if (rows.length < DEMOGRAPHICS_SCAN_PAGE) break;
       }

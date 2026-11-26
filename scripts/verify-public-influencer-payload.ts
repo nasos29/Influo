@@ -124,6 +124,20 @@ const row = {
   auditpr_audit: { brandSafe: true, scoreBreakdown: ["ok"], contact_email: secretEmail },
 };
 
+const rowWithAdminAuthenticity = {
+  ...row,
+  audience_authenticity_score: 12,
+  audience_authenticity_status: "suspicious",
+  audience_authenticity_reasons: ["fake"],
+  accounts: [
+    {
+      ...(row.accounts[0] as Record<string, unknown>),
+      audience_authenticity_score: 5,
+      audience_authenticity_status: "review",
+    },
+  ],
+};
+
 for (const payload of [toPublicDirectoryCard(row), toPublicNewlyApproved(row), toPublicProfile(row)]) {
   const json = JSON.stringify(payload);
   assert.equal(findPrivateFieldPaths(payload).length, 0, json);
@@ -142,6 +156,15 @@ for (const payload of [toPublicDirectoryCard(row), toPublicNewlyApproved(row), t
 }
 
 const profile = toPublicProfile(row);
+const profileWithAuth = toPublicProfile(rowWithAdminAuthenticity);
+const authJson = JSON.stringify(profileWithAuth);
+assert.equal("audience_authenticity_score" in profileWithAuth, false);
+assert.equal("audience_authenticity_status" in profileWithAuth, false);
+assert.equal("audience_authenticity_reasons" in profileWithAuth, false);
+assert.equal(authJson.includes("audience_authenticity"), false);
+const publicAccounts = profileWithAuth.accounts as Array<Record<string, unknown>>;
+assert.equal(publicAccounts[0]?.audience_authenticity_score, undefined);
+assert.equal(publicAccounts[0]?.audience_authenticity_status, undefined);
 assert.equal(profile.has_min_rate, true);
 assert.equal(profile.has_priced_min_rate, true);
 assert.deepEqual(profile.rate_card_flags, { story: true, post: true, reel: true });
