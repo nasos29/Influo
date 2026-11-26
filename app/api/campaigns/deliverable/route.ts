@@ -13,7 +13,7 @@ import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
 import {
   parseSelfReportedCount,
-  parseSocialPostUrl,
+  parseSocialPostUrlResolved,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
 import { isAutocancelBlockedRow } from "@/lib/deliverableAutocancelEligibility";
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       }
       const postRaw = body.url ?? body.publishedPostUrl;
       if (postRaw != null && String(postRaw).trim()) {
-        const parsedPost = parseSocialPostUrl(postRaw);
+        const parsedPost = await parseSocialPostUrlResolved(postRaw);
         if (!parsedPost.ok) {
           return NextResponse.json(
             {
@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
         url = existingDeliverableUrl;
       }
     } else {
-      const parsedUrl = parseSocialPostUrl(body.url);
+      const parsedUrl = await parseSocialPostUrlResolved(body.url);
       if (!parsedUrl.ok) {
         return NextResponse.json(
           { error: parsedUrl.error === "empty" ? "missing_url" : socialPostUrlErrorMessage(parsedUrl.error) },

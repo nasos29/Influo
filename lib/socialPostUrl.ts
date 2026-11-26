@@ -1,14 +1,20 @@
 import { isAllowedTopPostUrl } from "@/lib/topPosts";
 import { detectProvider, isEmbeddableVideoUrl } from "@/lib/videoThumbnail";
+import {
+  isInstagramShareUrl,
+  normalizeInstagramMediaUrl,
+  resolveInstagramShareUrl,
+  type ShareResolveFetch,
+} from "@/lib/resolveInstagramShareUrl";
 
 export type SocialPostProvider = "instagram" | "tiktok" | "youtube";
 
+export type ParseSocialPostResult =
+  | { ok: true; url: string; provider: SocialPostProvider }
+  | { ok: false; error: "empty" | "invalid" };
+
 /** Normalize and validate a published IG / TikTok / YouTube post URL. */
-export function parseSocialPostUrl(raw: unknown): {
-  ok: true;
-  url: string;
-  provider: SocialPostProvider;
-} | { ok: false; error: "empty" | "invalid" } {
+export function parseSocialPostUrl(raw: unknown): ParseSocialPostResult {
   const url = typeof raw === "string" ? raw.trim() : "";
   if (!url) return { ok: false, error: "empty" };
   if (!isAllowedTopPostUrl(url)) return { ok: false, error: "invalid" };
@@ -18,10 +24,35 @@ export function parseSocialPostUrl(raw: unknown): {
   try {
     const parsed = new URL(url);
     parsed.hash = "";
+    const igCanonical =
+      provider === "instagram" ? normalizeInstagramMediaUrl(parsed.toString()) : null;
+    if (igCanonical) {
+      return { ok: true, url: igCanonical, provider };
+    }
     return { ok: true, url: parsed.toString(), provider };
   } catch {
     return { ok: false, error: "invalid" };
   }
+}
+
+/**
+ * Like parseSocialPostUrl but resolves Instagram /share/... links server-side.
+ * Unresolvable share links return invalid.
+ */
+export async function parseSocialPostUrlResolved(
+  raw: unknown,
+  fetchImpl?: ShareResolveFetch
+): Promise<ParseSocialPostResult> {
+  const url = typeof raw === "string" ? raw.trim() : "";
+  if (!url) return { ok: false, error: "empty" };
+
+  if (isInstagramShareUrl(url)) {
+    const resolved = await resolveInstagramShareUrl(url, fetchImpl);
+    if (!resolved.ok) return { ok: false, error: "invalid" };
+    return parseSocialPostUrl(resolved.url);
+  }
+
+  return parseSocialPostUrl(url);
 }
 
 export function socialPostUrlErrorMessage(

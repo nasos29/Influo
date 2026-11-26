@@ -9,6 +9,10 @@ import {
   isValidInstagramShortcode,
 } from "@/lib/instagramShortcode";
 import {
+  isInstagramShareUrl,
+  resolveInstagramShareUrl,
+} from "@/lib/resolveInstagramShareUrl";
+import {
   parseInstagramEmbedKindFromHtml,
   type InstagramEmbedKind,
 } from "@/lib/instagramMediaType";
@@ -323,8 +327,15 @@ function kindFromHtml(html: string): InstagramEmbedKind | null {
 export async function resolveInstagramEmbedVideo(
   urlOrCode: string
 ): Promise<InstagramEmbedResolve> {
+  let input = urlOrCode;
+  if (isInstagramShareUrl(urlOrCode)) {
+    const share = await resolveInstagramShareUrl(urlOrCode);
+    if (share.ok) input = share.url;
+    else return emptyResolve({ technicalFailure: true });
+  }
+
   const code =
-    extractInstagramShortcode(urlOrCode) ||
+    extractInstagramShortcode(input) ||
     (isValidInstagramShortcode(urlOrCode) ? urlOrCode : null);
   if (!code || !isValidInstagramShortcode(code)) {
     return emptyResolve();
@@ -341,7 +352,7 @@ export async function resolveInstagramEmbedVideo(
     for (const ua of [CRAWLER_UA, BROWSER_UA]) {
       let res: Response;
       try {
-        res = await fetchEmbedHtml(urlOrCode, code, ua);
+        res = await fetchEmbedHtml(input, code, ua);
       } catch {
         sawTechnical = true;
         continue;

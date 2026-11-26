@@ -9,7 +9,7 @@ import {
 import { notifyRealCollaborationComplete } from "@/lib/notifyCollaborationComplete";
 import { loadRecentCollaborations } from "@/lib/loadRecentCollaborations";
 import { influencerContact } from "@/lib/proposalAccess";
-import { parseSocialPostUrl, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
+import { parseSocialPostUrlResolved, socialPostUrlErrorMessage } from "@/lib/socialPostUrl";
 
 type Source = "proposal" | "campaign";
 
@@ -603,7 +603,7 @@ export async function PATCH(request: Request) {
       update.showcase_post_url_updated_at = now;
       auditDetails.postUrl = null;
     } else {
-      const parsed = parseSocialPostUrl(raw);
+      const parsed = await parseSocialPostUrlResolved(raw);
       if (!parsed.ok) {
         return NextResponse.json(
           { error: socialPostUrlErrorMessage(parsed.error) },

@@ -12,6 +12,10 @@ import {
 } from "@/lib/videoThumbnailExtract";
 import { isValidInstagramShortcode } from "@/lib/instagramShortcode";
 import {
+  isInstagramShareUrl,
+  resolveInstagramShareUrl,
+} from "@/lib/resolveInstagramShareUrl";
+import {
   parseInstagramMediaTypeFromEmbedHtml,
   type InstagramMediaType,
 } from "@/lib/instagramMediaType";
@@ -436,9 +440,15 @@ async function persistAndCache(
 }
 
 export async function GET(req: NextRequest) {
-  const url = req.nextUrl.searchParams.get("url");
-  if (!url) {
+  const rawParam = req.nextUrl.searchParams.get("url");
+  if (!rawParam) {
     return NextResponse.json({ error: "URL parameter is required" }, { status: 400 });
+  }
+
+  let url = rawParam;
+  if (isInstagramShareUrl(url)) {
+    const resolved = await resolveInstagramShareUrl(url);
+    if (resolved.ok) url = resolved.url;
   }
 
   const cleanUrl = stripUrlNoise(url);

@@ -6,6 +6,11 @@
 import { extractInstagramMedia } from "@/lib/instagramShortcode";
 import { resolveInstagramEmbedVideo } from "@/lib/instagramEmbedVideo";
 import { isTikTokShortLink } from "@/lib/tikTokPlayer";
+import {
+  isInstagramShareUrl,
+  resolveInstagramShareUrl,
+} from "@/lib/resolveInstagramShareUrl";
+import { isInstagramSharePathUrl } from "@/lib/instagramShortcode";
 
 const TIMEOUT_MS = 8000;
 const BROWSER_UA =
@@ -173,12 +178,19 @@ export function findNewVideoUrls(next: string[], existing: string[]): string[] {
 }
 
 async function checkInstagram(url: string): Promise<VideoPlayableResult> {
-  const media = extractInstagramMedia(url);
+  let target = url;
+  if (isInstagramShareUrl(url)) {
+    const share = await resolveInstagramShareUrl(url);
+    if (!share.ok) return { playable: false, reason: "instagram_share_unresolved" };
+    target = share.url;
+  }
+
+  const media = extractInstagramMedia(target);
   if (!media) {
     return { playable: true, reason: "unchecked" };
   }
 
-  const resolved = await resolveInstagramEmbedVideo(url);
+  const resolved = await resolveInstagramEmbedVideo(target);
   if (resolved.technicalFailure && !resolved.fetched) {
     return { playable: true, reason: "unchecked" };
   }
@@ -255,7 +267,10 @@ export async function checkVideoPlayable(url: string): Promise<VideoPlayableResu
   if (!raw) return { playable: true, reason: "empty" };
 
   try {
-    if (/instagram\.com\//i.test(raw) && extractInstagramMedia(raw)) {
+    if (
+      /instagram\.com\//i.test(raw) &&
+      (extractInstagramMedia(raw) || isInstagramSharePathUrl(raw))
+    ) {
       return await checkInstagram(raw);
     }
     if (/tiktok\.com|(vm|vt)\.tiktok\.com/i.test(raw)) {

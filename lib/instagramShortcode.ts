@@ -34,6 +34,27 @@ export function extractInstagramShortcode(url: string): string | null {
   return extractInstagramMedia(url)?.code ?? null;
 }
 
+const IG_SHARE_PATH_RE = /^\/share(?:\/(p|reel|tv))?\/([A-Za-z0-9_-]+)\/?$/i;
+
+/** True for Instagram mobile share links (https + /share/...). */
+export function isInstagramSharePathUrl(url: string): boolean {
+  const raw = String(url || "").trim();
+  if (!raw) return false;
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    if (host !== "instagram.com" && !host.endsWith(".instagram.com") && host !== "instagr.am") {
+      return false;
+    }
+    const m = u.pathname.match(IG_SHARE_PATH_RE);
+    if (!m?.[2]) return false;
+    return isValidInstagramShortcode(m[2]);
+  } catch {
+    return false;
+  }
+}
+
 /** Stable Instagram cover via media redirect (not signed scontent URLs). */
 export function instagramThumbnailProxySrc(shortcode: string): string {
   return `/api/thumbnail-proxy?ig=${encodeURIComponent(shortcode)}`;

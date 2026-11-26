@@ -9,7 +9,7 @@ import { notifyProposalDeliverableChangesRequested } from "@/lib/proposalDeliver
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import {
   parseSelfReportedCount,
-  parseSocialPostUrl,
+  parseSocialPostUrlResolved,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
 
@@ -133,7 +133,7 @@ export async function PATCH(request: Request) {
           update.deliverable_status = "submitted";
           const postRaw = body.publishedPostUrl ?? body.url;
           if (postRaw != null && String(postRaw).trim() !== "") {
-            const parsed = parseSocialPostUrl(postRaw);
+            const parsed = await parseSocialPostUrlResolved(postRaw);
             if (!parsed.ok) {
               return NextResponse.json(
                 { error: socialPostUrlErrorMessage(parsed.error) },
@@ -155,7 +155,7 @@ export async function PATCH(request: Request) {
             update.published_post_url = null;
             update.published_post_pending_approval = false;
           } else {
-            const parsed = parseSocialPostUrl(raw);
+            const parsed = await parseSocialPostUrlResolved(raw);
             if (!parsed.ok) {
               return NextResponse.json(
                 { error: socialPostUrlErrorMessage(parsed.error) },
@@ -340,7 +340,7 @@ export async function PATCH(request: Request) {
       if ("publishedPostUrl" in body) {
         const raw = body.publishedPostUrl;
         if (raw != null && raw !== "") {
-          const parsed = parseSocialPostUrl(raw);
+          const parsed = await parseSocialPostUrlResolved(raw);
           if (!parsed.ok) {
             return NextResponse.json(
               { error: socialPostUrlErrorMessage(parsed.error) },

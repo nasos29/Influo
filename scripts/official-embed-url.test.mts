@@ -160,6 +160,10 @@ test("isEmbeddableVideoUrl accepts specific media; rejects profiles/channels/sto
 
   assert.equal(isEmbeddableVideoUrl("https://www.instagram.com/someuser/"), false);
   assert.equal(isEmbeddableVideoUrl("https://www.instagram.com/someuser"), false);
+  assert.equal(
+    isEmbeddableVideoUrl("https://www.instagram.com/share/BAB0gQW35h"),
+    true
+  );
   assert.equal(isEmbeddableVideoUrl("https://www.instagram.com/stories/someuser/123/"), false);
   assert.equal(isEmbeddableVideoUrl("https://www.instagram.com/s/aGlnaGxpZ2h0OjE/"), false);
   assert.equal(isEmbeddableVideoUrl("https://www.tiktok.com/@someuser"), false);
