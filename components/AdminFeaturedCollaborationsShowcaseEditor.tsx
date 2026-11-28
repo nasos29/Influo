@@ -35,7 +35,7 @@ const SLOT_LABELS = [
   "Βίντεο 5",
 ] as const;
 
-export default function AdminBrandCtaShowcaseEditor({ disabled = false }: Props) {
+export default function AdminFeaturedCollaborationsShowcaseEditor({ disabled = false }: Props) {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
