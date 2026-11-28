@@ -77,6 +77,9 @@ import {
   isActiveCollaborationDisplayKey,
 } from '@/lib/proposalDisplayStatus';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
+import CollabDeliverableDraftPanel from '@/components/CollabDeliverableDraftPanel';
+import CollabTrackingFields from '@/components/CollabTrackingFields';
+import { proposalRequiresUgcDraft } from '@/lib/collaborationUgc';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
 import { normalizeYouTubeUsernameForSave } from '@/lib/youtubeHandle';
@@ -2723,6 +2726,23 @@ export default function DashboardContent({ profile: initialProfile }: { profile:
                                                                     id={String(prop.id)}
                                                                   />
                                                                 ) : null}
+                                                                <CollabDeliverableDraftPanel
+                                                                  source="proposal"
+                                                                  id={String(prop.id)}
+                                                                  lang={lang}
+                                                                  influencerId={String(profile?.id || '')}
+                                                                  needsDraft={proposalRequiresUgcDraft(prop)}
+                                                                  initialStatus={(prop as { deliverable_draft_status?: string }).deliverable_draft_status}
+                                                                  initialReviewNote={(prop as { deliverable_draft_review_note?: string }).deliverable_draft_review_note}
+                                                                  revisionCount={Number((prop as { deliverable_draft_revision_count?: number }).deliverable_draft_revision_count) || 0}
+                                                                />
+                                                                <CollabTrackingFields
+                                                                  source="proposal"
+                                                                  id={String(prop.id)}
+                                                                  lang={lang}
+                                                                  isBrand={false}
+                                                                  brandName={prop.brand_name || ''}
+                                                                />
                                                                 <ProposalDeliverableField
                                                                   proposalId={String(prop.id)}
                                                                   initialUrl={prop.published_post_url}

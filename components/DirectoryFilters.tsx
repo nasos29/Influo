@@ -256,6 +256,8 @@ export type DirectoryFiltersProps = {
   setFollowerRange: (v: string) => void;
   minEngagement: string;
   setMinEngagement: (v: string) => void;
+  maxEngagement: string;
+  setMaxEngagement: (v: string) => void;
   skillFilter: string[];
   onSkillFilterChange: (next: string[]) => void;
   languageFilter: string[];
@@ -354,22 +356,36 @@ function AdvancedFields({
       </div>
       <div>
         <label className={fieldLabel}>{txt.fieldEngagement}</label>
-        <select
-          value={props.minEngagement}
-          onChange={(e) => props.setMinEngagement(e.target.value)}
-          className={selectClass}
-        >
-          <option value="All">{txt.engAll}</option>
-          <option value="1">
-            {txt.engMin} 1%
-          </option>
-          <option value="3">
-            {txt.engMin} 3% ({txt.engGood})
-          </option>
-          <option value="5">
-            {txt.engMin} 5% ({txt.engHigh})
-          </option>
-        </select>
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={props.minEngagement}
+            onChange={(e) => props.setMinEngagement(e.target.value)}
+            className={selectClass}
+            aria-label={lang === "en" ? "Minimum engagement" : "Ελάχιστο engagement"}
+          >
+            <option value="All">{txt.engAll}</option>
+            <option value="1">
+              {txt.engMin} 1%
+            </option>
+            <option value="3">
+              {txt.engMin} 3% ({txt.engGood})
+            </option>
+            <option value="5">
+              {txt.engMin} 5% ({txt.engHigh})
+            </option>
+          </select>
+          <select
+            value={props.maxEngagement}
+            onChange={(e) => props.setMaxEngagement(e.target.value)}
+            className={selectClass}
+            aria-label={lang === "en" ? "Maximum engagement" : "Μέγιστο engagement"}
+          >
+            <option value="All">{txt.engAll}</option>
+            <option value="3">{lang === "en" ? "Max 3%" : "Έως 3%"}</option>
+            <option value="5">{lang === "en" ? "Max 5%" : "Έως 5%"}</option>
+            <option value="10">{lang === "en" ? "Max 10%" : "Έως 10%"}</option>
+          </select>
+        </div>
       </div>
       <div>
         <label className={fieldLabel}>{txt.fieldSkills}</label>

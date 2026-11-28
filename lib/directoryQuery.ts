@@ -48,6 +48,8 @@ export type DirectoryFilters = {
   followers: string;
   budget: string;
   engagement: string;
+  /** Maximum engagement % (empty / All = no cap). */
+  maxEngagement: string;
   language: string;
   skills: string[];
   /** Package type such as reel, or "All". */
@@ -70,6 +72,7 @@ export const DEFAULT_DIRECTORY_FILTERS: DirectoryFilters = {
   followers: "All",
   budget: "All",
   engagement: "All",
+  maxEngagement: "All",
   language: "All",
   skills: [],
   packageType: "All",
@@ -379,6 +382,10 @@ export function matchesDirectoryFilters(
     const min = parseFloat(filters.engagement);
     if (directoryEngagement(candidate.engagement_rate) < min) engageMatch = false;
   }
+  if (filters.maxEngagement !== "All") {
+    const max = parseFloat(filters.maxEngagement);
+    if (directoryEngagement(candidate.engagement_rate) > max) engageMatch = false;
+  }
 
   const languageMatch = languageMatches(candidate.languages, filters.language);
   const wantedSkills = sanitizeSkills(filters.skills);
@@ -436,6 +443,7 @@ export function directoryFiltersAreSqlOnly(filters: DirectoryFilters): boolean {
     filters.followers === "All" &&
     filters.budget === "All" &&
     filters.engagement === "All" &&
+    filters.maxEngagement === "All" &&
     filters.language === "All" &&
     filters.skills.length === 0 &&
     filters.ageMin.trim() === "" &&
@@ -454,7 +462,8 @@ export function directoryFiltersNeedAccounts(filters: DirectoryFilters): boolean
     filters.platform !== "All" ||
     filters.followers !== "All" ||
     filters.budget !== "All" ||
-    filters.engagement !== "All"
+    filters.engagement !== "All" ||
+    filters.maxEngagement !== "All"
   );
 }
 
@@ -471,6 +480,7 @@ export function parseDirectoryFilters(params: URLSearchParams): DirectoryFilters
     followers: params.get("followers") || "All",
     budget: params.get("budget") || "All",
     engagement: params.get("engagement") || "All",
+    maxEngagement: params.get("maxEngagement") || "All",
     language: params.get("language") || "All",
     skills: sanitizeSkills((params.get("skills") || "").split(",")),
     packageType: params.get("pkg") || "All",

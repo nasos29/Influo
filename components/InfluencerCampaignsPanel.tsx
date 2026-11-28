@@ -9,6 +9,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getStoredLanguage } from "@/lib/language";
 import FollowerGapNotice from "@/components/FollowerGapNotice";
+import CollabDeliverableDraftPanel from "@/components/CollabDeliverableDraftPanel";
+import CollabShippingPanel from "@/components/CollabShippingPanel";
+import CollabTrackingFields from "@/components/CollabTrackingFields";
+import { campaignRequiresUgcDraft } from "@/lib/collaborationUgc";
+import { shippingNeedsProduct } from "@/lib/shippingState";
 import { notifyBrandOfApplication, submitCampaignApplication } from "@/lib/campaignApply";
 import { findContactInfo, filterWorkLinks } from "@/lib/contactFilter";
 import CampaignCard from "@/components/CampaignCard";
@@ -72,6 +77,10 @@ type MyApplication = {
     title: string;
     title_en?: string | null;
     status: string;
+    deliverables?: string | null;
+    deliverables_en?: string | null;
+    platforms?: string[] | null;
+    compensation_type?: string | null;
     brands: { brand_name: string; contact_email?: string | null } | null;
   } | null;
 };
@@ -961,6 +970,35 @@ export default function InfluencerCampaignsPanel({
                     </p>
                   </div>
                 ) : null}
+                {m.status === "accepted" &&
+                  shippingNeedsProduct(m.brand_campaigns?.compensation_type) && (
+                    <CollabShippingPanel applicationId={m.id} lang={uiLang} party="influencer" />
+                  )}
+                {showDeliver && (
+                  <CollabTrackingFields
+                    source="campaign"
+                    id={m.id}
+                    lang={uiLang}
+                    isBrand={false}
+                    brandName={m.brand_campaigns?.brands?.brand_name}
+                  />
+                )}
+                {showDeliver && (
+                  <CollabDeliverableDraftPanel
+                    source="campaign"
+                    id={m.id}
+                    lang={uiLang}
+                    influencerId={influencerId}
+                    needsDraft={campaignRequiresUgcDraft({
+                      deliverables: m.brand_campaigns?.deliverables,
+                      deliverables_en: m.brand_campaigns?.deliverables_en,
+                      platforms: m.brand_campaigns?.platforms,
+                    })}
+                    initialStatus={(m as { deliverable_draft_status?: string }).deliverable_draft_status}
+                    initialReviewNote={(m as { deliverable_draft_review_note?: string }).deliverable_draft_review_note}
+                    revisionCount={Number((m as { deliverable_draft_revision_count?: number }).deliverable_draft_revision_count) || 0}
+                  />
+                )}
                 {showDeliver && dStatus !== "approved" && (
                   <div className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
                     <p className="text-xs font-semibold text-slate-700">

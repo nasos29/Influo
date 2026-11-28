@@ -79,6 +79,9 @@ export type BrandCampaignRow = {
   updated_at: string;
   platforms?: string[] | null;
   min_followers?: number | null;
+  required_gender?: string | null;
+  min_engagement_rate?: number | null;
+  max_engagement_rate?: number | null;
   location?: string | null;
   starts_on?: string | null;
   compensation_type?: "money" | "product" | "both" | null;
@@ -191,6 +194,8 @@ const extra = langPack({
   required: { el: "υποχρεωτικό", en: "required" },
   form_platforms: { el: "Πλατφόρμες", en: "Platforms" },
   form_min_followers: { el: "Ελάχιστοι ακόλουθοι", en: "Minimum followers" },
+  form_creator_gender: { el: "Φύλο creator (προαιρ.)", en: "Creator gender (optional)" },
+  form_er_range: { el: "Engagement rate % (ελάχ. – μέγ.)", en: "Engagement rate % (min – max)" },
   form_location: { el: "Περιοχή", en: "Area" },
   form_start: { el: "Ημερομηνία έναρξης", en: "Start date" },
   form_compensation: { el: "Αμοιβή", en: "Compensation" },
@@ -383,6 +388,9 @@ const emptyForm = () => ({
   starts_on: "",
   location: "",
   min_followers: "",
+  required_gender: "" as "" | "Female" | "Male" | "AI",
+  min_engagement_rate: "",
+  max_engagement_rate: "",
   platforms: [] as string[],
   cover_url: "",
   chips: {} as Record<string, number>,
@@ -1005,6 +1013,12 @@ export default function BrandCampaignsSection({
       starts_on: ymd(row.starts_on),
       location: row.location || "",
       min_followers: row.min_followers != null ? String(row.min_followers) : "",
+      required_gender:
+        row.required_gender === "Female" || row.required_gender === "Male" || row.required_gender === "AI"
+          ? row.required_gender
+          : "",
+      min_engagement_rate: row.min_engagement_rate != null ? String(row.min_engagement_rate) : "",
+      max_engagement_rate: row.max_engagement_rate != null ? String(row.max_engagement_rate) : "",
       platforms: [...new Set([...rowPlatforms, ...chipPlatforms])],
       compensation_type: row.compensation_type || "",
       status: row.status,
@@ -1200,6 +1214,9 @@ export default function BrandCampaignsSection({
         location: form.location.trim(),
         requires_presence: form.requires_presence,
         min_followers: form.min_followers || null,
+        required_gender: form.required_gender || null,
+        min_engagement_rate: form.min_engagement_rate || null,
+        max_engagement_rate: form.max_engagement_rate || null,
         platforms: form.platforms,
         compensation_type: form.compensation_type,
       };
@@ -2027,6 +2044,49 @@ export default function BrandCampaignsSection({
                       </div>
                     );
                   })()}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_creator_gender}</label>
+                  <select
+                    value={form.required_gender}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        required_gender: e.target.value as CampaignForm["required_gender"],
+                      })
+                    }
+                    className={inputCls(undefined)}
+                  >
+                    <option value="">{lang === "el" ? "Χωρίς" : "Any"}</option>
+                    <option value="Female">{lang === "el" ? "Γυναίκα" : "Female"}</option>
+                    <option value="Male">{lang === "el" ? "Άνδρας" : "Male"}</option>
+                    <option value="AI">AI</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_er_range}</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      placeholder="Min"
+                      value={form.min_engagement_rate}
+                      onChange={(e) => setForm({ ...form, min_engagement_rate: e.target.value })}
+                      className={`${inputCls(undefined)} w-24`}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      placeholder="Max"
+                      value={form.max_engagement_rate}
+                      onChange={(e) => setForm({ ...form, max_engagement_rate: e.target.value })}
+                      className={`${inputCls(undefined)} w-24`}
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">{x.form_start}{req}</label>

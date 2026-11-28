@@ -7,10 +7,10 @@
 export const DELIVERABLE_TIP_MARKER = "⟦influo:upload-deliverable⟧";
 
 export const DELIVERABLE_TIP_EL =
-  "Για να εγκριθεί η παράδοση και να μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες», επικόλλησε το δημοσιευμένο link (reel / TikTok / post) στο πεδίο «Παραδοτέο» της συνεργασίας — όχι μόνο στο chat.";
+  "Για UGC: ανέβασε πρώτα το draft στο πεδίο «Παραδοτέο» (όχι μόνο στο chat). Μετά την έγκριση, επικόλλησε το δημοσιευμένο link (reel / TikTok / post) στο ίδιο πεδίο για τις «Πρόσφατες συνεργασίες».";
 
 export const DELIVERABLE_TIP_EN =
-  "So the brand can approve it and it can appear in “Recent collaborations”, paste the published reel / TikTok / post link in the collaboration’s Deliverable field — not only in chat.";
+  "For UGC: upload the draft in the Deliverable field first (not only in chat). After approval, paste the published reel / TikTok / post link in the same field for Recent collaborations.";
 
 export const DELIVERABLE_TIP_CTA_EL = "Ανέβασέ το ως παραδοτέο";
 export const DELIVERABLE_TIP_CTA_EN = "Upload it as a deliverable";
