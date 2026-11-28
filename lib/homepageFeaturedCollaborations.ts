@@ -49,6 +49,53 @@ export function isCuratedFeaturedCollaborationId(value: unknown): value is strin
 }
 
 /** Parse DB/json; missing or invalid fields fall back to Athos defaults. */
+export const HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT = 5;
+
+/** Five display slots for admin (slot 1 = hero); pads from defaults when stored list is short. */
+export function featuredCollaborationSlotsFromConfig(
+  config: HomepageFeaturedCollaborationsConfig
+): string[] {
+  const base = DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS;
+  const ids =
+    config.applicationIds.length > 0 ? [...config.applicationIds] : [...base.applicationIds];
+  const hero = isCuratedFeaturedCollaborationId(config.heroApplicationId)
+    ? config.heroApplicationId.trim()
+    : ids[0] || base.heroApplicationId;
+
+  const slots: string[] = [hero];
+  for (const id of ids) {
+    const t = typeof id === "string" ? id.trim() : "";
+    if (!isCuratedFeaturedCollaborationId(t) || t === hero) continue;
+    if (slots.length >= HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT) break;
+    if (!slots.includes(t)) slots.push(t);
+  }
+  for (const id of base.applicationIds) {
+    if (slots.length >= HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT) break;
+    if (!slots.includes(id)) slots.push(id);
+  }
+  return slots.slice(0, HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT);
+}
+
+/** Build persisted config from exactly five unique curated ids (slot 1 = hero). */
+export function homepageFeaturedCollaborationsConfigFromSlots(
+  slots: readonly string[]
+): HomepageFeaturedCollaborationsConfig | null {
+  if (slots.length !== HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT) return null;
+  const normalized: string[] = [];
+  for (const raw of slots) {
+    if (!isCuratedFeaturedCollaborationId(raw)) return null;
+    const t = raw.trim();
+    if (normalized.includes(t)) return null;
+    normalized.push(t);
+  }
+  const base = DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS;
+  return {
+    brandId: base.brandId,
+    heroApplicationId: normalized[0]!,
+    applicationIds: normalized,
+  };
+}
+
 export function parseHomepageFeaturedCollaborationsSetting(raw: unknown): HomepageFeaturedCollaborationsConfig {
   const base = DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return base;

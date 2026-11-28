@@ -12,7 +12,9 @@ import {
 } from "@/lib/homepageFeaturedCollaborations";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { featuredCollaborationViewsTotal } from "@/lib/homepageFeaturedCollaborationViews";
+import { DEFAULT_HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO } from "@/lib/homepageBrandCtaDecorativePhoto";
 import {
+  getHomepageBrandCtaDecorativePhotoSetting,
   getHomepageFeaturedCollaborationViewsSetting,
   getHomepageFeaturedCollaborationsSetting,
 } from "@/lib/siteSettingsServer";
@@ -39,6 +41,8 @@ export type FeaturedCollaborationsShowcaseData = {
   brandName: string;
   brandLogoUrl: string | null;
   decorativeCoverUrl: string | null;
+  /** Decorative food collage beside the showcase (site_settings or default). */
+  decorativePhotoUrl: string;
   cards: FeaturedCollaborationCard[];
   /** First card in layout order (hero preference applied). */
   initialHeroApplicationId: string;
@@ -354,11 +358,15 @@ export async function loadFeaturedCollaborations(
   }
 
   const totalViews = featuredCollaborationViewsTotal(setting.applicationIds, viewsSetting);
+  const decorativePhotoUrl =
+    (await getHomepageBrandCtaDecorativePhotoSetting()) ||
+    DEFAULT_HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO;
 
   return {
     brandName,
     brandLogoUrl,
     decorativeCoverUrl,
+    decorativePhotoUrl,
     cards,
     initialHeroApplicationId,
     totalViews,

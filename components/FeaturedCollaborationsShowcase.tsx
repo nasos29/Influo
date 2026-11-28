@@ -730,7 +730,7 @@ export default function FeaturedCollaborationsShowcase({ data, lang }: Props) {
           aria-hidden
         >
           <Image
-            src="/images/athos-food-falling.webp"
+            src={data.decorativePhotoUrl}
             alt="Decorative collage of Greek food ingredients"
             width={900}
             height={1200}

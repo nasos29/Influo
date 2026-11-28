@@ -21,9 +21,18 @@ import {
 } from "@/lib/homepageSections";
 import {
   HOMEPAGE_FEATURED_COLLABORATIONS_KEY,
+  DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS,
+  homepageFeaturedCollaborationsConfigFromSlots,
   parseHomepageFeaturedCollaborationsSetting,
+  featuredCollaborationSlotsFromConfig,
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
+import {
+  HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO_KEY,
+  DEFAULT_HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO,
+  parseHomepageBrandCtaDecorativePhotoSetting,
+  serializeHomepageBrandCtaDecorativePhotoSetting,
+} from "@/lib/homepageBrandCtaDecorativePhoto";
 import {
   HOMEPAGE_FEATURED_COLLABORATION_VIEWS_CACHE_TAG,
   HOMEPAGE_FEATURED_COLLABORATION_VIEWS_KEY,
@@ -149,6 +158,104 @@ export const getHomepageFeaturedCollaborationsSetting = unstable_cache(
   ["homepage-featured-collaborations-v1"],
   { revalidate: 300, tags: [SITE_SETTINGS_CACHE_TAG] }
 );
+
+function decorativePhotoFromRows(rows: SettingsRow[]): string {
+  const row = rows.find((r) => r.key === HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO_KEY);
+  return parseHomepageBrandCtaDecorativePhotoSetting(row?.value);
+}
+
+async function loadHomepageBrandCtaDecorativePhotoFromDb(): Promise<string> {
+  return decorativePhotoFromRows(await loadSettingsRows());
+}
+
+export const getHomepageBrandCtaDecorativePhotoSetting = unstable_cache(
+  loadHomepageBrandCtaDecorativePhotoFromDb,
+  ["homepage-brand-cta-decorative-photo-v1"],
+  { revalidate: 300, tags: [SITE_SETTINGS_CACHE_TAG] }
+);
+
+export type JsonSiteSettingUpdateResult =
+  | {
+      ok: true;
+      homepage_featured_collaborations?: HomepageFeaturedCollaborationsConfig;
+      homepage_brand_cta_decorative_photo?: string;
+    }
+  | { ok: false; error: string; status: number };
+
+export async function updateHomepageFeaturedCollaborationsSetting(
+  rawValue: unknown,
+  updatedBy: string | null
+): Promise<JsonSiteSettingUpdateResult> {
+  let config: HomepageFeaturedCollaborationsConfig | null = null;
+  if (Array.isArray(rawValue)) {
+    config = homepageFeaturedCollaborationsConfigFromSlots(rawValue as string[]);
+  } else if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+    config = parseHomepageFeaturedCollaborationsSetting(rawValue);
+    const slots = featuredCollaborationSlotsFromConfig(config);
+    config = homepageFeaturedCollaborationsConfigFromSlots(slots);
+  }
+  if (!config) {
+    return {
+      ok: false,
+      error: "Απαιτούνται 5 μοναδικά έγκυρα ids (UUID ή proposal:N).",
+      status: 400,
+    };
+  }
+
+  const upsert = await upsertJsonSiteSetting(HOMEPAGE_FEATURED_COLLABORATIONS_KEY, config, updatedBy, {
+    revalidatePaths: ["/", "/en"],
+  });
+  if (!upsert.ok) return { ok: false, error: upsert.error, status: upsert.status };
+
+  return { ok: true, homepage_featured_collaborations: config };
+}
+
+export async function resetHomepageFeaturedCollaborationsSetting(
+  updatedBy: string | null
+): Promise<JsonSiteSettingUpdateResult> {
+  const config = DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS;
+  const upsert = await upsertJsonSiteSetting(HOMEPAGE_FEATURED_COLLABORATIONS_KEY, config, updatedBy, {
+    revalidatePaths: ["/", "/en"],
+  });
+  if (!upsert.ok) return { ok: false, error: upsert.error, status: upsert.status };
+  return { ok: true, homepage_featured_collaborations: config };
+}
+
+export async function updateHomepageBrandCtaDecorativePhotoSetting(
+  rawValue: unknown,
+  updatedBy: string | null
+): Promise<JsonSiteSettingUpdateResult> {
+  if (typeof rawValue !== "string") {
+    return { ok: false, error: "Η διεύθυνση εικόνας πρέπει να είναι κείμενο.", status: 400 };
+  }
+  const serialized = serializeHomepageBrandCtaDecorativePhotoSetting(rawValue);
+  const stored = serialized ?? null;
+  const upsert = await upsertJsonSiteSetting(
+    HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO_KEY,
+    stored,
+    updatedBy,
+    { revalidatePaths: ["/", "/en"] }
+  );
+  if (!upsert.ok) return { ok: false, error: upsert.error, status: upsert.status };
+  const photo = parseHomepageBrandCtaDecorativePhotoSetting(stored);
+  return { ok: true, homepage_brand_cta_decorative_photo: photo };
+}
+
+export async function resetHomepageBrandCtaDecorativePhotoSetting(
+  updatedBy: string | null
+): Promise<JsonSiteSettingUpdateResult> {
+  const upsert = await upsertJsonSiteSetting(
+    HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO_KEY,
+    null,
+    updatedBy,
+    { revalidatePaths: ["/", "/en"] }
+  );
+  if (!upsert.ok) return { ok: false, error: upsert.error, status: upsert.status };
+  return {
+    ok: true,
+    homepage_brand_cta_decorative_photo: DEFAULT_HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO,
+  };
+}
 
 function featuredCollaborationViewsFromRows(
   rows: SettingsRow[]
