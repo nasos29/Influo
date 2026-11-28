@@ -33,11 +33,16 @@ function collectSectionIds(...files: string[]): Set<string> {
   return ids;
 }
 
-test("default order places brand_cta before newly_approved", () => {
+test("default order places featured_collaborations before brand_cta before newly_approved", () => {
   const order = defaultHomepageSectionOrder();
+  const featured = order.indexOf("featured_collaborations");
   const brand = order.indexOf("brand_cta");
   const newly = order.indexOf("newly_approved");
-  assert.ok(brand >= 0 && newly >= 0);
+  assert.ok(featured >= 0 && brand >= 0 && newly >= 0);
+  assert.ok(
+    featured < brand,
+    "Πραγματικές συνεργασίες στο Influo must precede Έχετε Επιχείρηση;"
+  );
   assert.ok(brand < newly, "Έχετε Επιχείρηση; must precede Νεοί Εγκεκριμένοι Creators");
 });
 
@@ -52,7 +57,7 @@ test("merge drops unknown ids and inserts missing at default position", () => {
   assert.ok(merged.includes("hero"));
   assert.ok(merged.includes("newly_approved"));
   assert.equal(merged.filter((id) => id === "directory").length, 1);
-  // brand_cta stays before newly_approved when both present from defaults insert
+  assert.ok(merged.indexOf("featured_collaborations") < merged.indexOf("brand_cta"));
   assert.ok(merged.indexOf("brand_cta") < merged.indexOf("newly_approved"));
 });
 
