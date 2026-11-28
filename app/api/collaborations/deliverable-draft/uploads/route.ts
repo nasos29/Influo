@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userFromBearer } from "@/lib/apiAuth";
+import { apiBodyString } from "@/lib/apiBodyString";
 import { COLLAB_DELIVERABLE_UPLOAD_PURPOSE } from "@/lib/collabDeliverableUpload";
 import { influencerIdForCollab, ownCampaignApplicationParty } from "@/lib/collabDeliverableAccess";
 import { loadProposal, partyOf, requireActor } from "@/lib/proposalAccess";
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const source = body.source === "campaign" ? "campaign" : body.source === "proposal" ? "proposal" : null;
-  const collabId = String(body.id || "").trim();
+  const collabId = apiBodyString(body.id).trim();
   const lang = body.lang === "en" ? "en" : "el";
   if (!source || !collabId) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 

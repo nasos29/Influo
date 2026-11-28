@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { sessionFetch } from "@/lib/sessionFetch";
+import { collabTrackingSavePayload } from "@/lib/collabTrackingSave";
 import { buildInfluoUtmUrl } from "@/lib/utmBuilder";
 
 type Lang = "el" | "en";
@@ -140,12 +141,7 @@ export default function CollabTrackingFields({
       </label>
       <button
         type="button"
-        onClick={() =>
-          void save({
-            ...(isBrand ? { promoCode: promo, utmLink: utm } : {}),
-            ...(!isBrand ? { sparkAdsCode: spark } : { sparkAdsCode: spark }),
-          })
-        }
+        onClick={() => void save(collabTrackingSavePayload(isBrand, { promo, utm, spark }))}
         className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white"
       >
         {txt.save}

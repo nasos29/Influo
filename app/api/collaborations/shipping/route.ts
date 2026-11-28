@@ -8,6 +8,7 @@ import {
   canMarkShipped,
   shippingNeedsProduct,
 } from "@/lib/shippingState";
+import { apiBodyString } from "@/lib/apiBodyString";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 
 type Action = "submit_address" | "mark_shipped" | "confirm_receipt";
@@ -57,8 +58,8 @@ export async function POST(request: NextRequest) {
   const user = await userFromBearer(request);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
-  const applicationId = String(body.applicationId || "").trim();
-  const action = String(body.action || "").trim() as Action;
+  const applicationId = apiBodyString(body.applicationId).trim();
+  const action = apiBodyString(body.action).trim() as Action;
   if (!applicationId || !["submit_address", "mark_shipped", "confirm_receipt"].includes(action)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -78,13 +79,13 @@ export async function POST(request: NextRequest) {
     }
     const row = {
       application_id: applicationId,
-      recipient_name: String(body.recipientName || "").trim().slice(0, 120) || null,
-      phone: String(body.phone || "").trim().slice(0, 40) || null,
-      street: String(body.street || "").trim().slice(0, 200) || null,
-      city: String(body.city || "").trim().slice(0, 80) || null,
-      postal_code: String(body.postalCode || "").trim().slice(0, 20) || null,
-      country: String(body.country || "GR").trim().slice(0, 2) || "GR",
-      notes: String(body.notes || "").trim().slice(0, 500) || null,
+      recipient_name: apiBodyString(body.recipientName).trim().slice(0, 120) || null,
+      phone: apiBodyString(body.phone).trim().slice(0, 40) || null,
+      street: apiBodyString(body.street).trim().slice(0, 200) || null,
+      city: apiBodyString(body.city).trim().slice(0, 80) || null,
+      postal_code: apiBodyString(body.postalCode).trim().slice(0, 20) || null,
+      country: apiBodyString(body.country).trim().slice(0, 2) || "GR",
+      notes: apiBodyString(body.notes).trim().slice(0, 500) || null,
       status: "address_submitted" as const,
       address_submitted_at: now,
       updated_at: now,
@@ -114,9 +115,9 @@ export async function POST(request: NextRequest) {
   if (action === "mark_shipped") {
     if (party !== "brand") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (!canMarkShipped(ctx.shipping)) return NextResponse.json({ error: "invalid_state" }, { status: 409 });
-    const courier = String(body.courier || "").trim().slice(0, 80);
-    const trackingNumber = String(body.trackingNumber || "").trim().slice(0, 80);
-    const trackingUrl = String(body.trackingUrl || "").trim().slice(0, 500);
+    const courier = apiBodyString(body.courier).trim().slice(0, 80);
+    const trackingNumber = apiBodyString(body.trackingNumber).trim().slice(0, 80);
+    const trackingUrl = apiBodyString(body.trackingUrl).trim().slice(0, 500);
     if (!courier || !trackingNumber) return NextResponse.json({ error: "tracking_required" }, { status: 400 });
   const { error } = await ctx.admin
       .from("collaboration_shipping")

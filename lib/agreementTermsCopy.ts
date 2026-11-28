@@ -5,7 +5,7 @@ export type AgreementLang = "el" | "en";
 export const AGREEMENT_TERMS: Record<AgreementLang, readonly string[]> = {
   el: [
     "Αντικείμενο. Ο Δημιουργός θα δημιουργήσει και θα δημοσιεύσει τα παραδοτέα της σύνοψης, σύμφωνα με τις οδηγίες της Επιχείρησης όπως συμφωνήθηκαν στην πλατφόρμα Influo.",
-    "Έγκριση περιεχομένου. Για UGC και ανάλογες συνεργασίες: ο Δημιουργός ανεβάζει draft βίντεο/φωτο στο πεδίο Παραδοτέο, η Επιχείρηση το εγκρίνει (έως τρεις γύροι διόρθωσης για UGC, ένας για κλασικό post link), και μόνο μετά η δημοσίευση και το live link. Τα πνευματικά δικαιώματα παραμένουν στον Δημιουργό.",
+    "Έγκριση περιεχομένου. Για UGC και ανάλογες συνεργασίες: ο Δημιουργός ανεβάζει draft βίντεο/φωτο στο πεδίο Παραδοτέο, η Επιχείρηση το εγκρίνει (έως δύο γύροι διόρθωσης για UGC, ένας για κλασικό post link), και μόνο μετά η δημοσίευση και το live link. Τα πνευματικά δικαιώματα παραμένουν στον Δημιουργό.",
     "Αμοιβή. Η Επιχείρηση καταβάλλει απευθείας στον Δημιουργό τη συνολική αμοιβή της σύνοψης, μετά τη δημοσίευση του εγκεκριμένου περιεχομένου, εκτός αν συμφωνηθεί γραπτώς διαφορετικά. Το Influo δεν μεσολαβεί στην πληρωμή και δεν ευθύνεται για αυτήν.",
     "Χρήση περιεχομένου. Τα πνευματικά δικαιώματα ανήκουν στον Δημιουργό. Η Επιχείρηση μπορεί να κοινοποιεί (repost) το περιεχόμενο στα δικά της κανάλια με αναφορά στον Δημιουργό. Χρήση σε πληρωμένες διαφημίσεις ή αποκλειστικότητα ισχύει μόνο αν περιλαμβάνεται στα extras και για τη διάρκεια που ορίζουν. Κάθε extra της σύνοψης αποτελεί μέρος της συμφωνίας.",
     "Σήμανση διαφήμισης. Ο Δημιουργός σημαίνει κάθε δημοσίευση ως εμπορική συνεργασία, με την ένδειξη «Συνεργασία επί πληρωμή» ή #διαφήμιση, σύμφωνα με την ισχύουσα νομοθεσία και τους κανόνες κάθε πλατφόρμας.",
@@ -15,7 +15,7 @@ export const AGREEMENT_TERMS: Record<AgreementLang, readonly string[]> = {
   ],
   en: [
     "Scope. The Creator will create and publish the deliverables in the summary, in accordance with the Brand's instructions as agreed on the Influo platform.",
-    "Content approval. For UGC and similar work: the Creator uploads a draft video/photo in the Deliverable field, the Brand approves it (up to three revision rounds for UGC, one for classic post links), and only then publication and the live link. Copyright stays with the Creator.",
+    "Content approval. For UGC and similar work: the Creator uploads a draft video/photo in the Deliverable field, the Brand approves it (up to two revision rounds for UGC, one for classic post links), and only then publication and the live link. Copyright stays with the Creator.",
     "Fee. The Brand pays the total fee in the summary directly to the Creator after the approved content is published, unless otherwise agreed in writing. Influo does not process the payment and is not liable for it.",
     "Use of content. Copyright remains with the Creator. The Brand may repost the content on its own channels with credit to the Creator. Use in paid advertising or exclusivity applies only if it is included in the extras and for the duration they specify. Each extra in the summary forms part of the agreement.",
     "Advertising disclosure. The Creator marks every publication as a commercial collaboration, with the label “Paid partnership” or #ad, in accordance with applicable law and the rules of each platform.",

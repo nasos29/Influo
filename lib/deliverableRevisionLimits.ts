@@ -1,4 +1,4 @@
-export const MAX_UGC_DRAFT_REVISION_ROUNDS = 3;
+export const MAX_UGC_DRAFT_REVISION_ROUNDS = 2;
 export const MAX_CLASSIC_LINK_REVISION_ROUNDS = 1;
 
 export type DraftReviewAction = "request_changes";

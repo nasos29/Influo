@@ -11,6 +11,7 @@ import {
   resolveSaveDeadlineIso,
 } from "@/lib/campaignLifecycle";
 import { normalizeCategoryToken } from "@/lib/categories";
+import { apiBodyString } from "@/lib/apiBodyString";
 import { refreshCampaignEnglish } from "@/lib/campaignTranslate";
 
 const CONTACT_BLOCKED = {
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Brand not found" }, { status: 403 });
   }
 
-  const campaignId = asString(body.id).trim() || null;
+  const campaignId = apiBodyString(body.id).trim() || null;
   const title = asString(body.title).trim();
   const description = asString(body.description).trim();
   const deliverablesRaw = asString(body.deliverables).trim();
