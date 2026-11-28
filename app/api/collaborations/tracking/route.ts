@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
 import { ownCampaignApplicationParty } from "@/lib/collabDeliverableAccess";
+import { apiBodyString } from "@/lib/apiBodyString";
 import { loadProposal, partyOf, requireActor } from "@/lib/proposalAccess";
 
 type Source = "proposal" | "campaign";
@@ -54,7 +55,7 @@ export async function PATCH(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const source: Source | null =
     body.source === "proposal" ? "proposal" : body.source === "campaign" ? "campaign" : null;
-  const id = String(body.id || "").trim();
+  const id = apiBodyString(body.id).trim();
   if (!source || !id) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
 
   const admin = supabaseService();

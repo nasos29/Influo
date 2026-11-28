@@ -1161,13 +1161,13 @@ export default function DocsPage() {
                 lang === 'el'
                   ? [
                       'Brand: αποδέχεται τον creator (ή ολοκληρώνεται η πρόταση).',
-                      'UGC: ο creator ανεβάζει draft βίντεο/φωτο στο Παραδοτέο (έως 3 γύροι διόρθωσης). Το brand εγκρίνει ή ζητά αλλαγές.',
+                      'UGC: ο creator ανεβάζει draft βίντεο/φωτο στο Παραδοτέο (έως 2 γύροι διόρθωσης). Το brand εγκρίνει ή ζητά αλλαγές.',
                       'Μετά την έγκριση draft: ο creator δημοσιεύει και επικόλλησε το live link (reel / TikTok / post). Το brand εγκρίνει το link για ολοκλήρωση.',
                       'Προϊόν: διεύθυνση αποστολής → αποστολή με tracking → επιβεβαίωση παραλαβής.',
                     ]
                   : [
                       'Brand: accepts the creator (or the proposal completes).',
-                      'UGC: the creator uploads a draft video/photo in Deliverable (up to 3 revision rounds). The brand approves or requests changes.',
+                      'UGC: the creator uploads a draft video/photo in Deliverable (up to 2 revision rounds). The brand approves or requests changes.',
                       'After draft approval: the creator publishes and pastes the live link. The brand approves the link to complete.',
                       'Product: shipping address → shipped with tracking → receipt confirmed.',
                     ]

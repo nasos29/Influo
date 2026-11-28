@@ -6,16 +6,35 @@ import { extrasFromRateCard, RATE_CARD_EXTRA_KEYS } from "../lib/servicePackages
 import { canConfirmReceipt, canMarkShipped, shippingNeedsProduct } from "../lib/shippingState.ts";
 import { creatorMeetsCampaignRequirements } from "../lib/campaignCreatorMatch.ts";
 import { campaignRequiresUgcDraft, proposalRequiresUgcDraft } from "../lib/collaborationUgc.ts";
+import { collabTrackingSavePayload } from "../lib/collabTrackingSave.ts";
 import { parseDirectoryFilters, directoryEngagement } from "../lib/directoryQuery.ts";
+import { apiBodyString } from "../lib/apiBodyString.ts";
 
 test("collab_deliverable purpose is distinct from portfolio", () => {
   assert.equal(COLLAB_DELIVERABLE_UPLOAD_PURPOSE, "collab_deliverable");
 });
 
-test("UGC draft revision limit is 3", () => {
+test("UGC draft revision limit is 2", () => {
+  assert.equal(MAX_UGC_DRAFT_REVISION_ROUNDS, 2);
   assert.equal(canRequestDraftChanges(true, 0, "submitted"), true);
+  assert.equal(canRequestDraftChanges(true, 1, "submitted"), true);
   assert.equal(canRequestDraftChanges(true, MAX_UGC_DRAFT_REVISION_ROUNDS, "submitted"), false);
   assert.equal(canRequestDraftChanges(false, 1, "submitted"), false);
+});
+
+test("collab tracking save payload by role", () => {
+  assert.deepEqual(collabTrackingSavePayload(true, { promo: "P", utm: "U", spark: "S" }), {
+    promoCode: "P",
+    utmLink: "U",
+  });
+  assert.deepEqual(collabTrackingSavePayload(false, { promo: "P", utm: "U", spark: "S" }), {
+    sparkAdsCode: "S",
+  });
+});
+
+test("apiBodyString rejects non-strings", () => {
+  assert.equal(apiBodyString("ok"), "ok");
+  assert.equal(apiBodyString({ id: 1 }), "");
 });
 
 test("extras keys keep 30d backward compatible and add 90d/perpetual", () => {

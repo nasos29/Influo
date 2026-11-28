@@ -8,6 +8,7 @@ import {
 } from "@/lib/deliverableRevisionLimits";
 import { notifyDraftReview } from "@/lib/collabDraftNotify";
 import { loadProposal, partyOf, requireActor } from "@/lib/proposalAccess";
+import { apiBodyString } from "@/lib/apiBodyString";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 
 type Source = "proposal" | "campaign";
@@ -61,9 +62,9 @@ export async function POST(request: NextRequest) {
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const source: Source | null =
     body.source === "proposal" ? "proposal" : body.source === "campaign" ? "campaign" : null;
-  const id = String(body.id || "").trim();
-  const action = String(body.action || "").trim() as Action;
-  const uploadId = String(body.uploadId || "").trim();
+  const id = apiBodyString(body.id).trim();
+  const action = apiBodyString(body.action).trim() as Action;
+  const uploadId = apiBodyString(body.uploadId).trim();
   if (!source || !id || !["submit", "approve", "request_changes"].includes(action)) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -139,7 +140,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (party !== "brand") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const reviewNote = String(body.reviewNote || body.note || "").trim();
+  const reviewNote =
+    (apiBodyString(body.reviewNote) || apiBodyString(body.note)).trim();
   if (action === "request_changes") {
     if (!reviewNote) return NextResponse.json({ error: "review_note_required" }, { status: 400 });
     if (!canRequestDraftChanges(isUgc, revisionCount, row.deliverable_draft_status)) {
