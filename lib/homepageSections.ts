@@ -22,6 +22,7 @@ export type HomepageSectionId =
   | "recent_collaborations"
   | "open_campaigns"
   | "directory"
+  | "featured_collaborations"
   | "brand_cta"
   | "newly_approved"
   | "brand_logos";
@@ -39,10 +40,10 @@ export type HomepageSectionDef = {
 };
 
 /**
- * Default homepage order (post brand_cta ↔ newly_approved swap):
+ * Default homepage order:
  * hero → how_it_works → top_influencers → recent_collaborations → open_campaigns → directory →
- * brand_cta («Έχετε Επιχείρηση;») → newly_approved («Νεοί Εγκεκριμένοι Creators») →
- * brand_logos.
+ * featured_collaborations («Πραγματικές συνεργασίες στο Influo») → brand_cta («Έχετε Επιχείρηση;») →
+ * newly_approved («Νεοί Εγκεκριμένοι Creators») → brand_logos.
  */
 export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
   {
@@ -76,8 +77,8 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     id: "recent_collaborations",
     title: { el: "Πρόσφατες συνεργασίες", en: "Recent collaborations" },
     description: {
-      el: "Γραμμή social proof (ολοκληρωμένες συνεργασίες, creators, brands, αξιολόγηση). Το featured video showcase είναι στο brand_cta· η λίστα στο /collaborations.",
-      en: "Social-proof stats row (completed collaborations, creators, brands, rating). Featured video showcase lives in brand_cta; listing at /collaborations.",
+      el: "Γραμμή social proof (ολοκληρωμένες συνεργασίες, creators, brands, αξιολόγηση). Το video showcase είναι στο featured_collaborations· η λίστα στο /collaborations.",
+      en: "Social-proof stats row (completed collaborations, creators, brands, rating). Video showcase lives in featured_collaborations; listing at /collaborations.",
     },
     defaultIndex: 3,
     optional: true,
@@ -102,13 +103,25 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
     defaultIndex: 5,
   },
   {
+    id: "featured_collaborations",
+    title: {
+      el: "Πραγματικές συνεργασίες στο Influo",
+      en: "Real collaborations on Influo",
+    },
+    description: {
+      el: "Eyebrow, τίτλος «Θα μπορούσε να είναι η δική σου επιχείρηση !» και Athos/featured video showcase.",
+      en: "Eyebrow, title «This could be your business!», and Athos/featured video showcase.",
+    },
+    defaultIndex: 6,
+  },
+  {
     id: "brand_cta",
     title: { el: "Έχετε Επιχείρηση;", en: "Are you a Company?" },
     description: {
-      el: "CTA εγγραφής επιχείρησης, Athos/featured collaborations showcase (self-hosted video) και features για brands.",
-      en: "Brand signup CTA, Athos/featured collaborations showcase (self-hosted video), and feature highlights.",
+      el: "CTA εγγραφής επιχείρησης και κάρτες features για brands.",
+      en: "Brand signup CTA and feature highlight cards.",
     },
-    defaultIndex: 6,
+    defaultIndex: 7,
   },
   {
     id: "newly_approved",
@@ -117,7 +130,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
       el: "Carousel νεοεγκεκριμένων creators.",
       en: "Carousel of newly approved creators.",
     },
-    defaultIndex: 7,
+    defaultIndex: 8,
   },
   {
     id: "brand_logos",
@@ -126,7 +139,7 @@ export const HOMEPAGE_SECTION_REGISTRY: readonly HomepageSectionDef[] = [
       el: "Marquee λογότυπων brands.",
       en: "Brand logo marquee.",
     },
-    defaultIndex: 8,
+    defaultIndex: 9,
   },
 ] as const;
 

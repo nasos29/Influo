@@ -640,13 +640,12 @@ export default function Home({
                 </section>
               );
 
-            case "brand_cta":
+            case "featured_collaborations":
               return (
                 <section
                   key={sectionId}
-                  data-homepage-section="brand_cta"
-                  className="home-section-cv relative overflow-x-clip overflow-y-visible py-20 px-6 bg-slate-50 border-y border-slate-100 lg:overflow-x-visible"
-                  id="brands"
+                  data-homepage-section="featured_collaborations"
+                  className="home-section-cv relative overflow-x-clip overflow-y-visible pt-20 pb-8 md:pb-10 px-6 bg-slate-50 border-t border-slate-100 lg:overflow-x-visible"
                 >
                   <div className="max-w-page mx-auto relative">
                     <div className="relative z-10 text-center mb-10 md:mb-12">
@@ -660,10 +659,21 @@ export default function Home({
                     </div>
                   </div>
                   {featuredCollaborations ? (
-                    <div className="relative z-[1] mb-3 w-full min-w-0 md:mb-4 lg:-mx-6">
+                    <div className="relative z-[1] w-full min-w-0 lg:-mx-6">
                       <FeaturedCollaborationsShowcase data={featuredCollaborations} lang={lang} />
                     </div>
                   ) : null}
+                </section>
+              );
+
+            case "brand_cta":
+              return (
+                <section
+                  key={sectionId}
+                  data-homepage-section="brand_cta"
+                  className="home-section-cv relative overflow-x-clip overflow-y-visible pt-8 md:pt-10 pb-20 px-6 bg-slate-50 border-b border-slate-100 lg:overflow-x-visible"
+                  id="brands"
+                >
                   <div className="max-w-page mx-auto relative">
                     <div className="relative z-10 text-center mb-10 md:mb-12">
                       <p className="text-lg text-slate-600 max-w-2xl mx-auto mb-5 leading-relaxed">
