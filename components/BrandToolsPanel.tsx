@@ -24,6 +24,7 @@ import {
 import { toPublicHttpsHref } from "@/lib/brandProfile";
 import { COMPLETION_NONE_SUBTITLE, formatCompletionRateDisplay } from "@/lib/completionRate";
 import { formatFollowerCompact } from "@/lib/parseFollowers";
+import { buildInfluoUtmUrl, slugifyUtmSegment } from "@/lib/utmBuilder";
 
 type Props = {
   lang: "el" | "en";
@@ -253,18 +254,16 @@ export default function BrandToolsPanel({
     [shortlist, compareIds]
   );
 
-  const utmUrl = useMemo(() => {
-    try {
-      const u = new URL(utmBase.includes("://") ? utmBase : `https://${utmBase}`);
-      u.searchParams.set("utm_source", "influo");
-      u.searchParams.set("utm_medium", "influencer");
-      u.searchParams.set("utm_campaign", slugify(utmCampaign || brandName || "campaign"));
-      if (utmCreator.trim()) u.searchParams.set("utm_content", slugify(utmCreator));
-      return u.toString();
-    } catch {
-      return "";
-    }
-  }, [utmBase, utmCampaign, utmCreator, brandName]);
+  const utmUrl = useMemo(
+    () =>
+      buildInfluoUtmUrl({
+        baseUrl: utmBase,
+        campaign: utmCampaign || slugifyUtmSegment(brandName || ""),
+        creator: utmCreator,
+        brandName,
+      }),
+    [utmBase, utmCampaign, utmCreator, brandName]
+  );
 
   const briefText = useMemo(() => {
     const lines = [

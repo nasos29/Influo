@@ -113,12 +113,15 @@ export type UsePortfolioMediaUploadOptions = {
   lang?: PortfolioUploadLang;
   /** When true, picked files wait in `queued` until `influencerId` is set (signup). */
   deferUntilInfluencerId?: boolean;
+  /** Override default portfolio start POST (e.g. collab deliverable draft). */
+  startUpload?: { url: string; extraBody?: Record<string, unknown>; omitInfluencerId?: boolean };
 };
 
 export function usePortfolioMediaUpload({
   influencerId,
   lang = "el",
   deferUntilInfluencerId = false,
+  startUpload,
 }: UsePortfolioMediaUploadOptions) {
   const [items, setItems] = useState<PortfolioUploadItem[]>([]);
   const controllers = useRef<Map<string, AbortController>>(new Map());
@@ -372,17 +375,20 @@ export function usePortfolioMediaUpload({
         update(key, { phase: "failed", message: check.message[lang] });
         return;
       }
-      const res = await sessionFetch("/api/portfolio-media/uploads", {
+      const startUrl = startUpload?.url ?? "/api/portfolio-media/uploads";
+      const startBody: Record<string, unknown> = {
+        fileName: file.name,
+        mimeType: file.type,
+        size: file.size,
+        durationSec,
+        lang,
+        ...(startUpload?.extraBody ?? {}),
+      };
+      if (!startUpload?.omitInfluencerId) startBody.influencerId = activeId;
+      const res = await sessionFetch(startUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          influencerId: activeId,
-          fileName: file.name,
-          mimeType: file.type,
-          size: file.size,
-          durationSec,
-          lang,
-        }),
+        body: JSON.stringify(startBody),
       }).catch(() => null);
       const data = res ? ((await res.json().catch(() => ({}))) as { upload?: ServerUpload; error?: string }) : {};
       if (!res || !res.ok || !data.upload) {
@@ -394,7 +400,7 @@ export function usePortfolioMediaUpload({
       }
       await send(key, file, data.upload, activeId);
     },
-    [lang, send, update]
+    [lang, send, startUpload, update]
   );
 
   const start = useCallback(

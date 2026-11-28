@@ -330,6 +330,7 @@ export default function Directory({
   const [followerRange, setFollowerRange] = useState("All");
   const [budgetMax, setBudgetMax] = useState("All");
   const [minEngagement, setMinEngagement] = useState("All");
+  const [maxEngagement, setMaxEngagement] = useState("All");
   const [languageFilter, setLanguageFilter] = useState(() => languagesFromSearchParam(searchParams.get("language")));
   const [skillFilter, setSkillFilter] = useState(() => preset?.skills || skillsFromSearchParam(searchParams.get("skills")));
   const [minRating, setMinRating] = useState("All");
@@ -369,6 +370,7 @@ export default function Directory({
       followerRange === "All" &&
       budgetMax === "All" &&
       minEngagement === "All" &&
+      maxEngagement === "All" &&
       languageFilter.length === 0 &&
       skillFilter.length === 0 &&
       minRating === "All" &&
@@ -388,6 +390,7 @@ export default function Directory({
     if (followerRange !== "All") params.set("followers", followerRange);
     if (budgetMax !== "All") params.set("budget", budgetMax);
     if (minEngagement !== "All") params.set("engagement", minEngagement);
+    if (maxEngagement !== "All") params.set("maxEngagement", maxEngagement);
     if (languageFilter.length) params.set("language", languageFilter.join(","));
     if (skillFilter.length) params.set("skills", skillFilter.join(","));
     if (packageType !== "All") params.set("pkg", packageType);
@@ -534,6 +537,7 @@ export default function Directory({
     followerRange,
     budgetMax,
     minEngagement,
+    maxEngagement,
     languageFilter,
     skillFilter,
     packageType,
@@ -693,6 +697,7 @@ export default function Directory({
     setFollowerRange("All");
     setBudgetMax("All");
     setMinEngagement("All");
+    setMaxEngagement("All");
     setLanguageFilter([]);
     setSkillFilter([]);
     setPackageType("All");
@@ -808,6 +813,14 @@ export default function Directory({
         clear: () => setMinEngagement("All"),
       });
     }
+    if (maxEngagement !== "All") {
+      extra += 1;
+      chips.push({
+        id: "engagement-max",
+        label: lang === "en" ? `Max ${maxEngagement}%` : `Έως ${maxEngagement}%`,
+        clear: () => setMaxEngagement("All"),
+      });
+    }
     for (const code of languageFilter) {
       extra += 1;
       const langItem = LANGUAGES.find((item) => item.code === code);
@@ -905,6 +918,7 @@ export default function Directory({
     followerRange,
     budgetMax,
     minEngagement,
+    maxEngagement,
     languageFilter,
     skillFilter,
     packageType,
@@ -942,6 +956,7 @@ export default function Directory({
     followerRange,
     budgetMax,
     minEngagement,
+    maxEngagement,
     languageFilter,
     skillFilter,
     packageType,
@@ -1026,6 +1041,8 @@ export default function Directory({
       setFollowerRange={setFollowerRange}
       minEngagement={minEngagement}
       setMinEngagement={setMinEngagement}
+      maxEngagement={maxEngagement}
+      setMaxEngagement={setMaxEngagement}
       skillFilter={skillFilter}
       onSkillFilterChange={(next) => {
         setSkillFilter(next);

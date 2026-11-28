@@ -1,6 +1,7 @@
 import { isStaticCover, randomCategoryCover } from "@/lib/campaignCovers";
 import { campaignDateBounds, DATE_RANGE_MSG } from "@/lib/campaignDateRange";
 import { revalidatePublicCampaigns } from "@/lib/revalidatePublicCampaigns";
+import { parseCampaignGender, parseOptionalEr } from "@/lib/campaignCreatorMatch";
 import { NextRequest, NextResponse, after } from "next/server";
 import { notifyCampaignPublished } from "@/lib/campaignPublishedNotify";
 import { supabaseService, userFromBearer } from "@/lib/apiAuth";
@@ -189,6 +190,19 @@ export async function POST(request: NextRequest) {
       existing?.opened_at ?? existing?.created_at ?? (existing ? nowIso : null),
   });
 
+  const requiredGender =
+    body.required_gender === "" || body.required_gender === null
+      ? null
+      : parseCampaignGender(body.required_gender);
+  if (body.required_gender != null && String(body.required_gender).trim() && !requiredGender) {
+    return NextResponse.json({ error: "invalid_required_gender" }, { status: 400 });
+  }
+  const minEr = parseOptionalEr(body.min_engagement_rate);
+  const maxEr = parseOptionalEr(body.max_engagement_rate);
+  if (minEr != null && maxEr != null && maxEr < minEr) {
+    return NextResponse.json({ error: "invalid_engagement_range" }, { status: 400 });
+  }
+
   const payload: Record<string, unknown> = {
     title,
     description,
@@ -202,6 +216,9 @@ export async function POST(request: NextRequest) {
     min_followers: minFollowers,
     platforms,
     compensation_type: compensationType,
+    required_gender: requiredGender,
+    min_engagement_rate: minEr,
+    max_engagement_rate: maxEr,
     updated_at: nowIso,
   };
 

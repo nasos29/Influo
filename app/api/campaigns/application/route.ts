@@ -13,6 +13,8 @@ import { sendCheckedCreator } from "@/lib/collabCreatorMail";
 import { mailAdminEvent, send } from "@/lib/proposalMail";
 import { deferAfterResponse } from "@/lib/proposalNotify";
 import { sendPushAdminNewCampaignApplication, sendPushBrandNewCampaignApplication, sendPushToBrand, sendPushToInfluencer } from "@/lib/push";
+import { creatorMeetsCampaignRequirements } from "@/lib/campaignCreatorMatch";
+import { normalizeGender } from "@/lib/gender";
 
 const noticeStore = globalThis as unknown as { __influoAppNotices?: Set<string> };
 const sentNotices = (noticeStore.__influoAppNotices ??= new Set<string>());
@@ -376,9 +378,17 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
     return NextResponse.json({ error: "Not approved" }, { status: 403 });
   }
 
+  const { data: influencerFull } = await admin
+    .from("influencers")
+    .select("gender, accounts, engagement_rate")
+    .eq("id", influencer.id)
+    .maybeSingle();
+
   const { data: campaign } = await admin
     .from("brand_campaigns")
-    .select("id, status, deadline, opened_at, created_at")
+    .select(
+      "id, status, deadline, opened_at, created_at, min_followers, platforms, required_gender, min_engagement_rate, max_engagement_rate"
+    )
     .eq("id", campaignId)
     .maybeSingle();
   if (!campaign) {
@@ -414,6 +424,26 @@ async function createApplication(request: NextRequest, body: Record<string, unkn
       { status: 400 }
     );
   }
+
+  const match = creatorMeetsCampaignRequirements(campaign, {
+    gender: influencerFull?.gender ? normalizeGender(String(influencerFull.gender)) : null,
+    accounts: influencerFull?.accounts,
+    engagement_rate: influencerFull?.engagement_rate as string | Record<string, string> | undefined,
+  });
+  if (!match.ok) {
+    return NextResponse.json(
+      {
+        error: "creator_requirements",
+        reason: match.reason,
+        message: {
+          el: "Δεν πληροίς τις απαιτήσεις της καμπάνιας (ακόλουθοι, engagement ή φύλο).",
+          en: "You do not meet this campaign’s requirements (followers, engagement, or gender).",
+        },
+      },
+      { status: 403 }
+    );
+  }
+
   const slotInfo = (await campaignSlotInfo(admin, [campaign.id]))[campaign.id];
   if (slotsFull(slotInfo)) {
     return NextResponse.json(

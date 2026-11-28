@@ -12,6 +12,7 @@ import {
   parseSocialPostUrlResolved,
   socialPostUrlErrorMessage,
 } from "@/lib/socialPostUrl";
+import { maySubmitPublishedPostLink } from "@/lib/publishedLinkGate";
 
 type Source = "proposal" | "campaign";
 
@@ -155,6 +156,10 @@ export async function PATCH(request: Request) {
             update.published_post_url = null;
             update.published_post_pending_approval = false;
           } else {
+            const gate = await maySubmitPublishedPostLink(admin, "proposal", id);
+            if (!gate.ok) {
+              return NextResponse.json({ error: gate.code }, { status: 400 });
+            }
             const parsed = await parseSocialPostUrlResolved(raw);
             if (!parsed.ok) {
               return NextResponse.json(

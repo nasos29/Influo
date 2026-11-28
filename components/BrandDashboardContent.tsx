@@ -33,6 +33,9 @@ import { displayServiceType } from '@/lib/campaignServiceLabel';
 import { formatProposalExtrasLine } from '@/lib/proposalFloor';
 import AgreementTerms from '@/components/AgreementTerms';
 import ProposalDeliverableField from '@/components/ProposalDeliverableField';
+import CollabDeliverableDraftPanel from '@/components/CollabDeliverableDraftPanel';
+import CollabTrackingFields from '@/components/CollabTrackingFields';
+import { proposalRequiresUgcDraft } from '@/lib/collaborationUgc';
 import MissingPostLinkNotice from '@/components/MissingPostLinkNotice';
 import CollabReviewPromptPanel, { type PendingCollabReview } from '@/components/CollabReviewPromptPanel';
 import { prepareImageForStorage } from '@/lib/prepareImageForStorage';
@@ -3419,6 +3422,25 @@ export default function BrandDashboardContent() {
                                   id={String(proposal.id)}
                                 />
                               ) : null}
+                              <CollabDeliverableDraftPanel
+                                source="proposal"
+                                id={String(proposal.id)}
+                                lang={lang}
+                                influencerId={String(proposal.influencer_id)}
+                                needsDraft={proposalRequiresUgcDraft(proposal)}
+                                initialStatus={(proposal as { deliverable_draft_status?: string }).deliverable_draft_status}
+                                initialReviewNote={(proposal as { deliverable_draft_review_note?: string }).deliverable_draft_review_note}
+                                revisionCount={Number((proposal as { deliverable_draft_revision_count?: number }).deliverable_draft_revision_count) || 0}
+                                canApprove
+                                readOnlyUpload
+                              />
+                              <CollabTrackingFields
+                                source="proposal"
+                                id={String(proposal.id)}
+                                lang={lang}
+                                isBrand
+                                brandName={proposal.brand_name || ''}
+                              />
                               <ProposalDeliverableField
                                 proposalId={String(proposal.id)}
                                 initialUrl={proposal.published_post_url}

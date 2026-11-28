@@ -320,8 +320,8 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
             if not public_url:
                 raise RuntimeError("media public URL is not configured")
 
-        if row.get("purpose") == "homepage_showcase":
-            result = "homepage_showcase"
+        if row.get("purpose") in ("homepage_showcase", "collab_deliverable"):
+            result = row.get("purpose")
             patch_upload(
                 sb,
                 upload_id,

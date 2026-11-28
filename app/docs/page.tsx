@@ -1160,14 +1160,16 @@ export default function DocsPage() {
               steps={
                 lang === 'el'
                   ? [
-                      'Brand: θέτει την αίτηση σε «Σε λίστα».',
-                      'Influencer (Dashboard → Καμπάνιες → Οι αιτήσεις μου): υποβάλλει URL παράδοσης + προαιρετική σημείωση.',
-                      'Brand: εγκρίνει ή ζητά αλλαγές· ο influencer μπορεί να επανυποβάλει.',
+                      'Brand: αποδέχεται τον creator (ή ολοκληρώνεται η πρόταση).',
+                      'UGC: ο creator ανεβάζει draft βίντεο/φωτο στο Παραδοτέο (έως 3 γύροι διόρθωσης). Το brand εγκρίνει ή ζητά αλλαγές.',
+                      'Μετά την έγκριση draft: ο creator δημοσιεύει και επικόλλησε το live link (reel / TikTok / post). Το brand εγκρίνει το link για ολοκλήρωση.',
+                      'Προϊόν: διεύθυνση αποστολής → αποστολή με tracking → επιβεβαίωση παραλαβής.',
                     ]
                   : [
-                      'Brand: sets the application to Shortlisted.',
-                      'Influencer (Dashboard → Campaigns → My applications): submits a deliverable URL + optional note.',
-                      'Brand: approves or requests changes; the influencer can resubmit.',
+                      'Brand: accepts the creator (or the proposal completes).',
+                      'UGC: the creator uploads a draft video/photo in Deliverable (up to 3 revision rounds). The brand approves or requests changes.',
+                      'After draft approval: the creator publishes and pastes the live link. The brand approves the link to complete.',
+                      'Product: shipping address → shipped with tracking → receipt confirmed.',
                     ]
               }
             />
@@ -1177,8 +1179,8 @@ export default function DocsPage() {
               </h4>
               <p className="text-slate-700 text-sm leading-relaxed mb-0">
                 {lang === 'el'
-                  ? 'Επικόλλησε το δημοσιευμένο link (reel / TikTok / post) στο πεδίο «Παραδοτέο» της συνεργασίας ή καμπάνιας. Εκεί το brand εγκρίνει επίσημα την παράδοση — μην βασίζεσαι μόνο σε WeTransfer ή links στο chat. Όταν εγκριθεί, μπορεί να εμφανιστεί στις «Πρόσφατες συνεργασίες».'
-                  : 'Paste the published reel / TikTok / post link in the collaboration or campaign’s Deliverable field. That’s where the brand officially approves delivery — don’t rely only on WeTransfer or chat links. Once approved, it may appear in Recent collaborations.'}
+                  ? 'Για UGC: πρώτα draft στο πεδίο «Παραδοτέο» (όχι WeTransfer μόνο στο chat). Μετά την έγκριση, επικόλλησε το δημοσιευμένο link. Το brand μπορεί να βλέπει promo/UTM/Spark codes και να κατεβάζει το processed MP4. Τα δικαιώματα διαφήμισης (30η/90η/μόνιμα) ισχύουν μόνο αν έχουν συμφωνηθεί ως extras.'
+                  : 'For UGC: upload a draft in Deliverable first (not WeTransfer-only in chat). After approval, paste the published link. The brand may see promo/UTM/Spark codes and download the processed MP4. Ads usage rights (30d/90d/perpetual) apply only when agreed as priced extras.'}
               </p>
             </div>
             <p className="text-slate-700 mb-6 max-w-prose">

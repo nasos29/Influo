@@ -18,6 +18,7 @@ import {
 } from "@/lib/socialPostUrl";
 import { isAutocancelBlockedRow } from "@/lib/deliverableAutocancelEligibility";
 import { revalidatePublicProfileById } from "@/lib/revalidatePublicProfile";
+import { maySubmitPublishedPostLink } from "@/lib/publishedLinkGate";
 type Action = "submit" | "approve" | "request_changes";
 
 /**
@@ -139,6 +140,10 @@ export async function POST(request: NextRequest) {
         url = existingDeliverableUrl;
       }
     } else {
+      const linkGate = await maySubmitPublishedPostLink(admin, "campaign", applicationId);
+      if (!linkGate.ok) {
+        return NextResponse.json({ error: linkGate.code }, { status: 400 });
+      }
       const parsedUrl = await parseSocialPostUrlResolved(body.url);
       if (!parsedUrl.ok) {
         return NextResponse.json(
