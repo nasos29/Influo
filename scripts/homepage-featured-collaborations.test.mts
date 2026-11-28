@@ -3,6 +3,9 @@ import test from "node:test";
 import { featuredCollaborationPlatform } from "../lib/featuredCollaborationPlatform.ts";
 import {
   DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS,
+  HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT,
+  featuredCollaborationSlotsFromConfig,
+  homepageFeaturedCollaborationsConfigFromSlots,
   isCuratedFeaturedCollaborationId,
   parseHomepageFeaturedCollaborationsSetting,
 } from "../lib/homepageFeaturedCollaborations.ts";
@@ -60,4 +63,29 @@ test("parse keeps proposal hero when listed", () => {
     applicationIds: ["proposal:59", DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.applicationIds[0]],
   });
   assert.equal(parsed.heroApplicationId, "proposal:59");
+});
+
+test("featuredCollaborationSlotsFromConfig pads to five from defaults", () => {
+  const partial = parseHomepageFeaturedCollaborationsSetting({
+    heroApplicationId: DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.heroApplicationId,
+    applicationIds: [DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.applicationIds[0]!],
+  });
+  const slots = featuredCollaborationSlotsFromConfig(partial);
+  assert.equal(slots.length, HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT);
+  assert.equal(slots[0], DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.heroApplicationId);
+  assert.deepEqual(slots, DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.applicationIds);
+});
+
+test("homepageFeaturedCollaborationsConfigFromSlots round-trips defaults", () => {
+  const slots = featuredCollaborationSlotsFromConfig(DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS);
+  const config = homepageFeaturedCollaborationsConfigFromSlots(slots);
+  assert.ok(config);
+  assert.equal(config!.heroApplicationId, DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.heroApplicationId);
+  assert.deepEqual(config!.applicationIds, slots);
+});
+
+test("homepageFeaturedCollaborationsConfigFromSlots rejects duplicate slot ids", () => {
+  const ids = DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.applicationIds;
+  const duped = [ids[0], ids[0], ids[1], ids[2], ids[3]] as string[];
+  assert.equal(homepageFeaturedCollaborationsConfigFromSlots(duped), null);
 });

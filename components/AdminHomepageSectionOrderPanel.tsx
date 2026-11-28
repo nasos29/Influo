@@ -11,6 +11,7 @@ import {
   type HomepageSectionDef,
   type HomepageSectionId,
 } from "@/lib/homepageSections";
+import AdminBrandCtaShowcaseEditor from "@/components/AdminBrandCtaShowcaseEditor";
 
 type Lang = "el" | "en";
 
@@ -251,73 +252,78 @@ export default function AdminHomepageSectionOrderPanel({ lang }: { lang: Lang })
             return (
               <li
                 key={id}
-                draggable
-                onDragStart={() => onDragStart(id)}
-                onDragOver={(e) => onDragOver(e, id)}
-                onDragEnd={onDragEnd}
                 className={[
-                  "flex items-stretch gap-1 rounded-md border bg-slate-50/80 transition-colors",
+                  "rounded-md border bg-slate-50/80 transition-colors",
                   dragId === id ? "border-blue-300 bg-blue-50/60 opacity-90" : "border-slate-200",
                   isHidden ? "opacity-60" : "",
                 ].join(" ")}
               >
-                <button
-                  type="button"
-                  className="inline-flex cursor-grab items-center px-2 text-slate-400 active:cursor-grabbing"
-                  aria-label="Drag"
-                  tabIndex={-1}
+                <div
+                  draggable
+                  onDragStart={() => onDragStart(id)}
+                  onDragOver={(e) => onDragOver(e, id)}
+                  onDragEnd={onDragEnd}
+                  className="flex items-stretch gap-1"
                 >
-                  <GripVertical className="h-4 w-4" aria-hidden />
-                </button>
-                <div className="min-w-0 flex-1 py-2 pr-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-medium tabular-nums text-slate-400">
-                      {index + 1}.
-                    </span>
-                    <span className="text-sm font-semibold text-slate-900">{def.title[lang]}</span>
-                    {isHidden ? (
-                      <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-                        {t.hidden}
+                  <button
+                    type="button"
+                    className="inline-flex cursor-grab items-center px-2 text-slate-400 active:cursor-grabbing"
+                    aria-label="Drag"
+                    tabIndex={-1}
+                  >
+                    <GripVertical className="h-4 w-4" aria-hidden />
+                  </button>
+                  <div className="min-w-0 flex-1 py-2 pr-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] font-medium tabular-nums text-slate-400">
+                        {index + 1}.
                       </span>
-                    ) : null}
-                    {def.optional ? (
-                      <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
-                        optional
-                      </span>
-                    ) : null}
+                      <span className="text-sm font-semibold text-slate-900">{def.title[lang]}</span>
+                      {isHidden ? (
+                        <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                          {t.hidden}
+                        </span>
+                      ) : null}
+                      {def.optional ? (
+                        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                          optional
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{def.description[lang]}</p>
                   </div>
-                  <p className="mt-0.5 text-[11px] leading-snug text-slate-500">{def.description[lang]}</p>
+                  <div className="flex items-center gap-1 pr-2">
+                    <button
+                      type="button"
+                      aria-label={isHidden ? t.show : t.hide}
+                      title={isHidden ? t.show : t.hide}
+                      disabled={busy}
+                      onClick={() => toggleHidden(id)}
+                      className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t.moveUp}
+                      disabled={busy || index === 0}
+                      onClick={() => move(id, -1)}
+                      className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-sm font-bold text-slate-800 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={t.moveDown}
+                      disabled={busy || index >= order.length - 1}
+                      onClick={() => move(id, 1)}
+                      className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-sm font-bold text-slate-800 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      ↓
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 pr-2">
-                  <button
-                    type="button"
-                    aria-label={isHidden ? t.show : t.hide}
-                    title={isHidden ? t.show : t.hide}
-                    disabled={busy}
-                    onClick={() => toggleHidden(id)}
-                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-slate-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
-                  >
-                    {isHidden ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t.moveUp}
-                    disabled={busy || index === 0}
-                    onClick={() => move(id, -1)}
-                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-sm font-bold text-slate-800 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t.moveDown}
-                    disabled={busy || index >= order.length - 1}
-                    onClick={() => move(id, 1)}
-                    className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-slate-200 text-sm font-bold text-slate-800 hover:bg-white disabled:cursor-not-allowed disabled:opacity-35"
-                  >
-                    ↓
-                  </button>
-                </div>
+                {id === "brand_cta" ? <AdminBrandCtaShowcaseEditor disabled={busy} /> : null}
               </li>
             );
           })}
