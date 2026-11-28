@@ -8,8 +8,10 @@ import {
   DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS,
   isFeaturedCollaborationUuid,
   parseFeaturedCollaborationProposalId,
+  parseFeaturedCollaborationUploadId,
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
+import { homepageShowcaseUploadSourceVideoId } from "@/lib/homepageShowcaseUpload";
 import { publicProfilePath } from "@/lib/profileSlug";
 import { featuredCollaborationViewsTotal } from "@/lib/homepageFeaturedCollaborationViews";
 import { DEFAULT_HOMEPAGE_BRAND_CTA_DECORATIVE_PHOTO } from "@/lib/homepageBrandCtaDecorativePhoto";
@@ -110,18 +112,25 @@ function campaignBrandFromRow(row: AppRow): {
 function splitCuratedIds(ids: string[]): {
   uuidIds: string[];
   proposalKeys: { curatedId: string; proposalId: number }[];
+  uploadKeys: { curatedId: string; uploadId: string }[];
 } {
   const uuidIds: string[] = [];
   const proposalKeys: { curatedId: string; proposalId: number }[] = [];
+  const uploadKeys: { curatedId: string; uploadId: string }[] = [];
   for (const id of ids) {
     if (isFeaturedCollaborationUuid(id)) {
       uuidIds.push(id);
-    } else {
-      const proposalId = parseFeaturedCollaborationProposalId(id);
-      if (proposalId !== null) proposalKeys.push({ curatedId: id, proposalId });
+      continue;
     }
+    const uploadId = parseFeaturedCollaborationUploadId(id);
+    if (uploadId !== null) {
+      uploadKeys.push({ curatedId: String(id).trim(), uploadId });
+      continue;
+    }
+    const proposalId = parseFeaturedCollaborationProposalId(id);
+    if (proposalId !== null) proposalKeys.push({ curatedId: id, proposalId });
   }
-  return { uuidIds, proposalKeys };
+  return { uuidIds, proposalKeys, uploadKeys };
 }
 
 function publicViewsForCuratedId(
@@ -139,7 +148,7 @@ export async function loadFeaturedCollaborations(
   const applicationIds = [...new Set(setting.applicationIds)].filter(Boolean);
   if (applicationIds.length === 0) return null;
 
-  const { uuidIds, proposalKeys } = splitCuratedIds(applicationIds);
+  const { uuidIds, proposalKeys, uploadKeys } = splitCuratedIds(applicationIds);
 
   const admin = supabaseService();
   const APP_COLS =
@@ -194,9 +203,37 @@ export async function loadFeaturedCollaborations(
     }
   }
 
+  const uploadMediaBySourceVideoId = new Map<string, ReturnType<typeof mediaFromRow>>();
+  if (uploadKeys.length > 0) {
+    const sourceVideoIds = uploadKeys.map((u) => homepageShowcaseUploadSourceVideoId(u.uploadId));
+    try {
+      const { data, error } = await admin
+        .from("creator_media")
+        .select(
+          "influencer_id, source_url, kind, folder_path, play_path, av1_path, hevc_path, poster_path, duration_ms, width, height, status, source_video_id"
+        )
+        .in("source_video_id", sourceVideoIds)
+        .eq("status", "ready");
+      if (error) {
+        console.error("loadFeaturedCollaborations showcase uploads", error);
+      } else if (Array.isArray(data)) {
+        for (const row of data as (MediaRow & { source_video_id?: string | null })[]) {
+          const key =
+            typeof row.source_video_id === "string" ? row.source_video_id.trim().toLowerCase() : "";
+          if (!key || uploadMediaBySourceVideoId.has(key)) continue;
+          const hosted = mediaFromRow(row);
+          if (hosted) uploadMediaBySourceVideoId.set(key, hosted);
+        }
+      }
+    } catch (error) {
+      console.error("loadFeaturedCollaborations showcase uploads", error);
+    }
+  }
+
   type OrderedEntry =
     | { kind: "app"; curatedId: string; app: AppRow; sourceUrl: string }
-    | { kind: "proposal"; curatedId: string; proposal: ProposalRow; sourceUrl: string };
+    | { kind: "proposal"; curatedId: string; proposal: ProposalRow; sourceUrl: string }
+    | { kind: "upload"; curatedId: string; uploadId: string; sourceUrl: string; hosted: HostedMedia };
 
   const orderedEntries: OrderedEntry[] = [];
   for (const curatedId of applicationIds) {
@@ -207,27 +244,40 @@ export async function loadFeaturedCollaborations(
         typeof app.deliverable_url === "string" ? app.deliverable_url.trim() : "";
       if (!deliverable) continue;
       orderedEntries.push({ kind: "app", curatedId, app, sourceUrl: deliverable });
-    } else {
-      const proposalId = parseFeaturedCollaborationProposalId(curatedId);
-      if (proposalId === null) continue;
-      const proposal = proposalById.get(proposalId);
-      if (!proposal) continue;
-      const published =
-        typeof proposal.published_post_url === "string"
-          ? proposal.published_post_url.trim()
-          : "";
-      if (!published) continue;
-      orderedEntries.push({ kind: "proposal", curatedId, proposal, sourceUrl: published });
+      continue;
     }
+    const uploadId = parseFeaturedCollaborationUploadId(curatedId);
+    if (uploadId !== null) {
+      const hosted = uploadMediaBySourceVideoId.get(homepageShowcaseUploadSourceVideoId(uploadId));
+      if (!hosted?.playUrl) continue;
+      orderedEntries.push({
+        kind: "upload",
+        curatedId: String(curatedId).trim(),
+        uploadId,
+        sourceUrl: hosted.sourceUrl,
+        hosted,
+      });
+      continue;
+    }
+    const proposalId = parseFeaturedCollaborationProposalId(curatedId);
+    if (proposalId === null) continue;
+    const proposal = proposalById.get(proposalId);
+    if (!proposal) continue;
+    const published =
+      typeof proposal.published_post_url === "string" ? proposal.published_post_url.trim() : "";
+    if (!published) continue;
+    orderedEntries.push({ kind: "proposal", curatedId, proposal, sourceUrl: published });
   }
 
   if (orderedEntries.length === 0) return null;
 
   const influencerIds = [
     ...new Set(
-      orderedEntries.map((e) =>
-        e.kind === "app" ? e.app.influencer_id : e.proposal.influencer_id
-      )
+      orderedEntries.map((e) => {
+        if (e.kind === "app") return e.app.influencer_id;
+        if (e.kind === "proposal") return e.proposal.influencer_id;
+        return null;
+      })
     ),
   ].filter(Boolean);
 
@@ -287,7 +337,43 @@ export async function loadFeaturedCollaborations(
   const storedViewItems = viewsSetting?.items;
 
   const cards: FeaturedCollaborationCard[] = [];
+  let uploadBrandName = "Brand";
+  let uploadBrandLogoUrl: string | null = null;
+  if (uploadKeys.length > 0 && setting.brandId) {
+    try {
+      const { data } = await admin
+        .from("brands")
+        .select("brand_name, logo_url")
+        .eq("id", setting.brandId)
+        .maybeSingle();
+      if (typeof data?.brand_name === "string" && data.brand_name.trim()) {
+        uploadBrandName = data.brand_name.trim();
+      }
+      if (typeof data?.logo_url === "string" && data.logo_url.trim()) {
+        uploadBrandLogoUrl = data.logo_url.trim();
+      }
+    } catch {
+      /* optional */
+    }
+  }
+
   for (const entry of orderedEntries) {
+    if (entry.kind === "upload") {
+      cards.push({
+        applicationId: entry.curatedId,
+        influencerName: uploadBrandName,
+        influencerProfileHref: "/collaborations",
+        influencerAvatarUrl: uploadBrandLogoUrl,
+        playUrl: entry.hosted.playUrl,
+        posterUrl: entry.hosted.posterUrl,
+        sourcePostUrl: entry.sourceUrl,
+        hostedMedia: entry.hosted,
+        platform: null,
+        publicViews: publicViewsForCuratedId(entry.curatedId, storedViewItems),
+      });
+      continue;
+    }
+
     const influencerId =
       entry.kind === "app" ? entry.app.influencer_id : entry.proposal.influencer_id;
     const norm = normalizeSourceUrl(entry.sourceUrl);

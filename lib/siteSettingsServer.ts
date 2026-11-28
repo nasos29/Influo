@@ -197,7 +197,7 @@ export async function updateHomepageFeaturedCollaborationsSetting(
   if (!config) {
     return {
       ok: false,
-      error: "Απαιτούνται 5 μοναδικά έγκυρα ids (UUID ή proposal:N).",
+      error: "Απαιτούνται 5 μοναδικά έγκυρα ids (UUID, proposal:N ή upload:UUID).",
       status: 400,
     };
   }

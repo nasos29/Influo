@@ -23,12 +23,13 @@ export type UploadRow = {
   status: string;
   error: string | null;
   portfolio_url: string | null;
+  purpose: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export const UPLOAD_COLUMNS =
-  "id, influencer_id, media_type, mime_type, file_name, total_bytes, chunk_bytes, received_bytes, status, error, portfolio_url, created_at, updated_at";
+  "id, influencer_id, media_type, mime_type, file_name, total_bytes, chunk_bytes, received_bytes, status, error, portfolio_url, purpose, created_at, updated_at";
 
 /** Public shape for the client (no internal paths). */
 export function uploadJson(row: UploadRow) {

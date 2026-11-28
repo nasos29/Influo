@@ -11,7 +11,7 @@ import {
   type HomepageSectionDef,
   type HomepageSectionId,
 } from "@/lib/homepageSections";
-import AdminBrandCtaShowcaseEditor from "@/components/AdminBrandCtaShowcaseEditor";
+import AdminFeaturedCollaborationsShowcaseEditor from "@/components/AdminFeaturedCollaborationsShowcaseEditor";
 
 type Lang = "el" | "en";
 
@@ -323,7 +323,9 @@ export default function AdminHomepageSectionOrderPanel({ lang }: { lang: Lang })
                     </button>
                   </div>
                 </div>
-                {id === "brand_cta" ? <AdminBrandCtaShowcaseEditor disabled={busy} /> : null}
+                {id === "featured_collaborations" ? (
+                  <AdminFeaturedCollaborationsShowcaseEditor disabled={busy} />
+                ) : null}
               </li>
             );
           })}
