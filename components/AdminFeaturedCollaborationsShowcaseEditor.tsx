@@ -13,9 +13,18 @@ import {
   HOMEPAGE_FEATURED_COLLABORATIONS_KEY,
   featuredCollaborationSlotsFromConfig,
   homepageFeaturedCollaborationsConfigFromSlots,
+  isCuratedFeaturedCollaborationId,
+  parseFeaturedCollaborationUploadId,
   type HomepageFeaturedCollaborationsConfig,
 } from "@/lib/homepageFeaturedCollaborations";
 import type { FeaturedCollaborationCandidate } from "@/lib/loadFeaturedCollaborationCandidates";
+import {
+  HOMEPAGE_SHOWCASE_UPLOAD_LIMIT_EL,
+} from "@/lib/homepageShowcaseUpload";
+import {
+  useHomepageShowcaseSlotVideoUpload,
+  type SlotVideoUploadState,
+} from "@/lib/useHomepageShowcaseSlotVideoUpload";
 
 async function adminAuthHeaders(): Promise<Record<string, string>> {
   const { data } = await supabase.auth.getSession();
@@ -53,6 +62,9 @@ export default function AdminFeaturedCollaborationsShowcaseEditor({ disabled = f
 
   const [candidates, setCandidates] = useState<FeaturedCollaborationCandidate[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const videoFileRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [slotUploads, setSlotUploads] = useState<Record<number, SlotVideoUploadState>>({});
+  const { uploadFile: uploadSlotVideo, cancel: cancelSlotVideo } = useHomepageShowcaseSlotVideoUpload();
 
   const candidateById = useMemo(() => {
     const map = new Map<string, FeaturedCollaborationCandidate>();
@@ -121,9 +133,44 @@ export default function AdminFeaturedCollaborationsShowcaseEditor({ disabled = f
   }, [justSavedPhoto]);
 
   function optionLabel(curatedId: string): string {
+    if (parseFeaturedCollaborationUploadId(curatedId)) {
+      const id = parseFeaturedCollaborationUploadId(curatedId);
+      return id ? `Ανεβασμένο βίντεο (${id.slice(0, 8)}…)` : "Ανεβασμένο βίντεο";
+    }
     const c = candidateById.get(curatedId);
     if (c) return c.label;
     return curatedId;
+  }
+
+  function defaultSlotId(index: number): string {
+    return DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.applicationIds[index] ?? savedSlots[index] ?? "";
+  }
+
+  async function onSlotVideoFile(index: number, file: File | null) {
+    if (!file || disabled || busy) return;
+    setBusy(true);
+    setError(null);
+    cancelSlotVideo();
+    setSlotUploads((prev) => ({
+      ...prev,
+      [index]: { phase: "checking", percent: 0 },
+    }));
+    const result = await uploadSlotVideo(file, (state) => {
+      setSlotUploads((prev) => ({ ...prev, [index]: state }));
+    });
+    if (result.ok) {
+      setSlot(index, result.curatedId);
+    } else if (result.message !== "Ακυρώθηκε.") {
+      setError(result.message);
+    }
+    setBusy(false);
+    const input = videoFileRefs.current[index];
+    if (input) input.value = "";
+  }
+
+  function revertSlotFromUpload(index: number) {
+    const nextId = defaultSlotId(index);
+    if (isCuratedFeaturedCollaborationId(nextId)) setSlot(index, nextId);
   }
 
   function setSlot(index: number, value: string) {
@@ -344,32 +391,93 @@ export default function AdminFeaturedCollaborationsShowcaseEditor({ disabled = f
             </>
           }
         >
-          <p className="mb-2 text-[10px] leading-snug text-slate-500">
+          <p className="mb-1 text-[10px] leading-snug text-slate-500">
             Προτεινόμενη αναλογία βίντεο: κατακόρυφο 9:16
           </p>
-          <ul className="space-y-2">
-            {slots.map((curatedId, index) => (
-              <li key={index} className="flex flex-wrap items-center gap-2">
-                <span className="w-36 shrink-0 text-[10px] font-medium text-slate-600">
-                  {SLOT_LABELS[index]}
-                </span>
-                <select
-                  value={curatedId}
-                  disabled={disabled || busy}
-                  onChange={(e) => setSlot(index, e.target.value)}
-                  className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-900 disabled:opacity-50"
-                >
-                  {curatedId && !candidateById.has(curatedId) ? (
-                    <option value={curatedId}>{optionLabel(curatedId)}</option>
+          <p className="mb-2 text-[10px] leading-snug text-slate-500">{HOMEPAGE_SHOWCASE_UPLOAD_LIMIT_EL}</p>
+          <ul className="space-y-3">
+            {slots.map((curatedId, index) => {
+              const upload = slotUploads[index];
+              const isUploadSlot = parseFeaturedCollaborationUploadId(curatedId) !== null;
+              const uploading =
+                upload &&
+                (upload.phase === "checking" || upload.phase === "sending" || upload.phase === "processing");
+              return (
+                <li key={index} className="rounded-md border border-slate-200 bg-white p-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="w-32 shrink-0 text-[10px] font-medium text-slate-600">
+                      {SLOT_LABELS[index]}
+                    </span>
+                    <select
+                      value={curatedId}
+                      disabled={disabled || busy}
+                      onChange={(e) => setSlot(index, e.target.value)}
+                      className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-900 disabled:opacity-50"
+                    >
+                      {curatedId && !candidateById.has(curatedId) ? (
+                        <option value={curatedId}>{optionLabel(curatedId)}</option>
+                      ) : null}
+                      {candidates.map((c) => (
+                        <option key={c.curatedId} value={c.curatedId}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      ref={(el) => {
+                        videoFileRefs.current[index] = el;
+                      }}
+                      type="file"
+                      accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov"
+                      className="sr-only"
+                      onChange={(e) => void onSlotVideoFile(index, e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      disabled={disabled || busy || !!uploading}
+                      onClick={() => videoFileRefs.current[index]?.click()}
+                      className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-slate-200 px-2 text-[10px] font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      <Upload className="h-3 w-3" aria-hidden />
+                      Ανέβασμα βίντεο
+                    </button>
+                    {isUploadSlot ? (
+                      <button
+                        type="button"
+                        disabled={disabled || busy || !!uploading}
+                        onClick={() => revertSlotFromUpload(index)}
+                        className="inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 text-[10px] font-medium text-amber-900 hover:bg-amber-100 disabled:opacity-40"
+                        title="Επαναφορά στην προεπιλεγμένη συνεργασία"
+                      >
+                        <RotateCcw className="h-3 w-3" aria-hidden />
+                        Συνεργασία
+                      </button>
+                    ) : null}
+                  </div>
+                  {upload && upload.phase !== "idle" ? (
+                    <div className="mt-2 space-y-1">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full bg-slate-800 transition-[width]"
+                          style={{ width: `${Math.min(100, upload.percent)}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-600">
+                        {upload.phase === "checking"
+                          ? "Έλεγχος αρχείου…"
+                          : upload.phase === "sending"
+                            ? `Μεταφόρτωση ${upload.percent}%`
+                            : upload.phase === "processing"
+                              ? "Επεξεργασία βίντεο στον server…"
+                              : upload.phase === "ready"
+                                ? "Έτοιμο — πάτα «Αποθήκευση βίντεο» για δημοσίευση."
+                                : upload.message || "Αποτυχία ανεβάσματος."}
+                      </p>
+                    </div>
                   ) : null}
-                  {candidates.map((c) => (
-                    <option key={c.curatedId} value={c.curatedId}>
-                      {c.label}
-                    </option>
-                  ))}
-                </select>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </ShowcaseSubsection>
       </div>

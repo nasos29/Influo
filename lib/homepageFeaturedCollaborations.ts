@@ -1,6 +1,11 @@
+import {
+  isFeaturedCollaborationUploadCuratedId,
+  parseFeaturedCollaborationUploadId,
+} from "@/lib/homepageShowcaseUpload";
+
 /**
  * site_settings key `homepage_featured_collaborations` — curated Athos-style showcase
- * (campaign_application UUIDs or `proposal:<id>`; playback URLs come from creator_media at load time).
+ * (campaign_application UUIDs, `proposal:<id>`, or `upload:<upload uuid>`; playback URLs come from creator_media at load time).
  */
 
 export const HOMEPAGE_FEATURED_COLLABORATIONS_KEY = "homepage_featured_collaborations" as const;
@@ -40,13 +45,16 @@ export function parseFeaturedCollaborationProposalId(curatedId: string): number 
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** Campaign application UUID or `proposal:<positive int>`. */
+/** Campaign application UUID, `proposal:<positive int>`, or `upload:<upload uuid>`. */
 export function isCuratedFeaturedCollaborationId(value: unknown): value is string {
   if (typeof value !== "string" || !value.trim()) return false;
   const trimmed = value.trim();
   if (isFeaturedCollaborationUuid(trimmed)) return true;
+  if (isFeaturedCollaborationUploadCuratedId(trimmed)) return true;
   return parseFeaturedCollaborationProposalId(trimmed) !== null;
 }
+
+export { parseFeaturedCollaborationUploadId } from "@/lib/homepageShowcaseUpload";
 
 /** Parse DB/json; missing or invalid fields fall back to Athos defaults. */
 export const HOMEPAGE_FEATURED_COLLABORATION_SLOT_COUNT = 5;

@@ -7,8 +7,13 @@ import {
   featuredCollaborationSlotsFromConfig,
   homepageFeaturedCollaborationsConfigFromSlots,
   isCuratedFeaturedCollaborationId,
+  parseFeaturedCollaborationUploadId,
   parseHomepageFeaturedCollaborationsSetting,
 } from "../lib/homepageFeaturedCollaborations.ts";
+import {
+  featuredCollaborationUploadCuratedId,
+  homepageShowcaseUploadSourceVideoId,
+} from "../lib/homepageShowcaseUpload.ts";
 
 test("default featured collaborations uses Athos brand and five curated ids including proposal:59", () => {
   assert.equal(DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS.brandId, "4d7f24f5-fa4d-4601-bc6a-6a7da8331d49");
@@ -26,6 +31,24 @@ test("isCuratedFeaturedCollaborationId accepts UUID and proposal:N", () => {
   assert.ok(!isCuratedFeaturedCollaborationId("proposal:0"));
   assert.ok(!isCuratedFeaturedCollaborationId("proposal:abc"));
   assert.ok(!isCuratedFeaturedCollaborationId("ghost"));
+});
+
+test("upload slot ids round-trip and map to creator_media source_video_id", () => {
+  const uploadId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+  const curated = featuredCollaborationUploadCuratedId(uploadId);
+  assert.ok(isCuratedFeaturedCollaborationId(curated));
+  assert.equal(parseFeaturedCollaborationUploadId(curated), uploadId);
+  assert.equal(homepageShowcaseUploadSourceVideoId(uploadId), "upload-a1b2c3d4-e5f6-7890-abcd-ef1234567890");
+  assert.ok(!isCuratedFeaturedCollaborationId("upload:not-a-uuid"));
+});
+
+test("config from slots accepts one upload id among collaborations", () => {
+  const base = featuredCollaborationSlotsFromConfig(DEFAULT_HOMEPAGE_FEATURED_COLLABORATIONS);
+  const upload = featuredCollaborationUploadCuratedId("f0e0d0c0-b0a0-9876-5432-10abcdef1234");
+  const slots = [upload, base[1]!, base[2]!, base[3]!, base[4]!];
+  const config = homepageFeaturedCollaborationsConfigFromSlots(slots);
+  assert.ok(config);
+  assert.equal(config!.heroApplicationId, upload);
 });
 
 test("featuredCollaborationPlatform detects IG and TikTok from deliverable or source", () => {

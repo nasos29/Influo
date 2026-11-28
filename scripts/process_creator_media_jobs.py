@@ -320,12 +320,19 @@ def process_upload(sb: Any, store: Any, row: dict[str, Any], work_root: Path) ->
             if not public_url:
                 raise RuntimeError("media public URL is not configured")
 
-        result = append_to_portfolio(sb, influencer_id, public_url)
-        if result == "full":
-            raise RuntimeError("portfolio is full (6 items)")
-        if result == "missing":
-            raise RuntimeError("creator not found")
-        patch_upload(sb, upload_id, {"status": "ready", "error": None, "folder_path": folder, "portfolio_url": public_url})
+        if row.get("purpose") == "homepage_showcase":
+            patch_upload(
+                sb,
+                upload_id,
+                {"status": "ready", "error": None, "folder_path": folder, "portfolio_url": public_url},
+            )
+        else:
+            result = append_to_portfolio(sb, influencer_id, public_url)
+            if result == "full":
+                raise RuntimeError("portfolio is full (6 items)")
+            if result == "missing":
+                raise RuntimeError("creator not found")
+            patch_upload(sb, upload_id, {"status": "ready", "error": None, "folder_path": folder, "portfolio_url": public_url})
         staging_remove(sb, paths)
         shutil.rmtree(local_upload_dir(influencer_id, upload_id), ignore_errors=True)
         log(f"  ready -> {result}")
